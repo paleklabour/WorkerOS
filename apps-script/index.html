@@ -1,0 +1,1702 @@
+﻿<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="เธฃเธฐเธเธเธเธฃเธดเธซเธฒเธฃเธเธฑเธ”เธเธฒเธฃเธเนเธญเธกเธนเธฅเธเธเธเธฒเธเธ•เนเธฒเธเธ”เนเธฒเธงเนเธฅเธฐเธฅเธนเธเธเนเธฒเธเธนเนเธงเนเธฒเธเนเธฒเธ เธเธฃเนเธญเธกเธฃเธฐเธเธเนเธเนเธเน€เธ•เธทเธญเธเน€เธญเธเธชเธฒเธฃเธซเธกเธ”เธญเธฒเธขเธธ">
+    <title>เธฃเธฐเธเธเธเธฃเธดเธซเธฒเธฃเธเธฑเธ”เธเธฒเธฃเธเธเธเธฒเธเธ•เนเธฒเธเธ”เนเธฒเธง (Migrant Worker Management System)</title>
+    <!-- Google Fonts: Inter & Prompt (Thai) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <?!= include("styles"); ?>
+    <!-- PDF.js CDN for real client-side PDF text extraction -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+</head>
+<body>
+    <div id="app">
+        <!-- ==================== LOGIN VIEW ==================== -->
+        <section id="login-view" class="view active">
+            <div class="login-container">
+                <div class="login-card">
+                    <div class="login-header">
+                        <div class="logo-gold">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                        </div>
+                        <h2>เน€เธเนเธฒเธชเธนเนเธฃเธฐเธเธ</h2>
+                        <p class="subtitle">เธฃเธฐเธเธเธเธฑเธ”เธเธฒเธฃเธเธเธเธฒเธเธ•เนเธฒเธเธ”เนเธฒเธงเนเธฅเธฐเธฅเธนเธเธเนเธฒเธเธนเนเธงเนเธฒเธเนเธฒเธ</p>
+                    </div>
+                    
+                    <form id="login-form">
+                        <div class="form-group">
+                            <label for="login-username">เธเธทเนเธญเธเธนเนเนเธเนเธเธฒเธ (เธญเธตเน€เธกเธฅ)</label>
+                            <input type="email" id="login-username" placeholder="example@email.com" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="login-password">เธฃเธซเธฑเธชเธเนเธฒเธ</label>
+                            <input type="password" id="login-password" placeholder="โ€ขโ€ขโ€ขโ€ขโ€ขโ€ขโ€ขโ€ข" required>
+                        </div>
+                        
+                        <div class="error-msg" id="login-error">เธญเธตเน€เธกเธฅเธซเธฃเธทเธญเธฃเธซเธฑเธชเธเนเธฒเธเนเธกเนเธ–เธนเธเธ•เนเธญเธ</div>
+                        
+                        <button type="submit" id="btn-login" class="btn btn-gold btn-block">
+                            <span>เน€เธเนเธฒเธชเธนเนเธฃเธฐเธเธ</span>
+                        </button>
+                    </form>
+
+                    <div class="demo-accounts">
+                        <h4>เธเธฑเธเธเธตเธเธนเนเนเธเนเธ—เธ”เธชเธญเธเธชเธณเธซเธฃเธฑเธเธเธฒเธฃเธ—เธ”เธชเธญเธเธชเธดเธ—เธเธดเน (เธเธฅเธดเธเน€เธเธทเนเธญเน€เธฅเธทเธญเธเน€เธเนเธฒเธชเธนเนเธฃเธฐเธเธ)</h4>
+                        <div class="demo-grid">
+                            <button type="button" class="demo-badge admin" onclick="fillDemoLogin('admin@system.com', 'admin123')">
+                                <strong>Admin</strong><span>เน€เธ•เนเธกเธฃเธนเธเนเธเธ (เน€เธเธดเนเธก/เนเธเนเนเธ/เธฅเธ)</span>
+                            </button>
+                            <button type="button" class="demo-badge manager" onclick="fillDemoLogin('manager@system.com', 'manager123')">
+                                <strong>Manager</strong><span>เน€เธเธตเธขเธ/เนเธเนเนเธ (เธฅเธเนเธกเนเนเธ”เน)</span>
+                            </button>
+                            <button type="button" class="demo-badge staff" onclick="fillDemoLogin('staff@system.com', 'staff123')">
+                                <strong>Staff</strong><span>เธ”เธนเธเนเธญเธกเธนเธฅเธญเธขเนเธฒเธเน€เธ”เธตเธขเธง</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== MAIN APPLICATION LAYOUT ==================== -->
+        <div id="main-layout" class="layout hidden">
+            <!-- Sidebar Navigation -->
+            <aside class="sidebar">
+                <div class="sidebar-brand">
+                    <div class="brand-logo">AG</div>
+                    <div class="brand-text">
+                        <h3>Antigravity</h3>
+                        <span>Worker System</span>
+                    </div>
+                </div>
+
+                <div class="sidebar-user">
+                    <div class="user-avatar" id="user-avatar-initial">A</div>
+                    <div class="user-info">
+                        <h4 id="user-display-name">Admin User</h4>
+                        <span class="badge badge-gold" id="user-role-display">Administrator</span>
+                    </div>
+                </div>
+
+                <nav class="sidebar-menu">
+                    <a href="#" class="menu-item active" id="menu-dashboard" onclick="switchView('dashboard')">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="20">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2v-4zM14 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2v-4z" />
+                        </svg>
+                        <span>เธซเธเนเธฒเนเธ”เธเธเธญเธฃเนเธ”</span>
+                        <span class="menu-badge" id="nav-alert-badge" style="display: none;">0</span>
+                    </a>
+                    <a href="#" class="menu-item" id="menu-customers" onclick="switchView('customers')">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="20">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                        </svg>
+                        <span>เธเนเธญเธกเธนเธฅเธเธฒเธขเธเนเธฒเธ/เธฅเธนเธเธเนเธฒ</span>
+                    </a>
+                    <a href="#" class="menu-item" id="menu-workers" onclick="switchView('workers')">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="20">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                        <span>เธเนเธญเธกเธนเธฅเธเธเธเธฒเธเธ•เนเธฒเธเธ”เนเธฒเธง</span>
+                    </a>
+                    <a href="#" class="menu-item" id="menu-jobs" onclick="switchView('jobs')">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="20">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                        </svg>
+                        <span>เธฃเธฐเธเธเนเธเนเธเธเธฒเธ / เนเธเธชเธฑเนเธเธเธฒเธ</span>
+                    </a>
+                    <a href="#" class="menu-item" id="menu-banks" onclick="switchView('banks')">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="20">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                        </svg>
+                        <span>เธเธฑเธ”เธเธฒเธฃเธเธฑเธเธเธตเธเธเธฒเธเธฒเธฃ</span>
+                    </a>
+                    <a href="#" class="menu-item" id="menu-backup" onclick="switchView('backup')">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="20">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                        </svg>
+                        <span>๐’พ เธชเธณเธฃเธญเธเนเธฅเธฐเธเธนเนเธเธทเธเธเนเธญเธกเธนเธฅ</span>
+                    </a>
+                </nav>
+
+                <div class="sidebar-footer">
+                    <button class="btn btn-outline btn-block btn-logout" id="btn-logout" onclick="logout()">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                        </svg>
+                        <span>เธญเธญเธเธเธฒเธเธฃเธฐเธเธ</span>
+                    </button>
+                </div>
+            </aside>
+
+            <!-- Main Panel -->
+            <main class="main-panel">
+                <!-- Top Header Bar -->
+                <header class="top-bar">
+                    <div class="page-title">
+                        <h2 id="topbar-title">เนเธ”เธเธเธญเธฃเนเธ”เธฃเธฐเธเธ</h2>
+                    </div>
+                    <div class="top-bar-actions">
+                        <div class="notification-bell" onclick="switchView('dashboard')">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                            </svg>
+                            <span class="bell-badge" id="bell-alert-badge" style="display: none;">0</span>
+                        </div>
+                        <div class="current-date" id="header-date">10 เธเธฃเธเธเธฒเธเธก 2026</div>
+                    </div>
+                </header>
+
+                <!-- Content Area -->
+                <div class="content-body">
+                    <!-- ==================== DASHBOARD VIEW ==================== -->
+                    <div id="view-dashboard" class="content-section active">
+                        <!-- Dashboard Tabs -->
+                        <div class="dashboard-tabs" style="display: flex; gap: 15px; margin-bottom: 25px; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px;">
+                            <button class="btn btn-gold" id="btn-tab-overview" onclick="switchDashboardTab('overview')" style="padding: 8px 18px; border-radius: var(--radius-sm); font-weight: 600;">
+                                ๐  เธ เธฒเธเธฃเธงเธกเนเธฅเธฐเธเธฒเธฃเนเธเนเธเน€เธ•เธทเธญเธเธฃเธฒเธขเธเธฒเธขเธเนเธฒเธ
+                            </button>
+                            <button class="btn btn-outline" id="btn-tab-monthly" onclick="switchDashboardTab('monthly')" style="padding: 8px 18px; border-radius: var(--radius-sm); font-weight: 600;">
+                                ๐“ เธชเธ–เธดเธ•เธดเธเธฒเธฃเน€เธเธดเนเธกเธเธฒเธขเธเนเธฒเธ/เธฅเธนเธเธเนเธฒเธเธฃเธฒเธขเน€เธ”เธทเธญเธ
+                            </button>
+                            <button class="btn btn-outline" id="btn-tab-finance" onclick="switchDashboardTab('finance')" style="padding: 8px 18px; border-radius: var(--radius-sm); font-weight: 600;">
+                                ๐’ฐ เธชเธฃเธธเธเธเธฒเธฃเน€เธเธดเธเนเธฅเธฐเธเธฑเธเธเธตเธฃเธฒเธขเธฃเธฑเธ
+                            </button>
+                        </div>
+
+                        <!-- TAB 1: OVERVIEW AND ALERTS (GROUPED BY EMPLOYER) -->
+                        <div id="db-tab-overview" class="db-tab-content">
+                            <!-- Stats Grid -->
+                            <div class="stats-grid">
+                                <div class="stats-card">
+                                    <div class="stats-icon text-gold">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                        </svg>
+                                    </div>
+                                    <div class="stats-info">
+                                        <h3 id="stat-total-customers">0</h3>
+                                        <p>เธเธณเธเธงเธเธเธฒเธขเธเนเธฒเธ/เธฅเธนเธเธเนเธฒเธ—เธฑเนเธเธซเธกเธ”</p>
+                                    </div>
+                                </div>
+                                <div class="stats-card">
+                                    <div class="stats-icon text-gold">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                                        </svg>
+                                    </div>
+                                    <div class="stats-info">
+                                        <h3 id="stat-total-workers">0</h3>
+                                        <p>เธเธณเธเธงเธเธเธเธเธฒเธเธ•เนเธฒเธเธ”เนเธฒเธงเธ—เธฑเนเธเธซเธกเธ”</p>
+                                    </div>
+                                </div>
+                                <div class="stats-card alert-card">
+                                    <div class="stats-icon text-danger">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                        </svg>
+                                    </div>
+                                    <div class="stats-info">
+                                        <h3 id="stat-expiry-warnings">0</h3>
+                                        <p>เน€เธญเธเธชเธฒเธฃเนเธเธฅเนเธซเธกเธ”เธญเธฒเธขเธธ/เธซเธกเธ”เธญเธฒเธขเธธเนเธฅเนเธง</p>
+                                    </div>
+                                </div>
+                                <div class="stats-card alert-card" style="border-left: 4px solid #f97316;">
+                                    <div class="stats-icon" style="color: #f97316;">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                    </div>
+                                    <div class="stats-info">
+                                        <h3 id="stat-missing-docs">0</h3>
+                                        <p>เธเธเธเธฒเธเธ—เธตเนเธขเธฑเธเนเธกเนเนเธ”เนเนเธเธเน€เธญเธเธชเธฒเธฃ</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Charts and Proportions -->
+                            <div class="dashboard-grid">
+                                <!-- Left: Expiration Notifications Grouped by Employer (Critical) -->
+                                <div class="dashboard-panel panel-alerts" style="flex: 1.8;">
+                                    <div class="panel-header">
+                                        <h3>โ ๏ธ เนเธเนเธเน€เธ•เธทเธญเธเธงเธฑเธเธซเธกเธ”เธญเธฒเธขเธธเน€เธญเธเธชเธฒเธฃเนเธขเธเธฃเธฒเธขเธเธฒเธขเธเนเธฒเธ (Passport < 180 เธงเธฑเธ / WP < 60 เธงเธฑเธ)</h3>
+                                        <span class="badge badge-danger" id="alert-employer-count-badge">0 เธเธฃเธดเธฉเธฑเธ—</span>
+                                    </div>
+                                    <div class="panel-content" style="padding: 0; overflow-x: auto;">
+                                        <table class="data-table" style="box-shadow: none; border: none; border-radius: 0;">
+                                            <thead>
+                                                <tr>
+                                                    <th>เธเธทเนเธญเธเธฃเธดเธฉเธฑเธ— / เธเธฒเธขเธเนเธฒเธ</th>
+                                                    <th>เนเธเธฅเนเธซเธกเธ”เธญเธฒเธขเธธ (โ ๏ธ)</th>
+                                                    <th>เธซเธกเธ”เธญเธฒเธขเธธเนเธฅเนเธง (โ)</th>
+                                                    <th style="text-align: center; width: 140px;">เธเธฑเธ”เธเธฒเธฃ</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="dashboard-employer-alerts-tbody">
+                                                <!-- Dynamic list grouped by employer -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                <!-- Right: Statistics Charts -->
+                                <div class="dashboard-panel panel-charts" style="flex: 1.2;">
+                                    <div class="panel-header">
+                                        <h3>เธชเธฑเธ”เธชเนเธงเธเธชเธฑเธเธเธฒเธ•เธดเธเธเธเธฒเธเธ•เนเธฒเธเธ”เนเธฒเธง</h3>
+                                    </div>
+                                    <div class="panel-content">
+                                        <div class="nationality-chart-container">
+                                            <div class="chart-bars" id="nationality-bars">
+                                                <!-- Dynamic chart list -->
+                                            </div>
+                                        </div>
+                                        <hr>
+                                        <div class="panel-header" style="padding: 10px 0 0 0">
+                                            <h3>เธเธทเนเธเธ—เธตเนเธเธฑเธเธซเธงเธฑเธ”เธเธญเธเธเธฅเธธเนเธกเธฅเธนเธเธเนเธฒ</h3>
+                                        </div>
+                                        <div class="customer-locations-list" id="customer-locations">
+                                            <!-- Dynamic locations list -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Second Row: Workers with Missing Documents -->
+                            <div class="dashboard-grid" style="margin-top: 25px;">
+                                <div class="dashboard-panel" style="flex: 1;">
+                                    <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center;">
+                                        <h3>โ ๏ธ เธฃเธฒเธขเธเธทเนเธญเธเธเธเธฒเธเธ•เนเธฒเธเธ”เนเธฒเธงเธ—เธตเนเธขเธฑเธเนเธกเนเนเธ”เนเนเธเธเน€เธญเธเธชเธฒเธฃ (เธเนเธญเธเธเธฑเธเธเธฒเธฃเธ•เธเธซเธฅเนเธ)</h3>
+                                        <span class="badge" style="background-color:#f97316; color:white; font-weight: 600;" id="missing-docs-count-badge">0 เธเธ</span>
+                                    </div>
+                                    <div class="panel-content" style="padding: 0; overflow-x: auto;">
+                                        <table class="data-table" style="box-shadow: none; border: none; border-radius: 0;">
+                                            <thead>
+                                                <tr>
+                                                    <th>เธฃเธนเธเธ–เนเธฒเธข</th>
+                                                    <th>เธเธทเนเธญเธเธเธเธฒเธเธ•เนเธฒเธเธ”เนเธฒเธง</th>
+                                                    <th>เธชเธฑเธเธเธฒเธ•เธด</th>
+                                                    <th>เธเธฒเธขเธเนเธฒเธ / เธเธฃเธดเธฉเธฑเธ—</th>
+                                                    <th>เน€เธญเธเธชเธฒเธฃเธ—เธตเนเธเธฒเธ”เธซเธฒเธขเนเธ</th>
+                                                    <th style="text-align: center; width: 160px;">เธเธฑเธ”เธเธฒเธฃ</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="dashboard-missing-docs-tbody">
+                                                <!-- Dynamic list of workers with missing docs -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- TAB 2: MONTHLY REGISTRATION STATISTICS -->
+                        <div id="db-tab-monthly" class="db-tab-content hidden">
+                            <div class="dashboard-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                                <!-- Left panel: Employers Added Monthly -->
+                                <div class="dashboard-panel">
+                                    <div class="panel-header">
+                                        <h3>๐ข เธชเธ–เธดเธ•เธดเธเธฒเธฃเธฅเธเธ—เธฐเน€เธเธตเธขเธเธเธฒเธขเธเนเธฒเธเธเธฃเธฐเธเธณเน€เธ”เธทเธญเธ (Employer Registrations)</h3>
+                                    </div>
+                                    <div class="panel-content" style="padding: 0; overflow-x: auto;">
+                                        <table class="data-table" style="box-shadow: none; border: none; border-radius: 0;">
+                                            <thead>
+                                                <tr>
+                                                    <th>เธเธฃเธฐเธเธณเน€เธ”เธทเธญเธ (Month)</th>
+                                                    <th style="text-align: center; width: 160px;">เธเธฒเธขเธเนเธฒเธเน€เธเธดเนเธกเนเธซเธกเน (เธฃเธฒเธข)</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="db-monthly-customers-tbody">
+                                                <!-- Dynamic -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                <!-- Right panel: Workers Added Monthly -->
+                                <div class="dashboard-panel">
+                                    <div class="panel-header">
+                                        <h3>๐‘ท เธชเธ–เธดเธ•เธดเธเธฒเธฃเธเธถเนเธเธ—เธฐเน€เธเธตเธขเธเธฅเธนเธเธเนเธฒเธเธเธฃเธฐเธเธณเน€เธ”เธทเธญเธ (Worker Registrations)</h3>
+                                    </div>
+                                    <div class="panel-content" style="padding: 0; overflow-x: auto;">
+                                        <table class="data-table" style="box-shadow: none; border: none; border-radius: 0;">
+                                            <thead>
+                                                <tr>
+                                                    <th>เธเธฃเธฐเธเธณเน€เธ”เธทเธญเธ (Month)</th>
+                                                    <th style="text-align: center; width: 160px;">เธฅเธนเธเธเนเธฒเธเน€เธเธดเนเธกเนเธซเธกเน (เธเธ)</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="db-monthly-workers-tbody">
+                                                <!-- Dynamic -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Detailed Registered List for Selected Month -->
+                            <div class="dashboard-panel" style="margin-top: 25px;">
+                                <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+                                    <h3 id="db-monthly-details-title" style="margin: 0;">๐“ เธฃเธฒเธขเธเธทเนเธญเธเนเธญเธกเธนเธฅเธเธนเนเธฅเธเธ—เธฐเน€เธเธตเธขเธเธเธฃเธฐเธเธณเน€เธ”เธทเธญเธ</h3>
+                                    <select id="db-monthly-select-month" onchange="renderMonthlyDetails()" style="padding: 8px 14px; border-radius: var(--radius-sm); border: 1px solid #cbd5e1; outline: none; font-size: 13.5px;">
+                                        <!-- Month Options -->
+                                    </select>
+                                </div>
+                                <div class="panel-content" style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; padding: 25px;">
+                                    <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); padding: 18px;">
+                                        <h5 style="font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--navy-dark); border-bottom: 2px solid var(--navy-light); padding-bottom: 6px;">๐ข เธฃเธฒเธขเธเธทเนเธญเธเธฒเธขเธเนเธฒเธเธเธ”เธ—เธฐเน€เธเธตเธขเธเนเธซเธกเน:</h5>
+                                        <ul id="db-monthly-details-customers" style="list-style-type: none; padding-left: 0; display: flex; flex-direction: column; gap: 8px; max-height: 250px; overflow-y: auto;">
+                                            <!-- List -->
+                                        </ul>
+                                    </div>
+                                    <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); padding: 18px;">
+                                        <h5 style="font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--navy-dark); border-bottom: 2px solid var(--navy-light); padding-bottom: 6px;">๐‘ท เธฃเธฒเธขเธเธทเนเธญเธฅเธนเธเธเนเธฒเธเธเธถเนเธเธ—เธฐเน€เธเธตเธขเธเนเธซเธกเน:</h5>
+                                        <ul id="db-monthly-details-workers" style="list-style-type: none; padding-left: 0; display: flex; flex-direction: column; gap: 8px; max-height: 250px; overflow-y: auto;">
+                                            <!-- List -->
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- TAB 3: FINANCE & REVENUE SUMMARY -->
+                        <div id="db-tab-finance" class="db-tab-content hidden">
+                            <!-- Finance Mini-Stats Cards -->
+                            <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 25px;">
+                                <div class="stats-card" style="border-left: 4px solid var(--navy-medium);">
+                                    <div class="stats-icon text-gold">๐’ฐ</div>
+                                    <div class="stats-info">
+                                        <h3 id="stat-finance-total">0.00 เธเธฒเธ—</h3>
+                                        <p>เธเธฃเธฐเธกเธฒเธ“เธเธฒเธฃเธฃเธฒเธขเธฃเธฑเธเธฃเธงเธกเธ—เธฑเนเธเธซเธกเธ”</p>
+                                    </div>
+                                </div>
+                                <div class="stats-card" style="border-left: 4px solid var(--success);">
+                                    <div class="stats-icon text-success">โ…</div>
+                                    <div class="stats-info">
+                                        <h3 id="stat-finance-paid">0.00 เธเธฒเธ—</h3>
+                                        <p>เธเธณเธฃเธฐเน€เธเธดเธเน€เธฃเธตเธขเธเธฃเนเธญเธขเนเธฅเนเธง (Received)</p>
+                                    </div>
+                                </div>
+                                <div class="stats-card" style="border-left: 4px solid var(--danger);">
+                                    <div class="stats-icon text-danger">โฐ</div>
+                                    <div class="stats-info">
+                                        <h3 id="stat-finance-unpaid">0.00 เธเธฒเธ—</h3>
+                                        <p>เธขเธญเธ”เธเนเธฒเธเธเธณเธฃเธฐเธ—เธฑเนเธเธซเธกเธ” (Outstanding)</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Bank & Cash Account Cards -->
+                            <h4 style="font-size: 14.5px; font-weight: 700; color: var(--navy-dark); margin-bottom: 12px; margin-top: 15px;">๐ฆ เธขเธญเธ”เธฃเธฒเธขเธฃเธฑเธเนเธขเธเธ•เธฒเธกเธเธฑเธเธเธตเธเธเธฒเธเธฒเธฃเนเธฅเธฐเน€เธเธดเธเธชเธ” (Received by Accounts)</h4>
+                            <div class="stats-grid" id="db-finance-accounts-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 25px; gap: 15px;">
+                                <!-- Dynamic Bank and Cash stats cards -->
+                            </div>
+
+                            <div class="dashboard-grid" style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px; margin-bottom: 20px;">
+                                <!-- Panel 1: Revenue by Job Type -->
+                                <div class="dashboard-panel">
+                                    <div class="panel-header">
+                                        <h3>๐“ เธชเธฃเธธเธเธฃเธฒเธขเธฃเธฑเธเนเธขเธเธ•เธฒเธกเธเธฃเธฐเน€เธ เธ—เธเธฒเธเธ—เธตเนเนเธเนเธ (Revenue by Job Type)</h3>
+                                    </div>
+                                    <div class="panel-content" style="padding: 0; overflow-x: auto; max-height: 320px;">
+                                        <table class="data-table" style="box-shadow: none; border: none; border-radius: 0;">
+                                            <thead>
+                                                <tr>
+                                                    <th>เธเธฃเธฐเน€เธ เธ—เธเธฒเธเธเธฃเธดเธเธฒเธฃ</th>
+                                                    <th style="text-align: center; width: 110px;">เธเธณเธเธงเธเธเธฒเธ</th>
+                                                    <th style="text-align: right; width: 160px;">เธฃเธฒเธขเธฃเธฑเธเธชเธฐเธชเธก</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="db-finance-jobtypes-tbody">
+                                                <!-- Dynamic rows -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                <!-- Panel 2: Job Status & Payment Breakdown -->
+                                <div class="dashboard-panel">
+                                    <div class="panel-header">
+                                        <h3>๐“ เธชเธฑเธ”เธชเนเธงเธเธเธงเธฒเธกเธเธทเธเธซเธเนเธฒเนเธฅเธฐเธเธฒเธฃเธเธณเธฃเธฐเน€เธเธดเธ</h3>
+                                    </div>
+                                    <div class="panel-content" style="padding: 20px; display: flex; flex-direction: column; gap: 15px;">
+                                        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); padding: 16px;">
+                                            <h5 style="font-size: 13.5px; font-weight: 600; margin-bottom: 12px; color: var(--navy-dark);">เธชเธฑเธ”เธชเนเธงเธเธเธฒเธฃเธเธณเธฃเธฐเน€เธเธดเธเธเธฒเธ (Payment Status):</h5>
+                                            <div id="db-finance-payment-breakdown-container" style="display: flex; flex-direction: column; gap: 8px;">
+                                                <!-- Dynamic breakdown bars -->
+                                            </div>
+                                        </div>
+                                        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); padding: 16px;">
+                                            <h5 style="font-size: 13.5px; font-weight: 600; margin-bottom: 12px; color: var(--navy-dark);">เธเธงเธฒเธกเธเธทเธเธซเธเนเธฒเธเธฒเธเธเธฃเธดเธเธฒเธฃ (Service Progress):</h5>
+                                            <div id="db-finance-progress-breakdown-container" style="display: flex; flex-direction: column; gap: 8px;">
+                                                <!-- Dynamic progress bars -->
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Panel 3: Revenue & Outstanding by Customer -->
+                            <div class="dashboard-panel" style="margin-bottom: 20px;">
+                                <div class="panel-header">
+                                    <h3>๐ข เธชเธฃเธธเธเธฃเธฒเธขเธฃเธฑเธเนเธฅเธฐเธขเธญเธ”เน€เธเธดเธเธเนเธฒเธเธเธณเธฃเธฐเนเธขเธเธ•เธฒเธกเธฅเธนเธเธเนเธฒ/เธเธฒเธขเธเนเธฒเธ (Revenue by Customer)</h3>
+                                </div>
+                                <div class="panel-content" style="padding: 0; overflow-x: auto;">
+                                    <table class="data-table" style="box-shadow: none; border: none; border-radius: 0;">
+                                        <thead>
+                                            <tr>
+                                                <th>เธเธทเนเธญเธเธฒเธขเธเนเธฒเธ / เธเธฃเธดเธฉเธฑเธ—</th>
+                                                <th style="text-align: right; width: 160px; font-weight: 600;">เธขเธญเธ”เน€เธเธดเธเธฃเธงเธกเธ—เธฑเนเธเธซเธกเธ”</th>
+                                                <th style="text-align: right; width: 160px; color: var(--success); font-weight: 600;">เธเธณเธฃเธฐเน€เธเธดเธเนเธฅเนเธง</th>
+                                                <th style="text-align: right; width: 160px; color: var(--danger); font-weight: 600;">เธเนเธฒเธเธเธณเธฃเธฐ</th>
+                                                <th style="text-align: center; width: 120px;">เธเธฑเธ”เธเธฒเธฃ</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="db-finance-customers-tbody">
+                                            <!-- Dynamic customer finance rows -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ==================== CUSTOMERS VIEW ==================== -->
+                    <div id="view-customers" class="content-section hidden">
+                        <div class="table-actions">
+                            <div class="search-box">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                                <input type="text" id="search-customer" placeholder="เธเนเธเธซเธฒเธเธทเนเธญเธเธฃเธดเธฉเธฑเธ—, เน€เธฅเธเธเธนเนเน€เธชเธตเธขเธ เธฒเธฉเธต, เธซเธฃเธทเธญเธเธนเนเธเธฃเธฐเธชเธฒเธเธเธฒเธ..." oninput="renderCustomers()">
+                            </div>
+                            <button class="btn btn-gold btn-add" id="btn-add-customer" onclick="openCustomerModal()">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                                </svg>
+                                <span>เน€เธเธดเนเธกเธฅเธนเธเธเนเธฒ/เธเธฒเธขเธเนเธฒเธ</span>
+                            </button>
+                        </div>
+
+                        <div class="table-container">
+                            <table class="data-table" id="customers-table">
+                                <thead>
+                                    <tr>
+                                        <th>เน€เธฅเธเธเธฃเธดเธฉเธฑเธ— / เธ—เธฐเน€เธเธตเธขเธ</th>
+                                        <th>เธเธทเนเธญเธเธฃเธดเธฉเธฑเธ— / เธเธฒเธขเธเนเธฒเธ</th>
+                                        <th>เธเธฃเธฐเน€เธ เธ—เธเธดเธเธเธฒเธฃ</th>
+                                        <th>เธ—เธตเนเธญเธขเธนเน (เธชเธฒเธเธฒเธซเธฅเธฑเธ)</th>
+                                        <th>เธเธนเนเธเธฃเธฐเธชเธฒเธเธเธฒเธ / เน€เธเธญเธฃเนเนเธ—เธฃ</th>
+                                        <th>เธเธณเธเธงเธเธเธเธเธฒเธ</th>
+                                        <th>เน€เธญเธเธชเธฒเธฃเนเธเธ</th>
+                                        <th class="actions-col">เธเธฑเธ”เธเธฒเธฃ</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="customers-list-tbody">
+                                    <!-- Rendered dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="pagination-bar no-print">
+                            <button class="btn btn-sm btn-outline" id="btn-prev-customers" onclick="changeCustomersPage(-1)">เธขเนเธญเธเธเธฅเธฑเธ</button>
+                            <span class="pagination-info" id="customers-page-info">เธซเธเนเธฒ 1 เธเธฒเธ 1</span>
+                            <button class="btn btn-sm btn-outline" id="btn-next-customers" onclick="changeCustomersPage(1)">เธ–เธฑเธ”เนเธ</button>
+                        </div>
+                    </div>
+
+                    <!-- ==================== WORKERS VIEW ==================== -->
+                    <div id="view-workers" class="content-section hidden">
+                        <div class="table-actions">
+                            <div class="search-filters-group">
+                                <div class="search-box">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                    </svg>
+                                    <input type="text" id="search-worker" placeholder="เธเนเธเธซเธฒเธเธทเนเธญ-เธเธฒเธกเธชเธเธธเธฅ, เน€เธฅเธเธเธเธเธฒเธ, เธเธฒเธชเธเธญเธฃเนเธ•..." oninput="renderWorkers()">
+                                </div>
+                                <div class="filter-box">
+                                    <select id="filter-worker-nationality" onchange="renderWorkers()">
+                                        <option value="">เธ—เธธเธเธชเธฑเธเธเธฒเธ•เธด</option>
+                                        <option value="Myanmar">เน€เธกเธตเธขเธเธกเธฒ (Myanmar)</option>
+                                        <option value="Cambodia">เธเธฑเธกเธเธนเธเธฒ (Cambodia)</option>
+                                        <option value="Laos">เธฅเธฒเธง (Laos)</option>
+                                        <option value="Vietnam">เน€เธงเธตเธขเธ”เธเธฒเธก (Vietnam)</option>
+                                    </select>
+                                    <select id="filter-worker-employer" onchange="renderWorkers()">
+                                        <option value="">เธ—เธธเธเธเธฒเธขเธเนเธฒเธ/เธเธฃเธดเธฉเธฑเธ—</option>
+                                        <!-- Dynamic employers list -->
+                                    </select>
+                                    <select id="filter-worker-status" onchange="renderWorkers()">
+                                        <option value="">เธชเธ–เธฒเธเธฐเน€เธญเธเธชเธฒเธฃเธ—เธฑเนเธเธซเธกเธ”</option>
+                                        <option value="normal">เธเธเธ•เธด (เนเธกเนเธซเธกเธ”เธญเธฒเธขเธธ)</option>
+                                        <option value="warning">เน€เธ•เธทเธญเธเธซเธกเธ”เธญเธฒเธขเธธ (Passport < 180 เธงเธฑเธ / Work Permit < 60 เธงเธฑเธ)</option>
+                                        <option value="expired">เธซเธกเธ”เธญเธฒเธขเธธเนเธฅเนเธง</option>
+                                    </select>
+                                    <select id="filter-worker-employment-status" onchange="renderWorkers()">
+                                        <option value="active">เน€เธเธเธฒเธฐเธเธเธเธฒเธเธเธฑเธเธเธธเธเธฑเธ (Active)</option>
+                                        <option value="pending_register">เน€เธเธเธฒเธฐเธฃเธญเธเธถเนเธเธ—เธฐเน€เธเธตเธขเธ (Pending Register)</option>
+                                        <option value="archived">เน€เธเธเธฒเธฐเนเธเนเธเธญเธญเธ/เธเนเธเธชเธ เธฒเธ (Archived)</option>
+                                        <option value="all">เธเธเธเธฒเธเธ—เธฑเนเธเธซเธกเธ” (Show All)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <button class="btn btn-gold btn-add" id="btn-add-worker" onclick="openWorkerModal()">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                                </svg>
+                                <span>เน€เธเธดเนเธกเธเธเธเธฒเธเธ•เนเธฒเธเธ”เนเธฒเธง</span>
+                            </button>
+                        </div>
+
+                        <div class="table-container">
+                            <table class="data-table" id="workers-table">
+                                <thead>
+                                    <tr>
+                                        <th>เน€เธฅเธเธเธเธเธฒเธ / เธเธฑเธ•เธฃ</th>
+                                        <th>เธเธทเนเธญ-เธเธฒเธกเธชเธเธธเธฅ</th>
+                                        <th>เธชเธฑเธเธเธฒเธ•เธด</th>
+                                        <th>เธเนเธญเธกเธนเธฅเธเธฒเธชเธเธญเธฃเนเธ•</th>
+                                        <th>เนเธเธญเธเธธเธเธฒเธ•เธ—เธณเธเธฒเธ</th>
+                                        <th>เธเธฒเธขเธเนเธฒเธ/เธเธนเนเธงเนเธฒเธเนเธฒเธ</th>
+                                        <th>เธชเธ–เธฒเธเธฐเน€เธญเธเธชเธฒเธฃ</th>
+                                        <th>เน€เธญเธเธชเธฒเธฃเนเธเธ</th>
+                                        <th class="actions-col">เธเธฑเธ”เธเธฒเธฃ</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="workers-list-tbody">
+                                    <!-- Rendered dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="pagination-bar no-print">
+                            <button class="btn btn-sm btn-outline" id="btn-prev-workers" onclick="changeWorkersPage(-1)">เธขเนเธญเธเธเธฅเธฑเธ</button>
+                            <span class="pagination-info" id="workers-page-info">เธซเธเนเธฒ 1 เธเธฒเธ 1</span>
+                            <button class="btn btn-sm btn-outline" id="btn-next-workers" onclick="changeWorkersPage(1)">เธ–เธฑเธ”เนเธ</button>
+                        </div>
+                    </div>
+
+                    <!-- ==================== JOBS VIEW ==================== -->
+                    <div id="view-jobs" class="content-section hidden">
+                        <div class="table-actions">
+                            <div class="search-filters-group">
+                                <div class="search-box">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                    </svg>
+                                    <input type="text" id="search-job" placeholder="เธเนเธเธซเธฒเนเธเธชเธฑเนเธเธเธฒเธ, เธเธฒเธขเธเนเธฒเธ, เธเธเธเธฒเธ..." oninput="renderJobs()">
+                                </div>
+                                <div class="filter-box">
+                                    <select id="filter-job-type" onchange="renderJobs()">
+                                        <option value="">เธ—เธธเธเธเธฃเธฐเน€เธ เธ—เธเธฒเธ</option>
+                                        <option value="เนเธเนเธเน€เธเนเธฒ">เนเธเนเธเน€เธเนเธฒ</option>
+                                        <option value="เนเธเนเธเธญเธญเธ">เนเธเนเธเธญเธญเธ</option>
+                                        <option value="เน€เธเธฅเธตเนเธขเธเนเธเธฅเธเธเนเธญเธกเธนเธฅ">เน€เธเธฅเธตเนเธขเธเนเธเธฅเธเธเนเธญเธกเธนเธฅ</option>
+                                        <option value="เนเธเนเธเธ—เธตเนเธเธฑเธ">เนเธเนเธเธ—เธตเนเธเธฑเธ</option>
+                                        <option value="เนเธเนเธเน€เธเนเธฒเธเธฃเธฐเธเธฑเธเธชเธฑเธเธเธก">เนเธเนเธเน€เธเนเธฒเธเธฃเธฐเธเธฑเธเธชเธฑเธเธเธก</option>
+                                        <option value="เธ•เธต Visa">เธ•เธต Visa</option>
+                                        <option value="เธฃเธฒเธขเธเธฒเธเธ•เธฑเธง 90 เธงเธฑเธ">เธฃเธฒเธขเธเธฒเธเธ•เธฑเธง 90 เธงเธฑเธ</option>
+                                        <option value="เธ—เธณเธเธฑเธ•เธฃเธเธกเธเธน / เธญเธฑเธเน€เธ”เธ— เธ—เธฃ.38">เธ—เธณเธเธฑเธ•เธฃเธเธกเธเธน / เธญเธฑเธเน€เธ”เธ— เธ—เธฃ.38</option>
+                                    </select>
+                                    <select id="filter-job-status" onchange="renderJobs()">
+                                        <option value="">เธ—เธธเธเธชเธ–เธฒเธเธฐเธเธฒเธ</option>
+                                        <option value="เธฃเธญเธ”เธณเน€เธเธดเธเธเธฒเธฃ">เธฃเธญเธ”เธณเน€เธเธดเธเธเธฒเธฃ (Pending)</option>
+                                        <option value="เธเธณเธฅเธฑเธเธ”เธณเน€เธเธดเธเธเธฒเธฃ">เธเธณเธฅเธฑเธเธ”เธณเน€เธเธดเธเธเธฒเธฃ (In Progress)</option>
+                                        <option value="เธฃเธญเน€เธญเธเธชเธฒเธฃเน€เธเธดเนเธกเน€เธ•เธดเธก">เธฃเธญเน€เธญเธเธชเธฒเธฃเน€เธเธดเนเธกเน€เธ•เธดเธก (Waiting for Docs)</option>
+                                        <option value="เน€เธชเธฃเนเธเธชเธดเนเธ">เน€เธชเธฃเนเธเธชเธดเนเธ (Completed)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="action-buttons-group" style="display: flex; gap: 10px;">
+                                <button class="btn btn-outline" id="btn-combine-bills" onclick="openCombineBillsModal()" style="border-color: var(--gold-primary); color: var(--gold-primary);">
+                                    <span>๐งพ เธฃเธงเธกเธเธดเธฅเธเธฒเธขเธเนเธฒเธ (Combine Invoice)</span>
+                                </button>
+                                <button class="btn btn-outline" id="btn-quick-invoice" onclick="openInvoiceModal(null)" style="border-color: var(--gold-primary); color: var(--gold-primary);">
+                                    <span>เธชเธฃเนเธฒเธเธเธดเธฅเธญเธดเธชเธฃเธฐ (Quick Invoice)</span>
+                                </button>
+                                <button class="btn btn-gold btn-add" id="btn-add-job" onclick="openJobModal()">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                                    </svg>
+                                    <span>เนเธเนเธเธเธฒเธเนเธซเธกเน / เน€เธเธดเธ”เธเธดเธฅ</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- View Toggle for Kanban -->
+                        <div class="view-toggle-bar" style="display: flex; gap: 10px; margin-bottom: 20px; background: #f1f5f9; padding: 6px; border-radius: var(--radius-md); width: fit-content;">
+                            <button class="btn btn-gold btn-sm" id="btn-job-view-table" onclick="switchJobView('table')" style="padding: 6px 16px; border-radius: var(--radius-sm); font-size: 12px; font-weight: 600;">
+                                ๐“ เธ•เธฒเธฃเธฒเธเนเธเธเธฒเธ (Table)
+                            </button>
+                            <button class="btn btn-outline btn-sm" id="btn-job-view-kanban" onclick="switchJobView('kanban')" style="padding: 6px 16px; border-radius: var(--radius-sm); font-size: 12px; font-weight: 600; border-color: transparent; color: var(--text-dark); background: transparent;">
+                                ๐“ เธเธฑเธกเธเธฑเธเธเธญเธฃเนเธ” (Kanban)
+                            </button>
+                        </div>
+
+                        <div class="table-container" id="jobs-table-container">
+                            <table class="data-table" id="jobs-table">
+                                <thead>
+                                    <tr>
+                                        <th>เน€เธฅเธเธ—เธตเนเนเธเนเธเธเธฒเธ</th>
+                                        <th>เธเธฃเธฐเน€เธ เธ—เธเธฒเธ</th>
+                                        <th>เธเธฒเธขเธเนเธฒเธ/เธเธนเนเธงเนเธฒเธเนเธฒเธ</th>
+                                        <th>เธเธเธเธฒเธเธ•เนเธฒเธเธ”เนเธฒเธง</th>
+                                        <th>เธเนเธฒเธเธฃเธดเธเธฒเธฃ</th>
+                                        <th>เธชเธ–เธฒเธเธฐเธ”เธณเน€เธเธดเธเธเธฒเธฃ</th>
+                                        <th>เธญเธฑเธเน€เธ”เธ•เธฅเนเธฒเธชเธธเธ”</th>
+                                        <th class="actions-col">เธเธฑเธ”เธเธฒเธฃ / เธญเธญเธเธเธดเธฅ</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="jobs-list-tbody">
+                                    <!-- Dynamic -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Kanban Board Container -->
+                        <div id="jobs-kanban-container" class="kanban-board-wrapper hidden" style="margin-top: 10px; min-height: 500px;">
+                            <div class="kanban-board" style="display: flex; gap: 16px; overflow-x: auto; padding-bottom: 16px;">
+                                <!-- Column: Pending -->
+                                <div class="kanban-column" style="flex: 1; min-width: 250px; background: #f8fafc; border-radius: var(--radius-md); border: 1px solid #e2e8f0; display: flex; flex-direction: column; height: fit-content; max-height: 650px;">
+                                    <div class="kanban-column-header" style="padding: 12px; border-bottom: 2px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f1f5f9; border-top-left-radius: var(--radius-md); border-top-right-radius: var(--radius-md);">
+                                        <h4 style="font-weight: 600; font-size: 13px; color: #475569; margin: 0;">โณ เธฃเธญเธ”เธณเน€เธเธดเธเธเธฒเธฃ</h4>
+                                        <span class="badge badge-warning" id="count-kanban-pending" style="font-size: 11px; padding: 2px 8px;">0</span>
+                                    </div>
+                                    <div class="kanban-cards-container" id="kanban-pending" ondragover="onKanbanDragOver(event)" ondrop="onKanbanDrop(event, 'เธฃเธญเธ”เธณเน€เธเธดเธเธเธฒเธฃ')" style="padding: 12px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-height: 200px; flex-grow: 1;">
+                                    </div>
+                                </div>
+                                
+                                <!-- Column: In Progress -->
+                                <div class="kanban-column" style="flex: 1; min-width: 250px; background: #f8fafc; border-radius: var(--radius-md); border: 1px solid #e2e8f0; display: flex; flex-direction: column; height: fit-content; max-height: 650px;">
+                                    <div class="kanban-column-header" style="padding: 12px; border-bottom: 2px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f1f5f9; border-top-left-radius: var(--radius-md); border-top-right-radius: var(--radius-md);">
+                                        <h4 style="font-weight: 600; font-size: 13px; color: #475569; margin: 0;">โ๏ธ เธเธณเธฅเธฑเธเธ”เธณเน€เธเธดเธเธเธฒเธฃ</h4>
+                                        <span class="badge badge-gold" id="count-kanban-progress" style="font-size: 11px; padding: 2px 8px;">0</span>
+                                    </div>
+                                    <div class="kanban-cards-container" id="kanban-progress" ondragover="onKanbanDragOver(event)" ondrop="onKanbanDrop(event, 'เธเธณเธฅเธฑเธเธ”เธณเน€เธเธดเธเธเธฒเธฃ')" style="padding: 12px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-height: 200px; flex-grow: 1;">
+                                    </div>
+                                </div>
+                                
+                                <!-- Column: Waiting for Docs -->
+                                <div class="kanban-column" style="flex: 1; min-width: 250px; background: #f8fafc; border-radius: var(--radius-md); border: 1px solid #e2e8f0; display: flex; flex-direction: column; height: fit-content; max-height: 650px;">
+                                    <div class="kanban-column-header" style="padding: 12px; border-bottom: 2px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f1f5f9; border-top-left-radius: var(--radius-md); border-top-right-radius: var(--radius-md);">
+                                        <h4 style="font-weight: 600; font-size: 13px; color: #475569; margin: 0;">๐“ เธฃเธญเน€เธญเธเธชเธฒเธฃ</h4>
+                                        <span class="badge badge-danger" id="count-kanban-docs" style="font-size: 11px; padding: 2px 8px;">0</span>
+                                    </div>
+                                    <div class="kanban-cards-container" id="kanban-docs" ondragover="onKanbanDragOver(event)" ondrop="onKanbanDrop(event, 'เธฃเธญเน€เธญเธเธชเธฒเธฃเน€เธเธดเนเธกเน€เธ•เธดเธก')" style="padding: 12px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-height: 200px; flex-grow: 1;">
+                                    </div>
+                                </div>
+                                
+                                <!-- Column: Completed -->
+                                <div class="kanban-column" style="flex: 1; min-width: 250px; background: #f8fafc; border-radius: var(--radius-md); border: 1px solid #e2e8f0; display: flex; flex-direction: column; height: fit-content; max-height: 650px;">
+                                    <div class="kanban-column-header" style="padding: 12px; border-bottom: 2px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f1f5f9; border-top-left-radius: var(--radius-md); border-top-right-radius: var(--radius-md);">
+                                        <h4 style="font-weight: 600; font-size: 13px; color: #475569; margin: 0;">โจ เน€เธชเธฃเนเธเธชเธดเนเธ</h4>
+                                        <span class="badge badge-success" id="count-kanban-completed" style="font-size: 11px; padding: 2px 8px;">0</span>
+                                    </div>
+                                    <div class="kanban-cards-container" id="kanban-completed" ondragover="onKanbanDragOver(event)" ondrop="onKanbanDrop(event, 'เน€เธชเธฃเนเธเธชเธดเนเธ')" style="padding: 12px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-height: 200px; flex-grow: 1;">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="pagination-bar no-print" id="jobs-pagination-bar">
+                            <button class="btn btn-sm btn-outline" id="btn-prev-jobs" onclick="changeJobsPage(-1)">เธขเนเธญเธเธเธฅเธฑเธ</button>
+                            <span class="pagination-info" id="jobs-page-info">เธซเธเนเธฒ 1 เธเธฒเธ 1</span>
+                            <button class="btn btn-sm btn-outline" id="btn-next-jobs" onclick="changeJobsPage(1)">เธ–เธฑเธ”เนเธ</button>
+                        </div>
+                    </div>
+
+                    <!-- ==================== BANKS VIEW ==================== -->
+                    <div id="view-banks" class="content-section hidden">
+                        <div class="table-actions">
+                            <div class="search-box">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                                <input type="text" id="search-bank" placeholder="เธเนเธเธซเธฒเธเธทเนเธญเธเธฑเธเธเธต, เธเธเธฒเธเธฒเธฃ..." oninput="renderBanks()">
+                            </div>
+                            <button class="btn btn-gold btn-add" id="btn-add-bank" onclick="openBankModal()">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                                </svg>
+                                <span>เน€เธเธดเนเธกเธเธฑเธเธเธตเธเธเธฒเธเธฒเธฃ</span>
+                            </button>
+                        </div>
+
+                        <div class="bank-accounts-grid" id="banks-list-grid">
+                            <!-- Dynamic Bank Cards -->
+                        </div>
+                    </div>
+
+                    <!-- ==================== BACKUP & RESTORE VIEW ==================== -->
+                    <div id="view-backup" class="content-section hidden">
+                        <div class="dashboard-panel" style="max-width: 700px; margin: 0 auto; padding: 30px;">
+                            <div class="panel-header" style="padding-bottom: 20px; border-bottom: 1px solid #e2e8f0; margin-bottom: 25px;">
+                                <h3 style="font-size: 18px; font-weight: 600; color: var(--navy-dark);">๐’พ เธเธฑเธ”เธเธฒเธฃเนเธฅเธฐเธชเธณเธฃเธญเธเธเนเธญเธกเธนเธฅเธฃเธฐเธเธ (Data Backup & Sync)</h3>
+                                <p style="font-size: 13px; color: var(--text-muted); margin-top: 5px;">
+                                    เน€เธเธทเนเธญเธเธเธฒเธเธฃเธฐเธเธเธ—เธณเธเธฒเธเธเธเธเธฃเธฒเธงเน€เธเธญเธฃเนเธ เธฒเธขเนเธเน€เธเธฃเธทเนเธญเธเธเธญเธเธเธธเธ“ (Local Browser Storage) เน€เธเธทเนเธญเธเธงเธฒเธกเธเธฅเธญเธ”เธ เธฑเธขเธชเธนเธเธชเธธเธ”เนเธฅเธฐเธเนเธญเธเธเธฑเธเธเนเธญเธกเธนเธฅเธชเธนเธเธซเธฒเธข เธเธธเธ“เธชเธฒเธกเธฒเธฃเธ–เธ—เธณเธเธฒเธฃเธชเธณเธฃเธญเธเนเธเธฅเนเน€เธเนเธเน€เธเนเธฒเนเธเธฅเธเนเธ”เธฃเธเน เธซเธฃเธทเธญเธญเธฑเธเนเธซเธฅเธ”เน€เธเนเธเธเธถเนเธเธฃเธฐเธเธเธเธฅเธฒเธงเธ”เน เน€เธเนเธ Google Drive เนเธ”เนเธ•เธฅเธญเธ”เน€เธงเธฅเธฒเธเธฃเธฑเธ
+                                </p>
+                            </div>
+                            
+                            <div style="display: flex; flex-direction: column; gap: 30px;">
+                                <!-- Section 1: Export Data to Drive file -->
+                                <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); padding: 20px;">
+                                    <h4 style="font-size: 14.5px; font-weight: 600; margin-bottom: 8px; color: var(--navy-dark);">1. เธชเนเธเธญเธญเธเธเนเธญเธกเธนเธฅเธชเธณเธฃเธญเธ (Export Backup File)</h4>
+                                    <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 15px; line-height: 1.5;">
+                                        เธ”เธฒเธงเธเนเนเธซเธฅเธ”เนเธเธฅเนเธเธฒเธเธเนเธญเธกเธนเธฅเธฃเธฐเธเธเธ—เธฑเนเธเธซเธกเธ” (เธฃเธงเธกเธ–เธถเธเธฃเธฒเธขเธเธทเนเธญเธเธเธเธฒเธเธ•เนเธฒเธเธ”เนเธฒเธง 3,000 เธเธ เธเธฒเธขเธเนเธฒเธ 300 เธฃเธฒเธข เธเนเธญเธกเธนเธฅเธชเธฑเนเธเธเธฒเธ เนเธฅเธฐเธขเธญเธ”เธเธฑเธเธเธตเธเธเธฒเธเธฒเธฃเธ—เธฑเนเธเธซเธกเธ”) เน€เธเนเธเนเธเธฅเนเน€เธ”เธตเธขเธง เน€เธเธทเนเธญเธเธณเนเธเน€เธเธเน€เธเนเธเนเธงเนเนเธ Google Drive, OneDrive เธซเธฃเธทเธญเนเธเธฅเน€เธ”เธญเธฃเนเนเธเน€เธเธฃเธทเนเธญเธเธเธญเธกเธเธดเธงเน€เธ•เธญเธฃเนเธเธญเธเธเธธเธ“
+                                    </p>
+                                    <button class="btn btn-gold" onclick="exportSystemData()" style="padding: 10px 20px; display: flex; align-items: center; gap: 8px;">
+                                        ๐“ฅ เธ”เธฒเธงเธเนเนเธซเธฅเธ”เนเธเธฅเนเธชเธณเธฃเธญเธเธเนเธญเธกเธนเธฅ (Download Backup JSON)
+                                    </button>
+                                </div>
+
+                                <!-- Section 2: Import Data from Drive file -->
+                                <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); padding: 20px;">
+                                    <h4 style="font-size: 14.5px; font-weight: 600; margin-bottom: 8px; color: var(--navy-dark);">2. เธเธณเน€เธเนเธฒเธเนเธญเธกเธนเธฅเธฃเธฐเธเธเธเธฒเธเธ เธฒเธขเธเธญเธ (Import Backup File)</h4>
+                                    <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 15px; line-height: 1.5;">
+                                        เน€เธฅเธทเธญเธเนเธเธฅเนเธชเธณเธฃเธญเธเธเนเธญเธกเธนเธฅเธ—เธตเนเธเธธเธ“เน€เธเธขเธเธฑเธเธ—เธถเธเนเธงเน (เนเธเธฅเน .json) เธเธฒเธเนเธเน€เธเธฃเธทเนเธญเธเธเธญเธกเธเธดเธงเน€เธ•เธญเธฃเน เธซเธฃเธทเธญเธ”เธถเธเธฅเธเธกเธฒเธเธฒเธ Google Drive เน€เธเธทเนเธญเธเธนเนเธเธทเธเธเธฒเธเธเนเธญเธกเธนเธฅเธ—เธฑเนเธเธซเธกเธ”เธเธฅเธฑเธเธกเธฒเธ—เธณเธเธฒเธเนเธเน€เธเธฃเธฒเธงเนเน€เธเธญเธฃเนเธเธตเนเธ—เธฑเธเธ—เธต
+                                    </p>
+                                    <div style="display: flex; align-items: center; gap: 15px;">
+                                        <button class="btn btn-outline" onclick="document.getElementById('import-file-input').click()" style="padding: 10px 20px;">
+                                            ๐“ เน€เธฅเธทเธญเธเนเธเธฅเนเน€เธเธทเนเธญเธญเธฑเธเนเธซเธฅเธ” (.json)
+                                        </button>
+                                        <input type="file" id="import-file-input" accept=".json" onchange="importSystemData(event)" class="hidden" style="display: none;">
+                                        <span id="import-file-name" class="text-muted" style="font-size: 13px;">เธขเธฑเธเนเธกเนเนเธ”เนเน€เธฅเธทเธญเธเนเธเธฅเน</span>
+                                    </div>
+                                </div>
+
+                                <!-- Section 3: Google Sheets Real-time Sync -->
+                                <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: var(--radius-sm); padding: 20px;">
+                                    <h4 style="font-size: 14.5px; font-weight: 600; margin-bottom: 8px; color: var(--navy-dark);">3. เน€เธเธทเนเธญเธกเธ•เนเธญ Google Sheets (Cloud Sync)</h4>
+                                    <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.5;">
+                                        เธเธธเธ“เธชเธฒเธกเธฒเธฃเธ–เน€เธเธทเนเธญเธกเนเธขเธเธฃเธฐเธเธเธเธตเนเน€เธเนเธฒเธเธฑเธ **Google Sheets** เธเธญเธเธเธธเธ“เนเธ”เธขเธ•เธฃเธ เน€เธกเธทเนเธญเธกเธตเธเธฒเธฃเน€เธเธดเนเธกเธเธเธเธฒเธเธ•เนเธฒเธเธ”เนเธฒเธง เธเธฒเธขเธเนเธฒเธ เธซเธฃเธทเธญเนเธเนเธเนเธเธเธฒเธเนเธเนเธเธฃเนเธเธฃเธก เธฃเธฐเธเธเธเธฐเธชเนเธเธเนเธญเธกเธนเธฅเนเธเธเธฑเธเธ—เธถเธเนเธฅเธฐเน€เธเธดเนเธกเนเธ–เธงเน€เธเนเธฒเนเธเนเธ Google Sheets เนเธเธ Real-time เธ—เธฑเธเธ—เธต!
+                                    </p>
+                                    
+                                    <div class="form-group" style="margin-bottom: 15px;">
+                                        <label for="sheets-webapp-url" style="font-weight: 600; font-size: 12px;">Google Apps Script Web App URL:</label>
+                                        <input type="text" id="sheets-webapp-url" placeholder="https://script.google.com/macros/s/.../exec" oninput="saveSheetsUrl()" style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 13px; font-family: monospace;">
+                                    </div>
+
+                                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                                        <button class="btn btn-gold" onclick="syncAllToGoogleSheets()" id="btn-sync-sheets" style="padding: 8px 16px; font-size: 13px;">
+                                            ๐“ค เธชเนเธเธเนเธญเธกเธนเธฅเธ—เธฑเนเธเธซเธกเธ”เน€เธเนเธฒ Google Sheets (Sync All)
+                                        </button>
+                                        <button class="btn btn-outline" onclick="testGoogleSheetsConnection()" style="padding: 8px 16px; font-size: 13px;">
+                                            โก เธ—เธ”เธชเธญเธเธเธฒเธฃเน€เธเธทเนเธญเธกเธ•เนเธญ (Test Connection)
+                                        </button>
+                                    </div>
+
+                                    <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 4px; padding: 12px; font-size: 12px; line-height: 1.6;">
+                                        <div style="font-weight: 600; margin-bottom: 5px; color: var(--gold-primary);">๐ ๏ธ เธงเธดเธเธตเธเธฒเธฃเธ•เธดเธ”เธ•เธฑเนเธเธเธฑเนเธ Google Sheets (เนเธเนเน€เธงเธฅเธฒ 2 เธเธฒเธ—เธต):</div>
+                                        1. เน€เธเธดเธ” Google Sheet เธ—เธตเนเธเธธเธ“เธ•เนเธญเธเธเธฒเธฃเนเธเนเธเธฒเธเธเธถเนเธเธกเธฒ โก๏ธ เนเธเธ—เธตเนเน€เธกเธเธน **"เธชเนเธงเธเธเธขเธฒเธข" (Extensions) โก๏ธ "Apps Script"**<br>
+                                        2. เธเนเธญเธเธเธตเนเนเธเนเธ”เนเธเธฃเนเธเธฃเธกเธเธฑเนเธ Server เธ”เนเธฒเธเธฅเนเธฒเธเธเธตเนเนเธเธงเธฒเธเธฅเธเธญเธฑเธเน€เธ”เธดเธกเธญเธญเธเธ—เธฑเนเธเธซเธกเธ”<br>
+                                        3. เธเธ”เธเธธเนเธก **"เธเธฒเธฃเธ—เธณเนเธซเนเนเธเนเธเธฒเธเนเธ”เน" (Deploy) โก๏ธ "เธเธฒเธฃเธ—เธณเนเธซเนเนเธเนเธเธฒเธเนเธ”เนเนเธซเธกเน" (New Deployment)**<br>
+                                        4. เน€เธฅเธทเธญเธเธเธฃเธฐเน€เธ เธ—เน€เธเนเธ **"เน€เธงเนเธเนเธญเธ" (Web App)** โก๏ธ เธ•เธฑเนเธเธเนเธฒ *เธเธนเนเธ—เธตเนเธกเธตเธชเธดเธ—เธเธดเนเน€เธเนเธฒเธ–เธถเธ* เน€เธเนเธ **"เธ—เธธเธเธเธ" (Anyone)** โก๏ธ เธเธ” Deploy<br>
+                                        5. เธเนเธญเธเธเธตเน **URL เน€เธงเนเธเนเธญเธ** เธ—เธตเนเนเธ”เนเธกเธฒเธงเธฒเธเนเธเธเนเธญเธเธ”เนเธฒเธเธเธเธเธตเน เนเธฅเนเธงเธเธ”เธ—เธ”เธชเธญเธเธเธฒเธฃเน€เธเธทเนเธญเธกเธ•เนเธญเนเธ”เนเน€เธฅเธขเธเธฃเธฑเธ!
+                                    </div>
+
+                                    <details style="margin-top: 10px; font-size: 12px; background-color: #f1f5f9; border-radius: 4px; padding: 8px; cursor: pointer;">
+                                        <summary style="font-weight: 600; color: var(--navy-medium);">๐“ เธเธฅเธดเธเน€เธเธทเนเธญเธ”เธนเนเธเนเธ”เธชเธณเธซเธฃเธฑเธเนเธชเนเนเธ Apps Script</summary>
+                                        <pre style="white-space: pre-wrap; font-family: monospace; background: #272822; color: #f8f8f2; padding: 10px; border-radius: 4px; margin-top: 8px; font-size: 11px; max-height: 200px; overflow-y: auto; text-align: left; -webkit-user-select: all; user-select: all;" id="apps-script-code-text">
+// เนเธเนเธ”เธชเธณเธซเธฃเธฑเธ Google Apps Script
+function doPost(e) {
+  var lock = LockService.getScriptLock();
+  lock.tryLock(10000);
+  try {
+    var json = JSON.parse(e.postData.contents);
+    var action = json.action;
+    var data = json.data;
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    
+    if (action === "test") {
+      return ContentService.createTextOutput(JSON.stringify({status: "success", message: "เน€เธเธทเนเธญเธกเธ•เนเธญเธชเธณเน€เธฃเนเธ!"}))
+        .setMimeType(ContentService.MimeType.JSON)
+        .setHeader("Access-Control-Allow-Origin", "*");
+    }
+    
+    var sheet = ss.getSheetByName(action) || ss.insertSheet(action);
+    
+    // เธ•เธฑเนเธเธเนเธฒเธซเธฑเธงเธ•เธฒเธฃเธฒเธเธซเธฒเธเน€เธเนเธเธเธตเธ—เนเธซเธกเน
+    if (sheet.getLastRow() === 0) {
+      if (action === "Customers") {
+        sheet.appendRow(["TaxID", "CompanyName", "BusinessType", "Coordinator", "Phone", "UpdatedDate"]);
+      } else if (action === "Workers") {
+        sheet.appendRow(["WorkerUID", "Name", "Nationality", "PassportNo", "PermitNo", "PermitExpiry", "Employer", "UpdatedDate"]);
+      } else if (action === "Jobs") {
+        sheet.appendRow(["JobID", "CustomerName", "WorkerName", "JobType", "Fee", "Status", "Notes", "UpdatedDate"]);
+      }
+    }
+    
+    // เธเธฑเธเธ—เธถเธเนเธ–เธงเธเนเธญเธกเธนเธฅเนเธซเธกเน
+    if (action === "Customers") {
+      sheet.appendRow([data.taxId, data.companyName, data.businessType, data.coordinator, data.phone, new Date()]);
+    } else if (action === "Workers") {
+      sheet.appendRow([data.workerUid, data.firstName + " " + data.lastName, data.nationality, data.passportNo, data.permitNo, data.permitExpiry, data.employerName, new Date()]);
+    } else if (action === "Jobs") {
+      sheet.appendRow([data.id, data.customerName, data.workerName, data.jobType, data.fee, data.status, data.notes, new Date()]);
+    }
+    
+    return ContentService.createTextOutput(JSON.stringify({status: "success"}))
+      .setMimeType(ContentService.MimeType.JSON)
+      .setHeader("Access-Control-Allow-Origin", "*");
+  } catch (error) {
+    return ContentService.createTextOutput(JSON.stringify({status: "error", message: error.toString()}))
+      .setMimeType(ContentService.MimeType.JSON)
+      .setHeader("Access-Control-Allow-Origin", "*");
+  } finally {
+    lock.releaseLock();
+  }
+}
+                                        </pre>
+                                    </details>
+                                </div>
+
+                                <!-- Section 4: Line Groups Management -->
+                                <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); padding: 20px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                        <h4 style="font-size: 14.5px; font-weight: 600; color: var(--navy-dark); margin: 0;">4. เธเธฑเธ”เธเธฒเธฃเธเธฅเธธเนเธกเนเธเนเธเน€เธ•เธทเธญเธ LINE (Manage Line Groups)</h4>
+                                        <button class="btn btn-gold btn-sm" onclick="openLineGroupModal()" style="padding: 6px 12px; font-size: 12px;">
+                                            โ• เน€เธเธดเนเธกเธเธฅเธธเนเธกเนเธซเธกเน
+                                        </button>
+                                    </div>
+                                    <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 15px; line-height: 1.5;">
+                                        เธฃเธฒเธขเธเธทเนเธญเธซเนเธญเธเธเธฅเธธเนเธก LINE เธ—เธตเนเน€เธเธทเนเธญเธกเธฃเธฐเธเธเนเธเนเธเน€เธ•เธทเธญเธเนเธงเน เนเธ”เธขเธ•เธฑเนเธเธเธทเนเธญเธเธฅเธธเนเธกเธ•เธฒเธกเธงเธฑเธเธซเธกเธ”เธญเธฒเธขเธธเธชเธฑเธเธเธฒเน€เธเธทเนเธญเธชเนเธเนเธเนเธเน€เธ•เธทเธญเธเนเธขเธเธฃเธฒเธขเธเธฅเธธเนเธก เธซเธฃเธทเธญเธเธดเธกเธเนเธเธทเนเธญเธเธฅเธธเนเธกเธ—เธฑเนเธงเนเธเน€เธเธทเนเธญเน€เธเนเธเธเธฅเธธเนเธกเนเธเนเธเน€เธ•เธทเธญเธเนเธญเธ”เธกเธดเธเธชเนเธงเธเธเธฅเธฒเธ
+                                    </p>
+                                    
+                                    <div class="table-container" style="box-shadow: none; border: 1px solid #e2e8f0; max-height: 250px; overflow-y: auto; margin-top: 10px;">
+                                        <table class="data-table" style="min-width: 100%; font-size: 13px;">
+                                            <thead>
+                                                <tr>
+                                                    <th>เธเธทเนเธญเธเธฅเธธเนเธก LINE</th>
+                                                    <th>Group ID (เธฃเธซเธฑเธชเธชเนเธเธเนเธญเธเธงเธฒเธก)</th>
+                                                    <th style="width: 80px; text-align: center;">เธเธฑเธ”เธเธฒเธฃ</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="line-groups-tbody">
+                                                <tr>
+                                                    <td colspan="3" class="text-muted" style="text-align: center; padding: 20px;">
+                                                        โณ เธเธณเธฅเธฑเธเน€เธเธทเนเธญเธกเธ•เนเธญเธเนเธญเธกเธนเธฅเธเธฅเธธเนเธกเนเธฅเธเน...
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <!-- ==================== MODAL: ADD/EDIT CUSTOMER ==================== -->
+        <div id="customer-modal" class="modal-backdrop hidden">
+            <div class="modal-content large">
+                <div class="modal-header">
+                    <h3 id="customer-modal-title">เน€เธเธดเนเธกเธฅเธนเธเธเนเธฒ / เธเธฒเธขเธเนเธฒเธเนเธซเธกเน</h3>
+                    <button class="close-btn" onclick="closeCustomerModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="customer-form" onsubmit="saveCustomer(event)">
+                        <input type="hidden" id="customer-edit-id">
+                        
+                        <div class="form-row">
+                            <div class="form-group col-6">
+                                <label for="cust-tax-id">เน€เธฅเธเธเธฃเธฐเธเธณเธ•เธฑเธงเธเธนเนเน€เธชเธตเธขเธ เธฒเธฉเธต / เน€เธฅเธเธ—เธฐเน€เธเธตเธขเธเธเธฃเธดเธฉเธฑเธ— (13 เธซเธฅเธฑเธ) <span class="required">*</span></label>
+                                <input type="text" id="cust-tax-id" placeholder="เธเธฃเธญเธเน€เธฅเธเธ—เธฐเน€เธเธตเธขเธ 13 เธซเธฅเธฑเธ" maxlength="13" required pattern="\d{13}">
+                            </div>
+                            <div class="form-group col-6">
+                                <label for="cust-company-name">เธเธทเนเธญเธเธฃเธดเธฉเธฑเธ— / เธเธทเนเธญเธเธนเนเธงเนเธฒเธเนเธฒเธ <span class="required">*</span></label>
+                                <input type="text" id="cust-company-name" placeholder="เธเธฃเธญเธเธเธทเนเธญเธเธฃเธดเธฉเธฑเธ—เธซเธฃเธทเธญเธเธทเนเธญเธเธธเธเธเธฅ" required>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group col-6">
+                                <label for="cust-business-type">เธเธฃเธฐเน€เธ เธ—เธเธดเธเธเธฒเธฃ (เธเนเธญเธกเธนเธฅเธเธฃเธกเธเธฑเธ”เธซเธฒเธเธฒเธ) <span class="required">*</span></label>
+                                <select id="cust-business-type" required>
+                                    <option value="" disabled selected>--- เน€เธฅเธทเธญเธเธเธฃเธฐเน€เธ เธ—เธเธดเธเธเธฒเธฃ ---</option>
+                                    <option value="เธเธฃเธฐเธกเธ">1. เธเธฃเธฐเธกเธ</option>
+                                    <option value="เธ•เนเธญเน€เธเธทเนเธญเธเธเธฃเธฐเธกเธเธ—เธฐเน€เธฅ">2. เธ•เนเธญเน€เธเธทเนเธญเธเธเธฃเธฐเธกเธเธ—เธฐเน€เธฅ</option>
+                                    <option value="เน€เธเธฉเธ•เธฃเนเธฅเธฐเธเธจเธธเธชเธฑเธ•เธงเน">3. เน€เธเธฉเธ•เธฃเนเธฅเธฐเธเธจเธธเธชเธฑเธ•เธงเน</option>
+                                    <option value="เธเธดเธเธเธฒเธฃเธเนเธญเธชเธฃเนเธฒเธ">4. เธเธดเธเธเธฒเธฃเธเนเธญเธชเธฃเนเธฒเธ</option>
+                                    <option value="เธเธฒเธเธฃเธฑเธเนเธเนเนเธเธเนเธฒเธ">5. เธเธฒเธเธฃเธฑเธเนเธเนเนเธเธเนเธฒเธ</option>
+                                    <option value="เธเธดเธเธเธฒเธฃเธ•เนเธญเน€เธเธทเนเธญเธเธเธฒเธฃเน€เธเธฉเธ•เธฃ">6. เธเธดเธเธเธฒเธฃเธ•เนเธญเน€เธเธทเนเธญเธเธเธฒเธฃเน€เธเธฉเธ•เธฃ</option>
+                                    <option value="เธ•เนเธญเน€เธเธทเนเธญเธเธเนเธฒเธเธฅเธตเธ/เธเนเธฒเธชเนเธ/เธฃเนเธฒเธเธเนเธฒ/เนเธเธเธฅเธญเธข">7. เธ•เนเธญเน€เธเธทเนเธญเธเธเนเธฒเธเธฅเธตเธ/เธเนเธฒเธชเนเธ/เธฃเนเธฒเธเธเนเธฒ/เนเธเธเธฅเธญเธข</option>
+                                    <option value="เธเธดเธเธเธฒเธฃเธฃเธตเนเธเน€เธเธดเธฅ">8. เธเธดเธเธเธฒเธฃเธฃเธตเนเธเน€เธเธดเธฅ</option>
+                                    <option value="เน€เธซเธกเธทเธญเธเนเธฃเนเนเธฅเธฐเน€เธซเธกเธทเธญเธเธซเธดเธ">9. เน€เธซเธกเธทเธญเธเนเธฃเนเนเธฅเธฐเน€เธซเธกเธทเธญเธเธซเธดเธ</option>
+                                    <option value="เธเธณเธซเธเนเธฒเธขเธเธฅเธดเธ•เธ เธฑเธ“เธ‘เนเนเธฅเธซเธฐ">10. เธเธณเธซเธเนเธฒเธขเธเธฅเธดเธ•เธ เธฑเธ“เธ‘เนเนเธฅเธซเธฐ</option>
+                                    <option value="เธเธณเธซเธเนเธฒเธขเธญเธฒเธซเธฒเธฃเนเธฅเธฐเน€เธเธฃเธทเนเธญเธเธ”เธทเนเธก">11. เธเธณเธซเธเนเธฒเธขเธญเธฒเธซเธฒเธฃเนเธฅเธฐเน€เธเธฃเธทเนเธญเธเธ”เธทเนเธก</option>
+                                    <option value="เธเธฅเธดเธ•เธซเธฃเธทเธญเธเธณเธซเธเนเธฒเธขเธเธฅเธดเธ•เธ เธฑเธ“เธ‘เนเธ–เนเธฒเธเธซเธดเธ">12. เธเธฅเธดเธ•เธซเธฃเธทเธญเธเธณเธซเธเนเธฒเธขเธเธฅเธดเธ•เธ เธฑเธ“เธ‘เนเธ–เนเธฒเธเธซเธดเธ</option>
+                                    <option value="เธเธฅเธดเธ•เธซเธฃเธทเธญเธเธณเธซเธเนเธฒเธขเธงเธฑเธชเธ”เธธเธเนเธญเธชเธฃเนเธฒเธ">13. เธเธฅเธดเธ•เธซเธฃเธทเธญเธเธณเธซเธเนเธฒเธขเธงเธฑเธชเธ”เธธเธเนเธญเธชเธฃเนเธฒเธ</option>
+                                    <option value="เนเธเธฃเธฃเธนเธเธซเธดเธ">14. เนเธเธฃเธฃเธนเธเธซเธดเธ</option>
+                                    <option value="เธเธฅเธดเธ•เธซเธฃเธทเธญเธเธณเธซเธเนเธฒเธขเน€เธชเธทเนเธญเธเนเธฒเธชเธณเน€เธฃเนเธเธฃเธนเธ">15. เธเธฅเธดเธ•เธซเธฃเธทเธญเธเธณเธซเธเนเธฒเธขเน€เธชเธทเนเธญเธเนเธฒเธชเธณเน€เธฃเนเธเธฃเธนเธ</option>
+                                    <option value="เธเธฅเธดเธ•เธซเธฃเธทเธญเธเธณเธซเธเนเธฒเธขเธเธฅเธดเธ•เธ เธฑเธ“เธ‘เนเธเธฅเธฒเธชเธ•เธดเธ">16. เธเธฅเธดเธ•เธซเธฃเธทเธญเธเธณเธซเธเนเธฒเธขเธเธฅเธดเธ•เธ เธฑเธ“เธ‘เนเธเธฅเธฒเธชเธ•เธดเธ</option>
+                                    <option value="เธเธฅเธดเธ•เธซเธฃเธทเธญเธเธณเธซเธเนเธฒเธขเธเธฅเธดเธ•เธ เธฑเธ“เธ‘เนเธเธฃเธฐเธ”เธฒเธฉ">17. เธเธฅเธดเธ•เธซเธฃเธทเธญเธเธณเธซเธเนเธฒเธขเธเธฅเธดเธ•เธ เธฑเธ“เธ‘เนเธเธฃเธฐเธ”เธฒเธฉ</option>
+                                    <option value="เธเธฅเธดเธ•เธซเธฃเธทเธญเธเธณเธซเธเนเธฒเธขเธเธฅเธดเธ•เธ เธฑเธ“เธ‘เนเธญเธดเน€เธฅเนเธเธ—เธฃเธญเธเธดเธเธชเน">18. เธเธฅเธดเธ•เธซเธฃเธทเธญเธเธณเธซเธเนเธฒเธขเธเธฅเธดเธ•เธ เธฑเธ“เธ‘เนเธญเธดเน€เธฅเนเธเธ—เธฃเธญเธเธดเธเธชเน</option>
+                                    <option value="เธเธเธชเนเธเธชเธดเธเธเนเธฒเธ—เธฒเธเธเธ เธ—เธฒเธเธเนเธณ เธซเธฃเธทเธญเธ—เธฒเธเธญเธฒเธเธฒเธจ">19. เธเธเธชเนเธเธชเธดเธเธเนเธฒเธ—เธฒเธเธเธ เธ—เธฒเธเธเนเธณ เธซเธฃเธทเธญเธ—เธฒเธเธญเธฒเธเธฒเธจ</option>
+                                    <option value="เธเนเธฒเธชเนเธ เธเนเธฒเธเธฅเธตเธ เนเธเธเธฅเธญเธข">20. เธเนเธฒเธชเนเธ เธเนเธฒเธเธฅเธตเธ เนเธเธเธฅเธญเธข</option>
+                                    <option value="เธญเธนเนเธเนเธญเธกเธฃเธ– เธฅเนเธฒเธ เธญเธฑเธ”เธเธตเธ”">21. เธญเธนเนเธเนเธญเธกเธฃเธ– เธฅเนเธฒเธ เธญเธฑเธ”เธเธตเธ”</option>
+                                    <option value="เธชเธ–เธฒเธเธเธฃเธดเธเธฒเธฃเธชเธเธฒ เธเธงเธ” เน€เธเธทเนเธญเธชเธธเธเธ เธฒเธ">22. เธชเธ–เธฒเธเธเธฃเธดเธเธฒเธฃเธชเธเธฒ เธเธงเธ” เน€เธเธทเนเธญเธชเธธเธเธ เธฒเธ</option>
+                                    <option value="เธชเธ–เธฒเธเธจเธถเธเธฉเธฒ เธกเธนเธฅเธเธดเธเธด เธชเธกเธฒเธเธก เธชเธ–เธฒเธเธเธขเธฒเธเธฒเธฅ">23. เธชเธ–เธฒเธเธจเธถเธเธฉเธฒ เธกเธนเธฅเธเธดเธเธด เธชเธกเธฒเธเธก เธชเธ–เธฒเธเธเธขเธฒเธเธฒเธฅ</option>
+                                    <option value="เธเธฒเธฃเนเธซเนเธเธฃเธดเธเธฒเธฃเธ•เนเธฒเธ เน">24. เธเธฒเธฃเนเธซเนเธเธฃเธดเธเธฒเธฃเธ•เนเธฒเธ เน</option>
+                                </select>
+                            </div>
+                            <div class="form-group col-6">
+                                <label for="cust-coordinator">เธเธทเนเธญเธเธนเนเธเธฃเธฐเธชเธฒเธเธเธฒเธ <span class="required">*</span></label>
+                                <input type="text" id="cust-coordinator" placeholder="เธเธฃเธญเธเธเธทเนเธญเธเธนเนเธเธฃเธฐเธชเธฒเธเธเธฒเธเธซเธฅเธฑเธ" required>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group col-12">
+                                <label for="cust-phone">เน€เธเธญเธฃเนเนเธ—เธฃเธ•เธดเธ”เธ•เนเธญ <span class="required">*</span></label>
+                                <input type="text" id="cust-phone" placeholder="เธเธฃเธญเธเน€เธเธญเธฃเนเนเธ—เธฃเธจเธฑเธเธ—เนเธเธนเนเธ•เธดเธ”เธ•เนเธญ" required>
+                            </div>
+                        </div>
+
+                        <!-- Branches Address Section -->
+                        <div class="branches-section">
+                            <div class="section-title-bar">
+                                <h4>เธเนเธญเธกเธนเธฅเธ—เธตเนเธญเธขเธนเน (เธชเธฒเธกเธฒเธฃเธ–เน€เธเธดเนเธกเธชเธฒเธเธฒเนเธ”เนเนเธเธเธฃเธ“เธตเธ—เธตเนเธกเธตเธซเธฅเธฒเธขเธ—เธตเนเธญเธขเธนเน)</h4>
+                                <button type="button" class="btn btn-sm btn-gold" onclick="addNewBranchInput()">
+                                    + เน€เธเธดเนเธกเธชเธฒเธเธฒเนเธซเธกเน
+                                </button>
+                            </div>
+                            <div id="branches-list-container">
+                                <!-- Dynamic branch address units will be rendered here -->
+                            </div>
+                        </div>
+
+                        <!-- Document Drag-and-drop slots with MOCK AI -->
+                        <div class="documents-section">
+                            <h4>เน€เธญเธเธชเธฒเธฃเนเธเธเธเธฒเธขเธเนเธฒเธ / เธเธฃเธดเธฉเธฑเธ— (เธฃเธญเธเธฃเธฑเธเธเธฒเธฃเธฅเธฒเธเนเธเธฅเนเธงเธฒเธเน€เธเธทเนเธญเธญเนเธฒเธเธเนเธญเธกเธนเธฅเธ”เนเธงเธข AI เธญเธฑเธ•เนเธเธกเธฑเธ•เธด ๐ช)</h4>
+                            <p class="section-desc">เธฅเธญเธเธฅเธฒเธเนเธเธฅเนเธเธณเธฅเธญเธ (เน€เธเนเธ เธฅเธฒเธเน€เธญเธเธชเธฒเธฃเนเธ”เน เธกเธฒเธงเธฒเธเนเธเธเธฅเนเธญเธ "เธซเธเธฑเธเธชเธทเธญเธฃเธฑเธเธฃเธญเธเธเธฃเธดเธฉเธฑเธ—") เน€เธเธทเนเธญเธ—เธ”เธชเธญเธเธฃเธฐเธเธ AI เธชเนเธเธเธ”เธถเธเธเนเธญเธกเธนเธฅเธญเธฑเธ•เนเธเธกเธฑเธ•เธด</p>
+                            
+                            <div class="doc-upload-grid">
+                                <!-- Doc 1: ID Card -->
+                                <div class="upload-box" id="drop-cust-id-card" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropDocHandler(event, 'cust-id-card')">
+                                    <input type="file" id="file-cust-id-card" class="file-input" onchange="fileSelectHandler(event, 'cust-id-card')">
+                                    <div class="upload-icon">๐ชช</div>
+                                    <span class="doc-title">เธเธฑเธ•เธฃเธเธฃเธฐเธเธฒเธเธเธเธฒเธขเธเนเธฒเธ</span>
+                                    <span class="upload-hint">เธฅเธฒเธเนเธเธฅเนเธงเธฒเธเธ—เธตเนเธเธตเน เธซเธฃเธทเธญเธเธฅเธดเธเน€เธเธทเนเธญเธญเธฑเธเนเธซเธฅเธ”</span>
+                                    <div class="ocr-status" id="status-cust-id-card"></div>
+                                </div>
+
+                                <!-- Doc 2: Company Certificate -->
+                                <div class="upload-box highlight-box" id="drop-cust-cert" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropDocHandler(event, 'cust-cert')">
+                                    <input type="file" id="file-cust-cert" class="file-input" onchange="fileSelectHandler(event, 'cust-cert')">
+                                    <div class="upload-icon">๐“</div>
+                                    <span class="doc-title">เธซเธเธฑเธเธชเธทเธญเธฃเธฑเธเธฃเธญเธเธเธฃเธดเธฉเธฑเธ— (AI Auto-fill)</span>
+                                    <span class="upload-hint">เธฅเธฒเธเนเธเธฅเนเธงเธฒเธเน€เธเธทเนเธญเธ—เธ”เธฅเธญเธ AI เธเธฃเธญเธเธเนเธญเธกเธนเธฅเธเธฃเธดเธฉเธฑเธ—</span>
+                                    <div class="ocr-status" id="status-cust-cert"></div>
+                                </div>
+
+                                <!-- Doc 3: Company House Reg -->
+                                <div class="upload-box" id="drop-cust-house" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropDocHandler(event, 'cust-house')">
+                                    <input type="file" id="file-cust-house" class="file-input" onchange="fileSelectHandler(event, 'cust-house')">
+                                    <div class="upload-icon">๐ </div>
+                                    <span class="doc-title">เธ—เธฐเน€เธเธตเธขเธเธเนเธฒเธเธเธฃเธดเธฉเธฑเธ—</span>
+                                    <span class="upload-hint">เธฅเธฒเธเนเธเธฅเนเธงเธฒเธเธ—เธตเนเธเธตเน เธซเธฃเธทเธญเธเธฅเธดเธเน€เธเธทเนเธญเธญเธฑเธเนเธซเธฅเธ”</span>
+                                    <div class="ocr-status" id="status-cust-house"></div>
+                                </div>
+
+                                <!-- Doc 4: Employer House Reg -->
+                                <div class="upload-box" id="drop-employer-house" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropDocHandler(event, 'employer-house')">
+                                    <input type="file" id="file-employer-house" class="file-input" onchange="fileSelectHandler(event, 'employer-house')">
+                                    <div class="upload-icon">๐ก</div>
+                                    <span class="doc-title">เธ—เธฐเน€เธเธตเธขเธเธเนเธฒเธเธเธฒเธขเธเนเธฒเธ</span>
+                                    <span class="upload-hint">เธฅเธฒเธเนเธเธฅเนเธงเธฒเธเธ—เธตเนเธเธตเน เธซเธฃเธทเธญเธเธฅเธดเธเน€เธเธทเนเธญเธญเธฑเธเนเธซเธฅเธ”</span>
+                                    <div class="ocr-status" id="status-employer-house"></div>
+                                </div>
+
+                                <!-- Doc 5: Business Photos -->
+                                <div class="upload-box" id="drop-cust-photos" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropDocHandler(event, 'cust-photos')">
+                                    <input type="file" id="file-cust-photos" class="file-input" onchange="fileSelectHandler(event, 'cust-photos')">
+                                    <div class="upload-icon">๐“ธ</div>
+                                    <span class="doc-title">เธฃเธนเธเธ–เนเธฒเธขเธเธดเธเธเธฒเธฃ</span>
+                                    <span class="upload-hint">เธฅเธฒเธเนเธเธฅเนเธงเธฒเธเธ—เธตเนเธเธตเน เธซเธฃเธทเธญเธเธฅเธดเธเน€เธเธทเนเธญเธญเธฑเธเนเธซเธฅเธ”</span>
+                                    <div class="ocr-status" id="status-cust-photos"></div>
+                                </div>
+
+                                <!-- Doc 6: Commercial Reg -->
+                                <div class="upload-box" id="drop-cust-commerce" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropDocHandler(event, 'cust-commerce')">
+                                    <input type="file" id="file-cust-commerce" class="file-input" onchange="fileSelectHandler(event, 'cust-commerce')">
+                                    <div class="upload-icon">๐’ผ</div>
+                                    <span class="doc-title">เธ—เธฐเน€เธเธตเธขเธเธเธฒเธ“เธดเธเธขเน (เธ–เนเธฒเธกเธต)</span>
+                                    <span class="upload-hint">เธฅเธฒเธเนเธเธฅเนเธงเธฒเธเธ—เธตเนเธเธตเน เธซเธฃเธทเธญเธเธฅเธดเธเน€เธเธทเนเธญเธญเธฑเธเนเธซเธฅเธ”</span>
+                                    <div class="ocr-status" id="status-cust-commerce"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline" onclick="closeCustomerModal()">เธขเธเน€เธฅเธดเธ</button>
+                            <button type="submit" class="btn btn-gold" id="btn-save-customer-submit">เธเธฑเธเธ—เธถเธเธเนเธญเธกเธนเธฅ</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== MODAL: ADD/EDIT WORKER ==================== -->
+        <div id="worker-modal" class="modal-backdrop hidden">
+            <div class="modal-content large">
+                <div class="modal-header">
+                    <h3 id="worker-modal-title">เน€เธเธดเนเธกเธเธเธเธฒเธเธ•เนเธฒเธเธ”เนเธฒเธงเนเธซเธกเน</h3>
+                    <button class="close-btn" onclick="closeWorkerModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="worker-form" onsubmit="saveWorker(event)">
+                        <input type="hidden" id="worker-edit-id">
+                        
+                        <!-- Photo Upload and General Info Row -->
+                        <div class="form-row" style="align-items: center; margin-bottom: 20px; display: flex; gap: 20px;">
+                            <div class="form-group" style="width: 140px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; margin-bottom: 0;">
+                                <label style="font-weight: 600; font-size: 13px; text-align: center; width: 100%; color: var(--navy-dark);">เธฃเธนเธเธ–เนเธฒเธขเธเธเธเธฒเธ</label>
+                                <div style="width: 110px; height: 110px; border: 2px dashed #cbd5e1; border-radius: 50%; display: flex; align-items: center; justify-content: center; overflow: hidden; background-color: #f8fafc; position: relative;" id="worker-photo-preview-container">
+                                    <span style="font-size: 32px; color: #94a3b8;" id="worker-photo-icon">๐‘ค</span>
+                                    <img id="worker-photo-preview" src="" alt="Worker Photo" class="hidden" style="width: 100%; height: 100%; object-fit: cover;">
+                                    <input type="file" id="worker-photo-input" accept="image/*" onchange="handleWorkerPhotoUpload(event)" style="position: absolute; width: 100%; height: 100%; opacity: 0; cursor: pointer;">
+                                </div>
+                                <small style="font-size: 9.5px; color: var(--text-muted); text-align: center; line-height: 1.3;">เธเธฅเธดเธเธญเธฑเธเนเธซเธฅเธ”เธฃเธนเธเธ เธฒเธ<br>(เธเธฒเธเธซเธฅเธฑเธเธเธฒเธงเธญเธญเนเธ•เน)</small>
+                            </div>
+                            <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 12px; width: calc(100% - 160px);">
+                                <div class="form-row" style="margin-bottom: 0;">
+                                    <div class="form-group col-12" style="margin-bottom: 0;">
+                                        <label for="worker-employer-id">เธเธฒเธขเธเนเธฒเธ / เธเธฃเธดเธฉเธฑเธ—เธเธนเนเธงเนเธฒเธเนเธฒเธ <span class="required">*</span></label>
+                                        <select id="worker-employer-id" required>
+                                            <option value="" disabled selected>--- เน€เธฅเธทเธญเธเธเธฒเธขเธเนเธฒเธ/เธเธฃเธดเธฉเธฑเธ— ---</option>
+                                            <!-- Dynamic -->
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-row" style="margin-bottom: 0; display: flex; gap: 15px;">
+                                    <div class="form-group col-6" style="margin-bottom: 0; flex: 1;">
+                                        <label for="worker-nationality">เธชเธฑเธเธเธฒเธ•เธด <span class="required">*</span></label>
+                                        <select id="worker-nationality" onchange="toggleNationalityOtherInput()" required>
+                                            <option value="" disabled selected>--- เน€เธฅเธทเธญเธเธชเธฑเธเธเธฒเธ•เธด ---</option>
+                                            <option value="Myanmar">เน€เธกเธตเธขเธเธกเธฒ (Myanmar)</option>
+                                            <option value="Cambodia">เธเธฑเธกเธเธนเธเธฒ (Cambodia)</option>
+                                            <option value="Laos">เธฅเธฒเธง (Laos)</option>
+                                            <option value="Vietnam">เน€เธงเธตเธขเธ”เธเธฒเธก (Vietnam)</option>
+                                            <option value="Other">เธญเธทเนเธเน (เธฃเธฐเธเธธเธชเธฑเธเธเธฒเธ•เธดเน€เธญเธ)</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group col-6" style="margin-bottom: 0; flex: 1;">
+                                        <label for="worker-employment-status">เธชเธ–เธฒเธเธฐเธเธเธเธฒเธ <span class="required">*</span></label>
+                                        <select id="worker-employment-status" required>
+                                            <option value="active" selected>เธเธเธ•เธด (Active)</option>
+                                            <option value="pending_register">เธฃเธญเธเธถเนเธเธ—เธฐเน€เธเธตเธขเธ (Pending Registration)</option>
+                                            <option value="archived">เนเธเนเธเธญเธญเธเนเธฅเนเธง/เธเนเธเธชเธ เธฒเธ (Archived)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-row hidden" id="worker-nationality-other-row">
+                            <div class="form-group col-12">
+                                <label for="worker-nationality-other">เธฃเธฐเธเธธเธชเธฑเธเธเธฒเธ•เธดเธญเธทเนเธเน <span class="required">*</span></label>
+                                <input type="text" id="worker-nationality-other" placeholder="เธเธฃเธญเธเธฃเธฐเธเธธเธชเธฑเธเธเธฒเธ•เธดเธเธเธเธฒเธเธ•เนเธฒเธเธ”เนเธฒเธง">
+                            </div>
+                        </div>
+
+                        <!-- 1.1 General and Work Permit Info -->
+                        <div class="form-section-header">
+                            <h4>เธชเนเธงเธเธ—เธตเน 1.1: เธเนเธญเธกเธนเธฅเธ—เธฑเนเธงเนเธเนเธฅเธฐเนเธเธญเธเธธเธเธฒเธ•เธ—เธณเธเธฒเธ</h4>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group col-6">
+                                <label for="worker-uid">เน€เธฅเธเธเธฃเธฐเธเธณเธ•เธฑเธงเธเธเธเธฒเธเธ•เนเธฒเธเธ”เนเธฒเธง (13 เธซเธฅเธฑเธ)</label>
+                                <input type="text" id="worker-uid" placeholder="เน€เธฅเธเธเธเธเธฒเธเธ•เนเธฒเธเธ”เนเธฒเธง 13 เธซเธฅเธฑเธ" maxlength="13" pattern="\d{13}">
+                            </div>
+                            <div class="form-group col-6">
+                                <label for="worker-permit-no">เน€เธฅเธเธ—เธตเนเนเธเธญเธเธธเธเธฒเธ•เธ—เธณเธเธฒเธ</label>
+                                <input type="text" id="worker-permit-no" placeholder="เธเธฃเธญเธเน€เธฅเธเนเธเธญเธเธธเธเธฒเธ•เธ—เธณเธเธฒเธ">
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group col-3">
+                                <label for="worker-title">เธเธณเธเธณเธซเธเนเธฒเธเธฒเธก <span class="required">*</span></label>
+                                <select id="worker-title" required>
+                                    <option value="" disabled selected>เธเธณเธเธณเธซเธเนเธฒ</option>
+                                    <option value="เธเธฒเธข">เธเธฒเธข (Mr.)</option>
+                                    <option value="เธเธฒเธ">เธเธฒเธ (Mrs.)</option>
+                                    <option value="เธเธฒเธเธชเธฒเธง">เธเธฒเธเธชเธฒเธง (Miss)</option>
+                                    <option value="เน€เธ”เนเธเธเธฒเธข">เน€เธ”เนเธเธเธฒเธข (Master)</option>
+                                    <option value="เน€เธ”เนเธเธซเธเธดเธ">เน€เธ”เนเธเธซเธเธดเธ (Miss)</option>
+                                </select>
+                            </div>
+                            <div class="form-group col-5">
+                                <label for="worker-first-name">เธเธทเนเธญ (เธ เธฒเธฉเธฒเธญเธฑเธเธเธคเธฉ/เนเธ—เธข) <span class="required">*</span></label>
+                                <input type="text" id="worker-first-name" placeholder="เธเธฃเธญเธเธเธทเนเธญเธเธฃเธดเธ" required>
+                            </div>
+                            <div class="form-group col-4">
+                                <label for="worker-last-name">เธเธฒเธกเธชเธเธธเธฅ (เธ เธฒเธฉเธฒเธญเธฑเธเธเธคเธฉ/เนเธ—เธข)</label>
+                                <input type="text" id="worker-last-name" placeholder="เธเธฃเธญเธเธเธฒเธกเธชเธเธธเธฅ">
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group col-6">
+                                <label for="worker-dob">เธงเธฑเธเน€เธ”เธทเธญเธเธเธตเน€เธเธดเธ” <span class="required">*</span></label>
+                                <input type="text" id="worker-dob" placeholder="เธงเธฑเธ/เน€เธ”เธทเธญเธ/เธเธต เธ.เธจ. (เน€เธเนเธ 15/08/1994)" required>
+                            </div>
+                            <div class="form-group col-6">
+                                <label for="worker-permit-expiry">เนเธเธญเธเธธเธเธฒเธ•เธ—เธณเธเธฒเธเธซเธกเธ”เธญเธฒเธขเธธเธงเธฑเธเธ—เธตเน</label>
+                                <input type="text" id="worker-permit-expiry" placeholder="เธงเธฑเธ/เน€เธ”เธทเธญเธ/เธเธต เธ.เธจ. (เน€เธเนเธ 31/12/2026)">
+                            </div>
+                        </div>
+
+                        <!-- Parent Info (Father & Mother Names) -->
+                        <div class="form-row">
+                            <div class="form-group col-6">
+                                <label for="worker-father-name">เธเธทเนเธญเธเธดเธ”เธฒ (Father's Name)</label>
+                                <input type="text" id="worker-father-name" placeholder="เธฃเธฐเธเธธเธเธทเนเธญเธเธดเธ”เธฒ (เธ–เนเธฒเธกเธต)">
+                            </div>
+                            <div class="form-group col-6">
+                                <label for="worker-mother-name">เธเธทเนเธญเธกเธฒเธฃเธ”เธฒ (Mother's Name)</label>
+                                <input type="text" id="worker-mother-name" placeholder="เธฃเธฐเธเธธเธเธทเนเธญเธกเธฒเธฃเธ”เธฒ (เธ–เนเธฒเธกเธต)">
+                            </div>
+                        </div>
+
+                        <!-- 1.2 Passport / CI Info -->
+                        <div class="form-section-header">
+                            <h4>เธชเนเธงเธเธ—เธตเน 1.2: เธเนเธญเธกเธนเธฅเน€เธฅเนเธก Passport / CI (เนเธเนเธเน€เธ•เธทเธญเธเธฅเนเธงเธเธซเธเนเธฒ 180 เธงเธฑเธ)</h4>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group col-4">
+                                <label for="worker-passport-no">เน€เธฅเธเธ—เธตเนเน€เธฅเนเธก Passport / CI</label>
+                                <input type="text" id="worker-passport-no" placeholder="เธเธฃเธญเธเน€เธฅเธเธ—เธตเนเน€เธฅเนเธกเธเธฒเธชเธเธญเธฃเนเธ•">
+                            </div>
+                            <div class="form-group col-4">
+                                <label for="worker-passport-pob">Place of Birth (เธชเธ–เธฒเธเธ—เธตเนเน€เธเธดเธ”)</label>
+                                <input type="text" id="worker-passport-pob" placeholder="เน€เธเนเธ Yangon, Bago">
+                            </div>
+                            <div class="form-group col-4">
+                                <label for="worker-passport-auth">Authority (เธชเธ–เธฒเธเธ—เธตเนเธญเธญเธเน€เธฅเนเธก)</label>
+                                <input type="text" id="worker-passport-auth" placeholder="เน€เธเนเธ Yangon, Passport Office">
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group col-6">
+                                <label for="worker-passport-issue">เธงเธฑเธเธญเธญเธเน€เธฅเนเธก Passport / CI</label>
+                                <input type="text" id="worker-passport-issue" placeholder="เธงเธฑเธ/เน€เธ”เธทเธญเธ/เธเธต เธ.เธจ. (เน€เธเนเธ 20/05/2022)">
+                            </div>
+                            <div class="form-group col-6">
+                                <label for="worker-passport-expiry">เธงเธฑเธเธซเธกเธ”เธญเธฒเธขเธธ Passport / CI</label>
+                                <input type="text" id="worker-passport-expiry" placeholder="เธงเธฑเธ/เน€เธ”เธทเธญเธ/เธเธต เธ.เธจ. (เน€เธเนเธ 20/05/2027)">
+                            </div>
+                        </div>
+
+                        <!-- Worker Documents Drag and Drop Section -->
+                        <div class="documents-section">
+                            <h4>เนเธเธเน€เธญเธเธชเธฒเธฃเธเธเธเธฒเธเธ•เนเธฒเธเธ”เนเธฒเธง (เธฃเธญเธเธฃเธฑเธเธเธฒเธฃเธฅเธฒเธเธงเธฒเธเน€เธเธทเนเธญเธญเนเธฒเธเธเนเธญเธกเธนเธฅ AI ๐ช)</h4>
+                            
+                            <div class="doc-upload-grid" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px;">
+                                <!-- Doc 1: WP / Personal -->
+                                <div class="upload-box highlight-box" id="drop-worker-wp-doc" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropDocHandler(event, 'worker-wp-doc')">
+                                    <input type="file" id="file-worker-wp-doc" class="file-input" onchange="fileSelectHandler(event, 'worker-wp-doc')">
+                                    <div class="upload-icon">๐ชช</div>
+                                    <span class="doc-title">เน€เธญเธเธชเธฒเธฃเนเธเธญเธเธธเธเธฒเธ•เธ—เธณเธเธฒเธ (1.1)</span>
+                                    <span class="upload-hint">เธฅเธฒเธเธงเธฒเธเน€เธเธทเนเธญเธ—เธ”เธฅเธญเธ AI เธเธฃเธญเธเธเนเธญเธกเธนเธฅเธเธฑเธ•เธฃ</span>
+                                    <div class="ocr-status" id="status-worker-wp-doc"></div>
+                                </div>
+
+                                <!-- Doc 2: Passport -->
+                                <div class="upload-box highlight-box" id="drop-worker-passport" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropDocHandler(event, 'worker-passport')">
+                                    <input type="file" id="file-worker-passport" class="file-input" onchange="fileSelectHandler(event, 'worker-passport')">
+                                    <div class="upload-icon">โ๏ธ</div>
+                                    <span class="doc-title">เธเธฒเธชเธเธญเธฃเนเธ• / CI (1.2)</span>
+                                    <span class="upload-hint">เธฅเธฒเธเธงเธฒเธเน€เธเธทเนเธญเธ—เธ”เธฅเธญเธ AI เธเธฃเธญเธเธเธฒเธชเธเธญเธฃเนเธ•</span>
+                                    <div class="ocr-status" id="status-worker-passport"></div>
+                                </div>
+
+                                <!-- Doc 3: Myanmar Card / House Reg -->
+                                <div class="upload-box" id="drop-worker-myanmar-id" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropDocHandler(event, 'worker-myanmar-id')">
+                                    <input type="file" id="file-worker-myanmar-id" class="file-input" onchange="fileSelectHandler(event, 'worker-myanmar-id')">
+                                    <div class="upload-icon">๐ก</div>
+                                    <span class="doc-title">เธเธฑเธ•เธฃเธเธฃเธฐเธเธฒเธเธ/เธ—เธฐเน€เธเธตเธขเธเธเนเธฒเธเธเธกเนเธฒ</span>
+                                    <span class="upload-hint">เธฅเธฒเธเธงเธฒเธเนเธเธฅเน เธซเธฃเธทเธญเธเธฅเธดเธเธญเธฑเธเนเธซเธฅเธ”</span>
+                                    <div class="ocr-status" id="status-worker-myanmar-id"></div>
+                                </div>
+
+                                <!-- Doc 4: Pink Card -->
+                                <div class="upload-box" id="drop-worker-pink-card" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropDocHandler(event, 'worker-pink-card')">
+                                    <input type="file" id="file-worker-pink-card" class="file-input" onchange="fileSelectHandler(event, 'worker-pink-card')">
+                                    <div class="upload-icon">๐ธ</div>
+                                    <span class="doc-title">เธเธฑเธ•เธฃเธเธกเธเธน (Pink Card)</span>
+                                    <span class="upload-hint">เธฅเธฒเธเธงเธฒเธเนเธเธฅเน เธซเธฃเธทเธญเธเธฅเธดเธเธญเธฑเธเนเธซเธฅเธ”</span>
+                                    <div class="ocr-status" id="status-worker-pink-card"></div>
+                                </div>
+
+                                <!-- Doc 5: Receipt -->
+                                <div class="upload-box" id="drop-worker-receipt" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropDocHandler(event, 'worker-receipt')">
+                                    <input type="file" id="file-worker-receipt" class="file-input" onchange="fileSelectHandler(event, 'worker-receipt')">
+                                    <div class="upload-icon">๐งพ</div>
+                                    <span class="doc-title">เนเธเน€เธชเธฃเนเธ (Receipt)</span>
+                                    <span class="upload-hint">เธฅเธฒเธเธงเธฒเธเนเธเธฅเน เธซเธฃเธทเธญเธเธฅเธดเธเธญเธฑเธเนเธซเธฅเธ”</span>
+                                    <div class="ocr-status" id="status-worker-receipt"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline" onclick="closeWorkerModal()">เธขเธเน€เธฅเธดเธ</button>
+                            <button type="submit" class="btn btn-gold" id="btn-save-worker-submit">เธเธฑเธเธ—เธถเธเธเนเธญเธกเธนเธฅ</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== MODAL: ADD/EDIT JOB ==================== -->
+        <div id="job-modal" class="modal-backdrop hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="job-modal-title">เนเธเนเธเธชเธฑเนเธเธเธฒเธเนเธฅเธฐเธเธฑเนเธเธ•เธญเธเธ”เธณเน€เธเธดเธเธเธฒเธฃ</h3>
+                    <button class="close-btn" onclick="closeJobModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="job-form" onsubmit="saveJob(event)">
+                        <input type="hidden" id="job-edit-id">
+                        
+                        <div class="form-group">
+                            <label for="job-customer-id">เธเธฒเธขเธเนเธฒเธ / เธฅเธนเธเธเนเธฒเธเธนเนเธชเธฑเนเธเธเธฒเธ <span class="required">*</span></label>
+                            <select id="job-customer-id" onchange="onJobCustomerChange()" required>
+                                <option value="" disabled selected>--- เน€เธฅเธทเธญเธเธเธฒเธขเธเนเธฒเธ ---</option>
+                                <!-- Dynamic -->
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="job-worker-id">เธเธเธเธฒเธเธ•เนเธฒเธเธ”เนเธฒเธงเธ—เธตเนเน€เธเธตเนเธขเธงเธเนเธญเธ <span class="required">*</span></label>
+                            <select id="job-worker-id" required>
+                                <option value="" disabled selected>--- เน€เธฅเธทเธญเธเธเธเธเธฒเธ ---</option>
+                                <!-- Dynamic -->
+                            </select>
+                        </div>
+
+                        <div class="form-group" style="margin-bottom: 15px;">
+                            <label style="font-weight: 600; font-size: 13px; color: var(--navy-dark); margin-bottom: 8px; display: block;">เธเธฃเธฐเน€เธ เธ—เธเธฒเธเธ—เธตเนเนเธเนเธ (เน€เธฅเธทเธญเธเนเธ”เนเธซเธฅเธฒเธขเธฃเธฒเธขเธเธฒเธฃ) <span class="required">*</span></label>
+                            <div id="job-type-checkboxes-container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: var(--radius-sm); padding: 12px;">
+                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
+                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
+                                        <input type="checkbox" name="job-type-checkbox" value="เนเธเนเธเน€เธเนเธฒ" onchange="toggleJobTypePriceInput(this)" style="width: 16px; height: 16px;"> เนเธเนเธเน€เธเนเธฒ
+                                    </label>
+                                    <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                                        <input type="number" name="job-type-price" placeholder="เธฃเธฒเธเธฒ" min="0" disabled style="width: 75px; padding: 4px 6px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: right; margin: 0; outline: none;">
+                                        <span style="font-size: 11px; color: var(--text-muted);">เธ.</span>
+                                    </div>
+                                </div>
+                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
+                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
+                                        <input type="checkbox" name="job-type-checkbox" value="เนเธเนเธเธญเธญเธ" onchange="toggleJobTypePriceInput(this)" style="width: 16px; height: 16px;"> เนเธเนเธเธญเธญเธ
+                                    </label>
+                                    <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                                        <input type="number" name="job-type-price" placeholder="เธฃเธฒเธเธฒ" min="0" disabled style="width: 75px; padding: 4px 6px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: right; margin: 0; outline: none;">
+                                        <span style="font-size: 11px; color: var(--text-muted);">เธ.</span>
+                                    </div>
+                                </div>
+                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
+                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
+                                        <input type="checkbox" name="job-type-checkbox" value="เน€เธเธฅเธตเนเธขเธเนเธเธฅเธเธเนเธญเธกเธนเธฅ" onchange="toggleJobTypePriceInput(this)" style="width: 16px; height: 16px;"> เน€เธเธฅเธตเนเธขเธเนเธเธฅเธเธเนเธญเธกเธนเธฅ
+                                    </label>
+                                    <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                                        <input type="number" name="job-type-price" placeholder="เธฃเธฒเธเธฒ" min="0" disabled style="width: 75px; padding: 4px 6px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: right; margin: 0; outline: none;">
+                                        <span style="font-size: 11px; color: var(--text-muted);">เธ.</span>
+                                    </div>
+                                </div>
+                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
+                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
+                                        <input type="checkbox" name="job-type-checkbox" value="เนเธเนเธเธ—เธตเนเธเธฑเธ" onchange="toggleJobTypePriceInput(this)" style="width: 16px; height: 16px;"> เนเธเนเธเธ—เธตเนเธเธฑเธ
+                                    </label>
+                                    <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                                        <input type="number" name="job-type-price" placeholder="เธฃเธฒเธเธฒ" min="0" disabled style="width: 75px; padding: 4px 6px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: right; margin: 0; outline: none;">
+                                        <span style="font-size: 11px; color: var(--text-muted);">เธ.</span>
+                                    </div>
+                                </div>
+                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
+                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
+                                        <input type="checkbox" name="job-type-checkbox" value="เนเธเนเธเน€เธเนเธฒเธเธฃเธฐเธเธฑเธเธชเธฑเธเธเธก" onchange="toggleJobTypePriceInput(this)" style="width: 16px; height: 16px;"> เนเธเนเธเน€เธเนเธฒเธเธฃเธฐเธเธฑเธเธชเธฑเธเธเธก
+                                    </label>
+                                    <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                                        <input type="number" name="job-type-price" placeholder="เธฃเธฒเธเธฒ" min="0" disabled style="width: 75px; padding: 4px 6px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: right; margin: 0; outline: none;">
+                                        <span style="font-size: 11px; color: var(--text-muted);">เธ.</span>
+                                    </div>
+                                </div>
+                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
+                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
+                                        <input type="checkbox" name="job-type-checkbox" value="เธ•เธต Visa" onchange="toggleJobTypePriceInput(this)" style="width: 16px; height: 16px;"> เธ•เธต Visa
+                                    </label>
+                                    <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                                        <input type="number" name="job-type-price" placeholder="เธฃเธฒเธเธฒ" min="0" disabled style="width: 75px; padding: 4px 6px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: right; margin: 0; outline: none;">
+                                        <span style="font-size: 11px; color: var(--text-muted);">เธ.</span>
+                                    </div>
+                                </div>
+                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
+                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
+                                        <input type="checkbox" name="job-type-checkbox" value="เธฃเธฒเธขเธเธฒเธเธ•เธฑเธง 90 เธงเธฑเธ" onchange="toggleJobTypePriceInput(this)" style="width: 16px; height: 16px;"> เธฃเธฒเธขเธเธฒเธเธ•เธฑเธง 90 เธงเธฑเธ
+                                    </label>
+                                    <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                                        <input type="number" name="job-type-price" placeholder="เธฃเธฒเธเธฒ" min="0" disabled style="width: 75px; padding: 4px 6px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: right; margin: 0; outline: none;">
+                                        <span style="font-size: 11px; color: var(--text-muted);">เธ.</span>
+                                    </div>
+                                </div>
+                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
+                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
+                                        <input type="checkbox" name="job-type-checkbox" value="เธ—เธณเธเธฑเธ•เธฃเธเธกเธเธน / เธญเธฑเธเน€เธ”เธ— เธ—เธฃ.38" onchange="toggleJobTypePriceInput(this)" style="width: 16px; height: 16px;"> เธ—เธณเธเธฑเธ•เธฃเธเธกเธเธน / เธญเธฑเธเน€เธ”เธ— เธ—เธฃ.38
+                                    </label>
+                                    <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                                        <input type="number" name="job-type-price" placeholder="เธฃเธฒเธเธฒ" min="0" disabled style="width: 75px; padding: 4px 6px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: right; margin: 0; outline: none;">
+                                        <span style="font-size: 11px; color: var(--text-muted);">เธ.</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="job-status">เธชเธ–เธฒเธเธฐเธเธฒเธ (เธ”เนเธฒเธเธเธฒเธฃเธ”เธณเน€เธเธดเธเธเธฒเธ) <span class="required">*</span></label>
+                            <select id="job-status" required>
+                                <option value="เธฃเธญเธ”เธณเน€เธเธดเธเธเธฒเธฃ">เธฃเธญเธ”เธณเน€เธเธดเธเธเธฒเธฃ (Pending)</option>
+                                <option value="เธเธณเธฅเธฑเธเธ”เธณเน€เธเธดเธเธเธฒเธฃ">เธเธณเธฅเธฑเธเธ”เธณเน€เธเธดเธเธเธฒเธฃ (In Progress)</option>
+                                <option value="เธฃเธญเน€เธญเธเธชเธฒเธฃเน€เธเธดเนเธกเน€เธ•เธดเธก">เธฃเธญเน€เธญเธเธชเธฒเธฃเน€เธเธดเนเธกเน€เธ•เธดเธก (Waiting for Docs)</option>
+                                <option value="เน€เธชเธฃเนเธเธชเธดเนเธ">เน€เธชเธฃเนเธเธชเธดเนเธ (Completed)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="job-notes">เธฃเธฒเธขเธฅเธฐเน€เธญเธตเธขเธ”เน€เธเธดเนเธกเน€เธ•เธดเธก / เธเธฑเธเธ—เธถเธเธเธฒเธ</label>
+                            <textarea id="job-notes" rows="3" placeholder="เธฃเธฐเธเธธเธฃเธฒเธขเธฅเธฐเน€เธญเธตเธขเธ”เธเธฒเธเธซเธฃเธทเธญเน€เธญเธเธชเธฒเธฃเธ—เธตเนเธขเธฑเธเธเธฒเธ”..."></textarea>
+                        </div>
+
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline" onclick="closeJobModal()">เธขเธเน€เธฅเธดเธ</button>
+                            <button type="submit" class="btn btn-gold" id="btn-save-job-submit">เธเธฑเธเธ—เธถเธเธเธฒเธ</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== MODAL: ADD/EDIT BANK ACCOUNT ==================== -->
+        <div id="bank-modal" class="modal-backdrop hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="bank-modal-title">เธเธฑเธ”เธเธฒเธฃเธเธฑเธเธเธตเธเธเธฒเธเธฒเธฃเธชเธณเธซเธฃเธฑเธเธฃเธฑเธเน€เธเธดเธ</h3>
+                    <button class="close-btn" onclick="closeBankModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="bank-form" onsubmit="saveBank(event)">
+                        <input type="hidden" id="bank-edit-id">
+                        
+                        <div class="form-group">
+                            <label for="bank-name">เธเธเธฒเธเธฒเธฃ <span class="required">*</span></label>
+                            <select id="bank-name" required>
+                                <option value="" disabled selected>--- เน€เธฅเธทเธญเธเธเธเธฒเธเธฒเธฃ ---</option>
+                                <option value="เธเธเธฒเธเธฒเธฃเธเธชเธดเธเธฃเนเธ—เธข">เธเธเธฒเธเธฒเธฃเธเธชเธดเธเธฃเนเธ—เธข (KBank)</option>
+                                <option value="เธเธเธฒเธเธฒเธฃเนเธ—เธขเธเธฒเธ“เธดเธเธขเน">เธเธเธฒเธเธฒเธฃเนเธ—เธขเธเธฒเธ“เธดเธเธขเน (SCB)</option>
+                                <option value="เธเธเธฒเธเธฒเธฃเธเธฃเธธเธเน€เธ—เธ">เธเธเธฒเธเธฒเธฃเธเธฃเธธเธเน€เธ—เธ (BBL)</option>
+                                <option value="เธเธเธฒเธเธฒเธฃเธเธฃเธธเธเนเธ—เธข">เธเธเธฒเธเธฒเธฃเธเธฃเธธเธเนเธ—เธข (KTB)</option>
+                                <option value="เธเธเธฒเธเธฒเธฃเธญเธญเธกเธชเธดเธ">เธเธเธฒเธเธฒเธฃเธญเธญเธกเธชเธดเธ (GSB)</option>
+                                <option value="เธเธเธฒเธเธฒเธฃเธ—เธซเธฒเธฃเนเธ—เธขเธเธเธเธฒเธ•">เธเธเธฒเธเธฒเธฃเธ—เธซเธฒเธฃเนเธ—เธขเธเธเธเธฒเธ• (ttb)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="bank-account-name">เธเธทเนเธญเธเธฑเธเธเธต <span class="required">*</span></label>
+                            <input type="text" id="bank-account-name" placeholder="เธเธทเนเธญเธ เธฒเธฉเธฒเนเธ—เธข เน€เธเนเธ เธเธฒเธข เธจเธฃเธธเธ• เธเธธเธ“เธฒเธฃเธฑเธเธฉเน" required>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group col-6">
+                                <label for="bank-account-number">เน€เธฅเธเธเธฑเธเธเธตเธเธเธฒเธเธฒเธฃ <span class="required">*</span></label>
+                                <input type="text" id="bank-account-number" placeholder="เน€เธเนเธ 026-1-82736-2" required>
+                            </div>
+                            <div class="form-group col-6">
+                                <label for="bank-promptpay-id">เธเธฃเนเธญเธกเน€เธเธขเน ID (เน€เธเธญเธฃเนเนเธ—เธฃ/เน€เธฅเธเธเธฑเธ•เธฃ 13 เธซเธฅเธฑเธ) <span class="required">*</span></label>
+                                <input type="text" id="bank-promptpay-id" placeholder="เธชเธณเธซเธฃเธฑเธเธชเธฃเนเธฒเธ QR Code เธเธณเธฃเธฐเน€เธเธดเธ" required>
+                            </div>
+                        </div>
+
+                        <!-- Form group for QR Code Upload -->
+                        <div class="form-group" style="margin-top: 15px;">
+                            <label style="font-weight: 600;">เนเธเธเธฃเธนเธเธ เธฒเธ QR Code เธฃเธฑเธเน€เธเธดเธ (เธ–เนเธฒเธ•เนเธญเธเธเธฒเธฃเนเธเนเนเธ—เธ QR เธเธฃเนเธญเธกเน€เธเธขเนเธชเนเธเธเธเนเธฒเธขเธญเธญเนเธ•เน)</label>
+                            <div style="display: flex; align-items: center; gap: 15px; margin-top: 5px;">
+                                <div style="width: 100px; height: 100px; border: 2px dashed #cbd5e1; border-radius: 8px; display: flex; align-items: center; justify-content: center; overflow: hidden; background-color: #f8fafc; position: relative; flex-shrink: 0;" id="bank-qr-preview-container">
+                                    <span style="font-size: 24px; color: #94a3b8;" id="bank-qr-icon">๐“ธ</span>
+                                    <img id="bank-qr-preview" src="" alt="Bank QR" class="hidden" style="width: 100%; height: 100%; object-fit: contain;">
+                                    <input type="file" id="bank-qr-input" accept="image/*" onchange="handleBankQrUpload(event)" style="position: absolute; width: 100%; height: 100%; opacity: 0; cursor: pointer;">
+                                </div>
+                                <div>
+                                    <button type="button" class="btn btn-sm btn-outline" style="font-size: 11.5px; padding: 4px 10px;" onclick="document.getElementById('bank-qr-input').click()">เน€เธฅเธทเธญเธเนเธเธฅเนเธฃเธนเธ QR Code</button>
+                                    <button type="button" class="btn btn-sm btn-outline delete-btn hidden" id="btn-delete-bank-qr" style="font-size: 11.5px; padding: 4px 10px; margin-left: 5px;" onclick="removeBankQrImage()">เธฅเธเธฃเธนเธเธ เธฒเธ</button>
+                                    <small style="display: block; margin-top: 6px; color: var(--text-muted); font-size: 11px; line-height: 1.3;">เธฃเธฐเธเธเธเธฐเธเธณเธฃเธนเธ QR code เธเธตเนเนเธเนเธชเธ”เธเธเธฅเนเธเนเธเนเธเนเธเธซเธเธตเนเธฃเธฑเธเธเธณเธฃเธฐเน€เธเธดเธเธเธญเธเธฅเธนเธเธเนเธฒเนเธ”เธขเธ•เธฃเธเธ—เธฑเธเธ—เธตเธซเธฒเธเธญเธฑเธเนเธซเธฅเธ”เนเธงเน</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline" onclick="closeBankModal()">เธขเธเน€เธฅเธดเธ</button>
+                            <button type="submit" class="btn btn-gold">เธเธฑเธเธ—เธถเธเธเธฑเธเธเธต</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== MODAL: INVOICE BILLING PREVIEW ==================== -->
+        <div id="invoice-modal" class="modal-backdrop hidden">
+            <div class="modal-content large printable-modal-content">
+                <div class="modal-header no-print">
+                    <h3>เนเธเนเธเนเธเธซเธเธตเน / เนเธเนเธเนเธเธเนเธฒเธเธฃเธดเธเธฒเธฃ (Invoice Preview)</h3>
+                    <button class="close-btn" onclick="closeInvoiceModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <!-- Invoice Custom Selector Header (No print) -->
+                    <div class="invoice-selector-bar no-print">
+                        <div class="form-group" style="margin-bottom: 0; width: 100%; max-width: 400px;">
+                            <label for="invoice-bank-select" style="font-weight: 600; color: var(--gold-primary);">เน€เธฅเธทเธญเธเธเธฑเธเธเธตเธเธเธฒเธเธฒเธฃเธเธนเนเธฃเธฑเธเน€เธเธดเธ (เธฃเธฐเธเธเธเธฐเธชเธฅเธฑเธ QR Code เธญเธฑเธ•เนเธเธกเธฑเธ•เธด):</label>
+                            <select id="invoice-bank-select" onchange="updateInvoiceBankDetails()" style="border-color: var(--gold-primary); font-weight: 500;">
+                                <!-- Dynamic Banks Dropdown -->
+                            </select>
+                        </div>
+                        <button class="btn btn-gold" onclick="window.print()" style="margin-top: 20px;">
+                            ๐–จ๏ธ เธเธดเธกเธเนเนเธเนเธเนเธเธซเธเธตเน (Print)
+                        </button>
+                    </div>
+
+                    <!-- Print Layout Sheet -->
+                    <div class="invoice-sheet" id="invoice-sheet-container">
+                        <!-- Head -->
+                        <div class="invoice-sheet-header">
+                            <div class="invoice-brand">
+                                <div class="invoice-logo">AG</div>
+                                <div>
+                                    <h2>เธเธฒเธข เธจเธฃเธธเธ• เธเธธเธ“เธฒเธฃเธฑเธเธฉเน</h2>
+                                    <p>เน€เธฅเธเธ—เธตเน 14 เธซเธกเธนเน 2 เธ–.เน€เธฅเธตเธขเธเธเธฅเธญเธ เธฃ.5 เธ•.เธเธญเธซเธเธชเน เธญ.เธซเธฒเธ”เนเธซเธเน เธ.เธชเธเธเธฅเธฒ 90110 เนเธ—เธฃ 098-7415888</p>
+                                    <p>เน€เธฅเธเธเธนเนเน€เธชเธตเธขเธ เธฒเธฉเธต: 1102001179399</p>
+                                </div>
+                            </div>
+                            <div class="invoice-meta-title">
+                                <h1>เนเธเนเธเนเธเธซเธเธตเน</h1>
+                                <p class="text-gold" style="font-weight: 600;">INVOICE</p>
+                                <div style="margin-top: 15px; font-size: 13px; line-height: 1.5;">
+                                    <div><strong>เน€เธฅเธเธ—เธตเน:</strong> <span id="inv-no">INV-202607001</span></div>
+                                    <div><strong>เธงเธฑเธเธ—เธตเน:</strong> <span id="inv-date">10 เธเธฃเธเธเธฒเธเธก 2026</span></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="gold-hr">
+
+                        <!-- Client details -->
+                        <div class="invoice-addresses-row">
+                            <div class="inv-addr-block">
+                                <h5>เธฅเธนเธเธเนเธฒ / เธเธฒเธขเธเนเธฒเธเธเธนเนเธฃเธฑเธเธเธฃเธดเธเธฒเธฃ (เธเธฅเธดเธเน€เธเธทเนเธญเนเธเนเนเธเธเนเธญเธกเธนเธฅ):</h5>
+                                <p><strong id="inv-cust-name" contenteditable="true" style="outline: none; border-bottom: 1px dashed transparent;" title="เธเธฅเธดเธเน€เธเธทเนเธญเนเธเนเนเธเธเธทเนเธญเธฅเธนเธเธเนเธฒ">เธเธฃเธดเธฉเธฑเธ— เนเธเธฃเธฃเธนเธเธ—เธฐเน€เธฅเธชเธเธเธฅเธฒ เธเธณเธเธฑเธ”</strong></p>
+                                <p id="inv-cust-addr" contenteditable="true" style="outline: none; border-bottom: 1px dashed transparent;" title="เธเธฅเธดเธเน€เธเธทเนเธญเนเธเนเนเธเธ—เธตเนเธญเธขเธนเน">เน€เธฅเธเธ—เธตเน 45/12 เธก.3 เธ•.เธเธญเธซเธเธชเน เธญ.เธซเธฒเธ”เนเธซเธเน เธ.เธชเธเธเธฅเธฒ 90110</p>
+                                <p id="inv-cust-tax" contenteditable="true" style="outline: none; border-bottom: 1px dashed transparent;" title="เธเธฅเธดเธเน€เธเธทเนเธญเนเธเนเนเธเน€เธฅเธเธเธนเนเน€เธชเธตเธขเธ เธฒเธฉเธต">เน€เธฅเธเธเธนเนเน€เธชเธตเธขเธ เธฒเธฉเธต: 0105563024859</p>
+                            </div>
+                        </div>
+
+                        <!-- Services details table -->
+                        <table class="invoice-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 50px; text-align: center;">เธฅเธณเธ”เธฑเธ</th>
+                                    <th>เธฃเธฒเธขเธเธฒเธฃเธเธณเธเธญเนเธเนเธเธเธฒเธเธ•เนเธฒเธเธ”เนเธฒเธง (Services Description)</th>
+                                    <th style="width: 80px; text-align: center;">เธเธณเธเธงเธ</th>
+                                    <th style="width: 120px; text-align: right;">เธฃเธฒเธเธฒเธ•เนเธญเธซเธเนเธงเธข (เธ.)</th>
+                                    <th style="width: 130px; text-align: right;">เธเธณเธเธงเธเน€เธเธดเธ (เธเธฒเธ—)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="invoice-items-tbody">
+                                <!-- Dynamic rows generated by JS -->
+                            </tbody>
+                            <tfoot>
+                                <tr class="inv-summary-row">
+                                    <td colspan="4" class="sum-label">เธฃเธงเธกเน€เธเธดเธเธเนเธฒเธเธฃเธดเธเธฒเธฃ (Subtotal)</td>
+                                    <td class="sum-value" id="inv-subtotal">0.00</td>
+                                </tr>
+                                <tr class="inv-summary-row">
+                                    <td colspan="4" class="sum-label">เธ เธฒเธฉเธตเธกเธนเธฅเธเนเธฒเน€เธเธดเนเธก 7% (VAT)</td>
+                                    <td class="sum-value" id="inv-vat">0.00</td>
+                                </tr>
+                                <tr class="inv-summary-row grand-total">
+                                    <td colspan="4" class="sum-label">เธเธณเธเธงเธเน€เธเธดเธเธฃเธงเธกเธ—เธฑเนเธเธชเธดเนเธ (Grand Total)</td>
+                                    <td class="sum-value" id="inv-grand-total">0.00</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+
+                        <!-- Payment & Bank Info Section (Navy/Gold style) -->
+                        <div class="invoice-payment-section">
+                            <div class="payment-bank-details">
+                                <h5>เธเนเธญเธเธ—เธฒเธเธเธณเธฃเธฐเน€เธเธดเธเนเธญเธเธเนเธฒเธเธเธเธฒเธเธฒเธฃ:</h5>
+                                <div class="bank-info-card">
+                                    <div style="font-weight: 600; font-size: 14.5px; color: var(--navy-dark);" id="inv-bank-name">เธเธเธฒเธเธฒเธฃเธเธชเธดเธเธฃเนเธ—เธข</div>
+                                    <div><strong>เธเธทเนเธญเธเธฑเธเธเธต:</strong> <span id="inv-bank-acc-name">เธเธเธ. เนเธญเธเธ•เธดเธเธฃเธตเธงเธดเธ•เธตเน</span></div>
+                                    <div><strong>เน€เธฅเธเธ—เธตเนเธเธฑเธเธเธต:</strong> <span id="inv-bank-acc-no">026-1-82736-2</span></div>
+                                </div>
+                                <p style="font-size: 11px; color: var(--text-muted); margin-top: 15px; border-top: 1px dashed #e2e8f0; padding-top: 8px;">
+                                    * เธเธฃเธธเธ“เธฒเธชเนเธเธซเธฅเธฑเธเธเธฒเธเธเธฒเธฃเนเธญเธเน€เธเธดเธ (Slip) เนเธซเนเน€เธเนเธฒเธซเธเนเธฒเธ—เธตเนเธเธนเนเธเธฃเธฐเธชเธฒเธเธเธฒเธเน€เธเธทเนเธญเธขเธทเธเธขเธฑเธเธเธฒเธฃเธฃเธฑเธเน€เธเธดเธ
+                                </p>
+                            </div>
+                            
+                            <!-- Dynamic PromptPay QR Code container -->
+                            <div class="promptpay-qr-box">
+                                <div class="promptpay-logo">
+                                    <span>เธเธฃเนเธญเธกเน€เธเธขเน</span>
+                                </div>
+                                <div class="qr-code-wrapper" id="inv-qrcode-container">
+                                    <!-- Dynamic QR Code Image -->
+                                    <img id="inv-qrcode-img" src="" alt="PromptPay QR Code">
+                                    <!-- Fallback simulated QR code lines in CSS if API fails -->
+                                    <div id="inv-qrcode-fallback" class="hidden">
+                                        <div style="font-size: 11px; font-weight: 600; color: var(--navy-dark)">PromptPay QR</div>
+                                        <div style="width: 80px; height: 80px; background-color: #333; margin: 5px auto;"></div>
+                                        <div style="font-size: 9px; color: var(--text-muted)">Scan to Pay</div>
+                                    </div>
+                                </div>
+                                <div style="font-size: 11.5px; font-weight: 600; color: var(--navy-dark); margin-top: 6px; text-align: center;">
+                                    เธชเนเธเธเธเนเธฒเธขเน€เธเธดเธ: <span id="inv-qr-amount">2,500.00</span> เธเธฒเธ—
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer no-print">
+                    <button class="btn btn-outline" onclick="closeInvoiceModal()">เธเธดเธ”เธซเธเนเธฒเธ•เนเธฒเธ</button>
+                    <button class="btn btn-gold" id="btn-mark-paid" onclick="markJobPaidFromInvoice()">
+                        โ… เธขเธทเธเธขเธฑเธเธเธฒเธฃเธฃเธฑเธเธเธณเธฃเธฐเน€เธเธดเธ (Mark as Paid)
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== COMBINE BILLS MODAL ==================== -->
+        <div id="combine-bills-modal" class="modal-backdrop hidden">
+            <div class="modal-content" style="max-width: 600px;">
+                <div class="modal-header">
+                    <h3 id="combine-modal-title">เธฃเธงเธกเนเธเธชเธฑเนเธเธเธฒเธเธญเธญเธเธเธดเธฅเธเธธเธ”</h3>
+                    <button class="close-btn" onclick="closeCombineBillsModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="combine-cust-select">เน€เธฅเธทเธญเธเธเธฒเธขเธเนเธฒเธ / เธฅเธนเธเธเนเธฒเธเธนเนเธงเนเธฒเธเนเธฒเธ <span class="required">*</span></label>
+                        <select id="combine-cust-select" onchange="onCombineCustomerChange()">
+                            <!-- Dynamic options -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>เน€เธฅเธทเธญเธเธฃเธฒเธขเธเธฒเธฃเนเธเธชเธฑเนเธเธเธฒเธเธ—เธตเนเธ•เนเธญเธเธเธฒเธฃเธฃเธงเธกเธเธดเธฅ:</label>
+                        <div id="combine-jobs-list" style="max-height: 250px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); padding: 12px; display: flex; flex-direction: column; gap: 10px; background-color: #f8fafc;">
+                            <span class="text-muted" style="font-size: 13px; text-align: center; display: block; padding: 20px 0;">
+                                ๐’ก เธเธฃเธธเธ“เธฒเน€เธฅเธทเธญเธเธเธฒเธขเธเนเธฒเธเธ”เนเธฒเธเธเธเน€เธเธทเนเธญเธ”เธถเธเธเนเธญเธกเธนเธฅเนเธเธชเธฑเนเธเธเธฒเธเธ—เธตเนเธเนเธฒเธเธเนเธฒเธข
+                            </span>
+                        </div>
+                    </div>
+                    <div style="margin-top: 15px; text-align: right; font-size: 15px; font-weight: 500;">
+                        เธขเธญเธ”เน€เธเธดเธเธฃเธงเธกเธ—เธฑเนเธเธซเธกเธ”: <span id="combine-total-amount" class="text-gold" style="font-weight: 600;">0.00</span> เธเธฒเธ—
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline" onclick="closeCombineBillsModal()">เธขเธเน€เธฅเธดเธ</button>
+                    <button class="btn btn-gold" id="btn-generate-combined" onclick="generateCombinedInvoice()" disabled>
+                        ๐งพ เธชเธฃเนเธฒเธเนเธเนเธเนเธเธซเธเธตเนเธฃเธงเธก (Generate Bill)
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== MODAL: WORKER DOCUMENTS FOLDER ==================== -->
+        <div id="worker-folder-modal" class="modal-backdrop hidden" style="z-index: 1050;">
+            <div class="modal-content" style="max-width: 600px;">
+                <div class="modal-header">
+                    <h3 id="worker-folder-title">๐“ เนเธเนเธกเน€เธญเธเธชเธฒเธฃเธเธญเธเธเธเธเธฒเธเธ•เนเธฒเธเธ”เนเธฒเธง</h3>
+                    <button class="close-btn" onclick="closeWorkerFolderModal()">&times;</button>
+                </div>
+                <div class="modal-body" style="padding-top: 10px;">
+                    <input type="file" id="folder-upload-input" accept="image/*,application/pdf" style="display:none;" onchange="handleFolderFileUpload(event)">
+                    <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px; background-color: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                        <div style="width: 50px; height: 50px; border-radius: 50%; overflow: hidden; background-color: #e2e8f0; border: 1px solid #cbd5e1; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                            <img id="worker-folder-avatar" src="" style="width: 100%; height: 100%; object-fit: cover;">
+                        </div>
+                        <div>
+                            <h4 id="worker-folder-name" style="margin: 0 0 4px 0; color: var(--navy-dark); font-size: 16px; font-weight: 600;"></h4>
+                            <p id="worker-folder-meta" style="margin: 0; font-size: 12.5px; color: var(--text-muted);"></p>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 12px;" id="worker-folder-files-list">
+                        <!-- Dynamic files will be rendered here -->
+                    </div>
+
+                    <!-- Collapsible Preview Zone -->
+                    <div id="worker-folder-preview-panel" class="hidden" style="margin-top: 15px; border: 1px solid var(--gold-border); border-radius: 8px; padding: 15px; background-color: #fcfbf7; text-align: center; position: relative; animation: slideInUp 0.3s;">
+                        <button type="button" onclick="closeWorkerFolderPreview()" style="position: absolute; top: 10px; right: 10px; border: none; background: none; font-size: 18px; cursor: pointer; color: var(--text-muted); font-weight: bold;">&times;</button>
+                        <h5 id="worker-folder-preview-title" style="margin: 0 0 10px 0; font-size: 13.5px; font-weight: 600; color: var(--navy-dark); text-align: left;">๐‘๏ธ เธ•เธฑเธงเธญเธขเนเธฒเธเน€เธญเธเธชเธฒเธฃ</h5>
+                        <div style="width: 100%; max-height: 450px; overflow-y: auto; display: flex; align-items: center; justify-content: center; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 4px; padding: 10px;" id="worker-folder-preview-body">
+                            <!-- Dynamic preview content -->
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer" style="display: flex; gap: 10px;">
+                    <button type="button" class="btn btn-outline" style="flex:1;" onclick="copyWorkerFolderLink()" id="btn-copy-worker-folder">๐”— เธเธฑเธ”เธฅเธญเธเธฅเธดเธเธเนเน€เธเธดเธ”เนเธเนเธกเธเธตเน</button>
+                    <button type="button" class="btn btn-gold" style="flex:1;" onclick="closeWorkerFolderModal()">เธเธดเธ”เธซเธเนเธฒเธ•เนเธฒเธ</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== MODAL: LINE GROUP EDIT/ADD ==================== -->
+        <div id="line-group-modal" class="modal-backdrop hidden" style="z-index: 1060;">
+            <div class="modal-content" style="max-width: 450px;">
+                <div class="modal-header">
+                    <h3 id="line-group-modal-title">โ• เน€เธเธดเนเธกเธเธฅเธธเนเธกเนเธเนเธเน€เธ•เธทเธญเธ LINE</h3>
+                    <button class="close-btn" onclick="closeLineGroupModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="line-group-id">Group ID (เธฃเธซเธฑเธชเธชเนเธเธเนเธญเธเธงเธฒเธกเธเธฒเธเธฃเธฐเธเธเนเธฅเธเน) <span class="required">*</span></label>
+                        <input type="text" id="line-group-id" placeholder="เนเธชเนเธฃเธซเธฑเธชเธเธฅเธธเนเธกเธเธถเนเธเธ•เนเธเธ”เนเธงเธข C... เธซเธฃเธทเธญ R..." required style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 13px;">
+                        <small style="color: var(--text-muted); font-size: 11px; margin-top: 4px; display: block;">
+                            ๐’ก เธฃเธซเธฑเธชเธเธฅเธธเนเธกเธเธตเนเธชเธฒเธกเธฒเธฃเธ–เธ”เธนเนเธ”เนเธเธฒเธเธเธตเธ— Line_Groups เน€เธกเธทเนเธญเธ”เธถเธเธเธญเธ—เน€เธเนเธฒเธเธฅเธธเนเธกเนเธฅเธเนเนเธซเธกเน เธซเธฃเธทเธญเธฃเธฐเธเธธเนเธเธเธเธณเธซเธเธ”เน€เธญเธเนเธ”เน
+                        </small>
+                    </div>
+                    <div class="form-group" style="margin-top: 15px;">
+                        <label for="line-group-name">เธเธทเนเธญเธเธฅเธธเนเธก LINE (เน€เธเนเธ เนเธเธญเธเธธเธเธฒเธ•เธ—เธณเธเธฒเธเธ–เธถเธเธงเธฑเธเธ—เธตเน 13 เธ.เธ. 2570) <span class="required">*</span></label>
+                        <input type="text" id="line-group-name" placeholder="เธเธทเนเธญเธเธฅเธธเนเธกเธญเนเธฒเธเธญเธดเธเธงเธฑเธเธซเธกเธ”เธญเธฒเธขเธธเนเธเนเธ—เธเนเธเธญเธเธธเธเธฒเธ•" required style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 13px;">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline" onclick="closeLineGroupModal()">เธขเธเน€เธฅเธดเธ</button>
+                    <button class="btn btn-gold" onclick="saveLineGroup()">๐’พ เธเธฑเธเธ—เธถเธเธเธฅเธธเนเธกเนเธฅเธเน</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== TOAST NOTIFICATION ==================== -->
+        <div id="toast-container" class="toast-container"></div>
+    </div>
+
+    <!-- Error Handler -->
+    <script>
+        window.onerror = function(message, source, lineno, colno, error) {
+            alert("โ JavaScript Error: " + message + "\nLine: " + lineno + "\nSource: " + source);
+            return false;
+        };
+    </script>
+
+    <!-- Application Script -->
+    <?!= include("app"); ?>
+</body>
+</html>
