@@ -1,0 +1,8 @@
+# Local logs and generated agent files
+*.log
+.system_generated/
+.agents/
+brain/
+
+# Local uploads folder containing attachments
+uploads/
