@@ -596,14 +596,19 @@
                                 <div class="filter-box">
                                     <select id="filter-job-type" onchange="renderJobs()">
                                         <option value="">ทุกประเภทงาน</option>
-                                        <option value="แจ้งเข้า">แจ้งเข้า</option>
-                                        <option value="แจ้งออก">แจ้งออก</option>
-                                        <option value="เปลี่ยนแปลงข้อมูล">เปลี่ยนแปลงข้อมูล</option>
-                                        <option value="แจ้งที่พัก">แจ้งที่พัก</option>
-                                        <option value="แจ้งเข้าประกันสังคม">แจ้งเข้าประกันสังคม</option>
-                                        <option value="ตี Visa">ตี Visa</option>
-                                        <option value="รายงานตัว 90 วัน">รายงานตัว 90 วัน</option>
-                                        <option value="ทำบัตรชมพู / อัพเดท ทร.38">ทำบัตรชมพู / อัพเดท ทร.38</option>
+                                        <option value="ต่อใบอนุญาตทำงาน">ต่อใบอนุญาตทำงานให้กับคนงานต่างด้าว</option>
+                                        <option value="ขึ้นทะเบียนแรงงานต่างด้าว">ขึ้นทะเบียนแรงงานต่างด้าว</option>
+                                        <option value="ทำเล่ม CI/Passport">ทำเล่ม CI/Passport</option>
+                                        <option value="ต่อเล่ม CI/Passport">ต่อเล่ม CI/Passport</option>
+                                        <option value="ตี VISA">ตี VISA</option>
+                                        <option value="ย้ายตรา">ย้ายตรา</option>
+                                        <option value="แจ้งเข้าคนงานต่างด้าว">แจ้งเข้าคนงานต่างด้าว</option>
+                                        <option value="แจ้งออกคนงานต่างด้าว">แจ้งออกคนงานต่างด้าว</option>
+                                        <option value="เปลี่ยน/แก้ไข ใบอนุญาตทำงาน">เปลี่ยน/แก้ไข ใบอนุญาตทำงาน</option>
+                                        <option value="ออกใบรับรองแพทย์">ออกใบรับรองแพทย์</option>
+                                        <option value="ซื้อประกัน">ซื้อประกัน</option>
+                                        <option value="ทำบัตร ผู้ไม่มีสัญชาติไทย">ทำบัตร ผู้ไม่มีสัญชาติไทย</option>
+                                        <option value="อื่นๆ">อื่นๆ</option>
                                     </select>
                                     <select id="filter-job-status" onchange="renderJobs()">
                                         <option value="">ทุกสถานะงาน</option>
@@ -1157,6 +1162,32 @@ function doPost(e) {
                             </div>
                         </div>
 
+                        <div class="form-row">
+                            <div class="form-group col-6">
+                                <label for="worker-ref-no">หมายเลขอ้างอิงคนต่างด้าว (Ref No.)</label>
+                                <input type="text" id="worker-ref-no" placeholder="กรอกรหัสอ้างอิงคนต่างด้าว (เช่น RA...)">
+                            </div>
+                            <div class="form-group col-6">
+                                <label for="worker-gender">เพศ (Gender)</label>
+                                <select id="worker-gender">
+                                    <option value="" disabled selected>--- เลือกเพศ ---</option>
+                                    <option value="Male">ชาย (Male)</option>
+                                    <option value="Female">หญิง (Female)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group col-6">
+                                <label for="worker-position">ตำแหน่งงาน (Position)</label>
+                                <input type="text" id="worker-position" placeholder="เช่น กรรมกร, พนักงานทั่วไป">
+                            </div>
+                            <div class="form-group col-6">
+                                <label for="worker-workplace">สถานที่ทำงาน (Workplace Address)</label>
+                                <input type="text" id="worker-workplace" placeholder="กรอกสถานที่ทำงาน/ไซท์งานจริง">
+                            </div>
+                        </div>
+
                         <!-- Parent Info (Father & Mother Names) -->
                         <div class="form-row">
                             <div class="form-group col-6">
@@ -1293,7 +1324,7 @@ function doPost(e) {
                             <div id="job-type-checkboxes-container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: var(--radius-sm); padding: 12px;">
                                 <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
                                     <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
-                                        <input type="checkbox" name="job-type-checkbox" value="แจ้งเข้า" onchange="toggleJobTypePriceInput(this)" style="width: 16px; height: 16px;"> แจ้งเข้า
+                                        <input type="checkbox" name="job-type-checkbox" value="ต่อใบอนุญาตทำงาน" onchange="toggleJobTypePriceInput(this)" style="width: 16px; height: 16px;"> ต่อใบอนุญาตทำงาน
                                     </label>
                                     <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
                                         <input type="number" name="job-type-price" placeholder="ราคา" min="0" disabled style="width: 75px; padding: 4px 6px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: right; margin: 0; outline: none;">
@@ -1302,7 +1333,7 @@ function doPost(e) {
                                 </div>
                                 <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
                                     <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
-                                        <input type="checkbox" name="job-type-checkbox" value="แจ้งออก" onchange="toggleJobTypePriceInput(this)" style="width: 16px; height: 16px;"> แจ้งออก
+                                        <input type="checkbox" name="job-type-checkbox" value="ขึ้นทะเบียนแรงงานต่างด้าว" onchange="toggleJobTypePriceInput(this)" style="width: 16px; height: 16px;"> ขึ้นทะเบียนแรงงานฯ
                                     </label>
                                     <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
                                         <input type="number" name="job-type-price" placeholder="ราคา" min="0" disabled style="width: 75px; padding: 4px 6px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: right; margin: 0; outline: none;">
@@ -1311,7 +1342,7 @@ function doPost(e) {
                                 </div>
                                 <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
                                     <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
-                                        <input type="checkbox" name="job-type-checkbox" value="เปลี่ยนแปลงข้อมูล" onchange="toggleJobTypePriceInput(this)" style="width: 16px; height: 16px;"> เปลี่ยนแปลงข้อมูล
+                                        <input type="checkbox" name="job-type-checkbox" value="ทำเล่ม CI/Passport" onchange="toggleJobTypePriceInput(this)" style="width: 16px; height: 16px;"> ทำเล่ม CI/Passport
                                     </label>
                                     <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
                                         <input type="number" name="job-type-price" placeholder="ราคา" min="0" disabled style="width: 75px; padding: 4px 6px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: right; margin: 0; outline: none;">
@@ -1320,7 +1351,7 @@ function doPost(e) {
                                 </div>
                                 <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
                                     <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
-                                        <input type="checkbox" name="job-type-checkbox" value="แจ้งที่พัก" onchange="toggleJobTypePriceInput(this)" style="width: 16px; height: 16px;"> แจ้งที่พัก
+                                        <input type="checkbox" name="job-type-checkbox" value="ต่อเล่ม CI/Passport" onchange="toggleJobTypePriceInput(this)" style="width: 16px; height: 16px;"> ต่อเล่ม CI/Passport
                                     </label>
                                     <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
                                         <input type="number" name="job-type-price" placeholder="ราคา" min="0" disabled style="width: 75px; padding: 4px 6px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: right; margin: 0; outline: none;">
@@ -1329,7 +1360,7 @@ function doPost(e) {
                                 </div>
                                 <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
                                     <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
-                                        <input type="checkbox" name="job-type-checkbox" value="แจ้งเข้าประกันสังคม" onchange="toggleJobTypePriceInput(this)" style="width: 16px; height: 16px;"> แจ้งเข้าประกันสังคม
+                                        <input type="checkbox" name="job-type-checkbox" value="ตี VISA" onchange="toggleJobTypePriceInput(this)" style="width: 16px; height: 16px;"> ตี VISA
                                     </label>
                                     <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
                                         <input type="number" name="job-type-price" placeholder="ราคา" min="0" disabled style="width: 75px; padding: 4px 6px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: right; margin: 0; outline: none;">
@@ -1338,7 +1369,7 @@ function doPost(e) {
                                 </div>
                                 <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
                                     <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
-                                        <input type="checkbox" name="job-type-checkbox" value="ตี Visa" onchange="toggleJobTypePriceInput(this)" style="width: 16px; height: 16px;"> ตี Visa
+                                        <input type="checkbox" name="job-type-checkbox" value="ย้ายตรา" onchange="toggleJobTypePriceInput(this)" style="width: 16px; height: 16px;"> ย้ายตรา
                                     </label>
                                     <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
                                         <input type="number" name="job-type-price" placeholder="ราคา" min="0" disabled style="width: 75px; padding: 4px 6px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: right; margin: 0; outline: none;">
@@ -1347,7 +1378,7 @@ function doPost(e) {
                                 </div>
                                 <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
                                     <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
-                                        <input type="checkbox" name="job-type-checkbox" value="รายงานตัว 90 วัน" onchange="toggleJobTypePriceInput(this)" style="width: 16px; height: 16px;"> รายงานตัว 90 วัน
+                                        <input type="checkbox" name="job-type-checkbox" value="แจ้งเข้าคนงานต่างด้าว" onchange="toggleJobTypePriceInput(this)" style="width: 16px; height: 16px;"> แจ้งเข้าคนงานฯ
                                     </label>
                                     <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
                                         <input type="number" name="job-type-price" placeholder="ราคา" min="0" disabled style="width: 75px; padding: 4px 6px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: right; margin: 0; outline: none;">
@@ -1356,7 +1387,52 @@ function doPost(e) {
                                 </div>
                                 <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
                                     <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
-                                        <input type="checkbox" name="job-type-checkbox" value="ทำบัตรชมพู / อัพเดท ทร.38" onchange="toggleJobTypePriceInput(this)" style="width: 16px; height: 16px;"> ทำบัตรชมพู / อัพเดท ทร.38
+                                        <input type="checkbox" name="job-type-checkbox" value="แจ้งออกคนงานต่างด้าว" onchange="toggleJobTypePriceInput(this)" style="width: 16px; height: 16px;"> แจ้งออกคนงานฯ
+                                    </label>
+                                    <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                                        <input type="number" name="job-type-price" placeholder="ราคา" min="0" disabled style="width: 75px; padding: 4px 6px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: right; margin: 0; outline: none;">
+                                        <span style="font-size: 11px; color: var(--text-muted);">บ.</span>
+                                    </div>
+                                </div>
+                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
+                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
+                                        <input type="checkbox" name="job-type-checkbox" value="เปลี่ยน/แก้ไข ใบอนุญาตทำงาน" onchange="toggleJobTypePriceInput(this)" style="width: 16px; height: 16px;"> เปลี่ยน/แก้ ใบอนุญาตฯ
+                                    </label>
+                                    <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                                        <input type="number" name="job-type-price" placeholder="ราคา" min="0" disabled style="width: 75px; padding: 4px 6px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: right; margin: 0; outline: none;">
+                                        <span style="font-size: 11px; color: var(--text-muted);">บ.</span>
+                                    </div>
+                                </div>
+                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
+                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
+                                        <input type="checkbox" name="job-type-checkbox" value="ออกใบรับรองแพทย์" onchange="toggleJobTypePriceInput(this)" style="width: 16px; height: 16px;"> ออกใบรับรองแพทย์
+                                    </label>
+                                    <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                                        <input type="number" name="job-type-price" placeholder="ราคา" min="0" disabled style="width: 75px; padding: 4px 6px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: right; margin: 0; outline: none;">
+                                        <span style="font-size: 11px; color: var(--text-muted);">บ.</span>
+                                    </div>
+                                </div>
+                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
+                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
+                                        <input type="checkbox" name="job-type-checkbox" value="ซื้อประกัน" onchange="toggleJobTypePriceInput(this)" style="width: 16px; height: 16px;"> ซื้อประกัน
+                                    </label>
+                                    <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                                        <input type="number" name="job-type-price" placeholder="ราคา" min="0" disabled style="width: 75px; padding: 4px 6px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: right; margin: 0; outline: none;">
+                                        <span style="font-size: 11px; color: var(--text-muted);">บ.</span>
+                                    </div>
+                                </div>
+                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
+                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
+                                        <input type="checkbox" name="job-type-checkbox" value="ทำบัตร ผู้ไม่มีสัญชาติไทย" onchange="toggleJobTypePriceInput(this)" style="width: 16px; height: 16px;"> ทำบัตรผู้ไม่มีสัญชาติฯ
+                                    </label>
+                                    <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                                        <input type="number" name="job-type-price" placeholder="ราคา" min="0" disabled style="width: 75px; padding: 4px 6px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: right; margin: 0; outline: none;">
+                                        <span style="font-size: 11px; color: var(--text-muted);">บ.</span>
+                                    </div>
+                                </div>
+                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm); grid-column: span 2;">
+                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
+                                        <input type="checkbox" name="job-type-checkbox" value="อื่นๆ" onchange="toggleJobTypePriceInput(this)" style="width: 16px; height: 16px;"> อื่นๆ
                                     </label>
                                     <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
                                         <input type="number" name="job-type-price" placeholder="ราคา" min="0" disabled style="width: 75px; padding: 4px 6px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: right; margin: 0; outline: none;">

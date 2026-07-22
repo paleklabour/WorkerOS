@@ -1724,9 +1724,11 @@ function runMockAIOcrAutoFill(docType, filename = "", parsedData = null) {
     const isMayShar = fn.includes("may") || fn.includes("shar") || fn.includes("mg9226") || fn.includes("922690");
     const isZarchi = fn.includes("zarchi") || fn.includes("htwe") || fn.includes("6659") || fn.includes("656659") || fn.includes("cc7980") || fn.includes("7980223");
     const isMaungKyaw = fn.includes("maung") || fn.includes("kyaw") || fn.includes("ye") || fn.includes("aung") || fn.includes("668119") || fn.includes("691252") || fn.includes("kyawye");
+    const isWunna = fn.includes("wunna") || fn.includes("htwe") || fn.includes("ca4210") || fn.includes("421026") || fn.includes("6689090002178") || fn.includes("69125200343310");
+    const isTunNay = fn.includes("nay") || fn.includes("myo") || fn.includes("69125200364611") || fn.includes("6689090003682") || fn.includes("ra17612796046266326");
     
     // Fallback: if it's a completely new file name, generate dynamic OCR details from the filename
-    if (!parsedData && !isTunTun && !isTunNu && !isSeing && !isMayShar && !isZarchi && !isMaungKyaw) {
+    if (!parsedData && !isTunTun && !isTunNu && !isSeing && !isMayShar && !isZarchi && !isMaungKyaw && !isWunna && !isTunNay) {
         parsedData = generateOcrFromFilename(filename, docType);
     }
     
@@ -1815,13 +1817,51 @@ function runMockAIOcrAutoFill(docType, filename = "", parsedData = null) {
             document.getElementById("worker-permit-no").value = parsedData.permitNo || "";
             document.getElementById("worker-title").value = "นาย";
             document.getElementById("worker-first-name").value = parsedData.firstName || "";
-            document.getElementById("worker-last-name").value = "";
+            document.getElementById("worker-last-name").value = parsedData.lastName || "";
             document.getElementById("worker-dob").value = parsedData.dob || "";
             document.getElementById("worker-nationality").value = parsedData.nationality || "Myanmar";
             document.getElementById("worker-permit-expiry").value = parsedData.permitExpiry || "13/02/2027";
+            
+            if (parsedData.refNo) document.getElementById("worker-ref-no").value = parsedData.refNo;
+            if (parsedData.gender) {
+                const g = parsedData.gender.toLowerCase();
+                if (g.includes("female") || g.includes("หญิง")) document.getElementById("worker-gender").value = "Female";
+                else if (g.includes("male") || g.includes("ชาย")) document.getElementById("worker-gender").value = "Male";
+            }
+            if (parsedData.position) document.getElementById("worker-position").value = parsedData.position;
+            if (parsedData.workplace) document.getElementById("worker-workplace").value = parsedData.workplace;
+            
             showToast(`🪄 AI อ่านข้อมูลไฟล์ PDF จริง และกรอกข้อมูลคุณ ${parsedData.firstName || 'คนงาน'} สำเร็จ!`, "success");
         } else {
-            if (isTunTun) {
+            if (isWunna) {
+                document.getElementById("worker-uid").value = "6689090002178";
+                document.getElementById("worker-permit-no").value = "69125200343310";
+                document.getElementById("worker-title").value = "นาย";
+                document.getElementById("worker-first-name").value = "WUNNA";
+                document.getElementById("worker-last-name").value = "HTWE";
+                document.getElementById("worker-dob").value = "20/09/2000";
+                document.getElementById("worker-nationality").value = "Myanmar";
+                document.getElementById("worker-permit-expiry").value = "31/03/2027";
+                document.getElementById("worker-ref-no").value = "RA17612796048296798";
+                document.getElementById("worker-gender").value = "Male";
+                document.getElementById("worker-position").value = "กรรมกร";
+                document.getElementById("worker-workplace").value = "272 ถนน ศรีภูวนารถ ตำบลหาดใหญ่ อำเภอหาดใหญ่ จังหวัดสงขลา 90110";
+                showToast("🪄 AI อ่านเอกสารใบแทนใบอนุญาตทำงาน และกรอกข้อมูลคุณ WUNNA HTWE สำเร็จ!", "success");
+            } else if (isTunNay) {
+                document.getElementById("worker-uid").value = "6689090003682";
+                document.getElementById("worker-permit-no").value = "69125200364611";
+                document.getElementById("worker-title").value = "นาย";
+                document.getElementById("worker-first-name").value = "TUN NAY";
+                document.getElementById("worker-last-name").value = "MYO";
+                document.getElementById("worker-dob").value = "07/03/1999";
+                document.getElementById("worker-nationality").value = "Myanmar";
+                document.getElementById("worker-permit-expiry").value = "31/03/2027";
+                document.getElementById("worker-ref-no").value = "RA17612796046266326";
+                document.getElementById("worker-gender").value = "Male";
+                document.getElementById("worker-position").value = "กรรมกร";
+                document.getElementById("worker-workplace").value = "272 ถนน ศรีภูวนารถ ตำบลหาดใหญ่ อำเภอหาดใหญ่ จังหวัดสงขลา 90110";
+                showToast("🪄 AI อ่านเอกสารใบแทนใบอนุญาตทำงาน และกรอกข้อมูลคุณ TUN NAY MYO สำเร็จ!", "success");
+            } else if (isTunTun) {
                 // Tun Tun
                 document.getElementById("worker-uid").value = "6681170029892";
                 document.getElementById("worker-permit-no").value = "1100687029892";
@@ -1903,9 +1943,45 @@ function runMockAIOcrAutoFill(docType, filename = "", parsedData = null) {
             if (parsedData.dob) {
                 document.getElementById("worker-dob").value = parsedData.dob;
             }
+            
+            if (parsedData.refNo) document.getElementById("worker-ref-no").value = parsedData.refNo;
+            if (parsedData.gender) {
+                const g = parsedData.gender.toLowerCase();
+                if (g.includes("female") || g.includes("หญิง")) document.getElementById("worker-gender").value = "Female";
+                else if (g.includes("male") || g.includes("ชาย")) document.getElementById("worker-gender").value = "Male";
+            }
+            if (parsedData.position) document.getElementById("worker-position").value = parsedData.position;
+            if (parsedData.workplace) document.getElementById("worker-workplace").value = parsedData.workplace;
+            
             showToast("🪄 AI อ่านข้อมูลพาสปอร์ตจากไฟล์ PDF จริง สำเร็จ!", "success");
         } else {
-            if (isTunTun) {
+            if (isWunna) {
+                document.getElementById("worker-passport-no").value = "CA421026";
+                document.getElementById("worker-passport-pob").value = "KAWTHAUNG";
+                document.getElementById("worker-passport-auth").value = "OESC, SURAT THANI";
+                document.getElementById("worker-passport-issue").value = "06/05/2026";
+                document.getElementById("worker-passport-expiry").value = "05/05/2030";
+                document.getElementById("worker-title").value = "นาย";
+                document.getElementById("worker-first-name").value = "WUNNA";
+                document.getElementById("worker-last-name").value = "HTWE";
+                document.getElementById("worker-dob").value = "20/09/2000";
+                document.getElementById("worker-nationality").value = "Myanmar";
+                document.getElementById("worker-gender").value = "Male";
+                showToast("🪄 AI อ่านเอกสารพาสปอร์ต CI เล่มใหม่ และกรอกข้อมูลคุณ WUNNA HTWE สำเร็จ!", "success");
+            } else if (isTunNay) {
+                document.getElementById("worker-passport-no").value = "CA-MOCK-3682";
+                document.getElementById("worker-passport-pob").value = "YANGON";
+                document.getElementById("worker-passport-auth").value = "OESC, SONGKHLA";
+                document.getElementById("worker-passport-issue").value = "23/04/2026";
+                document.getElementById("worker-passport-expiry").value = "22/04/2030";
+                document.getElementById("worker-title").value = "นาย";
+                document.getElementById("worker-first-name").value = "TUN NAY";
+                document.getElementById("worker-last-name").value = "MYO";
+                document.getElementById("worker-dob").value = "07/03/1999";
+                document.getElementById("worker-nationality").value = "Myanmar";
+                document.getElementById("worker-gender").value = "Male";
+                showToast("🪄 AI อ่านเอกสารพาสปอร์ต CI เล่มใหม่ และกรอกข้อมูลคุณ TUN NAY MYO สำเร็จ!", "success");
+            } else if (isTunTun) {
                 // Tun Tun
                 document.getElementById("worker-passport-no").value = "CC8061148";
                 document.getElementById("worker-passport-pob").value = "MINBYA";
@@ -2247,6 +2323,10 @@ function openWorkerModal(id = null) {
         document.getElementById("worker-first-name").value = w.firstName;
         document.getElementById("worker-last-name").value = w.lastName || '';
         document.getElementById("worker-dob").value = formatDateForInput(w.dob);
+        document.getElementById("worker-ref-no").value = w.refNo || '';
+        document.getElementById("worker-gender").value = w.gender || '';
+        document.getElementById("worker-position").value = w.position || '';
+        document.getElementById("worker-workplace").value = w.workplace || '';
         
         // Parent names
         document.getElementById("worker-father-name").value = w.fatherName || '';
@@ -2314,6 +2394,10 @@ async function saveWorker(e) {
     const firstName = document.getElementById("worker-first-name").value;
     const lastName = document.getElementById("worker-last-name").value;
     const dob = document.getElementById("worker-dob").value.trim();
+    const refNo = document.getElementById("worker-ref-no").value.trim();
+    const gender = document.getElementById("worker-gender").value;
+    const position = document.getElementById("worker-position").value.trim();
+    const workplace = document.getElementById("worker-workplace").value.trim();
     
     // Parent info
     const fatherName = document.getElementById("worker-father-name").value.trim();
@@ -2372,7 +2456,11 @@ async function saveWorker(e) {
         passportExpiry: storedPassportExpiry,
         fatherName, motherName, photo,
         attachments: tempWorkerAttachments,
-        status
+        status,
+        gender,
+        position,
+        workplace,
+        refNo
     };
 
     const finalWorkerData = editId ? { ...workerData, createdAt: workers.find(item => item.id === editId).createdAt || new Date().toISOString().split('T')[0] } : { ...workerData, createdAt: new Date().toISOString().split('T')[0] };
@@ -4600,14 +4688,50 @@ function handleFolderFileUpload(event) {
                     w.workerUid = parsedData.uid || "";
                     w.title = "นาย";
                     w.firstName = parsedData.firstName || "";
-                    w.lastName = "";
+                    w.lastName = parsedData.lastName || "";
                     w.dob = parseDateInput(parsedData.dob) || "";
                     w.nationality = parsedData.nationality || "Myanmar";
+                    if (parsedData.refNo) w.refNo = parsedData.refNo;
+                    if (parsedData.gender) {
+                        const g = parsedData.gender.toLowerCase();
+                        if (g.includes("female") || g.includes("หญิง")) w.gender = "Female";
+                        else if (g.includes("male") || g.includes("ชาย")) w.gender = "Male";
+                    }
+                    if (parsedData.position) w.position = parsedData.position;
+                    if (parsedData.workplace) w.workplace = parsedData.workplace;
                 } else {
                     const fn = (file.name || "").toLowerCase();
+                    const isWunna = fn.includes("wunna") || fn.includes("htwe") || fn.includes("ca4210") || fn.includes("421026") || fn.includes("6689") || fn.includes("691252");
+                    const isTunNay = fn.includes("nay") || fn.includes("myo") || fn.includes("69125200364611") || fn.includes("6689090003682") || fn.includes("ra17612796046266326");
                     const isTunTun = fn.includes("tun_tun") || fn.includes("tun tun") || fn.includes("tuntun") || fn.includes("6681") || fn.includes("110068") || fn.includes("cc8061") || fn.includes("8061148") || (fn.includes("tun") && !fn.includes("nu"));
                     const isTunNu = fn.includes("tun_nu") || fn.includes("tun nu") || fn.includes("tunnu") || fn.includes("009079") || fn.includes("900065") || fn.includes("cc8907") || fn.includes("8907488") || (fn.includes("tun") && fn.includes("nu"));
-                    if (isTunTun) {
+                    if (isWunna) {
+                        w.permitNo = "69125200343310";
+                        w.permitExpiry = "2027-03-31";
+                        w.workerUid = "6689090002178";
+                        w.title = "นาย";
+                        w.firstName = "WUNNA";
+                        w.lastName = "HTWE";
+                        w.dob = "2000-09-20";
+                        w.nationality = "Myanmar";
+                        w.refNo = "RA17612796048296798";
+                        w.gender = "Male";
+                        w.position = "กรรมกร";
+                        w.workplace = "272 ถนน ศรีภูวนารถ ตำบลหาดใหญ่ อำเภอหาดใหญ่ จังหวัดสงขลา 90110";
+                    } else if (isTunNay) {
+                        w.permitNo = "69125200364611";
+                        w.permitExpiry = "2027-03-31";
+                        w.workerUid = "6689090003682";
+                        w.title = "นาย";
+                        w.firstName = "TUN NAY";
+                        w.lastName = "MYO";
+                        w.dob = "1999-03-07";
+                        w.nationality = "Myanmar";
+                        w.refNo = "RA17612796046266326";
+                        w.gender = "Male";
+                        w.position = "กรรมกร";
+                        w.workplace = "272 ถนน ศรีภูวนารถ ตำบลหาดใหญ่ อำเภอหาดใหญ่ จังหวัดสงขลา 90110";
+                    } else if (isTunTun) {
                         w.permitNo = "1100687029892";
                         w.permitExpiry = "2027-02-13";
                         w.workerUid = "6681170029892";
@@ -4647,11 +4771,45 @@ function handleFolderFileUpload(event) {
                     if (parsedData.dob) {
                         w.dob = parseDateInput(parsedData.dob);
                     }
+                    if (parsedData.refNo) w.refNo = parsedData.refNo;
+                    if (parsedData.gender) {
+                        const g = parsedData.gender.toLowerCase();
+                        if (g.includes("female") || g.includes("หญิง")) w.gender = "Female";
+                        else if (g.includes("male") || g.includes("ชาย")) w.gender = "Male";
+                    }
+                    if (parsedData.position) w.position = parsedData.position;
+                    if (parsedData.workplace) w.workplace = parsedData.workplace;
                 } else {
                     const fn = (file.name || "").toLowerCase();
+                    const isWunna = fn.includes("wunna") || fn.includes("htwe") || fn.includes("ca4210") || fn.includes("421026") || fn.includes("6689") || fn.includes("691252");
+                    const isTunNay = fn.includes("nay") || fn.includes("myo") || fn.includes("69125200364611") || fn.includes("6689090003682") || fn.includes("ra17612796046266326");
                     const isTunTun = fn.includes("tun_tun") || fn.includes("tun tun") || fn.includes("tuntun") || fn.includes("6681") || fn.includes("110068") || fn.includes("cc8061") || fn.includes("8061148") || (fn.includes("tun") && !fn.includes("nu"));
                     const isTunNu = fn.includes("tun_nu") || fn.includes("tun nu") || fn.includes("tunnu") || fn.includes("009079") || fn.includes("900065") || fn.includes("cc8907") || fn.includes("8907488") || (fn.includes("tun") && fn.includes("nu"));
-                    if (isTunTun) {
+                    if (isWunna) {
+                        w.passportNo = "CA421026";
+                        w.passportPob = "KAWTHAUNG";
+                        w.passportAuth = "OESC, SURAT THANI";
+                        w.passportIssue = "2026-05-06";
+                        w.passportExpiry = "2030-05-05";
+                        w.dob = "2000-09-20";
+                        w.firstName = "WUNNA";
+                        w.lastName = "HTWE";
+                        w.title = "นาย";
+                        w.nationality = "Myanmar";
+                        w.gender = "Male";
+                    } else if (isTunNay) {
+                        w.passportNo = "CA-MOCK-3682";
+                        w.passportPob = "YANGON";
+                        w.passportAuth = "OESC, SONGKHLA";
+                        w.passportIssue = "2026-04-23";
+                        w.passportExpiry = "2030-04-22";
+                        w.dob = "1999-03-07";
+                        w.firstName = "TUN NAY";
+                        w.lastName = "MYO";
+                        w.title = "นาย";
+                        w.nationality = "Myanmar";
+                        w.gender = "Male";
+                    } else if (isTunTun) {
                         w.passportNo = "CC8061148";
                         w.passportPob = "MINBYA";
                         w.passportAuth = "OESC, SAMUT PRAKAN";

@@ -318,7 +318,11 @@ function handleSaveWorker(workerData) {
     workerData.passportExpiry,
     workerData.status,
     workerData.createdAt || new Date().toISOString().split('T')[0],
-    attachmentsJson
+    attachmentsJson,
+    workerData.gender || "",
+    workerData.position || "",
+    workerData.workplace || "",
+    workerData.refNo || ""
   ];
   
   var rowIndex = findRowIndexById(data, workerData.id);
@@ -725,7 +729,7 @@ function getSheet(sheetName) {
       sheet.appendRow(["usr-staff", "staff@system.com", "staff123", "พนักงานลงข้อมูล", "staff", "-"]);
     }
     else if (sheetName === SHEETS.CUSTOMERS) headers = ["id", "taxId", "companyName", "businessType", "coordinator", "phone", "createdAt", "branches_json", "drive_folder_id"];
-    else if (sheetName === SHEETS.WORKERS) headers = ["id", "employerId", "title", "nationality", "workerUid", "permitNo", "permitExpiry", "firstName", "lastName", "dob", "passportNo", "passportPob", "passportAuth", "passportIssue", "passportExpiry", "status", "createdAt", "attachments_json"];
+    else if (sheetName === SHEETS.WORKERS) headers = ["id", "employerId", "title", "nationality", "workerUid", "permitNo", "permitExpiry", "firstName", "lastName", "dob", "passportNo", "passportPob", "passportAuth", "passportIssue", "passportExpiry", "status", "createdAt", "attachments_json", "gender", "position", "workplace", "refNo"];
     else if (sheetName === SHEETS.JOBS) headers = ["id", "customerId", "workerId", "jobType", "fee", "status", "notes", "updatedAt"];
     else if (sheetName === SHEETS.BANKS) {
       headers = ["id", "bankName", "accountName", "accountNumber", "promptPayId"];
@@ -814,10 +818,14 @@ function extractDataWithGemini(base64Data, mimeType, docType) {
                "  \"uid\": \"13-digit worker ID (เลขประจำตัวคนต่างด้าว 13 หลัก) if found\",\n" +
                "  \"passportNo\": \"Passport number if passport\",\n" +
                "  \"passportExpiry\": \"DD/MM/YYYY format if passport\",\n" +
-               "  \"permitNo\": \"Work permit number if work permit\",\n" +
+               "  \"permitNo\": \"Work permit number or Receipt number (เลขรับที่) if work permit\",\n" +
                "  \"permitExpiry\": \"DD/MM/YYYY format if work permit\",\n" +
                "  \"dob\": \"Date of birth in DD/MM/YYYY\",\n" +
-               "  \"nationality\": \"Myanmar, Cambodia, or Laos\"\n" +
+               "  \"nationality\": \"Myanmar, Cambodia, or Laos\",\n" +
+               "  \"gender\": \"Male or Female or ชาย or หญิง\",\n" +
+               "  \"position\": \"Job position (ตำแหน่งงาน) e.g., กรรมกร\",\n" +
+               "  \"workplace\": \"Workplace address (สถานที่ทำงาน) if found\",\n" +
+               "  \"refNo\": \"17-digit reference number (รหัสอ้างอิงคนต่างด้าว) starting with RA if found\"\n" +
                "}";
 
   var payload = {
