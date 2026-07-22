@@ -1283,7 +1283,7 @@ function renderWorkers() {
             `;
         }
 
-        const avatarUrl = w.photo ? w.photo : `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="32" height="32" fill="%2394a3b8"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4.42 0-8 3.58-8 8v1h16v-1c0-4.42-3.58-8-8-8z"/></svg>`;
+        const avatarUrl = w.photo ? w.photo : 'data:image/svg+xml;utf8,<svg xmlns="http:' + '/' + '/www.w3.org/2000/svg" viewBox="0 0 24 24" width="32" height="32" fill="%2394a3b8"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4.42 0-8 3.58-8 8v1h16v-1c0-4.42-3.58-8-8-8z"/></svg>';
 
         return `
             <tr>
@@ -1487,7 +1487,7 @@ let tempWorkerAttachments = {};
 
 // PDF.js global configuration
 if (window.pdfjsLib) {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https:' + '/' + '/cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 }
 
 async function extractTextFromPdf(file) {
@@ -3137,7 +3137,7 @@ function updateInvoiceBankDetails() {
         qrFallback.classList.add("hidden");
         
         // Set live URL image source. This service generates PromptPay QR Code dynamically!
-        qrImg.src = `https://promptpay.io/${promptpayId}/${amount}.png`;
+        qrImg.src = 'https:' + '/' + '/promptpay.io/' + promptpayId + '/' + amount + '.png';
         
         // Handle image loading error fallback
         qrImg.onerror = () => {
@@ -4319,7 +4319,7 @@ function openWorkerFolderModal(workerId) {
     const empName = emp ? emp.companyName : "ไม่ระบุนายจ้าง";
     document.getElementById("worker-folder-meta").innerText = `สัญชาติ: ${w.nationality} | นายจ้าง: ${empName}`;
     
-    const avatarUrl = w.photo ? w.photo : 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="48" height="48" fill="%2394a3b8"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4.42 0-8 3.58-8 8v1h16v-1c0-4.42-3.58-8-8-8z"/></svg>';
+    const avatarUrl = w.photo ? w.photo : 'data:image/svg+xml;utf8,<svg xmlns="http:' + '/' + '/www.w3.org/2000/svg" viewBox="0 0 24 24" width="48" height="48" fill="%2394a3b8"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4.42 0-8 3.58-8 8v1h16v-1c0-4.42-3.58-8-8-8z"/></svg>';
     document.getElementById("worker-folder-avatar").src = avatarUrl;
 
     const nameClean = `${w.firstName}_${w.lastName || ''}`.replace(/\s+/g, '_');
@@ -4423,7 +4423,7 @@ function copyWorkerFolderLink(workerId) {
     if (!w) return;
     
     // Simulating copy direct worker folder link
-    const shareText = "🔗 แฟ้มเอกสารคนงานของ: คุณ " + w.firstName + " " + (w.lastName || "") + "\n(รวมใบอนุญาตทำงาน, พาสปอร์ต, บัตรชมพู, ทะเบียนบ้าน, ใบเสร็จ)\nเปิดคลังเอกสารได้ที่: http://localhost:3000/#worker-folder-" + w.id;
+    const shareText = "🔗 แฟ้มเอกสารคนงานของ: คุณ " + w.firstName + " " + (w.lastName || "") + "\n(รวมใบอนุญาตทำงาน, พาสปอร์ต, บัตรชมพู, ทะเบียนบ้าน, ใบเสร็จ)\nเปิดคลังเอกสารได้ที่: http:" + "/" + "/localhost:3000/#worker-folder-" + w.id;
     
     navigator.clipboard.writeText(shareText).then(() => {
         showToast("📋 คัดลอกลิงก์แฟ้มเอกสารไปที่คลิปบอร์ดเรียบร้อยแล้ว!", "success");
@@ -4745,7 +4745,7 @@ function renderMissingDocsOverview() {
             </span>
         `).join('');
 
-        const avatarUrl = w.photo ? w.photo : 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="32" height="32" fill="%2394a3b8"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4.42 0-8 3.58-8 8v1h16v-1c0-4.42-3.58-8-8-8z"/></svg>';
+        const avatarUrl = w.photo ? w.photo : 'data:image/svg+xml;utf8,<svg xmlns="http:' + '/' + '/www.w3.org/2000/svg" viewBox="0 0 24 24" width="32" height="32" fill="%2394a3b8"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4.42 0-8 3.58-8 8v1h16v-1c0-4.42-3.58-8-8-8z"/></svg>';
 
         return `
             <tr>
