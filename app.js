@@ -1760,26 +1760,31 @@ function runMockAIOcrAutoFill(docType, filename = "", parsedData = null) {
                 renderBranchesInputs();
                 showToast("🪄 AI อ่านหนังสือรับรองบริษัท และกรอกที่อยู่บริษัท พี เอส พี โฮม ดีไซน์ จำกัด สำเร็จ!", "success");
             } else {
-                // Default / ปักษ์ใต้ก่อสร้าง
-                document.getElementById("cust-tax-id").value = "0945562001192";
-                document.getElementById("cust-company-name").value = "บริษัท ปักษ์ใต้ก่อสร้างและขนส่ง จำกัด";
-                document.getElementById("cust-business-type").value = "ก่อสร้าง";
-                document.getElementById("cust-coordinator").value = "สมเจตน์ รักสงขลา";
-                document.getElementById("cust-phone").value = "081-998-2234";
-                
-                customerBranches = [{
-                    name: "สำนักงานใหญ่ (สาขาพัทลุง)",
-                    houseNo: "220/1",
-                    moo: "4",
-                    soi: "-",
-                    road: "ถนนควนมะพร้าว",
-                    subdistrict: "พญาขัน",
-                    district: "เมืองพัทลุง",
-                    province: "พัทลุง",
-                    postalCode: "93000"
-                }];
-                renderBranchesInputs();
-                showToast("🪄 AI อ่านหนังสือรับรองบริษัท และกรอกที่อยู่สาขาพัทลุงสำเร็จ!", "success");
+                const isPaksang = fn.includes("paksang") || fn.includes("ปักษ์ใต้") || fn.includes("0945562001192");
+                if (isPaksang) {
+                    // Default / ปักษ์ใต้ก่อสร้าง
+                    document.getElementById("cust-tax-id").value = "0945562001192";
+                    document.getElementById("cust-company-name").value = "บริษัท ปักษ์ใต้ก่อสร้างและขนส่ง จำกัด";
+                    document.getElementById("cust-business-type").value = "ก่อสร้าง";
+                    document.getElementById("cust-coordinator").value = "สมเจตน์ รักสงขลา";
+                    document.getElementById("cust-phone").value = "081-998-2234";
+                    
+                    customerBranches = [{
+                        name: "สำนักงานใหญ่ (สาขาพัทลุง)",
+                        houseNo: "220/1",
+                        moo: "4",
+                        soi: "-",
+                        road: "ถนนควนมะพร้าว",
+                        subdistrict: "พญาขัน",
+                        district: "เมืองพัทลุง",
+                        province: "พัทลุง",
+                        postalCode: "93000"
+                    }];
+                    renderBranchesInputs();
+                    showToast("🪄 AI อ่านหนังสือรับรองบริษัท และกรอกที่อยู่สาขาพัทลุงสำเร็จ!", "success");
+                } else {
+                    showToast("⚠️ ระบบจำลองไม่พบประวัติบริษัทนี้ในฐานข้อมูลสาธิต กรุณากรอกข้อมูลด้วยตัวเอง", "warning");
+                }
             }
         }
     } 
@@ -1841,16 +1846,20 @@ function runMockAIOcrAutoFill(docType, filename = "", parsedData = null) {
                 document.getElementById("worker-permit-expiry").value = "31/03/2027";
                 showToast("🪄 AI อ่านเอกสารใบแทนใบอนุญาตทำงาน และกรอกข้อมูลคุณ MAUNG KYAW YE AUNG สำเร็จ!", "success");
             } else {
-                // Default / Zarchi Htwe
-                document.getElementById("worker-uid").value = "6659060430064";
-                document.getElementById("worker-permit-no").value = "9000656659386";
-                document.getElementById("worker-title").value = "นาง";
-                document.getElementById("worker-first-name").value = "ZARCHI HTWE";
-                document.getElementById("worker-last-name").value = "";
-                document.getElementById("worker-dob").value = "25/12/1993";
-                document.getElementById("worker-nationality").value = "Myanmar";
-                document.getElementById("worker-permit-expiry").value = "13/02/2027";
-                showToast("🪄 AI อ่านเอกสารใบแทนใบอนุญาตทำงาน และกรอกข้อมูลคุณ ZARCHI HTWE สำเร็จ!", "success");
+                if (isZarchi) {
+                    // Default / Zarchi Htwe
+                    document.getElementById("worker-uid").value = "6659060430064";
+                    document.getElementById("worker-permit-no").value = "9000656659386";
+                    document.getElementById("worker-title").value = "นาง";
+                    document.getElementById("worker-first-name").value = "ZARCHI HTWE";
+                    document.getElementById("worker-last-name").value = "";
+                    document.getElementById("worker-dob").value = "25/12/1993";
+                    document.getElementById("worker-nationality").value = "Myanmar";
+                    document.getElementById("worker-permit-expiry").value = "13/02/2027";
+                    showToast("🪄 AI อ่านเอกสารใบแทนใบอนุญาตทำงาน และกรอกข้อมูลคุณ ZARCHI HTWE สำเร็จ!", "success");
+                } else {
+                    showToast("⚠️ ระบบจำลองไม่พบประวัติคนงานนี้ในฐานข้อมูลสาธิต กรุณากรอกข้อมูลด้วยตัวเอง", "warning");
+                }
             }
         }
     } 
@@ -1914,18 +1923,22 @@ function runMockAIOcrAutoFill(docType, filename = "", parsedData = null) {
                 document.getElementById("worker-nationality").value = "Myanmar";
                 showToast("🪄 AI อ่านเอกสารพาสปอร์ต CI เล่มใหม่ และกรอกข้อมูลคุณ MAUNG KYAW YE AUNG สำเร็จ!", "success");
             } else {
-                // Default / May Shar
-                document.getElementById("worker-passport-no").value = "MG922690";
-                document.getElementById("worker-passport-pob").value = "MAWLAMYINE";
-                document.getElementById("worker-passport-auth").value = "MOHA, HPA-AN";
-                document.getElementById("worker-passport-issue").value = "05/12/2022";
-                document.getElementById("worker-passport-expiry").value = "04/12/2027";
-                document.getElementById("worker-title").value = "นางสาว";
-                document.getElementById("worker-first-name").value = "MAY SHAR";
-                document.getElementById("worker-last-name").value = "";
-                document.getElementById("worker-dob").value = "06/02/1996";
-                document.getElementById("worker-nationality").value = "Myanmar";
-                showToast("🪄 AI อ่านเอกสารพาสปอร์ต CI เล่มใหม่ และกรอกข้อมูลคุณ MAY SHAR สำเร็จ!", "success");
+                if (isMayShar) {
+                    // Default / May Shar
+                    document.getElementById("worker-passport-no").value = "MG922690";
+                    document.getElementById("worker-passport-pob").value = "MAWLAMYINE";
+                    document.getElementById("worker-passport-auth").value = "MOHA, HPA-AN";
+                    document.getElementById("worker-passport-issue").value = "05/12/2022";
+                    document.getElementById("worker-passport-expiry").value = "04/12/2027";
+                    document.getElementById("worker-title").value = "นางสาว";
+                    document.getElementById("worker-first-name").value = "MAY SHAR";
+                    document.getElementById("worker-last-name").value = "";
+                    document.getElementById("worker-dob").value = "06/02/1996";
+                    document.getElementById("worker-nationality").value = "Myanmar";
+                    showToast("🪄 AI อ่านเอกสารพาสปอร์ต CI เล่มใหม่ และกรอกข้อมูลคุณ MAY SHAR สำเร็จ!", "success");
+                } else {
+                    showToast("⚠️ ระบบจำลองไม่พบประวัติคนงานนี้ในฐานข้อมูลสาธิต กรุณากรอกข้อมูลด้วยตัวเอง", "warning");
+                }
             }
         }
     } else {
