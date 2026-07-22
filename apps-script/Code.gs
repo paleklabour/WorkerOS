@@ -368,6 +368,18 @@ function handleDeleteRecord(sheetName, id) {
   var rowIndex = findRowIndexById(data, id);
   
   if (rowIndex > -1) {
+    if (sheetName === SHEETS.CUSTOMERS || sheetName === SHEETS.WORKERS) {
+      var headers = data.length > 0 ? data[0] : [];
+      var statusColIndex = headers.indexOf("status");
+      if (statusColIndex === -1) {
+        var lastCol = sheet.getLastColumn();
+        sheet.getRange(1, lastCol + 1).setValue("status");
+        statusColIndex = lastCol;
+      }
+      sheet.getRange(rowIndex + 2, statusColIndex + 1).setValue("deleted");
+      return jsonResponse({ status: "success", message: "ย้ายข้อมูลไปถังขยะเรียบร้อยแล้ว" });
+    }
+    
     sheet.deleteRow(rowIndex + 2); // บวก 2 เพื่อชดเชย 1-indexed และ row หัวตาราง
     return jsonResponse({ status: "success", message: "ลบข้อมูลสำเร็จ" });
   } else {
