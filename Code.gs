@@ -870,3 +870,17 @@ function handleSaveLineGroup(groupData) {
   
   return jsonResponse({ status: "success", message: "บันทึกกลุ่มไลน์สำเร็จ" });
 }
+
+// ฟังก์ชันเรียกหน้าจอหลักสำหรับเว็บแอป
+function doGet() {
+  return HtmlService.createTemplateFromFile('index')
+      .evaluate()
+      .setTitle('WorkerOS - ระบบจัดการแรงงานต่างด้าว')
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+// ฟังก์ชันดึงเนื้อหาจากไฟล์ HTML ย่อยมารวมกัน
+function include(filename) {
+  return HtmlService.createHtmlOutputFromFile(filename).getContent();
+}

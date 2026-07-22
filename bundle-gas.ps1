@@ -5,17 +5,17 @@ New-Item -ItemType Directory -Force -Path "apps-script"
 Copy-Item "Code.gs" "apps-script/Code.gs" -Force
 
 # 2. Bundle styles.css to styles.html
-$css = Get-Content "styles.css" -Raw
+$css = [System.IO.File]::ReadAllText("styles.css", [System.Text.Encoding]::UTF8)
 $styleHtml = "<style>`n$css`n</style>"
 [System.IO.File]::WriteAllText("apps-script/styles.html", $styleHtml, [System.Text.Encoding]::UTF8)
 
 # 3. Bundle app.js to app.html
-$js = Get-Content "app.js" -Raw
+$js = [System.IO.File]::ReadAllText("app.js", [System.Text.Encoding]::UTF8)
 $appHtml = "<script>`n$js`n</script>"
 [System.IO.File]::WriteAllText("apps-script/app.html", $appHtml, [System.Text.Encoding]::UTF8)
 
 # 4. Process index.html to index.html for Apps Script
-$html = Get-Content "index.html" -Raw
+$html = [System.IO.File]::ReadAllText("index.html", [System.Text.Encoding]::UTF8)
 
 # Replace CSS link (handle whitespace variation)
 $html = $html -replace '<link\s+rel="stylesheet"\s+href="styles.css"\s*\/?>', '<?!= include("styles"); ?>'
