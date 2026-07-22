@@ -32,3 +32,11 @@
 * `ARCHITECTURE.md` - แผนผังสถาปัตยกรรมระบบโดยละเอียดและการเชื่อมโยงข้อมูล
 * `apps-script/` - โฟลเดอร์รวมไฟล์ที่ถูกแยกประกอบร่างเพื่อนำไป Copy-Paste อัปโหลดขึ้น Google Apps Script
 * `bundle-gas.ps1` - สคริปต์ PowerShell สำหรับรวบรวมไฟล์ฝั่งเครื่องโลคอลส่งออกไปเป็นเวอร์ชันสำหรับ Apps Script ภายใน 1 วินาที
+
+---
+
+## 📌 ประวัติการติดตั้งและเวอร์ชัน (Deployment History & Versions)
+
+* **เวอร์ชัน 1**: 22 ก.ค. 2026 เวลา 10:01 น.
+  * **รหัสการทำให้ใช้งานได้ (Deployment ID)**: `AKfycbwJgtQt1G3x6Ey3Z8MPBrx7V-77clsVoOEGMMieTPumpvqZJd4Q-mbI1YTf74kgS4Ys`
+
