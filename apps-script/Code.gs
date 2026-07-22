@@ -884,3 +884,24 @@ function doGet() {
 function include(filename) {
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
+
+/**
+ * ฟังก์ชันสำหรับล้างข้อมูลจำลองทั้งหมดใน Google Sheets (ยกเว้นหัวตารางและบัญชีผู้ใช้งาน)
+ * เพื่อเริ่มต้นใช้งานจริง
+ */
+function clearAllMockData() {
+  var sheetsToClear = [SHEETS.CUSTOMERS, SHEETS.WORKERS, SHEETS.JOBS, SHEETS.LINE_GROUPS, SHEETS.LINE_LOGS];
+  var ss = SPREADSHEET_ID ? SpreadsheetApp.openById(SPREADSHEET_ID) : SpreadsheetApp.getActiveSpreadsheet();
+  
+  sheetsToClear.forEach(function(sheetName) {
+    var sheet = ss.getSheetByName(sheetName);
+    if (sheet) {
+      var lastRow = sheet.getLastRow();
+      if (lastRow > 1) {
+        // ลบตั้งแต่แถวที่ 2 ลงไปจนถึงแถวสุดท้าย
+        sheet.deleteRows(2, lastRow - 1);
+      }
+    }
+  });
+}
+
