@@ -755,7 +755,16 @@ function readSheetRawData(sheetName) {
 function readSheetData(sheetName) {
   var sheet = getSheet(sheetName);
   var lastRow = sheet.getLastRow();
-  if (lastRow <= 1) return [];
+  if (lastRow <= 1) {
+    if (sheetName === SHEETS.USERS) {
+      sheet.appendRow(["usr-admin", "admin@system.com", "admin123", "นาย ศรุต คุณารักษ์", "admin", "-"]);
+      sheet.appendRow(["usr-manager", "manager@system.com", "manager123", "ผู้จัดการทั่วไป", "manager", "-"]);
+      sheet.appendRow(["usr-staff", "staff@system.com", "staff123", "พนักงานลงข้อมูล", "staff", "-"]);
+      lastRow = sheet.getLastRow();
+    } else {
+      return [];
+    }
+  }
   
   var lastCol = sheet.getLastColumn();
   var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
