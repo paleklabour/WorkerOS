@@ -873,8 +873,13 @@ function handleSaveLineGroup(groupData) {
 
 // ฟังก์ชันเรียกหน้าจอหลักสำหรับเว็บแอป
 function doGet() {
-  return HtmlService.createTemplateFromFile('index')
-      .evaluate()
+  var template = HtmlService.createTemplateFromFile('index');
+  try {
+    template.webAppUrl = ScriptApp.getService().getUrl();
+  } catch(err) {
+    template.webAppUrl = "";
+  }
+  return template.evaluate()
       .setTitle('WorkerOS - ระบบจัดการแรงงานต่างด้าว')
       .addMetaTag('viewport', 'width=device-width, initial-scale=1')
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);

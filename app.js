@@ -91,7 +91,11 @@ const USERS = {
 
 // ==================== CLOUD API CONNECTOR ====================
 async function callCloudAPI(action, payload = {}) {
-    const url = localStorage.getItem("mw_sheets_url");
+    let url = localStorage.getItem("mw_sheets_url");
+    if ((!url || url === "") && window.GAS_WEB_APP_URL && window.GAS_WEB_APP_URL.indexOf("google.com") > -1) {
+        url = window.GAS_WEB_APP_URL;
+        localStorage.setItem("mw_sheets_url", url);
+    }
     if (!url) return null; // Offline mode fallback
 
     try {
