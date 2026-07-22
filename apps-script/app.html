@@ -1699,14 +1699,15 @@ function runMockAIOcrAutoFill(docType, filename = "", parsedData = null) {
     const fn = (filename || "").toLowerCase();
     
     // Classify based on filename keywords
-    const isTunTun = fn.includes("tun_tun") || fn.includes("tun tun") || fn.includes("tuntun") || fn.includes("6681") || fn.includes("110068") || fn.includes("cc8061") || fn.includes("8061148") || (fn.includes("tun") && !fn.includes("nu"));
+    const isTunTun = fn.includes("tun_tun") || fn.includes("tun tun") || fn.includes("tuntun") || fn.includes("6681170") || fn.includes("110068") || fn.includes("cc8061") || fn.includes("8061148") || (fn.includes("tun") && !fn.includes("nu"));
     const isTunNu = fn.includes("tun_nu") || fn.includes("tun nu") || fn.includes("tunnu") || fn.includes("009079") || fn.includes("900065") || fn.includes("cc8907") || fn.includes("8907488") || (fn.includes("tun") && fn.includes("nu"));
     const isSeing = fn.includes("seing") || fn.includes("thein") || fn.includes("6654") || fn.includes("410066") || fn.includes("cc8026") || fn.includes("8026576");
     const isMayShar = fn.includes("may") || fn.includes("shar") || fn.includes("mg9226") || fn.includes("922690");
     const isZarchi = fn.includes("zarchi") || fn.includes("htwe") || fn.includes("6659") || fn.includes("656659") || fn.includes("cc7980") || fn.includes("7980223");
+    const isMaungKyaw = fn.includes("maung") || fn.includes("kyaw") || fn.includes("ye") || fn.includes("aung") || fn.includes("668119") || fn.includes("691252") || fn.includes("kyawye");
     
     // Fallback: if it's a completely new file name, generate dynamic OCR details from the filename
-    if (!parsedData && !isTunTun && !isTunNu && !isSeing && !isMayShar && !isZarchi) {
+    if (!parsedData && !isTunTun && !isTunNu && !isSeing && !isMayShar && !isZarchi && !isMaungKyaw) {
         parsedData = generateOcrFromFilename(filename, docType);
     }
     
@@ -1780,6 +1781,17 @@ function runMockAIOcrAutoFill(docType, filename = "", parsedData = null) {
                 document.getElementById("worker-nationality").value = "Myanmar";
                 document.getElementById("worker-permit-expiry").value = "13/02/2027";
                 showToast("🪄 AI อ่านเอกสารใบแทนใบอนุญาตทำงาน และกรอกข้อมูลคุณ SEING AUNG THEIN สำเร็จ!", "success");
+            } else if (isMaungKyaw) {
+                // Maung Kyaw Ye Aung
+                document.getElementById("worker-uid").value = "6681190001321";
+                document.getElementById("worker-permit-no").value = "69125200178960";
+                document.getElementById("worker-title").value = "นาย";
+                document.getElementById("worker-first-name").value = "MAUNG KYAW YE AUNG";
+                document.getElementById("worker-last-name").value = "";
+                document.getElementById("worker-dob").value = "10/09/1990";
+                document.getElementById("worker-nationality").value = "Myanmar";
+                document.getElementById("worker-permit-expiry").value = "31/03/2027";
+                showToast("🪄 AI อ่านเอกสารใบแทนใบอนุญาตทำงาน และกรอกข้อมูลคุณ MAUNG KYAW YE AUNG สำเร็จ!", "success");
             } else {
                 // Default / Zarchi Htwe
                 document.getElementById("worker-uid").value = "6659060430064";
@@ -1840,6 +1852,19 @@ function runMockAIOcrAutoFill(docType, filename = "", parsedData = null) {
                 document.getElementById("worker-passport-issue").value = "21/03/2023";
                 document.getElementById("worker-passport-expiry").value = "20/03/2027";
                 showToast("🪄 AI อ่านเอกสารพาสปอร์ต CI เล่มใหม่ และกรอกข้อมูลคุณ SEING AUNG THEIN สำเร็จ!", "success");
+            } else if (isMaungKyaw) {
+                // Maung Kyaw Ye Aung
+                document.getElementById("worker-passport-no").value = "MG-MOCK-999";
+                document.getElementById("worker-passport-pob").value = "YANGON";
+                document.getElementById("worker-passport-auth").value = "MOHA, YANGON";
+                document.getElementById("worker-passport-issue").value = "01/01/2023";
+                document.getElementById("worker-passport-expiry").value = "01/01/2028";
+                document.getElementById("worker-title").value = "นาย";
+                document.getElementById("worker-first-name").value = "MAUNG KYAW YE AUNG";
+                document.getElementById("worker-last-name").value = "";
+                document.getElementById("worker-dob").value = "10/09/1990";
+                document.getElementById("worker-nationality").value = "Myanmar";
+                showToast("🪄 AI อ่านเอกสารพาสปอร์ต CI เล่มใหม่ และกรอกข้อมูลคุณ MAUNG KYAW YE AUNG สำเร็จ!", "success");
             } else {
                 // Default / May Shar
                 document.getElementById("worker-passport-no").value = "MG922690";
