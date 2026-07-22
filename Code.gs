@@ -24,27 +24,32 @@ var SHEETS = {
 // ==================== HTTP ENDPOINTS (doGet & doPost) ====================
 
 /**
- * จัดการคำขอแบบ GET
+ * จัดการคำขอแบบ GET (รวมหน้าที่บริการหน้าเว็บและการเรียก API แบบ GET)
  */
 function doGet(e) {
   try {
-    var action = e.parameter.action;
-    var token = e.parameter.token; // หรือผ่าน parameter ตรวจสอบ
-    
-    // ตั้งค่า CORS
-    var corsHeader = ContentService.MimeType.JSON;
+    var action = e && e.parameter ? e.parameter.action : null;
     
     if (action === "test") {
       return jsonResponse({ status: "success", message: "Google Apps Script API is online!" });
     }
     
-    // ดึงข้อมูลบัญชีธนาคาร (Public หรือสำหรับผู้ที่เข้าสู่ระบบแล้ว)
     if (action === "getBanks") {
       var banks = readSheetData(SHEETS.BANKS);
       return jsonResponse({ status: "success", data: banks });
     }
 
-    return jsonResponse({ status: "error", message: "Invalid action or parameters." }, 400);
+    // บริการหน้าจอหลักสำหรับเว็บแอป (HTML frontend)
+    var template = HtmlService.createTemplateFromFile('index');
+    try {
+      template.webAppUrl = ScriptApp.getService().getUrl();
+    } catch(err) {
+      template.webAppUrl = "";
+    }
+    return template.evaluate()
+        .setTitle('WorkerOS - ระบบจัดการแรงงานต่างด้าว')
+        .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+        .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   } catch (error) {
     return jsonResponse({ status: "error", message: error.toString() }, 500);
   }
@@ -764,6 +769,7 @@ function readSheetData(sheetName) {
       sheet.appendRow(["usr-admin", "admin@system.com", "admin123", "นาย ศรุต คุณารักษ์", "admin", "-"]);
       sheet.appendRow(["usr-manager", "manager@system.com", "manager123", "ผู้จัดการทั่วไป", "manager", "-"]);
       sheet.appendRow(["usr-staff", "staff@system.com", "staff123", "พนักงานลงข้อมูล", "staff", "-"]);
+      SpreadsheetApp.flush(); // 🔥 บังคับบันทึกข้อมูลและอัปเดตสเปรดชีตทันทีก่อนจะทำการดึงค่า
       lastRow = sheet.getLastRow();
     } else {
       return [];
@@ -898,20 +904,6 @@ function handleSaveLineGroup(groupData) {
   }
   
   return jsonResponse({ status: "success", message: "บันทึกกลุ่มไลน์สำเร็จ" });
-}
-
-// ฟังก์ชันเรียกหน้าจอหลักสำหรับเว็บแอป
-function doGet() {
-  var template = HtmlService.createTemplateFromFile('index');
-  try {
-    template.webAppUrl = ScriptApp.getService().getUrl();
-  } catch(err) {
-    template.webAppUrl = "";
-  }
-  return template.evaluate()
-      .setTitle('WorkerOS - ระบบจัดการแรงงานต่างด้าว')
-      .addMetaTag('viewport', 'width=device-width, initial-scale=1')
-      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
 // ฟังก์ชันดึงเนื้อหาจากไฟล์ HTML ย่อยมารวมกัน
