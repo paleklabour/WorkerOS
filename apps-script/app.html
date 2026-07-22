@@ -1023,12 +1023,16 @@ function renderCustomers() {
     const tbody = document.getElementById("customers-list-tbody");
     
     // Filter
-    const filtered = customers.filter(c => 
-        c.companyName.toLowerCase().includes(query) ||
-        c.taxId.toLowerCase().includes(query) ||
-        c.coordinator.toLowerCase().includes(query) ||
-        c.businessType.toLowerCase().includes(query)
-    );
+    const filtered = customers.filter(c => {
+        const isDeleted = c.status === 'deleted';
+        if (!query) {
+            return !isDeleted;
+        }
+        return c.companyName.toLowerCase().includes(query) ||
+               c.taxId.toLowerCase().includes(query) ||
+               c.coordinator.toLowerCase().includes(query) ||
+               c.businessType.toLowerCase().includes(query);
+    });
 
     // Pagination calculations
     const totalPages = Math.ceil(filtered.length / customersPageSize) || 1;
@@ -1082,8 +1086,8 @@ function renderCustomers() {
             `;
         }
 
-        const activeWorkersCount = workers.filter(w => w.employerId === c.id && w.status !== 'archived').length;
-        const totalWorkersCount = workers.filter(w => w.employerId === c.id).length;
+        const activeWorkersCount = workers.filter(w => w.employerId === c.id && w.status !== 'archived' && w.status !== 'deleted').length;
+        const totalWorkersCount = workers.filter(w => w.employerId === c.id && w.status !== 'deleted').length;
         
         // Mock attached file name
         const certFileName = `${c.companyName.replace(/\s+/g, '_')}_Certificate.pdf`;
@@ -1098,7 +1102,7 @@ function renderCustomers() {
         return `
             <tr>
                 <td><strong>${c.taxId}</strong></td>
-                <td><strong>${c.companyName}</strong></td>
+                <td><strong>${c.companyName} ${c.status === 'deleted' ? '<span class="badge" style="background-color: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); font-size: 10px; padding: 2px 6px; margin-left: 4px;">ลบแล้ว/เก็บถาวร</span>' : ''}</strong></td>
                 <td><span class="badge badge-gold">${c.businessType}</span></td>
                 <td>${hqAddress}</td>
                 <td>
@@ -1205,9 +1209,15 @@ function renderWorkers() {
         // Employment status filter (active/pending_register/archived)
         const wStatus = w.status || 'active';
         let matchEmpStatus = true;
-        if (empStatusFilter === 'active') matchEmpStatus = wStatus === 'active';
-        if (empStatusFilter === 'pending_register') matchEmpStatus = wStatus === 'pending_register';
-        if (empStatusFilter === 'archived') matchEmpStatus = wStatus === 'archived';
+        if (!searchVal) {
+            if (wStatus === 'deleted') return false; // Hide completely in default view
+            if (empStatusFilter === 'active') matchEmpStatus = wStatus === 'active';
+            if (empStatusFilter === 'pending_register') matchEmpStatus = wStatus === 'pending_register';
+            if (empStatusFilter === 'archived') matchEmpStatus = wStatus === 'archived';
+        } else {
+            // Search query matches both active and deleted
+            matchEmpStatus = true;
+        }
 
         return matchSearch && matchNat && matchEmp && matchStatus && matchEmpStatus;
     });
@@ -1250,7 +1260,9 @@ function renderWorkers() {
         const wpDiff = wpExpDate ? Math.ceil((wpExpDate - today) / (1000 * 60 * 60 * 24)) : 9999;
 
         let statusBadge = '<span class="badge badge-success">ปกติ</span>';
-        if (w.status === 'archived') {
+        if (w.status === 'deleted') {
+            statusBadge = '<span class="badge" style="background-color: #ef4444; color: white;">ลบแล้ว/เก็บถาวร</span>';
+        } else if (w.status === 'archived') {
             statusBadge = '<span class="badge" style="background-color: #64748b; color: white;">พ้นสภาพ/แจ้งออก</span>';
         } else if ((pExpDate && pDiff < 0) || (wpExpDate && wpDiff < 0)) {
             statusBadge = '<span class="badge badge-danger">หมดอายุ</span>';
