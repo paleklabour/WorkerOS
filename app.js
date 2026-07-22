@@ -84,9 +84,9 @@ const BUSINESS_TYPES = [
 
 // Predefined Demo Accounts
 const USERS = {
-    "admin@system.com": { email: "admin@system.com", name: "สมเจตน์ แอดมิน", role: "admin", password: "admin123" },
-    "manager@system.com": { email: "manager@system.com", name: "วิภา จิตดี (Manager)", role: "manager", password: "manager123" },
-    "staff@system.com": { email: "staff@system.com", name: "กิตติพงษ์Staff", role: "staff", password: "staff123" }
+    "admin@system.com": { email: "admin@system.com", name: "สมเจตน์ แอดมิน", role: "admin", password: "adminWorkerOS#2026" },
+    "manager@system.com": { email: "manager@system.com", name: "วิภา จิตดี (Manager)", role: "manager", password: "managerWorkerOS#2026" },
+    "staff@system.com": { email: "staff@system.com", name: "กิตติพงษ์Staff", role: "staff", password: "staffWorkerOS#2026" }
 };
 
 // ==================== CLOUD API CONNECTOR ====================
