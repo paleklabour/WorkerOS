@@ -153,11 +153,53 @@ function doPost(e) {
  */
 function verifyUser(email, password) {
   if (!email || !password) return null;
+  
+  try {
+    var sheet = getSheet(SHEETS.USERS);
+    var rawData = readSheetRawData(SHEETS.USERS);
+    var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    var emailColIdx = headers.indexOf("email");
+    var passColIdx = headers.indexOf("password");
+    
+    if (emailColIdx > -1 && passColIdx > -1) {
+      for (var i = 0; i < rawData.length; i++) {
+        var row = rawData[i];
+        var rowEmail = row[emailColIdx];
+        var rowPass = row[passColIdx];
+        
+        if (rowEmail === email) {
+          if (rowPass === password) {
+            return getMatchedUser(row, headers);
+          }
+          // Auto-migrate old credentials from admin123/manager123/staff123
+          if ((rowEmail === "admin@system.com" && rowPass === "admin123" && password === "adminWorkerOS#2026") ||
+              (rowEmail === "manager@system.com" && rowPass === "manager123" && password === "managerWorkerOS#2026") ||
+              (rowEmail === "staff@system.com" && rowPass === "staff123" && password === "staffWorkerOS#2026")) {
+            
+            sheet.getRange(i + 2, passColIdx + 1).setValue(password);
+            row[passColIdx] = password;
+            return getMatchedUser(row, headers);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    // Fallback if sheet operation fails
+  }
+  
   var users = readSheetData(SHEETS.USERS);
   var matched = users.find(function(u) {
     return u.email === email && u.password === password;
   });
   return matched ? matched : null;
+}
+
+function getMatchedUser(row, headers) {
+  var obj = {};
+  for (var j = 0; j < headers.length; j++) {
+    obj[headers[j]] = row[j];
+  }
+  return obj;
 }
 
 /**
