@@ -729,8 +729,8 @@ function calculateDeadlines() {
         const empName = emp ? emp.companyName : "ไม่ระบุนายจ้าง";
 
         // 1. Passport / CI Expiry Check (180 days limit)
-        if (w.passportExpiry) {
-            const expPassDate = new Date(w.passportExpiry);
+        const expPassDate = safeParseDate(w.passportExpiry);
+        if (expPassDate) {
             expPassDate.setHours(0,0,0,0);
             const timeDiff = expPassDate - today;
             const daysDiff = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
@@ -757,8 +757,8 @@ function calculateDeadlines() {
         }
 
         // 2. Work Permit Expiry Check (60 days limit)
-        if (w.permitExpiry) {
-            const expPermitDate = new Date(w.permitExpiry);
+        const expPermitDate = safeParseDate(w.permitExpiry);
+        if (expPermitDate) {
             expPermitDate.setHours(0,0,0,0);
             const timeDiff = expPermitDate - today;
             const daysDiff = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
@@ -1261,10 +1261,10 @@ function renderWorkers() {
         const empName = emp ? emp.companyName : "ไม่ระบุนายจ้าง";
 
         // Status badges logic
-        const pExpDate = w.passportExpiry ? new Date(w.passportExpiry) : null;
-        const wpExpDate = w.permitExpiry ? new Date(w.permitExpiry) : null;
-        const pDiff = pExpDate ? Math.ceil((pExpDate - today) / (1000 * 60 * 60 * 24)) : 9999;
-        const wpDiff = wpExpDate ? Math.ceil((wpExpDate - today) / (1000 * 60 * 60 * 24)) : 9999;
+        const pExpDate = safeParseDate(w.passportExpiry);
+        const wpExpDate = safeParseDate(w.permitExpiry);
+        const pDiff = pExpDate && !isNaN(pExpDate.getTime()) ? Math.ceil((pExpDate - today) / (1000 * 60 * 60 * 24)) : 9999;
+        const wpDiff = wpExpDate && !isNaN(wpExpDate.getTime()) ? Math.ceil((wpExpDate - today) / (1000 * 60 * 60 * 24)) : 9999;
 
         let statusBadge = '<span class="badge badge-success">ปกติ</span>';
         if (w.status === 'deleted') {
@@ -2207,6 +2207,44 @@ function formatDateForInput(val) {
         return `${parts[2]}/${parts[1]}/${parts[0]}`;
     }
     return val;
+}
+
+function safeParseDate(dateStr) {
+    if (!dateStr || dateStr === "-" || dateStr === "null" || dateStr === "undefined") return null;
+    if (dateStr instanceof Date) {
+        return isNaN(dateStr.getTime()) ? null : dateStr;
+    }
+    const cleanStr = String(dateStr).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(cleanStr)) {
+        const d = new Date(cleanStr);
+        if (!isNaN(d.getTime())) {
+            if (d.getFullYear() > 2400) {
+                d.setFullYear(d.getFullYear() - 543);
+            }
+            return d;
+        }
+    }
+    const parts = cleanStr.split('/');
+    if (parts.length === 3) {
+        const day = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        let year = parseInt(parts[2], 10);
+        if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+            if (year > 2400) {
+                year = year - 543;
+            }
+            const d = new Date(year, month, day);
+            return isNaN(d.getTime()) ? null : d;
+        }
+    }
+    const fallbackD = new Date(cleanStr);
+    if (!isNaN(fallbackD.getTime())) {
+        if (fallbackD.getFullYear() > 2400) {
+            fallbackD.setFullYear(fallbackD.getFullYear() - 543);
+        }
+        return fallbackD;
+    }
+    return null;
 }
 
 function parseDateInput(val) {
