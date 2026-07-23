@@ -5,8 +5,8 @@
  */
 
 // ==================== CONFIGURATION ====================
-var SPREADSHEET_ID = ""; // ใส่ Spreadsheet ID ที่นี่ (หากเว้นว่างไว้ จะใช้ Active Spreadsheet อัตโนมัติเมื่อผูกคอนเทนเนอร์)
-var MAIN_DRIVE_FOLDER_ID = ""; // ใส่ Folder ID ของ Google Drive ที่ใช้เก็บไฟล์เอกสารคนงาน
+var SPREADSHEET_ID = "13XIfK9UNRn-YjN_qWd7B6StPZP7D28ZIxAgOhe3zrZY"; // ใส่ Spreadsheet ID ที่นี่ (หากเว้นว่างไว้ จะใช้ Active Spreadsheet อัตโนมัติเมื่อผูกคอนเทนเนอร์)
+var MAIN_DRIVE_FOLDER_ID = "15cKMac6vD1yVB-bzsamV9aw_Tvdiwfab"; // ใส่ Folder ID ของ Google Drive ที่ใช้เก็บไฟล์เอกสารคนงาน
 var LINE_CHANNEL_ACCESS_TOKEN = ""; // ใส่ Channel Access Token ของ Line OA ที่นี่
 var GEMINI_API_KEY = "AQ.Ab8RN6J8pFWHbCAA6katrh9TEOwoCadtIJjhvrlXLqrz8ZQFHQ"; // คีย์ Gemini API Key จาก Google AI Studio สำหรับงาน AI OCR สูงเพื่อใช้งาน AI OCR ความแม่นยำสูง
 
