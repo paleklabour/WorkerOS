@@ -378,7 +378,7 @@ function handleDeleteRecord(sheetName, id) {
   
   if (rowIndex > -1) {
     if (sheetName === SHEETS.CUSTOMERS || sheetName === SHEETS.WORKERS) {
-      var headers = data.length > 0 ? data[0] : [];
+      var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
       var statusColIndex = headers.indexOf("status");
       if (statusColIndex === -1) {
         var lastCol = sheet.getLastColumn();
@@ -729,9 +729,9 @@ function getSheet(sheetName) {
     if (sheetName === SHEETS.USERS) {
       headers = ["user_id", "email", "password", "name", "role", "customer_id"];
       sheet.appendRow(headers);
-      sheet.appendRow(["usr-admin", "admin@system.com", "admin123", "นาย ศรุต คุณารักษ์", "admin", "-"]);
-      sheet.appendRow(["usr-manager", "manager@system.com", "manager123", "ผู้จัดการทั่วไป", "manager", "-"]);
-      sheet.appendRow(["usr-staff", "staff@system.com", "staff123", "พนักงานลงข้อมูล", "staff", "-"]);
+      sheet.appendRow(["usr-admin", "admin@system.com", "adminWorkerOS#2026", "นาย ศรุต คุณารักษ์", "admin", "-"]);
+      sheet.appendRow(["usr-manager", "manager@system.com", "managerWorkerOS#2026", "ผู้จัดการทั่วไป", "manager", "-"]);
+      sheet.appendRow(["usr-staff", "staff@system.com", "staffWorkerOS#2026", "พนักงานลงข้อมูล", "staff", "-"]);
     }
     else if (sheetName === SHEETS.CUSTOMERS) headers = ["id", "taxId", "companyName", "businessType", "coordinator", "phone", "createdAt", "branches_json", "drive_folder_id"];
     else if (sheetName === SHEETS.WORKERS) headers = ["id", "employerId", "title", "nationality", "workerUid", "permitNo", "permitExpiry", "firstName", "lastName", "dob", "passportNo", "passportPob", "passportAuth", "passportIssue", "passportExpiry", "status", "createdAt", "attachments_json", "gender", "position", "workplace", "refNo"];
@@ -766,9 +766,9 @@ function readSheetData(sheetName) {
   var lastRow = sheet.getLastRow();
   if (lastRow <= 1) {
     if (sheetName === SHEETS.USERS) {
-      sheet.appendRow(["usr-admin", "admin@system.com", "admin123", "นาย ศรุต คุณารักษ์", "admin", "-"]);
-      sheet.appendRow(["usr-manager", "manager@system.com", "manager123", "ผู้จัดการทั่วไป", "manager", "-"]);
-      sheet.appendRow(["usr-staff", "staff@system.com", "staff123", "พนักงานลงข้อมูล", "staff", "-"]);
+      sheet.appendRow(["usr-admin", "admin@system.com", "adminWorkerOS#2026", "นาย ศรุต คุณารักษ์", "admin", "-"]);
+      sheet.appendRow(["usr-manager", "manager@system.com", "managerWorkerOS#2026", "ผู้จัดการทั่วไป", "manager", "-"]);
+      sheet.appendRow(["usr-staff", "staff@system.com", "staffWorkerOS#2026", "พนักงานลงข้อมูล", "staff", "-"]);
       SpreadsheetApp.flush(); // 🔥 บังคับบันทึกข้อมูลและอัปเดตสเปรดชีตทันทีก่อนจะทำการดึงค่า
       lastRow = sheet.getLastRow();
     } else {
