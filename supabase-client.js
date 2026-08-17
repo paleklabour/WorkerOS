@@ -85,6 +85,24 @@
         };
     }
 
+    // Supabase Auth redirects a "reset password" email link back here with
+    // #access_token=...&type=recovery in the URL hash; supabase-js auto-detects
+    // that hash and opens a session (detectSessionInUrl), so app.js must check
+    // this *before* falling back to any cached-user localStorage login.
+    function isPasswordRecovery() {
+        return window.location.hash.indexOf("type=recovery") > -1;
+    }
+
+    async function updatePassword(newPassword) {
+        const { error } = await sb.auth.updateUser({ password: newPassword });
+        if (error) return { status: "error", message: error.message };
+        return { status: "success" };
+    }
+
+    async function signOut() {
+        await sb.auth.signOut();
+    }
+
     async function getAuthHeaders() {
         const { data } = await sb.auth.getSession();
         const token = data && data.session ? data.session.access_token : window.SUPABASE_ANON_KEY;
@@ -215,5 +233,8 @@
         }
     }
 
-    window.supabaseAdapter = { login, callCloudAPI, uploadFile, client: sb };
+    window.supabaseAdapter = {
+        login, callCloudAPI, uploadFile, client: sb,
+        isPasswordRecovery, updatePassword, signOut
+    };
 })();

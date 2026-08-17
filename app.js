@@ -171,13 +171,20 @@ async function callCloudAPI(action, payload = {}) {
 // ==================== INITIALIZATION ====================
 document.addEventListener("DOMContentLoaded", async () => {
     try {
-        // Check if user is logged in
-        const cachedUser = localStorage.getItem("mw_current_user");
-        if (cachedUser && cachedUser !== "undefined") {
-            currentUser = JSON.parse(cachedUser);
-            await initApp();
+        if (window.supabaseAdapter && window.supabaseAdapter.isPasswordRecovery()) {
+            // Password-recovery link landed here — supabase-js already opened a
+            // session from the URL hash. Force a new-password prompt instead of
+            // silently trusting any cached login (see handleResetPassword).
+            showResetPasswordView();
         } else {
-            showLoginView();
+            // Check if user is logged in
+            const cachedUser = localStorage.getItem("mw_current_user");
+            if (cachedUser && cachedUser !== "undefined") {
+                currentUser = JSON.parse(cachedUser);
+                await initApp();
+            } else {
+                showLoginView();
+            }
         }
     } catch (err) {
         console.error("Failed to parse cached user or initialize:", err);
@@ -197,6 +204,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         const loginForm = document.getElementById("login-form");
         if (loginForm) {
             loginForm.addEventListener("submit", handleLogin);
+        }
+
+        // Setup Reset Password Form Handler
+        const resetForm = document.getElementById("reset-password-form");
+        if (resetForm) {
+            resetForm.addEventListener("submit", handleResetPassword);
         }
     } catch (err) {
         console.error("Failed to set header date or login listener:", err);
@@ -727,6 +740,61 @@ function logout() {
 function showLoginView() {
     document.getElementById("login-view").classList.add("active");
     document.getElementById("login-view").classList.remove("hidden");
+}
+
+function showResetPasswordView() {
+    document.getElementById("login-view").classList.remove("active");
+    document.getElementById("login-view").classList.add("hidden");
+    document.getElementById("reset-password-view").classList.add("active");
+    document.getElementById("reset-password-view").classList.remove("hidden");
+}
+
+async function handleResetPassword(e) {
+    e.preventDefault();
+    const newPassword = document.getElementById("reset-password-new").value;
+    const confirmPassword = document.getElementById("reset-password-confirm").value;
+    const errorEl = document.getElementById("reset-password-error");
+    const btn = document.getElementById("btn-reset-password");
+
+    if (newPassword.length < 8) {
+        errorEl.innerText = "รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร";
+        errorEl.style.display = 'block';
+        return;
+    }
+    if (newPassword !== confirmPassword) {
+        errorEl.innerText = "รหัสผ่านทั้งสองช่องไม่ตรงกัน";
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = "<span>⏳ กำลังบันทึก...</span>";
+    }
+    try {
+        const result = await window.supabaseAdapter.updatePassword(newPassword);
+        if (result.status === "success") {
+            await window.supabaseAdapter.signOut();
+            // Drop the recovery token from the URL so a refresh doesn't loop back here
+            history.replaceState(null, "", window.location.pathname + window.location.search);
+            document.getElementById("reset-password-view").classList.remove("active");
+            document.getElementById("reset-password-view").classList.add("hidden");
+            showLoginView();
+            showToast("ตั้งรหัสผ่านใหม่สำเร็จ กรุณาเข้าสู่ระบบอีกครั้ง", "success");
+        } else {
+            errorEl.innerText = result.message || "ไม่สามารถตั้งรหัสผ่านใหม่ได้";
+            errorEl.style.display = 'block';
+        }
+    } catch (err) {
+        console.error("Reset password error:", err);
+        errorEl.innerText = "เกิดข้อผิดพลาด กรุณาลองอีกครั้ง";
+        errorEl.style.display = 'block';
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = "<span>บันทึกรหัสผ่านใหม่</span>";
+        }
+    }
 }
 
 function hideLoginView() {

@@ -217,7 +217,8 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* ==================== LOGIN VIEW ==================== */
-#login-view {
+#login-view,
+#reset-password-view {
     min-height: 100vh;
     display: flex;
     align-items: center;
@@ -276,18 +277,21 @@ h1, h2, h3, h4, h5, h6 {
     font-weight: 500;
 }
 
-#login-form .form-group label {
+#login-form .form-group label,
+#reset-password-form .form-group label {
     color: var(--navy-dark);
     font-weight: 600;
 }
 
-#login-form input {
+#login-form input,
+#reset-password-form input {
     background-color: #ffffff;
     border-color: #cbd5e1;
     color: var(--text-dark);
 }
 
-#login-form input:focus {
+#login-form input:focus,
+#reset-password-form input:focus {
     border-color: var(--gold-primary);
     background-color: #ffffff;
     box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.08);
