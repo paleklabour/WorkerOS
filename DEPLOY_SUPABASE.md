@@ -1,7 +1,15 @@
 # ย้ายระบบไป Supabase — ขั้นตอน Deploy
 
 ## 1. สร้างฐานข้อมูล
-รันไฟล์ `schema.sql` (อยู่ root ของ zip) ทั้งหมดใน Supabase Dashboard → SQL Editor
+Schema ย้ายมาอยู่ใน `supabase/migrations/` แล้ว (ไม่ใช่ `schema.sql` เดี่ยว ๆ อีกต่อไป —
+ดู `DEVELOPMENT.md` เรื่องวิธีเพิ่ม migration ใหม่) apply ด้วย Supabase CLI:
+
+```powershell
+winget install Supabase.CLI          # ครั้งแรกเท่านั้น
+supabase login                       # เปิดเบราว์เซอร์ให้ล็อกอิน
+supabase link --project-ref cagpzvrqtjkuabhqaqon
+supabase db push                     # apply ทุก migration ใน supabase/migrations/
+```
 
 ## 2. สร้าง Storage bucket
 Dashboard → Storage → New bucket → ตั้งชื่อ `worker-documents` → Public bucket (เพื่อให้ fileUrl เปิดดูได้ตรงเหมือน Google Drive เดิม)

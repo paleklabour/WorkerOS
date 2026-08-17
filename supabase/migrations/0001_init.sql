@@ -1,8 +1,14 @@
 -- ============================================================================
--- WorkerOS — Supabase (PostgreSQL) Schema
+-- WorkerOS — Supabase (PostgreSQL) initial schema
 -- แปลงจากโครงสร้าง Google Sheets เดิม (Users, Customers, Workers, Jobs, Banks,
 -- Line_Groups, Line_Logs) ให้เป็นตารางเชิงสัมพันธ์บน Postgres
--- รันไฟล์นี้ทั้งหมดใน Supabase SQL Editor ครั้งเดียว
+--
+-- ไฟล์นี้แทนที่ schema.sql เดิมที่ root — จัดการ schema ผ่าน migration files
+-- ในโฟลเดอร์นี้เท่านั้นจากนี้ไป (supabase db push) ห้ามแก้ schema ตรงบน
+-- Dashboard SQL Editor แล้วลืม sync กลับมาเป็นไฟล์
+--
+-- หมายเหตุ (เทียบกับ schema.sql เดิม): เพิ่มคอลัมน์ jobs.batch_id และ
+-- jobs.order_no ที่ app.js ใช้งานอยู่จริงแล้ว แต่ schema เดิมยังไม่มี
 -- ============================================================================
 
 create extension if not exists "pgcrypto"; -- สำหรับ gen_random_uuid()
@@ -72,6 +78,8 @@ create table if not exists jobs (
   fee           numeric(12,2) default 0,
   status        text,                                       -- เช่น "ชำระเงินแล้ว (เงินสด)"
   notes         text,
+  order_no      text,                                       -- เลขที่ใบสั่ง/อ้างอิง (app.js: job.orderNo)
+  batch_id      text,                                       -- ผูกใบงานที่แตกจากการแจ้งงานครั้งเดียวกัน (app.js: job.batchId)
   created_at    timestamptz default now(),
   updated_at    timestamptz default now()
 );
@@ -79,6 +87,7 @@ create table if not exists jobs (
 create index if not exists idx_jobs_customer on jobs(customer_id);
 create index if not exists idx_jobs_worker on jobs(worker_id);
 create index if not exists idx_jobs_status on jobs(status);
+create index if not exists idx_jobs_batch on jobs(batch_id);
 
 -- ============================================================================
 -- 4. BANKS (บัญชีธนาคาร/PromptPay)
