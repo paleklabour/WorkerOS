@@ -580,6 +580,12 @@
                                     </select>
                                 </div>
                             </div>
+                            <button class="btn btn-outline btn-add" id="btn-bulk-import-docs" onclick="openBulkImportModal()">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                                </svg>
+                                <span>นำเข้าเอกสารหลายไฟล์</span>
+                            </button>
                             <button class="btn btn-gold btn-add" id="btn-add-worker" onclick="openWorkerModal()">
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -647,7 +653,7 @@
                                         <option value="รอดำเนินการ">รอดำเนินการ (Pending)</option>
                                         <option value="กำลังดำเนินการ">กำลังดำเนินการ (In Progress)</option>
                                         <option value="รอเอกสารเพิ่มเติม">รอเอกสารเพิ่มเติม (Waiting for Docs)</option>
-                                        <option value="เสร็จสิ้น">เสร็จสิ้น (Completed)</option>
+                                        <option value="ปิดงานแล้ว">ปิดงานแล้ว (Closed)</option>
                                     </select>
                                 </div>
                             </div>
@@ -730,13 +736,13 @@
                                     </div>
                                 </div>
                                 
-                                <!-- Column: Completed -->
+                                <!-- Column: Closed (ปิดงานแล้ว — เข้าได้เฉพาะผ่านปุ่ม "ปิดงาน" ที่แนบเอกสาร ลากเข้ามาตรงๆ ไม่ได้) -->
                                 <div class="kanban-column" style="flex: 1; min-width: 250px; background: #f8fafc; border-radius: var(--radius-md); border: 1px solid #e2e8f0; display: flex; flex-direction: column; height: fit-content; max-height: 650px;">
                                     <div class="kanban-column-header" style="padding: 12px; border-bottom: 2px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f1f5f9; border-top-left-radius: var(--radius-md); border-top-right-radius: var(--radius-md);">
-                                        <h4 style="font-weight: 600; font-size: 13px; color: #475569; margin: 0;">✨ เสร็จสิ้น</h4>
+                                        <h4 style="font-weight: 600; font-size: 13px; color: #475569; margin: 0;" title="เข้าคอลัมน์นี้ได้เฉพาะผ่านปุ่ม 📎 ปิดงาน (ต้องแนบเอกสารก่อน)">🔒 ปิดงานแล้ว</h4>
                                         <span class="badge badge-success" id="count-kanban-completed" style="font-size: 11px; padding: 2px 8px;">0</span>
                                     </div>
-                                    <div class="kanban-cards-container" id="kanban-completed" ondragover="onKanbanDragOver(event)" ondrop="onKanbanDrop(event, 'เสร็จสิ้น')" style="padding: 12px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-height: 200px; flex-grow: 1;">
+                                    <div class="kanban-cards-container" id="kanban-completed" ondragover="onKanbanDragOver(event)" ondrop="onKanbanDrop(event, 'ปิดงานแล้ว')" style="padding: 12px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-height: 200px; flex-grow: 1;">
                                     </div>
                                 </div>
                             </div>
@@ -795,33 +801,38 @@
                                     <th>อีเมล (Username)</th>
                                     <th>บทบาท (Role)</th>
                                     <th>รหัสลูกค้า (สำหรับ role client)</th>
+                                    <th style="text-align:center;">จัดการ</th>
                                 </tr>
                             </thead>
                             <tbody id="users-tbody"></tbody>
                         </table>
                     </div>
 
-                    <!-- ==================== USER MODAL (Add Account) ==================== -->
+                    <!-- ==================== USER MODAL (Add/Edit Account) ==================== -->
                     <div id="user-modal" class="modal-backdrop hidden">
                         <div class="modal-content" style="max-width: 460px;">
                             <div class="modal-header">
-                                <h3>เพิ่มบัญชีผู้ใช้งานใหม่</h3>
+                                <h3 id="user-modal-title">เพิ่มบัญชีผู้ใช้งานใหม่</h3>
                                 <button class="close-btn" onclick="closeUserModal()">&times;</button>
                             </div>
                             <div class="modal-body">
                                 <form id="user-form" onsubmit="saveUser(event)">
+                                    <input type="hidden" id="user-edit-id">
                                     <div class="form-group">
                                         <label for="user-name">ชื่อ-นามสกุล <span class="required">*</span></label>
                                         <input type="text" id="user-name" required>
                                     </div>
-                                    <div class="form-group">
+                                    <div class="form-group" id="user-email-group">
                                         <label for="user-email">อีเมล (ใช้เป็น Username) <span class="required">*</span></label>
                                         <input type="email" id="user-email" required>
                                     </div>
-                                    <div class="form-group">
+                                    <div class="form-group" id="user-password-group">
                                         <label for="user-password">รหัสผ่าน <span class="required">*</span></label>
                                         <input type="text" id="user-password" required>
                                     </div>
+                                    <p id="user-edit-note" class="text-muted hidden" style="font-size:12px; margin:-6px 0 12px;">
+                                        แก้ไขได้เฉพาะชื่อ/บทบาท/รหัสลูกค้า — เปลี่ยนอีเมลหรือรหัสผ่านต้องลบบัญชีนี้แล้วสร้างใหม่ (หรือใช้ระบบลืมรหัสผ่านสำหรับเปลี่ยนรหัสผ่าน)
+                                    </p>
                                     <div class="form-group">
                                         <label for="user-role">บทบาท (Role) <span class="required">*</span></label>
                                         <select id="user-role" required onchange="toggleUserCustomerField()">
@@ -835,13 +846,13 @@
                                         <label for="user-customer-id">เลือกนายจ้าง (สำหรับบัญชี Client)</label>
                                         <select id="user-customer-id"></select>
                                     </div>
-                                    <div class="form-group" style="border-top:1px solid #e2e8f0; padding-top:14px; margin-top:6px;">
+                                    <div class="form-group" id="user-pin-group" style="border-top:1px solid #e2e8f0; padding-top:14px; margin-top:6px;">
                                         <label for="user-pin">รหัส PIN ยืนยันสิทธิ์ในการเพิ่มบัญชี <span class="required">*</span></label>
                                         <input type="password" id="user-pin" required placeholder="กรอกรหัส PIN">
                                     </div>
                                     <div class="modal-footer">
                                         <button type="button" class="btn btn-outline" onclick="closeUserModal()">ยกเลิก</button>
-                                        <button type="submit" class="btn btn-gold">บันทึกบัญชีผู้ใช้งาน</button>
+                                        <button type="submit" class="btn btn-gold" id="btn-save-user-submit">บันทึกบัญชีผู้ใช้งาน</button>
                                     </div>
                                 </form>
                             </div>
@@ -885,96 +896,10 @@
                                     </div>
                                 </div>
 
-                                <!-- Section 3: Google Sheets Real-time Sync -->
-                                <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: var(--radius-sm); padding: 20px;">
-                                    <h4 style="font-size: 14.5px; font-weight: 600; margin-bottom: 8px; color: var(--navy-dark);">3. เชื่อมต่อ Google Sheets (Cloud Sync)</h4>
-                                    <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.5;">
-                                        คุณสามารถเชื่อมโยงระบบนี้เข้ากับ **Google Sheets** ของคุณโดยตรง เมื่อมีการเพิ่มคนงานต่างด้าว นายจ้าง หรือใบแจ้งงานในโปรแกรม ระบบจะส่งข้อมูลไปบันทึกและเพิ่มแถวเข้าไปใน Google Sheets แบบ Real-time ทันที!
-                                    </p>
-                                    
-                                    <div class="form-group" style="margin-bottom: 15px;">
-                                        <label for="sheets-webapp-url" style="font-weight: 600; font-size: 12px;">Google Apps Script Web App URL:</label>
-                                        <input type="text" id="sheets-webapp-url" placeholder="https://script.google.com/macros/s/.../exec" oninput="saveSheetsUrl()" style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 13px; font-family: monospace;">
-                                    </div>
-
-                                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                                        <button class="btn btn-gold" onclick="syncAllToGoogleSheets()" id="btn-sync-sheets" style="padding: 8px 16px; font-size: 13px;">
-                                            📤 ส่งข้อมูลทั้งหมดเข้า Google Sheets (Sync All)
-                                        </button>
-                                        <button class="btn btn-outline" onclick="testGoogleSheetsConnection()" style="padding: 8px 16px; font-size: 13px;">
-                                            ⚡ ทดสอบการเชื่อมต่อ (Test Connection)
-                                        </button>
-                                    </div>
-
-                                    <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 4px; padding: 12px; font-size: 12px; line-height: 1.6;">
-                                        <div style="font-weight: 600; margin-bottom: 5px; color: var(--gold-primary);">🛠️ วิธีการติดตั้งฝั่ง Google Sheets (ใช้เวลา 2 นาที):</div>
-                                        1. เปิด Google Sheet ที่คุณต้องการใช้งานขึ้นมา ➡️ ไปที่เมนู **"ส่วนขยาย" (Extensions) ➡️ "Apps Script"**<br>
-                                        2. ก๊อปปี้โค้ดโปรแกรมฝั่ง Server ด้านล่างนี้ไปวางลบอันเดิมออกทั้งหมด<br>
-                                        3. กดปุ่ม **"การทำให้ใช้งานได้" (Deploy) ➡️ "การทำให้ใช้งานได้ใหม่" (New Deployment)**<br>
-                                        4. เลือกประเภทเป็น **"เว็บแอป" (Web App)** ➡️ ตั้งค่า *ผู้ที่มีสิทธิ์เข้าถึง* เป็น **"ทุกคน" (Anyone)** ➡️ กด Deploy<br>
-                                        5. ก๊อปปี้ **URL เว็บแอป** ที่ได้มาวางในช่องด้านบนนี้ แล้วกดทดสอบการเชื่อมต่อได้เลยครับ!
-                                    </div>
-
-                                    <details style="margin-top: 10px; font-size: 12px; background-color: #f1f5f9; border-radius: 4px; padding: 8px; cursor: pointer;">
-                                        <summary style="font-weight: 600; color: var(--navy-medium);">📋 คลิกเพื่อดูโค้ดสำหรับใส่ใน Apps Script</summary>
-                                        <pre style="white-space: pre-wrap; font-family: monospace; background: #272822; color: #f8f8f2; padding: 10px; border-radius: 4px; margin-top: 8px; font-size: 11px; max-height: 200px; overflow-y: auto; text-align: left; -webkit-user-select: all; user-select: all;" id="apps-script-code-text">
-// โค้ดสำหรับ Google Apps Script
-function doPost(e) {
-  var lock = LockService.getScriptLock();
-  lock.tryLock(10000);
-  try {
-    var json = JSON.parse(e.postData.contents);
-    var action = json.action;
-    var data = json.data;
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
-    
-    if (action === "test") {
-      return ContentService.createTextOutput(JSON.stringify({status: "success", message: "เชื่อมต่อสำเร็จ!"}))
-        .setMimeType(ContentService.MimeType.JSON)
-        .setHeader("Access-Control-Allow-Origin", "*");
-    }
-    
-    var sheet = ss.getSheetByName(action) || ss.insertSheet(action);
-    
-    // ตั้งค่าหัวตารางหากเป็นชีทใหม่
-    if (sheet.getLastRow() === 0) {
-      if (action === "Customers") {
-        sheet.appendRow(["TaxID", "CompanyName", "BusinessType", "Coordinator", "Phone", "UpdatedDate"]);
-      } else if (action === "Workers") {
-        sheet.appendRow(["WorkerUID", "Name", "Nationality", "PassportNo", "PermitNo", "PermitExpiry", "Employer", "UpdatedDate"]);
-      } else if (action === "Jobs") {
-        sheet.appendRow(["JobID", "CustomerName", "WorkerName", "JobType", "Fee", "Status", "Notes", "UpdatedDate"]);
-      }
-    }
-    
-    // บันทึกแถวข้อมูลใหม่
-    if (action === "Customers") {
-      sheet.appendRow([data.taxId, data.companyName, data.businessType, data.coordinator, data.phone, new Date()]);
-    } else if (action === "Workers") {
-      sheet.appendRow([data.workerUid, data.firstName + " " + data.lastName, data.nationality, data.passportNo, data.permitNo, data.permitExpiry, data.employerName, new Date()]);
-    } else if (action === "Jobs") {
-      sheet.appendRow([data.id, data.customerName, data.workerName, data.jobType, data.fee, data.status, data.notes, new Date()]);
-    }
-    
-    return ContentService.createTextOutput(JSON.stringify({status: "success"}))
-      .setMimeType(ContentService.MimeType.JSON)
-      .setHeader("Access-Control-Allow-Origin", "*");
-  } catch (error) {
-    return ContentService.createTextOutput(JSON.stringify({status: "error", message: error.toString()}))
-      .setMimeType(ContentService.MimeType.JSON)
-      .setHeader("Access-Control-Allow-Origin", "*");
-  } finally {
-    lock.releaseLock();
-  }
-}
-                                        </pre>
-                                    </details>
-                                </div>
-
-                                <!-- Section 4: Line Groups Management -->
+                                <!-- Section 3: Line Groups Management -->
                                 <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); padding: 20px;">
                                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                                        <h4 style="font-size: 14.5px; font-weight: 600; color: var(--navy-dark); margin: 0;">4. จัดการกลุ่มแจ้งเตือน LINE (Manage Line Groups)</h4>
+                                        <h4 style="font-size: 14.5px; font-weight: 600; color: var(--navy-dark); margin: 0;">3. จัดการกลุ่มแจ้งเตือน LINE (Manage Line Groups)</h4>
                                         <button class="btn btn-gold btn-sm" onclick="openLineGroupModal()" style="padding: 6px 12px; font-size: 12px;">
                                             ➕ เพิ่มกลุ่มใหม่
                                         </button>
@@ -1002,11 +927,65 @@ function doPost(e) {
                                         </table>
                                     </div>
                                 </div>
+
+                                <!-- Section 4: Agents (ผู้ส่งงาน) Management -->
+                                <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); padding: 20px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                        <h4 style="font-size: 14.5px; font-weight: 600; color: var(--navy-dark); margin: 0;">4. จัดการ Agent ผู้ส่งงาน (Manage Agents)</h4>
+                                        <button class="btn btn-gold btn-sm" onclick="openAgentModal()" style="padding: 6px 12px; font-size: 12px;">
+                                            ➕ เพิ่ม Agent ใหม่
+                                        </button>
+                                    </div>
+                                    <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 15px; line-height: 1.5;">
+                                        รายชื่อ Agent ผู้ส่งงาน สำหรับเลือกตอนแจ้งสั่งงานใหม่ เพิ่ม/แก้ไข/ลบได้ที่นี่
+                                    </p>
+
+                                    <div class="table-container" style="box-shadow: none; border: 1px solid #e2e8f0; max-height: 250px; overflow-y: auto; margin-top: 10px;">
+                                        <table class="data-table" style="min-width: 100%; font-size: 13px;">
+                                            <thead>
+                                                <tr>
+                                                    <th>ชื่อ Agent</th>
+                                                    <th style="width: 80px; text-align: center;">จัดการ</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="agents-tbody">
+                                                <tr>
+                                                    <td colspan="2" class="text-muted" style="text-align: center; padding: 20px;">
+                                                        ⏳ กำลังโหลดข้อมูล Agent...
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </main>
+        </div>
+
+        <!-- ==================== MODAL: ADD/EDIT AGENT ==================== -->
+        <div id="agent-modal" class="modal-backdrop hidden" style="z-index: 1060;">
+            <div class="modal-content" style="max-width: 420px;">
+                <div class="modal-header">
+                    <h3 id="agent-modal-title">➕ เพิ่ม Agent ใหม่</h3>
+                    <button class="close-btn" onclick="closeAgentModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="agent-form" onsubmit="saveAgentForm(event)">
+                        <input type="hidden" id="agent-edit-id">
+                        <div class="form-group">
+                            <label for="agent-name">ชื่อ Agent <span class="required">*</span></label>
+                            <input type="text" id="agent-name" required>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline" onclick="closeAgentModal()">ยกเลิก</button>
+                            <button type="submit" class="btn btn-gold">บันทึก</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
 
         <!-- ==================== MODAL: ADD/EDIT CUSTOMER ==================== -->
@@ -1433,12 +1412,28 @@ function doPost(e) {
                         </div>
 
                         <div class="form-group">
-                            <label for="job-worker-id">คนงานต่างด้าวที่เกี่ยวข้อง <span class="required">*</span></label>
-                            <select id="job-worker-id" onchange="onJobWorkerChange()" required>
-                                <option value="" disabled selected>--- เลือกคนงาน ---</option>
+                            <label for="job-worker-id">คนงานต่างด้าวที่เกี่ยวข้อง (เลือกได้หลายคน — กด Ctrl/Cmd ค้างไว้เพื่อเลือกหลายคน) <span class="required">*</span></label>
+                            <select id="job-worker-id" onchange="onJobWorkerChange()" multiple size="4" required>
                                 <!-- Dynamic -->
                             </select>
+                            <small class="text-muted" style="display:block; margin-top:4px;">เลือกหลายคน = แจ้งงานประเภทเดียวกันให้ทุกคนพร้อมกัน โดยแตกเป็นคนละใบงาน ผูกชุดเดียวกันไว้ (ตัวอย่างต้นแบบ — ตรวจสอบผลลัพธ์ก่อนใช้งานจริงจำนวนมาก)</small>
                         </div>
+
+                        <div class="form-row">
+                            <div class="form-group col-6">
+                                <label for="job-agent-id">Agent ผู้ส่งงาน (ถ้ามี)</label>
+                                <select id="job-agent-id">
+                                    <option value="">--- ไม่ระบุ ---</option>
+                                    <!-- Dynamic -->
+                                </select>
+                            </div>
+                            <div class="form-group col-6">
+                                <label>&nbsp;</label>
+                                <button type="button" class="btn btn-outline btn-sm" style="width:100%;" onclick="openAgentModal()">+ เพิ่ม Agent ใหม่</button>
+                            </div>
+                        </div>
+
+                        <div id="job-opened-by-info" class="text-muted" style="font-size:12px; margin-bottom:10px; display:none;"></div>
 
                         <div class="form-group" style="margin-bottom: 15px;">
                             <label style="font-weight: 600; font-size: 13px; color: var(--navy-dark); margin-bottom: 8px; display: block;">ประเภทงานที่แจ้ง (เลือกได้หลายรายการ) <span class="required">*</span></label>
@@ -1563,14 +1558,19 @@ function doPost(e) {
                             </div>
                         </div>
 
-                        <div class="form-group">
+                        <div id="job-closed-banner" style="display:none; background:#f0fdf4; border:1px solid #bbf7d0; color:#166534; border-radius:var(--radius-sm); padding:10px 12px; font-size:12.5px; margin-bottom:12px;">
+                            <div id="job-closed-banner-text"></div>
+                            <button type="button" class="btn btn-outline btn-sm" style="margin-top:6px;" onclick="reopenJobFromModal()">🔓 เปิดงานอีกครั้ง</button>
+                        </div>
+
+                        <div class="form-group" id="job-status-group">
                             <label for="job-status">สถานะงาน (ด้านการดำเนินงาน) <span class="required">*</span></label>
                             <select id="job-status" required>
                                 <option value="รอดำเนินการ">รอดำเนินการ (Pending)</option>
                                 <option value="กำลังดำเนินการ">กำลังดำเนินการ (In Progress)</option>
                                 <option value="รอเอกสารเพิ่มเติม">รอเอกสารเพิ่มเติม (Waiting for Docs)</option>
-                                <option value="เสร็จสิ้น">เสร็จสิ้น (Completed)</option>
                             </select>
+                            <small class="text-muted" style="display:block; margin-top:4px;">การปิดงาน (แนบเอกสาร) ทำได้จากปุ่ม "📎 ปิดงาน" ที่ใบงานในหน้ารายการ/Kanban เท่านั้น</small>
                         </div>
 
                         <div class="form-group">
@@ -1581,6 +1581,34 @@ function doPost(e) {
                         <div class="modal-footer">
                             <button type="button" class="btn btn-outline" onclick="closeJobModal()">ยกเลิก</button>
                             <button type="submit" class="btn btn-gold" id="btn-save-job-submit">บันทึกงาน</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== MODAL: ปิดงาน (แนบเอกสารแล้วปิด) ==================== -->
+        <div id="job-close-modal" class="modal-backdrop hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>📎 แนบเอกสารและปิดงาน</h3>
+                    <button class="close-btn" onclick="closeJobCloseModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="job-close-form" onsubmit="submitCloseJob(event)">
+                        <input type="hidden" id="job-close-id">
+                        <p id="job-close-target-label" class="text-muted" style="font-size:13px; margin-bottom:12px;"></p>
+                        <div class="form-group">
+                            <label for="job-close-file">แนบเอกสารยืนยันการปิดงาน <span class="required">*</span></label>
+                            <input type="file" id="job-close-file" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="job-close-note">หมายเหตุปิดงาน (ถ้ามี)</label>
+                            <textarea id="job-close-note" rows="2" placeholder="เช่น ส่งมอบเล่ม/บัตรให้นายจ้างแล้ว"></textarea>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline" onclick="closeJobCloseModal()">ยกเลิก</button>
+                            <button type="submit" class="btn btn-gold" id="btn-confirm-close-job">✅ ยืนยันปิดงาน</button>
                         </div>
                     </form>
                 </div>
@@ -1850,9 +1878,83 @@ function doPost(e) {
                         </div>
                     </div>
                 </div>
+                <div class="modal-footer" style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button type="button" class="btn btn-outline" style="flex:1; min-width:150px;" onclick="copyWorkerFolderLink()" id="btn-copy-worker-folder">🔗 คัดลอกลิงก์เปิดแฟ้มนี้</button>
+                    <button type="button" class="btn btn-outline" style="flex:1; min-width:150px;" onclick="openWorkerFolderGallery()">👁️ ดูเอกสารทั้งหมดในครั้งเดียว</button>
+                    <button type="button" class="btn btn-gold" style="flex:1; min-width:150px;" onclick="closeWorkerFolderModal()">ปิดหน้าต่าง</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== MODAL: WORKER DOCUMENT GALLERY (ดูเอกสารทั้งหมดพร้อมกัน) ==================== -->
+        <div id="worker-folder-gallery-modal" class="modal-backdrop hidden" style="z-index: 1050;">
+            <div class="modal-content" style="max-width: 1000px;">
+                <div class="modal-header">
+                    <h3 id="worker-folder-gallery-title">📁 เอกสารทั้งหมด</h3>
+                    <button class="close-btn" onclick="closeWorkerFolderGallery()">&times;</button>
+                </div>
+                <div class="modal-body" style="padding-top: 10px; max-height: 75vh; overflow-y: auto;">
+                    <div id="worker-folder-gallery-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px;">
+                        <!-- Dynamic gallery cards -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-gold" style="width:100%;" onclick="closeWorkerFolderGallery()">⬅️ ย้อนกลับไปแฟ้มเอกสาร</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== MODAL: BULK IMPORT DOCUMENTS ==================== -->
+        <div id="bulk-import-modal" class="modal-backdrop hidden" style="z-index: 1050;">
+            <div class="modal-content" style="max-width: 900px;">
+                <div class="modal-header">
+                    <h3>📥 นำเข้าเอกสารหลายไฟล์พร้อมกัน (Bulk Import)</h3>
+                    <button class="close-btn" onclick="closeBulkImportModal()">&times;</button>
+                </div>
+                <div class="modal-body" style="padding-top: 10px; max-height: 70vh; overflow-y: auto;">
+                    <p class="text-muted" style="font-size: 12.5px; margin-bottom: 12px; line-height: 1.5;">
+                        เลือกไฟล์เอกสารได้ทีเดียวหลายไฟล์ (หรือลากทั้งโฟลเดอร์มาวาง) ระบบจะพยายามจับคู่แต่ละไฟล์เข้ากับคนงานและประเภทเอกสารให้อัตโนมัติจากชื่อไฟล์
+                        (เลข 13 หลัก/ชื่อ) — <strong>ตรวจสอบและแก้ไขให้ถูกต้องในตารางด้านล่างก่อนกดนำเข้าเสมอ</strong> แถวที่จับคู่ไม่ได้จะถูกไฮไลต์สีแดงให้เลือกเอง
+                    </p>
+
+                    <div id="bulk-import-dropzone"
+                         ondragover="event.preventDefault(); this.style.borderColor='var(--gold-primary)';"
+                         ondragleave="this.style.borderColor='#cbd5e1';"
+                         ondrop="handleBulkImportDrop(event)"
+                         style="border: 2px dashed #cbd5e1; border-radius: var(--radius-sm); padding: 24px; text-align: center; margin-bottom: 16px; background: #f8fafc; cursor: pointer;"
+                         onclick="document.getElementById('bulk-import-file-input').click()">
+                        <input type="file" id="bulk-import-file-input" multiple accept="image/*,application/pdf" style="display:none;" onchange="handleBulkImportFilesSelected(event.target.files)">
+                        <div style="font-size: 28px;">📂</div>
+                        <div style="font-size: 13px; color: var(--text-dark); margin-top: 6px;">คลิกเพื่อเลือกไฟล์ หรือลากไฟล์/โฟลเดอร์มาวางตรงนี้</div>
+                    </div>
+
+                    <div id="bulk-import-summary" class="text-muted" style="font-size: 12.5px; margin-bottom: 8px; display:none;"></div>
+
+                    <div class="table-container" style="box-shadow: none; border: 1px solid #e2e8f0;">
+                        <table class="data-table" style="min-width: 100%; font-size: 12.5px;">
+                            <thead>
+                                <tr>
+                                    <th style="width:34px;"><input type="checkbox" id="bulk-import-select-all" onchange="toggleAllBulkImportRows(this.checked)"></th>
+                                    <th>ไฟล์</th>
+                                    <th>คนงานที่จับคู่</th>
+                                    <th>ประเภทเอกสาร</th>
+                                    <th style="width:110px;">ความมั่นใจ</th>
+                                    <th style="width:40px;"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="bulk-import-tbody">
+                                <tr>
+                                    <td colspan="6" class="text-muted" style="text-align:center; padding:20px;">ยังไม่ได้เลือกไฟล์</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div id="bulk-import-progress" class="hidden" style="margin-top: 12px; font-size: 12.5px; color: var(--text-muted);"></div>
+                </div>
                 <div class="modal-footer" style="display: flex; gap: 10px;">
-                    <button type="button" class="btn btn-outline" style="flex:1;" onclick="copyWorkerFolderLink()" id="btn-copy-worker-folder">🔗 คัดลอกลิงก์เปิดแฟ้มนี้</button>
-                    <button type="button" class="btn btn-gold" style="flex:1;" onclick="closeWorkerFolderModal()">ปิดหน้าต่าง</button>
+                    <button type="button" class="btn btn-outline" style="flex:1;" onclick="closeBulkImportModal()">ยกเลิก</button>
+                    <button type="button" class="btn btn-gold" style="flex:1;" id="btn-run-bulk-import" onclick="runBulkImport()">📥 นำเข้าที่เลือกทั้งหมด</button>
                 </div>
             </div>
         </div>

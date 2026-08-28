@@ -42,8 +42,15 @@
     };
     const JOB_MAP = {
         id: "id", customerId: "customer_id", workerId: "worker_id", jobType: "job_type",
-        fee: "fee", status: "status", notes: "notes", createdAt: "created_at"
+        fee: "fee", status: "status", notes: "notes", createdAt: "created_at",
+        // orderNo/batchId/updatedAt: มีอยู่จริงใน schema (0001_init.sql) มาตั้งแต่แรก แต่ map นี้
+        // ไม่เคยรวมไว้ ทำให้ค่าพวกนี้ไม่ถูกบันทึก/โหลดจาก Supabase จริง — แก้ให้ตรงกับ schema
+        orderNo: "order_no", batchId: "batch_id", updatedAt: "updated_at",
+        openedBy: "opened_by", agentId: "agent_id",
+        paymentStatus: "payment_status", paymentMethod: "payment_method",
+        attachments: "attachments", closedAt: "closed_at", closedBy: "closed_by"
     };
+    const AGENT_MAP = { id: "id", name: "name", createdAt: "created_at" };
 
     function toRow(obj, map) {
         const row = {};
@@ -81,7 +88,7 @@
         }
         return {
             status: "success",
-            user: { email: data.user.email, name: profile.name, role: profile.role, customer_id: profile.customer_id }
+            user: { id: data.user.id, email: data.user.email, name: profile.name, role: profile.role, customer_id: profile.customer_id }
         };
     }
 
@@ -111,13 +118,14 @@
 
     // -------------------- getData --------------------
     async function handleGetData() {
-        const [customersRes, workersRes, jobsRes, banksRes, lineGroupsRes, profilesRes] = await Promise.all([
+        const [customersRes, workersRes, jobsRes, banksRes, lineGroupsRes, profilesRes, agentsRes] = await Promise.all([
             sb.from("customers").select("*"),
             sb.from("workers").select("*"),
             sb.from("jobs").select("*"),
             sb.from("banks").select("*"),
             sb.from("line_groups").select("*"),
-            sb.from("profiles").select("name, role, customer_id, id")
+            sb.from("profiles").select("name, role, customer_id, id"),
+            sb.from("agents").select("*")
         ]);
         // RLS กรองแถวให้อัตโนมัติตาม role/customer_id ของผู้ใช้ที่ล็อกอินอยู่แล้ว
         // (ไม่ต้อง filter ซ้ำฝั่ง client เหมือนโค้ด Code.gs เดิม)
@@ -126,18 +134,21 @@
 
         const customers = toCamelList(customersRes.data, CUSTOMER_MAP);
         const workers = toCamelList(workersRes.data, WORKER_MAP);
+        const jobs = toCamelList(jobsRes.data, JOB_MAP);
         customers.forEach((c) => { c.branches = c.branches || []; });
         workers.forEach((w) => { w.attachments = w.attachments || {}; });
+        jobs.forEach((j) => { j.attachments = j.attachments || []; });
 
         return {
             status: "success",
             customers,
             workers,
-            jobs: toCamelList(jobsRes.data, JOB_MAP),
+            jobs,
             banks: banksRes.data || [],
             lineGroups: lineGroupsRes.error ? [] : (lineGroupsRes.data || []),
+            agents: agentsRes.error ? [] : toCamelList(agentsRes.data, AGENT_MAP),
             users: profilesRes.error ? [] : (profilesRes.data || []).map((p) => ({
-                email: p.id, name: p.name, role: p.role, customer_id: p.customer_id
+                id: p.id, email: p.id, name: p.name, role: p.role, customer_id: p.customer_id
             }))
         };
     }
@@ -151,7 +162,7 @@
     }
 
     async function deleteRecord(sheetName, id) {
-        const table = { Customers: "customers", Workers: "workers", Jobs: "jobs", Line_Groups: "line_groups" }[sheetName];
+        const table = { Customers: "customers", Workers: "workers", Jobs: "jobs", Line_Groups: "line_groups", Agents: "agents" }[sheetName];
         if (!table) return { status: "error", message: "Unknown table: " + sheetName };
         const { error } = await sb.from(table).delete().eq("id", id);
         if (error) return { status: "error", message: error.message };
@@ -205,6 +216,28 @@
         return await res.json();
     }
 
+    // -------------------- deleteUser (needs service role -> Edge Function) --------------------
+    async function deleteUserAccount(userId, pin) {
+        const headers = await getAuthHeaders();
+        const res = await fetch(`${FUNCTIONS_BASE}/delete-user`, {
+            method: "POST",
+            headers,
+            body: JSON.stringify({ userId, pin })
+        });
+        return await res.json();
+    }
+
+    // -------------------- updateUserProfile (name/role/customer_id เท่านั้น — RLS อนุญาต admin แก้ profiles ได้ตรงๆ ไม่ต้องใช้ service role) --------------------
+    async function updateUserProfile(userId, profileData) {
+        const { error } = await sb.from("profiles").update({
+            name: profileData.name,
+            role: profileData.role,
+            customer_id: profileData.customer_id || null
+        }).eq("id", userId);
+        if (error) return { status: "error", message: error.message };
+        return { status: "success" };
+    }
+
     // -------------------- Main dispatcher (mirrors old doPost switch in Code.gs) --------------------
     async function callCloudAPI(action, payload) {
         switch (action) {
@@ -216,6 +249,8 @@
                 return await upsertOne("workers", WORKER_MAP, payload.workerData);
             case "saveJob":
                 return await upsertOne("jobs", JOB_MAP, payload.jobData);
+            case "saveAgent":
+                return await upsertOne("agents", AGENT_MAP, payload.agentData);
             case "saveLineGroup": {
                 const { data, error } = await sb.from("line_groups").upsert(payload.groupData).select().single();
                 if (error) return { status: "error", message: error.message };
@@ -223,6 +258,10 @@
             }
             case "saveUser":
                 return await saveUser(payload.userData, payload.pin);
+            case "updateUserProfile":
+                return await updateUserProfile(payload.userId, payload.profileData);
+            case "deleteUser":
+                return await deleteUserAccount(payload.userId, payload.pin);
             case "deleteRecord":
                 return await deleteRecord(payload.sheetName, payload.id);
             case "deleteRecordByRow":

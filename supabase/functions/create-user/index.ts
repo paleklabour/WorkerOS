@@ -89,7 +89,7 @@ Deno.serve(async (req) => {
 
     return json({
       status: "success",
-      data: { email: userData.email, name: userData.name, role: userData.role, customer_id: userData.customer_id || null },
+      data: { id: created.user.id, email: userData.email, name: userData.name, role: userData.role, customer_id: userData.customer_id || null },
     });
   } catch (error) {
     console.error("create-user error:", error);

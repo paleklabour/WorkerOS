@@ -9,6 +9,7 @@ let jobs = [];
 let banks = [];
 let lineGroups = [];
 let users = [];
+let agents = [];
 
 // Thai provinces selection constraint
 const PROVINCES = ["สงขลา", "ปัตตานี", "ยะลา", "พัทลุง"];
@@ -259,7 +260,7 @@ async function loadData() {
 
     const url = getApiUrl();
     if (url && currentUser) {
-        showToast("⏳ กำลังดึงข้อมูลจาก Google Sheets...", "warning");
+        showToast("⏳ กำลังดึงข้อมูลจาก Supabase...", "warning");
         const res = await callCloudAPI("getData");
         if (res) {
             customers = res.customers || [];
@@ -268,7 +269,8 @@ async function loadData() {
             banks = res.banks || [];
             lineGroups = res.lineGroups || [];
             users = res.users || [];
-            
+            agents = res.agents || [];
+
             // Cache locally
             localStorage.setItem("mw_customers", JSON.stringify(customers));
             localStorage.setItem("mw_workers", JSON.stringify(workers));
@@ -276,7 +278,8 @@ async function loadData() {
             localStorage.setItem("mw_banks", JSON.stringify(banks));
             localStorage.setItem("mw_line_groups", JSON.stringify(lineGroups));
             localStorage.setItem("mw_users", JSON.stringify(users));
-            
+            localStorage.setItem("mw_agents", JSON.stringify(agents));
+
             showToast("⚡ ดึงข้อมูลออนไลน์เรียบร้อยแล้ว", "success");
             return;
         }
@@ -294,6 +297,8 @@ async function loadData() {
         jobs = JSON.parse(cachedJobs);
         banks = JSON.parse(cachedBanks);
         lineGroups = cachedLineGroups ? JSON.parse(cachedLineGroups) : [];
+        const cachedAgents = localStorage.getItem("mw_agents");
+        agents = cachedAgents ? JSON.parse(cachedAgents) : [];
     } else {
         // Generate Mock Data for immediate usage & wow factor
         seedMockData();
@@ -306,6 +311,7 @@ function saveData() {
     localStorage.setItem("mw_jobs", JSON.stringify(jobs));
     localStorage.setItem("mw_banks", JSON.stringify(banks));
     localStorage.setItem("mw_line_groups", JSON.stringify(lineGroups));
+    localStorage.setItem("mw_agents", JSON.stringify(agents));
 }
 
 function seedMockData() {
@@ -552,7 +558,8 @@ function seedMockData() {
             workerId: "work-1",
             jobType: "ย้ายตรา (3500)",
             fee: 3500,
-            status: "เสร็จสิ้น",
+            status: "ปิดงานแล้ว",
+            paymentStatus: "ยังไม่ออกบิล",
             notes: "ย้ายตราเรียบร้อยแล้ว รอออกใบแจ้งหนี้",
             orderNo: "",
             updatedAt: todayDateStr
@@ -581,7 +588,9 @@ function seedMockData() {
             workerId: "work-2",
             jobType: "เปลี่ยน/แก้ไข ใบอนุญาตทำงาน (1500)",
             fee: 1500,
-            status: "ชำระเงินแล้ว",
+            status: "ปิดงานแล้ว",
+            paymentStatus: "ชำระเงินแล้ว",
+            paymentMethod: "เงินสด",
             notes: "แก้ไขคำสะกดชื่อ-วันเดือนปีเกิด ยอดชำระเงินเรียบร้อยแล้ว",
             orderNo: "",
             updatedAt: todayDateStr
@@ -647,15 +656,17 @@ function setupFormPermissions() {
     const btnAddWork = document.getElementById("btn-add-worker");
     const btnAddJob = document.getElementById("btn-add-job");
     const btnAddBank = document.getElementById("btn-add-bank");
+    const btnBulkImportDocs = document.getElementById("btn-bulk-import-docs");
     const menuUsers = document.getElementById("menu-users");
 
     const isStaff = currentUser.role === 'staff';
     const isClient = currentUser.role === 'client';
-    
+
     if (btnAddCust) btnAddCust.style.display = (isStaff || isClient) ? 'none' : 'flex';
     if (btnAddWork) btnAddWork.style.display = isStaff ? 'none' : 'flex';
     if (btnAddJob) btnAddJob.style.display = isStaff ? 'none' : 'flex';
     if (btnAddBank) btnAddBank.style.display = (isStaff || isClient) ? 'none' : 'flex';
+    if (btnBulkImportDocs) btnBulkImportDocs.style.display = (isStaff || isClient) ? 'none' : 'flex';
     if (menuUsers) menuUsers.classList.toggle('hidden', currentUser.role !== 'admin');
 }
 
@@ -685,6 +696,7 @@ async function handleLogin(e) {
                 // หมายเหตุ: ไม่เก็บรหัสผ่านไว้ในเครื่องอีกต่อไป — Supabase Auth จัดการ
                 // session/token ให้เองผ่าน supabase-js (ปลอดภัยกว่าระบบเดิม)
                 currentUser = {
+                    id: result.user.id,
                     email: result.user.email,
                     name: result.user.name,
                     role: result.user.role,
@@ -856,6 +868,7 @@ function switchView(viewName) {
         renderUsers();
     } else if (viewName === 'backup') {
         renderLineGroups();
+        renderAgentsList();
     }
 }
 
@@ -2480,33 +2493,39 @@ function renderJobs() {
         const custName = cust ? cust.companyName : "ไม่พบนายจ้าง";
         const workName = work ? `${work.firstName} ${work.lastName} (${work.nationality})` : "ไม่พบข้อมูลคนงาน";
 
-        // Status styling and display
+        // Status styling and display (สถานะขั้นตอนงาน — แยกจากสถานะการเงินโดยสิ้นเชิงแล้ว)
         let displayStatus = j.status;
         let statusClass = 'badge-gold';
-        
+
         if (j.status === 'รอดำเนินการ') {
             statusClass = 'badge-warning';
         } else if (j.status === 'กำลังดำเนินการ') {
             statusClass = 'badge-gold';
         } else if (j.status === 'รอเอกสารเพิ่มเติม') {
             statusClass = 'badge-danger';
-        } else if (j.status === 'เสร็จสิ้น') {
+        } else if (j.status === 'ปิดงานแล้ว') {
             statusClass = 'badge-success';
-        } else if (j.status === 'เสร็จสิ้น/รอออกบิล') {
-            statusClass = 'badge-success';
-            displayStatus = 'เสร็จสิ้น (รอออกบิล)';
-        } else if (j.status === 'ออกบิลแล้ว') {
-            statusClass = 'badge-success';
-            displayStatus = 'เสร็จสิ้น (ออกบิลแล้ว)';
-        } else if (j.status === 'ชำระเงินแล้ว') {
-            statusClass = 'badge-success';
-            displayStatus = 'เสร็จสิ้น (ชำระเงินแล้ว)';
+        }
+
+        // Payment badge (ออกบิล/ชำระเงิน) — เป็นอิสระจากสถานะขั้นตอนงาน ออกบิลได้ตั้งแต่เปิดงาน
+        const paymentStatus = j.paymentStatus || 'ยังไม่ออกบิล';
+        let paymentBadge = `<span class="badge badge-warning" style="font-size: 10px; padding: 2px 6px;">⏳ ยังไม่ออกบิล</span>`;
+        if (paymentStatus === 'ออกบิลแล้ว') {
+            paymentBadge = `<span class="badge" style="font-size: 10px; padding: 2px 6px; background-color: #3b82f6; color: white;">🧾 ออกบิลแล้ว</span>`;
+        } else if (paymentStatus === 'ชำระเงินแล้ว') {
+            paymentBadge = `<span class="badge badge-success" style="font-size: 10px; padding: 2px 6px;">✅ ชำระเงินแล้ว${j.paymentMethod ? ` (${j.paymentMethod})` : ''}</span>`;
         }
 
         // Action buttons
         let editBtn = '';
         let deleteBtn = '';
         let billBtn = '';
+        let closeBtn = '';
+        if (j.status === 'ปิดงานแล้ว') {
+            closeBtn = `<button class="btn btn-sm btn-outline" onclick="reopenJob('${j.id}')" title="เปิดงานอีกครั้ง" style="white-space: nowrap;">🔓 เปิดงาน</button>`;
+        } else if (currentUser.role !== 'staff') {
+            closeBtn = `<button class="btn btn-sm btn-outline" onclick="openJobCloseModal('${j.id}')" title="แนบเอกสารและปิดงาน" style="white-space: nowrap;">📎 ปิดงาน</button>`;
+        }
 
         if (currentUser.role !== 'staff') {
             editBtn = `
@@ -2551,11 +2570,12 @@ function renderJobs() {
                 <td>${custName}</td>
                 <td>${workName}</td>
                 <td><strong>${j.fee.toLocaleString()} บาท</strong></td>
-                <td><span class="badge ${statusClass}">${displayStatus}</span></td>
+                <td><span class="badge ${statusClass}">${displayStatus}</span><br>${paymentBadge}</td>
                 <td><small>${j.updatedAt}</small></td>
                 <td class="actions-col">
                     <div class="actions-cell">
                         ${billBtn}
+                        ${closeBtn}
                         ${editBtn}
                         ${deleteBtn}
                     </div>
@@ -2623,14 +2643,20 @@ function openJobModal(id = null) {
     }
 
     document.getElementById("job-form").reset();
-    
+
     // Fill customer dropdown selection
     const custSelect = document.getElementById("job-customer-id");
-    custSelect.innerHTML = '<option value="" disabled selected>--- เลือกนายจ้าง ---</option>' + 
+    custSelect.innerHTML = '<option value="" disabled selected>--- เลือกนายจ้าง ---</option>' +
         customers.map(c => `<option value="${c.id}">${c.companyName}</option>`).join('');
+
+    // Fill agent (ผู้ส่งงาน) dropdown selection
+    refreshJobAgentDropdown();
 
     const modalTitle = document.getElementById("job-modal-title");
     const editIdInput = document.getElementById("job-edit-id");
+    const statusGroup = document.getElementById("job-status-group");
+    const closedBanner = document.getElementById("job-closed-banner");
+    const openedByInfo = document.getElementById("job-opened-by-info");
     const checkBoxes = document.querySelectorAll("input[name='job-type-checkbox']");
     checkBoxes.forEach(cb => {
         cb.checked = false;
@@ -2643,10 +2669,6 @@ function openJobModal(id = null) {
     });
 
     const statusSelect = document.getElementById("job-status");
-    // Clear custom status options if any
-    Array.from(statusSelect.options).forEach(opt => {
-        if (opt.dataset.custom) opt.remove();
-    });
 
     if (id) {
         modalTitle.innerText = "แก้ไขข้อมูลขั้นตอนและรายละเอียดงาน";
@@ -2654,10 +2676,11 @@ function openJobModal(id = null) {
 
         const j = jobs.find(item => item.id === id);
         custSelect.value = j.customerId;
-        
+        document.getElementById("job-agent-id").value = j.agentId || "";
+
         // Trigger worker dropdown generation
         onJobCustomerChange(j.workerId);
-        
+
         // Populate checkboxes and prices
         if (j.jobType) {
             const parsedItems = parseJobTypeItems(j.jobType, j.fee);
@@ -2675,34 +2698,56 @@ function openJobModal(id = null) {
             });
         }
         
-        // If status is a background billing/finance status, append it temporarily
-        if (j.status === 'ออกบิลแล้ว' || j.status === 'ชำระเงินแล้ว' || j.status === 'เสร็จสิ้น/รอออกบิล') {
-            const opt = document.createElement("option");
-            opt.value = j.status;
-            opt.text = j.status + " (สถานะทางบัญชี)";
-            opt.dataset.custom = "true";
-            statusSelect.add(opt);
+        // ปิดงานแล้ว: ล็อกช่องสถานะไว้ (แก้ผ่านปุ่ม "เปิดงานอีกครั้ง" เท่านั้น) และแสดงแบนเนอร์
+        if (j.status === 'ปิดงานแล้ว') {
+            statusSelect.value = 'กำลังดำเนินการ'; // ค่าใน select เดิมไม่มี option นี้แล้ว ใช้แค่ disable แสดงผล
+            statusGroup.style.display = 'none';
+            closedBanner.style.display = 'block';
+            document.getElementById("job-closed-banner-text").innerText =
+                `🔒 ปิดงานแล้วเมื่อ ${j.closedAt ? new Date(j.closedAt).toLocaleString('th-TH') : '-'}` +
+                (j.closedBy ? ` โดย ${getUserNameById(j.closedBy)}` : '');
+        } else {
+            statusGroup.style.display = '';
+            closedBanner.style.display = 'none';
+            statusSelect.value = j.status;
         }
-        
-        statusSelect.value = j.status;
+
         document.getElementById("job-notes").value = j.notes || '';
         document.getElementById("job-order-no").value = j.orderNo || '';
+
+        // ผู้เปิดงาน: แสดงอย่างเดียว แก้ไม่ได้ (ล็อกจาก user ที่เปิดงานครั้งแรก)
+        if (j.openedBy) {
+            openedByInfo.style.display = 'block';
+            openedByInfo.innerText = `เปิดงานโดย: ${getUserNameById(j.openedBy)}`;
+        } else {
+            openedByInfo.style.display = 'none';
+        }
 
         // Show batch siblings (other job types opened together in the same batch)
         renderJobBatchHint(j);
     } else {
         modalTitle.innerText = "แจ้งสั่งงานใหม่ / ขั้นตอนดำเนินการ";
         editIdInput.value = "";
-        
-        // Reset worker select
-        document.getElementById("job-worker-id").innerHTML = '<option value="" disabled selected>--- เลือกคนงาน ---</option>';
+
+        // Reset worker select (multi-select — ไม่มี placeholder option ที่เลือกได้)
+        document.getElementById("job-worker-id").innerHTML = '';
+        statusGroup.style.display = '';
+        closedBanner.style.display = 'none';
         statusSelect.value = "รอดำเนินการ";
         document.getElementById("job-notes").value = "";
+        openedByInfo.style.display = 'block';
+        openedByInfo.innerText = `เปิดงานโดย: ${currentUser.name} (ผู้ใช้ปัจจุบัน)`;
         renderJobBatchHint(null);
     }
 
     refreshJobTypeLocks();
     document.getElementById("job-modal").classList.remove("hidden");
+}
+
+function getUserNameById(id) {
+    if (!id) return '-';
+    const u = users.find(x => x.id === id);
+    return u ? u.name : id;
 }
 
 function closeJobModal() {
@@ -2717,18 +2762,23 @@ function onJobCustomerChange(selectedWorkerId = null) {
     const custWorkers = workers.filter(w => w.employerId === custId);
     
     if (custWorkers.length === 0) {
-        workerSelect.innerHTML = '<option value="" disabled selected>--- ไม่พบข้อมูลคนงานต่างด้าวของลูกค้านี้ ---</option>';
+        workerSelect.innerHTML = '<option value="" disabled>--- ไม่พบข้อมูลคนงานต่างด้าวของลูกค้านี้ ---</option>';
         refreshJobTypeLocks();
         return;
     }
 
-    workerSelect.innerHTML = '<option value="" disabled selected>--- เลือกคนงาน ---</option>' +
-        custWorkers.map(w => `<option value="${w.id}">${w.firstName} ${w.lastName} (${w.nationality})</option>`).join('');
-        
+    workerSelect.innerHTML = custWorkers.map(w => `<option value="${w.id}">${w.firstName} ${w.lastName} (${w.nationality})</option>`).join('');
+
     if (selectedWorkerId) {
         workerSelect.value = selectedWorkerId;
     }
     refreshJobTypeLocks();
+}
+
+// คืนรายชื่อ workerId ที่ถูกเลือกไว้ในฟอร์มสั่งงาน (multi-select — เลือกได้หลายคนพร้อมกัน)
+function getSelectedJobWorkerIds() {
+    const workerSelect = document.getElementById("job-worker-id");
+    return Array.from(workerSelect.selectedOptions).map(o => o.value);
 }
 
 function onJobWorkerChange() {
@@ -2737,16 +2787,15 @@ function onJobWorkerChange() {
     if (!editId) {
         // Only relevant for brand-new job notifications: show whether this
         // worker already has other jobs sitting open right now.
-        const workerId = document.getElementById("job-worker-id").value;
-        renderJobBatchHint(null, workerId);
+        renderJobBatchHint(null, getSelectedJobWorkerIds());
     }
 }
 
 // ==================== JOB TYPE LOCKING (ป้องกันเปิดงานประเภทเดียวกันซ้อนกัน) ====================
-// ล็อกช่องติ๊กประเภทงานที่คนงานคนนี้มี "ใบงานเดิมค้างอยู่แล้ว" (สถานะยังเปิดอยู่)
-// ผู้ใช้ต้องไปแก้ไข/ปิดใบงานเดิมก่อน จึงจะเปิดใบงานประเภทเดิมซ้ำให้คนงานคนนี้ได้อีก
+// ล็อกช่องติ๊กประเภทงานที่ "คนใดคนหนึ่งในรายชื่อที่เลือก" มีใบงานเดิมค้างอยู่แล้ว (สถานะยังเปิดอยู่)
+// ผู้ใช้ต้องไปแก้ไข/ปิดใบงานเดิมก่อน จึงจะเปิดใบงานประเภทเดิมซ้ำให้คนงานคนนั้นได้อีก
 function refreshJobTypeLocks() {
-    const workerId = document.getElementById("job-worker-id").value;
+    const workerIds = getSelectedJobWorkerIds();
     const editId = document.getElementById("job-edit-id").value || null;
     const checkBoxes = document.querySelectorAll("input[name='job-type-checkbox']");
 
@@ -2757,7 +2806,7 @@ function refreshJobTypeLocks() {
         const existingNote = wrapper.querySelector('.job-type-lock-note');
         if (existingNote) existingNote.remove();
 
-        if (!workerId) {
+        if (workerIds.length === 0) {
             cb.disabled = false;
             wrapper.style.opacity = '';
             wrapper.style.background = '';
@@ -2765,8 +2814,12 @@ function refreshJobTypeLocks() {
             return;
         }
 
-        const conflict = findOpenJobConflict(workerId, cb.value, editId);
-        if (conflict) {
+        // หาว่ามีคนงานคนไหนในรายชื่อที่เลือกไว้ ติดขัดประเภทงานนี้อยู่บ้าง
+        const conflicts = workerIds
+            .map(wid => ({ wid, conflict: findOpenJobConflict(wid, cb.value, editId) }))
+            .filter(x => x.conflict);
+
+        if (conflicts.length > 0) {
             cb.checked = false;
             cb.disabled = true;
             wrapper.style.opacity = '0.55';
@@ -2782,7 +2835,12 @@ function refreshJobTypeLocks() {
             const note = document.createElement('div');
             note.className = 'job-type-lock-note';
             note.style.cssText = 'width:100%; font-size:10.5px; color:#b91c1c; margin-top:2px; line-height:1.4;';
-            note.innerHTML = `🔒 มีงานนี้ค้างอยู่แล้ว (เลขที่ ${getJobDisplayNo(conflict)} • สถานะ: ${conflict.status}) — กรุณาแก้ไขหรือปิดงานเดิมก่อน`;
+            const detail = conflicts.map(x => {
+                const w = workers.find(item => item.id === x.wid);
+                const wName = w ? `${w.firstName} ${w.lastName}` : x.wid;
+                return `${wName} (เลขที่ ${getJobDisplayNo(x.conflict)} • ${x.conflict.status})`;
+            }).join(', ');
+            note.innerHTML = `🔒 มีงานนี้ค้างอยู่แล้วสำหรับ: ${detail} — กรุณาแก้ไขหรือปิดงานเดิมก่อน`;
             wrapper.appendChild(note);
         } else {
             cb.disabled = false;
@@ -2820,14 +2878,15 @@ function renderJobBatchHint(job, workerIdForNew) {
         }
     }
 
-    if (workerIdForNew) {
-        const openJobs = jobs.filter(j => j.workerId === workerIdForNew && isJobStatusOpen(j.status));
+    const workerIdsForNew = Array.isArray(workerIdForNew) ? workerIdForNew : (workerIdForNew ? [workerIdForNew] : []);
+    if (workerIdsForNew.length > 0) {
+        const openJobs = jobs.filter(j => workerIdsForNew.includes(j.workerId) && isJobStatusOpen(j.status));
         if (openJobs.length > 0) {
             hintBox.style.display = 'block';
             hintBox.style.background = '#fffbeb';
             hintBox.style.color = '#92400e';
             hintBox.style.border = '1px solid #fde68a';
-            hintBox.innerHTML = `⚠️ คนงานคนนี้มีงานที่ยังเปิดอยู่ <strong>${openJobs.length}</strong> รายการ: ` +
+            hintBox.innerHTML = `⚠️ คนงานที่เลือกมีงานที่ยังเปิดอยู่ <strong>${openJobs.length}</strong> รายการ: ` +
                 openJobs.map(s => `<span style="display:inline-block; margin:2px 4px; padding:2px 8px; border-radius:10px; background:white; border:1px solid #fde68a;">${getCleanJobTypeName(s.jobType)} <em style="font-style:normal; color:#64748b;">(${s.status})</em></span>`).join('') +
                 ` — ประเภทที่ซ้ำกับรายการเหล่านี้จะถูกล็อกไว้ด้านล่าง`;
             return;
@@ -2842,8 +2901,14 @@ async function saveJob(e) {
     e.preventDefault();
     const editId = document.getElementById("job-edit-id").value;
     const customerId = document.getElementById("job-customer-id").value;
-    const workerId = document.getElementById("job-worker-id").value;
-    
+    const workerIds = getSelectedJobWorkerIds();
+    const agentId = document.getElementById("job-agent-id").value || null;
+
+    if (workerIds.length === 0) {
+        alert("กรุณาเลือกคนงานอย่างน้อย 1 คน");
+        return;
+    }
+
     // Read checkboxes and their prices
     const checkBoxes = document.querySelectorAll("input[name='job-type-checkbox']:checked");
     if (checkBoxes.length === 0) {
@@ -2851,17 +2916,21 @@ async function saveJob(e) {
         return;
     }
 
-    // ป้องกันเปิดงานประเภทเดียวกันซ้อนกัน: ตรวจซ้ำอีกครั้งฝั่ง JS ตอนบันทึกจริง
+    // ป้องกันเปิดงานประเภทเดียวกันซ้อนกัน: ตรวจซ้ำอีกครั้งฝั่ง JS ตอนบันทึกจริง (ทุกคนงานที่เลือก)
     // (การล็อกช่องติ๊กใน UI ป้องกันไว้ชั้นหนึ่งแล้ว แต่ตรวจซ้ำเผื่อข้อมูลเปลี่ยนระหว่างเปิดฟอร์มค้างไว้)
     const conflicts = [];
-    checkBoxes.forEach(cb => {
-        const conflict = findOpenJobConflict(workerId, cb.value, editId || null);
-        if (conflict) {
-            conflicts.push(`• "${cb.value}" — ค้างอยู่ที่ใบงานเลขที่ ${getJobDisplayNo(conflict)} (สถานะ: ${conflict.status})`);
-        }
+    workerIds.forEach(wid => {
+        checkBoxes.forEach(cb => {
+            const conflict = findOpenJobConflict(wid, cb.value, editId || null);
+            if (conflict) {
+                const w = workers.find(item => item.id === wid);
+                const wName = w ? `${w.firstName} ${w.lastName}` : wid;
+                conflicts.push(`• ${wName} — "${cb.value}" ค้างอยู่ที่ใบงานเลขที่ ${getJobDisplayNo(conflict)} (สถานะ: ${conflict.status})`);
+            }
+        });
     });
     if (conflicts.length > 0) {
-        alert(`⚠️ ไม่สามารถเปิดงานซ้ำได้\n\nคนงานคนนี้มีงานประเภทต่อไปนี้ค้างอยู่แล้ว กรุณาแก้ไขหรือปิดงานเดิมก่อน:\n\n${conflicts.join('\n')}`);
+        alert(`⚠️ ไม่สามารถเปิดงานซ้ำได้\n\nรายการต่อไปนี้ค้างอยู่แล้ว กรุณาแก้ไขหรือปิดงานเดิมก่อน:\n\n${conflicts.join('\n')}`);
         return;
     }
 
@@ -2872,30 +2941,30 @@ async function saveJob(e) {
         const priceInput = wrapper.querySelector("input[name='job-type-price']");
         const price = priceInput && priceInput.value ? parseFloat(priceInput.value) : 0;
         totalFee += price;
-        selectedItems.push(`${cb.value} (${price})`);
+        selectedItems.push({ name: cb.value, price });
     });
 
-    const jobType = selectedItems.join(", ");
-    const fee = totalFee;
+    const jobTypeLabel = selectedItems.map(it => `${it.name} (${it.price})`).join(", ");
     const status = document.getElementById("job-status").value;
     const notes = document.getElementById("job-notes").value;
     const orderNo = document.getElementById("job-order-no").value.trim();
     const updatedAt = new Date().toISOString().split('T')[0];
 
-    if (!customerId || !workerId || !jobType || isNaN(fee)) {
+    if (!customerId || !jobTypeLabel || isNaN(totalFee)) {
         alert("กรุณากรอกข้อมูลสั่งงานและเลือกประเภทงานพร้อมระบุราคาอย่างน้อย 1 รายการ");
         return;
     }
 
     if (editId) {
-        // Edit mode: save as a single job (คงค่า batchId และ createdAt เดิมไว้เสมอ
+        // Edit mode: save as a single job (คงค่า batchId, createdAt, สถานะการเงิน/ปิดงาน/ผู้เปิดงานเดิมไว้เสมอ
         // เพื่อไม่ให้ "เลขที่แจ้งงาน" ซึ่งอิงวันที่เปิดงานครั้งแรกเปลี่ยนไปตอนแก้ไข)
         const originalJob = jobs.find(item => item.id === editId);
+        const workerId = workerIds[0];
         const jobData = {
             id: editId,
             batchId: originalJob ? (originalJob.batchId || null) : null,
             createdAt: originalJob ? (originalJob.createdAt || originalJob.updatedAt) : updatedAt,
-            customerId, workerId, jobType, fee, status, notes, orderNo, updatedAt
+            customerId, workerId, jobType: jobTypeLabel, fee: totalFee, status, notes, orderNo, updatedAt, agentId
         };
         showToast("💾 กำลังบันทึกการแก้ไขใบสั่งงานเข้าคลาวด์...", "warning");
         const jobSaveRes = await callCloudAPI("saveJob", { jobData: jobData });
@@ -2903,59 +2972,63 @@ async function saveJob(e) {
             showToast("❌ บันทึกไม่สำเร็จ การแก้ไขยังไม่ถูกบันทึกลงชีต กรุณาลองใหม่", "danger");
             return;
         }
-        
+
         const idx = jobs.findIndex(item => item.id === editId);
         if (idx !== -1) {
-            jobs[idx] = jobData;
+            // merge ทับเฉพาะฟิลด์ที่แก้ไขได้จากฟอร์มนี้ — คงค่า paymentStatus/attachments/closedAt/closedBy/openedBy เดิมไว้ใน state ฝั่ง client ด้วย
+            jobs[idx] = Object.assign({}, originalJob, jobData);
             showToast("อัปเดตงานและขั้นตอนสำเร็จ", "success");
         }
     } else {
-        // Add mode: if multiple items are checked, split them into separate job cards!
-        // ทุกใบงานที่แตกออกมาในการแจ้งงานครั้งนี้ ผูกกันด้วย batchId เดียวกัน
-        // (1 ประเภทงาน = 1 ใบงานอิสระ แต่รู้ว่ามาจากการแจ้งงานครั้งเดียวกัน)
+        // Add mode: แตกเป็นคนละใบงานต่อคู่ "คนงาน × ประเภทงาน" ที่เลือกทั้งหมด ผูกกันด้วย batchId เดียวกัน
+        // (ตัวอย่างต้นแบบของ "1 ใบงาน หลายคนงาน" — เลือกได้หลายคนพร้อมกัน ระบบแตกเป็นใบงานอิสระให้แต่ละคน
+        // แต่รู้ว่ามาจากการแจ้งงานครั้งเดียวกัน — ควรตรวจผลลัพธ์ก่อนใช้กับจำนวนคนงานมากๆ)
         const batchId = 'batch-' + Date.now().toString().slice(-8);
-        showToast(`💾 กำลังสร้างใบสั่งงานย่อย ${checkBoxes.length} รายการเข้าคลาวด์...`, "warning");
-        
+        const totalSubJobs = workerIds.length * selectedItems.length;
+        showToast(`💾 กำลังสร้างใบสั่งงานย่อย ${totalSubJobs} รายการเข้าคลาวด์...`, "warning");
+
         let failedCount = 0;
-        for (let i = 0; i < checkBoxes.length; i++) {
-            const cb = checkBoxes[i];
-            const wrapper = cb.closest('div');
-            const priceInput = wrapper.querySelector("input[name='job-type-price']");
-            const price = priceInput && priceInput.value ? parseFloat(priceInput.value) : 0;
-            
-            const subJobType = `${cb.value} (${price})`;
-            const subJobData = {
-                id: 'job-' + (Date.now() + i).toString().slice(-6),
-                batchId: batchId,
-                createdAt: updatedAt,
-                customerId,
-                workerId,
-                jobType: subJobType,
-                fee: price,
-                status: status,
-                notes: notes,
-                orderNo: orderNo,
-                updatedAt: updatedAt
-            };
-            
-            const subJobRes = await callCloudAPI("saveJob", { jobData: subJobData });
-            if (subJobRes) {
-                jobs.push(subJobData);
-            } else {
-                failedCount++;
+        let seq = 0;
+        for (const wid of workerIds) {
+            for (const item of selectedItems) {
+                const subJobData = {
+                    id: 'job-' + (Date.now() + seq).toString().slice(-6),
+                    batchId: batchId,
+                    createdAt: updatedAt,
+                    customerId,
+                    workerId: wid,
+                    jobType: `${item.name} (${item.price})`,
+                    fee: item.price,
+                    status: status,
+                    notes: notes,
+                    orderNo: orderNo,
+                    updatedAt: updatedAt,
+                    agentId,
+                    openedBy: currentUser.id || null,
+                    paymentStatus: 'ยังไม่ออกบิล',
+                    attachments: []
+                };
+                seq++;
+
+                const subJobRes = await callCloudAPI("saveJob", { jobData: subJobData });
+                if (subJobRes) {
+                    jobs.push(subJobData);
+                } else {
+                    failedCount++;
+                }
             }
         }
         if (failedCount > 0) {
-            showToast(`⚠️ บันทึกไม่สำเร็จ ${failedCount} จาก ${checkBoxes.length} รายการ (ยังไม่ถูกบันทึกลงชีต)`, "danger");
+            showToast(`⚠️ บันทึกไม่สำเร็จ ${failedCount} จาก ${totalSubJobs} รายการ (ยังไม่ถูกบันทึกลงชีต)`, "danger");
         } else {
-            showToast(`เปิดจ๊อบใบสั่งงานย่อย ${checkBoxes.length} รายการสำเร็จ`, "success");
+            showToast(`เปิดใบสั่งงานย่อย ${totalSubJobs} รายการสำเร็จ`, "success");
         }
     }
 
     saveData();
     closeJobModal();
     renderJobs();
-    
+
     // Update dashboard alerts
     renderDashboard();
 }
@@ -2978,6 +3051,226 @@ async function deleteJob(id) {
     }
 }
 
+// ==================== AGENTS (ผู้ส่งงาน) — master list เพิ่มทีหลังได้ ====================
+function renderAgentsList() {
+    const tbody = document.getElementById("agents-tbody");
+    if (!tbody) return;
+
+    if (agents.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="2" class="text-muted" style="text-align:center; padding:20px;">❌ ยังไม่มี Agent ในระบบ (กดเพิ่ม Agent ใหม่ด้านบน)</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = agents.map(a => `
+        <tr>
+            <td>${a.name}</td>
+            <td style="text-align:center;">
+                <button class="action-icon-btn" onclick="openAgentModal('${a.id}')" title="แก้ไข">✏️</button>
+                ${currentUser.role === 'admin' ? `<button class="action-icon-btn delete-btn" onclick="deleteAgent('${a.id}', '${(a.name || '').replace(/'/g, "\\'")}')" title="ลบ">🗑️</button>` : ''}
+            </td>
+        </tr>
+    `).join('');
+}
+
+function refreshJobAgentDropdown(selectedId) {
+    const agentSelect = document.getElementById("job-agent-id");
+    if (!agentSelect) return;
+    agentSelect.innerHTML = '<option value="">--- ไม่ระบุ ---</option>' +
+        agents.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+    if (selectedId) agentSelect.value = selectedId;
+}
+
+function openAgentModal(id = null) {
+    if (currentUser.role === 'staff') {
+        showToast("❌ สิทธิ์ Staff ไม่สามารถจัดการ Agent ได้", "danger");
+        return;
+    }
+    document.getElementById("agent-form").reset();
+    document.getElementById("agent-edit-id").value = id || "";
+    document.getElementById("agent-modal-title").innerText = id ? "✏️ แก้ไข Agent" : "➕ เพิ่ม Agent ใหม่";
+
+    if (id) {
+        const a = agents.find(item => item.id === id);
+        if (a) document.getElementById("agent-name").value = a.name;
+    }
+
+    document.getElementById("agent-modal").classList.remove("hidden");
+}
+
+function closeAgentModal() {
+    document.getElementById("agent-modal").classList.add("hidden");
+}
+
+async function saveAgentForm(e) {
+    e.preventDefault();
+    const editId = document.getElementById("agent-edit-id").value;
+    const name = document.getElementById("agent-name").value.trim();
+    if (!name) {
+        alert("กรุณากรอกชื่อ Agent");
+        return;
+    }
+
+    const agentData = { id: editId || ('agent-' + Date.now().toString().slice(-8)), name };
+    showToast("💾 กำลังบันทึก Agent...", "warning");
+    const res = await callCloudAPI("saveAgent", { agentData });
+    if (!res) return;
+
+    if (editId) {
+        const idx = agents.findIndex(a => a.id === editId);
+        if (idx !== -1) agents[idx] = agentData;
+    } else {
+        agents.push(agentData);
+    }
+    saveData();
+
+    refreshJobAgentDropdown(agentData.id);
+    renderAgentsList();
+    closeAgentModal();
+    showToast(`บันทึก Agent "${agentData.name}" สำเร็จ`, "success");
+}
+
+async function deleteAgent(id, name) {
+    if (currentUser.role !== 'admin') {
+        showToast("❌ เฉพาะแอดมิน (Admin) เท่านั้นที่สามารถลบ Agent ได้", "danger");
+        return;
+    }
+    if (!confirm(`ลบ Agent "${name}" หรือไม่?`)) return;
+
+    showToast("🗑️ กำลังลบ Agent...", "warning");
+    const res = await callCloudAPI("deleteRecord", { sheetName: "Agents", id });
+    if (!res) return;
+
+    agents = agents.filter(a => a.id !== id);
+    saveData();
+    refreshJobAgentDropdown();
+    renderAgentsList();
+    showToast(`ลบ Agent "${name}" สำเร็จ`, "success");
+}
+
+// ==================== ปิดงาน (แนบเอกสารแล้วปิด) / เปิดงานอีกครั้ง ====================
+function openJobCloseModal(jobId) {
+    const j = jobs.find(item => item.id === jobId);
+    if (!j) return;
+
+    document.getElementById("job-close-id").value = jobId;
+    document.getElementById("job-close-file").value = "";
+    document.getElementById("job-close-note").value = "";
+    const cust = customers.find(c => c.id === j.customerId);
+    const work = workers.find(w => w.id === j.workerId);
+    document.getElementById("job-close-target-label").innerText =
+        `ใบงาน ${getJobDisplayNo(j)} • ${getCleanJobTypeName(j.jobType)} • ` +
+        `${work ? `${work.firstName} ${work.lastName}` : 'ไม่พบคนงาน'} (${cust ? cust.companyName : 'ไม่พบนายจ้าง'})`;
+
+    document.getElementById("job-close-modal").classList.remove("hidden");
+}
+
+function closeJobCloseModal() {
+    document.getElementById("job-close-modal").classList.add("hidden");
+}
+
+async function submitCloseJob(e) {
+    e.preventDefault();
+    const jobId = document.getElementById("job-close-id").value;
+    const j = jobs.find(item => item.id === jobId);
+    if (!j) return;
+
+    const fileInput = document.getElementById("job-close-file");
+    const note = document.getElementById("job-close-note").value.trim();
+    if (!fileInput.files || fileInput.files.length === 0) {
+        alert("กรุณาแนบเอกสารยืนยันการปิดงานก่อน");
+        return;
+    }
+
+    const btn = document.getElementById("btn-confirm-close-job");
+    btn.disabled = true;
+    btn.innerText = "⏳ กำลังอัปโหลด...";
+
+    try {
+        const file = fileInput.files[0];
+        const fileDataUrl = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+
+        const uploadResult = await uploadFileToGoogleDrive(fileDataUrl, file.name, j.customerId, j.workerId, "job-close-doc");
+        if (!uploadResult) {
+            showToast("❌ อัปโหลดเอกสารไม่สำเร็จ ยังไม่ปิดงาน", "danger");
+            return;
+        }
+
+        const closedAt = new Date().toISOString();
+        const existingAttachments = Array.isArray(j.attachments) ? j.attachments : [];
+        const jobData = Object.assign({}, j, {
+            status: 'ปิดงานแล้ว',
+            attachments: existingAttachments.concat([{
+                name: file.name,
+                url: uploadResult.fileUrl,
+                note: note || null,
+                uploadedAt: closedAt,
+                uploadedBy: currentUser.id || null
+            }]),
+            closedAt,
+            closedBy: currentUser.id || null,
+            updatedAt: closedAt.split('T')[0]
+        });
+
+        const res = await callCloudAPI("saveJob", { jobData });
+        if (!res) {
+            showToast("❌ บันทึกการปิดงานไม่สำเร็จ กรุณาลองใหม่", "danger");
+            return;
+        }
+
+        const idx = jobs.findIndex(item => item.id === jobId);
+        if (idx !== -1) jobs[idx] = jobData;
+        saveData();
+        closeJobCloseModal();
+        renderJobs();
+        renderDashboard();
+        showToast(`📎 ปิดงาน ${getJobDisplayNo(jobData)} สำเร็จ`, "success");
+    } finally {
+        btn.disabled = false;
+        btn.innerText = "✅ ยืนยันปิดงาน";
+    }
+}
+
+async function reopenJob(jobId) {
+    if (currentUser.role === 'staff') {
+        showToast("❌ คุณไม่มีสิทธิ์เปลี่ยนสถานะงานนี้", "danger");
+        return;
+    }
+    const j = jobs.find(item => item.id === jobId);
+    if (!j) return;
+    if (!confirm(`เปิดงาน ${getJobDisplayNo(j)} อีกครั้งหรือไม่? (สถานะจะกลับเป็น "กำลังดำเนินการ")`)) return;
+
+    const jobData = Object.assign({}, j, {
+        status: 'กำลังดำเนินการ',
+        closedAt: null,
+        closedBy: null,
+        updatedAt: new Date().toISOString().split('T')[0]
+    });
+
+    showToast("🔓 กำลังเปิดงานอีกครั้ง...", "warning");
+    const res = await callCloudAPI("saveJob", { jobData });
+    if (!res) {
+        showToast("❌ เปิดงานไม่สำเร็จ กรุณาลองใหม่", "danger");
+        return;
+    }
+
+    const idx = jobs.findIndex(item => item.id === jobId);
+    if (idx !== -1) jobs[idx] = jobData;
+    saveData();
+    renderJobs();
+    renderDashboard();
+    showToast(`🔓 เปิดงาน ${getJobDisplayNo(jobData)} อีกครั้งสำเร็จ`, "success");
+}
+
+function reopenJobFromModal() {
+    const editId = document.getElementById("job-edit-id").value;
+    if (!editId) return;
+    reopenJob(editId).then(() => closeJobModal());
+}
 
 // ==================== BANK ACCOUNTS MODULE LOGIC ====================
 function renderBanks() {
@@ -3123,6 +3416,10 @@ function renderUsers() {
             <td>${u.email || '-'}</td>
             <td><span class="badge">${getRoleLabel(u.role)}</span></td>
             <td>${u.role === 'client' ? (u.customer_id || '-') : '-'}</td>
+            <td style="text-align:center;">
+                <button class="action-icon-btn" onclick="openUserModal('${u.id}')" title="แก้ไข">✏️</button>
+                ${u.id !== currentUser.id ? `<button class="action-icon-btn delete-btn" onclick="deleteUserAccountUi('${u.id}', '${(u.name || '').replace(/'/g, "\\'")}')" title="ลบบัญชี">🗑️</button>` : ''}
+            </td>
         </tr>
     `).join('');
 }
@@ -3142,13 +3439,63 @@ function toggleUserCustomerField() {
     }
 }
 
-function openUserModal() {
+function openUserModal(id = null) {
     if (currentUser.role !== 'admin') {
-        showToast("❌ เฉพาะแอดมิน (Admin) เท่านั้นที่สามารถเพิ่มบัญชีผู้ใช้งานได้", "danger");
+        showToast("❌ เฉพาะแอดมิน (Admin) เท่านั้นที่สามารถจัดการบัญชีผู้ใช้งานได้", "danger");
         return;
     }
     document.getElementById("user-form").reset();
-    toggleUserCustomerField();
+
+    const editIdInput = document.getElementById("user-edit-id");
+    const modalTitle = document.getElementById("user-modal-title");
+    const submitBtn = document.getElementById("btn-save-user-submit");
+    const emailGroup = document.getElementById("user-email-group");
+    const passwordGroup = document.getElementById("user-password-group");
+    const pinGroup = document.getElementById("user-pin-group");
+    const editNote = document.getElementById("user-edit-note");
+    const emailInput = document.getElementById("user-email");
+    const passwordInput = document.getElementById("user-password");
+    const pinInput = document.getElementById("user-pin");
+
+    if (id) {
+        const u = users.find(item => item.id === id);
+        if (!u) return;
+
+        editIdInput.value = id;
+        modalTitle.innerText = "แก้ไขบัญชีผู้ใช้งาน";
+        submitBtn.innerText = "บันทึกการแก้ไข";
+
+        // อีเมล/รหัสผ่าน/PIN แก้ไม่ได้ที่นี่ (ต้องใช้ service role — ดูหมายเหตุในฟอร์ม)
+        emailGroup.classList.add("hidden");
+        passwordGroup.classList.add("hidden");
+        pinGroup.classList.add("hidden");
+        editNote.classList.remove("hidden");
+        emailInput.required = false;
+        passwordInput.required = false;
+        pinInput.required = false;
+
+        document.getElementById("user-name").value = u.name || "";
+        document.getElementById("user-role").value = u.role || "staff";
+        toggleUserCustomerField();
+        if (u.role === 'client') {
+            document.getElementById("user-customer-id").value = u.customer_id || "";
+        }
+    } else {
+        editIdInput.value = "";
+        modalTitle.innerText = "เพิ่มบัญชีผู้ใช้งานใหม่";
+        submitBtn.innerText = "บันทึกบัญชีผู้ใช้งาน";
+
+        emailGroup.classList.remove("hidden");
+        passwordGroup.classList.remove("hidden");
+        pinGroup.classList.remove("hidden");
+        editNote.classList.add("hidden");
+        emailInput.required = true;
+        passwordInput.required = true;
+        pinInput.required = true;
+
+        toggleUserCustomerField();
+    }
+
     document.getElementById("user-modal").classList.remove("hidden");
 }
 
@@ -3159,19 +3506,47 @@ function closeUserModal() {
 async function saveUser(e) {
     e.preventDefault();
 
+    const editId = document.getElementById("user-edit-id").value;
     const name = document.getElementById("user-name").value.trim();
-    const email = document.getElementById("user-email").value.trim();
-    const password = document.getElementById("user-password").value;
     const role = document.getElementById("user-role").value;
     const customerId = document.getElementById("user-customer-id") ? document.getElementById("user-customer-id").value : "";
-    const pin = document.getElementById("user-pin").value.trim();
 
-    if (!name || !email || !password || !role) {
+    if (!name || !role) {
         alert("กรุณากรอกข้อมูลที่จำเป็น (*) ให้ครบถ้วน");
         return;
     }
     if (role === 'client' && !customerId) {
         alert("กรุณาเลือกนายจ้างสำหรับบัญชีประเภท Client");
+        return;
+    }
+
+    if (editId) {
+        // แก้ไข: name/role/customer_id เท่านั้น (RLS อนุญาต admin แก้ profiles ได้ตรงๆ)
+        showToast("💾 กำลังบันทึกการแก้ไขเข้าคลาวด์...", "warning");
+        const res = await callCloudAPI("updateUserProfile", {
+            userId: editId,
+            profileData: { name, role, customer_id: role === 'client' ? customerId : null }
+        });
+        if (!res) return;
+
+        const idx = users.findIndex(u => u.id === editId);
+        if (idx !== -1) {
+            users[idx] = Object.assign({}, users[idx], { name, role, customer_id: role === 'client' ? customerId : null });
+        }
+        localStorage.setItem("mw_users", JSON.stringify(users));
+        showToast("แก้ไขบัญชีผู้ใช้งานสำเร็จ", "success");
+        closeUserModal();
+        renderUsers();
+        return;
+    }
+
+    // เพิ่มใหม่
+    const email = document.getElementById("user-email").value.trim();
+    const password = document.getElementById("user-password").value;
+    const pin = document.getElementById("user-pin").value.trim();
+
+    if (!email || !password) {
+        alert("กรุณากรอกข้อมูลที่จำเป็น (*) ให้ครบถ้วน");
         return;
     }
     if (!pin) {
@@ -3188,10 +3563,30 @@ async function saveUser(e) {
         return;
     }
 
-    users.push({ email, name, role, customer_id: userData.customer_id });
+    users.push({ id: res.data && res.data.id, email, name, role, customer_id: userData.customer_id });
     localStorage.setItem("mw_users", JSON.stringify(users));
     showToast("เพิ่มบัญชีผู้ใช้งานใหม่สำเร็จ", "success");
     closeUserModal();
+    renderUsers();
+}
+
+async function deleteUserAccountUi(userId, userName) {
+    if (currentUser.role !== 'admin') {
+        showToast("❌ เฉพาะแอดมิน (Admin) เท่านั้นที่สามารถลบบัญชีผู้ใช้งานได้", "danger");
+        return;
+    }
+    if (!confirm(`ลบบัญชี "${userName}" ถาวรหรือไม่? ผู้ใช้งานคนนี้จะเข้าระบบไม่ได้อีกต่อไป`)) return;
+
+    const pin = prompt("กรอกรหัส PIN เพื่อยืนยันการลบบัญชี:");
+    if (!pin) return;
+
+    showToast("🗑️ กำลังลบบัญชีผู้ใช้งาน...", "warning");
+    const res = await callCloudAPI("deleteUser", { userId, pin });
+    if (!res) return;
+
+    users = users.filter(u => u.id !== userId);
+    localStorage.setItem("mw_users", JSON.stringify(users));
+    showToast(`ลบบัญชี "${userName}" สำเร็จ`, "success");
     renderUsers();
 }
 
@@ -3233,10 +3628,11 @@ function openInvoiceModal(jobId) {
         const j = jobs.find(item => item.id === jobId);
         if (!j) return;
 
-        // Auto update status to "ออกบิลแล้ว" if not already paid
-        if (j.status !== 'ชำระเงินแล้ว' && j.status !== 'ออกบิลแล้ว') {
-            j.status = 'ออกบิลแล้ว';
+        // Auto update payment status to "ออกบิลแล้ว" if not already paid — เป็นอิสระจากสถานะขั้นตอนงาน
+        if (j.paymentStatus !== 'ชำระเงินแล้ว' && j.paymentStatus !== 'ออกบิลแล้ว') {
+            j.paymentStatus = 'ออกบิลแล้ว';
             j.updatedAt = new Date().toISOString().split('T')[0];
+            callCloudAPI("saveJob", { jobData: j });
             saveData();
             renderJobs();
             renderDashboard();
@@ -3276,7 +3672,7 @@ function openInvoiceModal(jobId) {
         });
         currentInvoiceJobIds = [j.id];
 
-        if (j.status === 'ชำระเงินแล้ว') {
+        if (j.paymentStatus === 'ชำระเงินแล้ว') {
             if (markPaidBtn) markPaidBtn.style.display = 'none';
         } else {
             if (markPaidBtn) markPaidBtn.style.display = 'inline-block';
@@ -3504,14 +3900,17 @@ function markJobPaidFromInvoice() {
     const updatePromises = currentInvoiceJobIds.map(async jobId => {
         const idx = jobs.findIndex(j => j.id === jobId);
         if (idx !== -1) {
-            const prevStatus = jobs[idx].status;
-            jobs[idx].status = `ชำระเงินแล้ว (${payMethodLabel})`;
+            const prevPaymentStatus = jobs[idx].paymentStatus;
+            const prevPaymentMethod = jobs[idx].paymentMethod;
+            jobs[idx].paymentStatus = 'ชำระเงินแล้ว';
+            jobs[idx].paymentMethod = payMethodLabel;
             jobs[idx].updatedAt = new Date().toISOString().split('T')[0];
-            
+
             // Sync status to cloud backend
             const res = await callCloudAPI("saveJob", { jobData: jobs[idx] });
             if (!res) {
-                jobs[idx].status = prevStatus; // revert local change since save failed
+                jobs[idx].paymentStatus = prevPaymentStatus; // revert local change since save failed
+                jobs[idx].paymentMethod = prevPaymentMethod;
                 paidFailedCount++;
             }
         }
@@ -3564,7 +3963,7 @@ function onCombineCustomerChange() {
     const listContainer = document.getElementById("combine-jobs-list");
 
     // Filter unpaid jobs under this customer
-    const unpaidJobs = jobs.filter(j => j.customerId === custId && j.status !== 'ชำระเงินแล้ว');
+    const unpaidJobs = jobs.filter(j => j.customerId === custId && j.paymentStatus !== 'ชำระเงินแล้ว');
 
     if (unpaidJobs.length === 0) {
         listContainer.innerHTML = `
@@ -3627,12 +4026,13 @@ function generateCombinedInvoice() {
     const firstJob = jobs.find(j => j.id === selectedJobIds[0]);
     const cust = customers.find(c => c.id === firstJob.customerId);
 
-    // Auto set status to Invoiced for all selected jobs
+    // Auto set payment status to Invoiced for all selected jobs — เป็นอิสระจากสถานะขั้นตอนงาน
     selectedJobIds.forEach(jobId => {
         const jIdx = jobs.findIndex(x => x.id === jobId);
-        if (jIdx !== -1 && jobs[jIdx].status !== 'ออกบิลแล้ว' && jobs[jIdx].status !== 'ชำระเงินแล้ว') {
-            jobs[jIdx].status = 'ออกบิลแล้ว';
+        if (jIdx !== -1 && jobs[jIdx].paymentStatus !== 'ออกบิลแล้ว' && jobs[jIdx].paymentStatus !== 'ชำระเงินแล้ว') {
+            jobs[jIdx].paymentStatus = 'ออกบิลแล้ว';
             jobs[jIdx].updatedAt = new Date().toISOString().split('T')[0];
+            callCloudAPI("saveJob", { jobData: jobs[jIdx] });
         }
     });
     saveData();
@@ -3816,21 +4216,8 @@ function importSystemData(event) {
     reader.readAsText(file);
 }
 
-// ==================== GOOGLE SHEETS CLOUD SYNC ====================
-function saveSheetsUrl() {
-    const url = document.getElementById("sheets-webapp-url").value.trim();
-    localStorage.setItem("mw_sheets_url", url);
-}
-
-function loadSheetsUrl() {
-    const url = localStorage.getItem("mw_sheets_url") || "";
-    const input = document.getElementById("sheets-webapp-url");
-    if (input) input.value = url;
-}
-
 // Automatically load on app start
 document.addEventListener("DOMContentLoaded", () => {
-    loadSheetsUrl();
     setupDateMask("worker-dob");
     setupDateMask("worker-permit-expiry");
     setupDateMask("worker-passport-issue");
@@ -3886,128 +4273,6 @@ async function uploadFileToGoogleDrive(fileDataUrl, fileName, customerId = "", w
     return null;
 }
 
-async function syncRowToGoogleSheets(action, data) {
-    const url = getApiUrl();
-    if (!url) return; // not connected
-
-    try {
-        await fetch(url, {
-            method: 'POST',
-            mode: 'no-cors', // standard way to bypass CORS for Apps Script redirects
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                action: action,
-                data: data
-            })
-        });
-        console.log(`Synced ${action} item to Google Sheets successfully`);
-    } catch (e) {
-        console.error("Failed to sync row to Google Sheets:", e);
-    }
-}
-
-async function testGoogleSheetsConnection() {
-    const url = getApiUrl();
-    if (!url) {
-        alert("❌ กรุณากรอก Web App URL ก่อนกดทดสอบ");
-        return;
-    }
-
-    showToast("⚡ กำลังทดสอบเชื่อมต่อ Google Sheets...", "warning");
-    
-    try {
-        // App Script POST request test
-        const res = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'text/plain' // to bypass CORS preflight check on simple GET/POST redirects
-            },
-            body: JSON.stringify({ action: "test" })
-        });
-        const result = await res.json();
-        if (result.status === "success") {
-            alert("✅ เชื่อมต่อ Google Sheets สำเร็จ! ระบบพร้อมบันทึกข้อมูลแบบเรียลไทม์แล้ว");
-            showToast("✅ เชื่อมต่อสำเร็จ!", "success");
-        } else {
-            alert("❌ เชื่อมต่อไม่สำเร็จ: " + result.message);
-        }
-    } catch (e) {
-        // Fallback warning for CORS or redirect issues
-        alert("⚠️ เชื่อมโยงสคริปต์เสร็จเรียบร้อย! หากเบราว์เซอร์แจ้งเตือนบล็อค CORS ให้ลองเพิ่มข้อมูลจำลอง 1 แถวแล้วเปิดหน้า Google Sheets เช็คดูว่าแถวข้อมูลใหม่ขึ้นหรือไม่ครับ");
-    }
-}
-
-async function syncAllToGoogleSheets() {
-    const url = getApiUrl();
-    if (!url) {
-        alert("❌ กรุณากรอก Web App URL และเชื่อมต่อระบบก่อน");
-        return;
-    }
-
-    const btn = document.getElementById("btn-sync-sheets");
-    btn.disabled = true;
-    btn.innerText = "⏳ กำลังส่งข้อมูล (Syncing)...";
-
-    showToast("📤 กำลังเตรียมส่งข้อมูลทั้งหมดเข้า Google Sheets...", "warning");
-
-    try {
-        // 1. Sync Customers
-        for (const c of customers) {
-            await syncRowToGoogleSheets("Customers", {
-                taxId: c.taxId,
-                companyName: c.companyName,
-                businessType: c.businessType,
-                coordinator: c.coordinator,
-                phone: c.phone
-            });
-        }
-
-        // 2. Sync Workers
-        for (const w of workers) {
-            const emp = customers.find(c => c.id === w.employerId);
-            const empName = emp ? emp.companyName : "ไม่ระบุนายจ้าง";
-            await syncRowToGoogleSheets("Workers", {
-                workerUid: w.workerUid,
-                firstName: w.firstName,
-                lastName: w.lastName,
-                nationality: w.nationality,
-                passportNo: w.passportNo,
-                permitNo: w.permitNo,
-                permitExpiry: w.permitExpiry,
-                employerName: empName
-            });
-        }
-
-        // 3. Sync Jobs
-        for (const j of jobs) {
-            const cust = customers.find(c => c.id === j.customerId);
-            const work = workers.find(w => w.id === j.workerId);
-            const custName = cust ? cust.companyName : "ไม่ระบุนายจ้าง";
-            const workName = work ? `${work.firstName} ${work.lastName}` : "ไม่ระบุคนงาน";
-            await syncRowToGoogleSheets("Jobs", {
-                id: j.id,
-                customerName: custName,
-                workerName: workName,
-                jobType: j.jobType,
-                fee: j.fee,
-                status: j.status,
-                notes: j.notes
-            });
-        }
-
-        alert(`✅ ส่งออกข้อมูลเข้าระบบ Google Sheets สำเร็จ!\n- นายจ้าง ${customers.length} ราย\n- คนงาน ${workers.length} คน\n- ใบแจ้งงาน ${jobs.length} รายการ\nเรียบร้อยแล้วครับ!`);
-        showToast("✅ เชื่อมโยงข้อมูลชีทสำเร็จ!", "success");
-
-    } catch (e) {
-        alert("❌ เกิดข้อผิดพลาดในการส่งข้อมูล: " + e.message);
-    } finally {
-        btn.disabled = false;
-        btn.innerText = "📤 ส่งข้อมูลทั้งหมดเข้า Google Sheets (Sync All)";
-    }
-}
-
 // ==================== ATTACHMENT DOWNLOADS & SHARING HELPERS ====================
 function filterWorkersByEmployer(employerId) {
     switchView('workers');
@@ -4032,35 +4297,37 @@ function openDriveFolder(folderId) {
 }
 
 function downloadAttachment(fileName, docType, dataUrl = null) {
-    let url = dataUrl;
-    let isTempUrl = false;
-    
-    if (!url || !url.startsWith("data:")) {
-        const dummyPdfContent = "%PDF-1.4 ... (Mock PDF Scan of " + docType + ": " + fileName + ")";
-        const blob = new Blob([dummyPdfContent], { type: 'application/pdf' });
-        url = URL.createObjectURL(blob);
-        isTempUrl = true;
+    if (!dataUrl) {
+        showToast("❌ ไม่พบไฟล์เอกสารนี้ในระบบ (อาจอัปโหลดไม่สำเร็จ)", "danger");
+        return;
     }
-    
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    
-    if (isTempUrl) {
-        URL.revokeObjectURL(url);
+
+    if (dataUrl.startsWith("data:")) {
+        // Legacy: ไฟล์เก่าที่ยังเก็บเป็น base64 data URL ตรงๆ (ไม่ได้อัปโหลดขึ้น Supabase Storage)
+        const a = document.createElement('a');
+        a.href = dataUrl;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        showToast(`📥 ดาวน์โหลดเอกสาร: ${fileName} เรียบร้อยแล้ว`, 'success');
+        return;
     }
-    
-    showToast(`📥 ดาวน์โหลดเอกสาร: ${fileName} เรียบร้อยแล้ว`, 'success');
+
+    // ไฟล์จริงบน Supabase Storage (public bucket) — เปิดลิงก์ตรงๆ ให้เบราว์เซอร์จัดการดาวน์โหลด/แสดงผลเอง
+    window.open(dataUrl, '_blank');
 }
 
-function shareAttachment(fileName, entityName) {
-    const shareText = `🔗 ลิงก์ดาวน์โหลดเอกสารของ: ${entityName}\nเอกสาร: ${fileName}\n(คัดลอกเพื่อส่งแชร์ต่อทาง Line/Email ให้กับนายจ้างเรียบร้อยแล้ว)`;
-    
+function shareAttachment(fileName, entityName, fileUrl = null) {
+    if (!fileUrl) {
+        alert("ยังไม่มีลิงก์เอกสารนี้ (ไฟล์อาจอัปโหลดไม่สำเร็จ หรือเป็นไฟล์เก่าที่ยังไม่ได้ย้ายขึ้น Supabase Storage)");
+        return;
+    }
+
+    const shareText = `🔗 เอกสารของ: ${entityName}\nไฟล์: ${fileName}\nลิงก์ดาวน์โหลด: ${fileUrl}`;
+
     navigator.clipboard.writeText(shareText).then(() => {
-        showToast("📋 คัดลอกลิงก์แชร์เอกสารเรียบร้อยแล้ว! สามารถกดวางส่งต่อให้ลูกค้าได้เลย", "success");
+        showToast("📋 คัดลอกลิงก์เอกสารเรียบร้อยแล้ว! วางส่งให้ลูกค้าทาง Line/Email ได้เลย (เปิดลิงก์ดาวน์โหลดได้ทันทีโดยไม่ต้องล็อกอิน)", "success");
     }).catch(err => {
         alert("ไม่สามารถคัดลอกได้: " + err);
     });
@@ -4209,14 +4476,12 @@ function renderMonthlyDetails() {
 
 // ==================== FINANCE AND ACCOUNTING STATS ====================
 function isJobPaid(j) {
-    return j && j.status && j.status.startsWith('ชำระเงินแล้ว');
+    return !!(j && j.paymentStatus === 'ชำระเงินแล้ว');
 }
 
 function getJobPaymentMethod(j) {
-    if (!j || !j.status || !j.status.startsWith('ชำระเงินแล้ว')) return null;
-    const match = j.status.match(/ชำระเงินแล้ว\s*\((.*?)\)/);
-    if (match) return match[1];
-    return "ไม่ระบุบัญชี";
+    if (!isJobPaid(j)) return null;
+    return j.paymentMethod || "ไม่ระบุบัญชี";
 }
 
 function renderFinanceStats() {
@@ -4439,15 +4704,13 @@ function renderFinanceStats() {
         } else {
             const statusCounts = {};
             jobs.forEach(j => {
-                const isPaid = isJobPaid(j);
-                const displayStatus = isPaid ? "ชำระเงินแล้ว" : j.status;
-                statusCounts[displayStatus] = (statusCounts[displayStatus] || 0) + 1;
+                statusCounts[j.status] = (statusCounts[j.status] || 0) + 1;
             });
 
             progressEl.innerHTML = Object.entries(statusCounts).map(([status, count]) => {
                 const pct = Math.round((count / totalJobs) * 100);
                 let color = "var(--navy-medium)";
-                if (status.startsWith("ชำระเงินแล้ว")) color = "var(--success)";
+                if (status === "ปิดงานแล้ว") color = "var(--success)";
                 if (status === "รอดำเนินการ") color = "var(--text-muted)";
                 if (status === "กำลังดำเนินการ") color = "var(--navy-light)";
                 
@@ -4649,7 +4912,9 @@ function openWorkerFolderModal(workerId) {
         { key: "worker-passport", label: "✈️ หนังสือเดินทาง (Passport / CI)", defaultName: `${nameClean}_Passport.pdf`, type: "พาสปอร์ต" },
         { key: "worker-myanmar-id", label: "🏡 บัตรประชาชน/ทะเบียนบ้านพม่า", defaultName: `${nameClean}_MyanmarID.pdf`, type: "ทะเบียนบ้านพม่า" },
         { key: "worker-pink-card", label: "🌸 บัตรชมพู (Pink Card)", defaultName: `${nameClean}_PinkCard.pdf`, type: "บัตรชมพู" },
-        { key: "worker-receipt", label: "🧾 ใบเสร็จรับเงิน (Receipt)", defaultName: `${nameClean}_Receipt.pdf`, type: "ใบเสร็จ" }
+        { key: "worker-receipt", label: "🧾 ใบเสร็จรับเงิน (Receipt)", defaultName: `${nameClean}_Receipt.pdf`, type: "ใบเสร็จ" },
+        { key: "worker-medical", label: "🩺 ใบรับรองแพทย์ (Medical Certificate)", defaultName: `${nameClean}_Medical.pdf`, type: "ใบรับรองแพทย์" },
+        { key: "worker-application", label: "📝 ใบคำขอ (Application Form)", defaultName: `${nameClean}_Application.pdf`, type: "ใบคำขอ" }
     ];
 
     const listContainer = document.getElementById("worker-folder-files-list");
@@ -4675,16 +4940,15 @@ function openWorkerFolderModal(workerId) {
                     </button>
                 `;
                 
-                const downloadTarget = fItem.data.startsWith("data:") ? fItem.data : null;
                 const downloadBtn = `
-                    <button class="btn btn-sm btn-outline" onclick="downloadAttachment('${fItem.name}', '${file.type}', '${downloadTarget || ''}')" style="padding: 3px 6px; font-size: 11px;">
+                    <button class="btn btn-sm btn-outline" onclick="downloadAttachment('${fItem.name}', '${file.type}', '${fItem.data || ''}')" style="padding: 3px 6px; font-size: 11px;">
                         📥 โหลด
                     </button>
                 `;
-                
+
                 const shareBtn = `
-                    <button class="btn btn-sm btn-outline" onclick="shareAttachment('${fItem.name}', '${w.firstName} ${w.lastName || ''}')" style="padding: 3px 6px; font-size: 11px;">
-                        🔗 แชร์
+                    <button class="btn btn-sm btn-outline" onclick="shareAttachment('${fItem.name}', '${w.firstName} ${w.lastName || ''}', '${fItem.data || ''}')" style="padding: 3px 6px; font-size: 11px;">
+                        🔗 แชร์ลิงก์
                     </button>
                 `;
 
@@ -4762,6 +5026,89 @@ function triggerFolderFileUpload(docType) {
     }
 }
 
+// เติมข้อมูลคนงานจากผลลัพธ์ AI OCR — ใช้ร่วมกันทั้งอัปโหลดทีละไฟล์ และนำเข้าหลายไฟล์พร้อมกัน (bulk import)
+function applyOcrDataToWorker(w, docType, p) {
+    if (!p) return;
+
+    if (docType === 'worker-wp-doc') {
+        if (p.permitNo) w.permitNo = p.permitNo;
+        if (p.permitExpiry) w.permitExpiry = parseDateInput(p.permitExpiry) || w.permitExpiry;
+        if (p.uid) w.workerUid = p.uid;
+        if (p.firstName) w.firstName = p.firstName;
+        if (p.lastName) w.lastName = p.lastName;
+        if (p.dob) w.dob = parseDateInput(p.dob) || w.dob;
+        if (p.nationality) w.nationality = p.nationality;
+        if (p.refNo) w.refNo = p.refNo;
+        if (p.gender) {
+            const g = p.gender.toLowerCase();
+            if (g.includes("female") || g.includes("หญิง")) w.gender = "Female";
+            else if (g.includes("male") || g.includes("ชาย")) w.gender = "Male";
+        }
+        if (p.position) w.position = p.position;
+        if (p.workplace) w.workplace = p.workplace;
+
+        // กฎ: คนสัญชาติเมียนมาไม่มีนามสกุล (ชื่อพม่าเป็นชื่อเดียวทั้งหมด ต่อให้มีหลายคำ)
+        // เผื่อ AI ยังแยกชื่อ-นามสกุลมาให้ผิดๆ ทั้งที่สั่งในพรอมต์แล้วว่าไม่ต้องแยก
+        if (w.nationality === 'Myanmar' && w.lastName) {
+            w.firstName = `${w.firstName} ${w.lastName}`.trim();
+            w.lastName = '';
+        }
+    }
+    if (docType === 'worker-passport') {
+        if (p.passportNo) w.passportNo = p.passportNo;
+        if (p.passportPob) w.passportPob = p.passportPob;
+        if (p.passportAuth) w.passportAuth = p.passportAuth;
+        if (p.passportIssue) w.passportIssue = parseDateInput(p.passportIssue) || w.passportIssue;
+        if (p.passportExpiry) w.passportExpiry = parseDateInput(p.passportExpiry) || w.passportExpiry;
+        if (p.dob) w.dob = parseDateInput(p.dob) || w.dob;
+        if (p.gender) {
+            const g = p.gender.toLowerCase();
+            if (g.includes("female") || g.includes("หญิง")) w.gender = "Female";
+            else if (g.includes("male") || g.includes("ชาย")) w.gender = "Male";
+        }
+    }
+}
+
+// แนบไฟล์ 1 ไฟล์เข้าแฟ้มคนงาน 1 คน (upload + OCR + อัปเดตข้อมูล) — ใช้ร่วมกันทั้งอัปโหลดทีละไฟล์ และ bulk import
+async function attachDocumentToWorker(w, docType, fileContent) {
+    const nameClean = `${w.firstName}_${w.lastName || ''}`.replace(/\s+/g, '_');
+    const currentList = getAttachments(w, docType);
+    const suffix = currentList.length > 0 ? `_${currentList.length + 1}` : "";
+    const fileName = `${nameClean}_${docType}${suffix}`;
+
+    const uploadResult = await uploadFileToGoogleDrive(fileContent, fileName, w.employerId, w.id, docType);
+    const driveUrl = uploadResult ? uploadResult.fileUrl : null;
+    const serverUrl = driveUrl || await uploadFileToServer(fileContent, fileName);
+
+    w.attachments = w.attachments || {};
+    w.attachments[docType] = currentList;
+    w.attachments[docType].push({
+        name: fileName,
+        data: serverUrl || fileContent
+    });
+
+    if (uploadResult && uploadResult.parsedData) {
+        applyOcrDataToWorker(w, docType, uploadResult.parsedData);
+    }
+
+    // Auto-transition from pending_register to active when both Work Permit and Receipt are uploaded
+    const hasWp = getAttachments(w, 'worker-wp-doc').length > 0;
+    const hasReceipt = getAttachments(w, 'worker-receipt').length > 0;
+    if (w.status === 'pending_register' && hasWp && hasReceipt) {
+        w.status = 'active';
+    }
+
+    // บันทึกข้อมูลคนงาน (attachments ใหม่ + ฟิลด์ที่ AI เติมให้) กลับขึ้นคลาวด์จริง —
+    // ไฟล์อัปโหลดขึ้น Storage ไปแล้วก็จริง แต่ถ้าไม่บันทึกจุดนี้ แถว worker ใน DB จะไม่รู้จักไฟล์นี้เลย
+    // (เห็นแค่ในเบราว์เซอร์เครื่องนี้ผ่าน localStorage ชั่วคราว หายไปทันทีที่เปิดจากเครื่อง/บัญชีอื่น)
+    const saveRes = await callCloudAPI("saveWorker", { workerData: w });
+    if (!saveRes) {
+        throw new Error('อัปโหลดไฟล์สำเร็จ แต่บันทึกข้อมูลคนงานขึ้นคลาวด์ไม่สำเร็จ');
+    }
+
+    return uploadResult;
+}
+
 // Handle folder file upload (Appends file to the array)
 function handleFolderFileUpload(event) {
     const file = event.target.files[0];
@@ -4775,74 +5122,24 @@ function handleFolderFileUpload(event) {
         const workerIdx = workers.findIndex(w => w.id === activeFolderWorkerId);
         if (workerIdx !== -1) {
             const w = workers[workerIdx];
-            const nameClean = `${w.firstName}_${w.lastName || ''}`.replace(/\s+/g, '_');
-            
-            // Get current list to decide file suffix
-            const currentList = getAttachments(w, activeFolderDocType);
-            const suffix = currentList.length > 0 ? `_${currentList.length + 1}` : "";
-            const fileName = `${nameClean}_${activeFolderDocType}${suffix}`;
+            const wasPending = w.status === 'pending_register';
+            try {
+                const uploadResult = await attachDocumentToWorker(w, activeFolderDocType, fileContent);
 
-            // Attempt upload to Google Drive, then fallback to local server uploads
-            const uploadResult = await uploadFileToGoogleDrive(fileContent, fileName, w.employerId, w.id, activeFolderDocType);
-            const driveUrl = uploadResult ? uploadResult.fileUrl : null;
-            const serverUrl = driveUrl || await uploadFileToServer(fileContent, fileName);
-            
-            w.attachments = w.attachments || {};
-            w.attachments[activeFolderDocType] = currentList;
-            w.attachments[activeFolderDocType].push({
-                name: fileName,
-                data: serverUrl || fileContent
-            });
-            
-            // ถ้า AI (Gemini) อ่านข้อมูลจากเอกสารได้จริง ให้เติมเฉพาะฟิลด์ที่มีข้อมูลจริงเท่านั้น
-            // ไม่มีการเดา/สุ่มข้อมูลจากชื่อไฟล์หรือข้อมูลปลอมใดๆ อีกต่อไป
-            if (uploadResult && uploadResult.parsedData) {
-                const p = uploadResult.parsedData;
-                showToast("✨ AI อ่านข้อมูลจากเอกสารสำเร็จ กำลังอัปเดตข้อมูลคนงาน", "success");
+                if (uploadResult && uploadResult.parsedData) {
+                    showToast("✨ AI อ่านข้อมูลจากเอกสารสำเร็จ กำลังอัปเดตข้อมูลคนงาน", "success");
+                }
+                if (wasPending && w.status === 'active') {
+                    showToast(`🎉 อัปโหลดใบอนุญาตทำงานและใบเสร็จแล้ว! เปลี่ยนสถานะคุณ ${w.firstName} เป็น ปกติ (Active) อัตโนมัติ`, "success");
+                }
 
-                if (activeFolderDocType === 'worker-wp-doc') {
-                    if (p.permitNo) w.permitNo = p.permitNo;
-                    if (p.permitExpiry) w.permitExpiry = parseDateInput(p.permitExpiry) || w.permitExpiry;
-                    if (p.uid) w.workerUid = p.uid;
-                    if (p.firstName) w.firstName = p.firstName;
-                    if (p.lastName) w.lastName = p.lastName;
-                    if (p.dob) w.dob = parseDateInput(p.dob) || w.dob;
-                    if (p.nationality) w.nationality = p.nationality;
-                    if (p.refNo) w.refNo = p.refNo;
-                    if (p.gender) {
-                        const g = p.gender.toLowerCase();
-                        if (g.includes("female") || g.includes("หญิง")) w.gender = "Female";
-                        else if (g.includes("male") || g.includes("ชาย")) w.gender = "Male";
-                    }
-                    if (p.position) w.position = p.position;
-                    if (p.workplace) w.workplace = p.workplace;
-                }
-                if (activeFolderDocType === 'worker-passport') {
-                    if (p.passportNo) w.passportNo = p.passportNo;
-                    if (p.passportPob) w.passportPob = p.passportPob;
-                    if (p.passportAuth) w.passportAuth = p.passportAuth;
-                    if (p.passportIssue) w.passportIssue = parseDateInput(p.passportIssue) || w.passportIssue;
-                    if (p.passportExpiry) w.passportExpiry = parseDateInput(p.passportExpiry) || w.passportExpiry;
-                    if (p.dob) w.dob = parseDateInput(p.dob) || w.dob;
-                    if (p.gender) {
-                        const g = p.gender.toLowerCase();
-                        if (g.includes("female") || g.includes("หญิง")) w.gender = "Female";
-                        else if (g.includes("male") || g.includes("ชาย")) w.gender = "Male";
-                    }
-                }
+                saveData();
+                showToast("✅ อัปโหลดไฟล์และอัปเดตแฟ้มคนงานต่างด้าวสำเร็จ!", "success");
+            } catch (err) {
+                console.error("attachDocumentToWorker failed:", err);
+                showToast("❌ " + (err.message || "อัปโหลดไฟล์ไม่สำเร็จ"), "danger");
             }
 
-            // Auto-transition from pending_register to active when both Work Permit and Receipt are uploaded
-            const hasWp = getAttachments(w, 'worker-wp-doc').length > 0;
-            const hasReceipt = getAttachments(w, 'worker-receipt').length > 0;
-            if (w.status === 'pending_register' && hasWp && hasReceipt) {
-                w.status = 'active';
-                showToast(`🎉 อัปโหลดใบอนุญาตทำงานและใบเสร็จแล้ว! เปลี่ยนสถานะคุณ ${w.firstName} เป็น ปกติ (Active) อัตโนมัติ`, "success");
-            }
-
-            saveData();
-            showToast("✅ อัปโหลดไฟล์และอัปเดตแฟ้มคนงานต่างด้าวสำเร็จ!", "success");
-            
             // Refresh folder modal and worker lists/dashboard
             openWorkerFolderModal(activeFolderWorkerId);
             renderWorkers();
@@ -4850,6 +5147,269 @@ function handleFolderFileUpload(event) {
         }
     };
     reader.readAsDataURL(file);
+}
+
+// ==================== BULK IMPORT: นำเข้าเอกสารหลายไฟล์พร้อมกัน ====================
+// จับคู่ไฟล์ -> คนงาน จากเลขประจำตัว 13 หลักในชื่อไฟล์ก่อน (มั่นใจสูง) ถ้าไม่เจอลองจับคู่จากชื่อคนในชื่อไฟล์ (มั่นใจกลาง)
+// จับคู่ไฟล์ -> ประเภทเอกสาร จากคำสำคัญในชื่อไฟล์ — แถวที่จับคู่ไม่ได้ต้องให้ผู้ใช้เลือกเองก่อนนำเข้า (ไม่เดามั่ว)
+const WORKER_DOC_TYPES = [
+    { key: "worker-wp-doc", label: "ใบอนุญาตทำงาน", keywords: ["ใบอนุญาตทำงาน", "work permit", "workpermit", "อนุญาตทำงาน", "_wp_", "-wp-", " wp "] },
+    { key: "worker-passport", label: "พาสปอร์ต/CI", keywords: ["passport", "พาสปอร์ต", "_ci_", "-ci-", " ci "] },
+    { key: "worker-myanmar-id", label: "บัตรประชาชน/ทะเบียนบ้านพม่า", keywords: ["myanmar id", "myanmarid", "บัตรประชาชนพม่า", "ทะเบียนบ้าน"] },
+    { key: "worker-pink-card", label: "บัตรชมพู", keywords: ["pink card", "pinkcard", "บัตรชมพู", "ชมพู"] },
+    { key: "worker-receipt", label: "ใบเสร็จรับเงิน", keywords: ["receipt", "ใบเสร็จ"] },
+    { key: "worker-medical", label: "ใบรับรองแพทย์", keywords: ["medical", "แพทย์", "รับรองแพทย์"] },
+    { key: "worker-application", label: "ใบคำขอ", keywords: ["application", "คำขอ", "บต.46", "บต46"] }
+];
+
+function matchWorkerFromFilename(filename) {
+    const base = filename.replace(/\.[^.]+$/, '');
+
+    // 1) เลขประจำตัวคนต่างด้าว 13 หลักในชื่อไฟล์ตรงกับคนงานเป๊ะๆ = มั่นใจสูง
+    const idMatch = base.match(/\d{13}/);
+    if (idMatch) {
+        const w = workers.find(item => item.workerUid === idMatch[0]);
+        if (w) return { workerId: w.id, confidence: 'high' };
+    }
+
+    // 2) ชื่อคนงาน (ชื่อ+นามสกุล) ปรากฏอยู่ในชื่อไฟล์ = มั่นใจกลาง (เลือกตัวที่ชื่อยาวที่สุดที่ตรง กันชื่อสั้นชนกันมั่ว)
+    const normalized = base.replace(/[_\-]+/g, ' ').toLowerCase().trim();
+    let best = null;
+    workers.forEach(w => {
+        const fullName = `${w.firstName} ${w.lastName || ''}`.trim().toLowerCase();
+        if (fullName && fullName.length >= 3 && normalized.includes(fullName)) {
+            if (!best || fullName.length > best.nameLen) {
+                best = { workerId: w.id, nameLen: fullName.length };
+            }
+        }
+    });
+    if (best) return { workerId: best.workerId, confidence: 'medium' };
+
+    return { workerId: null, confidence: 'none' };
+}
+
+function matchDocTypeFromFilename(filename) {
+    const base = filename.toLowerCase();
+    for (const dt of WORKER_DOC_TYPES) {
+        if (dt.keywords.some(k => base.includes(k.toLowerCase()))) return dt.key;
+    }
+    return null;
+}
+
+let bulkImportRows = [];
+
+function openBulkImportModal() {
+    bulkImportRows = [];
+    const fileInput = document.getElementById('bulk-import-file-input');
+    if (fileInput) fileInput.value = '';
+    const progressEl = document.getElementById('bulk-import-progress');
+    progressEl.classList.add('hidden');
+    progressEl.innerHTML = '';
+    renderBulkImportTable();
+    document.getElementById('bulk-import-modal').classList.remove('hidden');
+}
+
+function closeBulkImportModal() {
+    document.getElementById('bulk-import-modal').classList.add('hidden');
+}
+
+function handleBulkImportFilesSelected(fileList) {
+    addFilesToBulkImport(Array.from(fileList || []));
+}
+
+// รองรับลากทั้งโฟลเดอร์มาวาง (ไม่ใช่แค่ไฟล์เดี่ยวๆ) ผ่าน FileSystem Entry API ของเบราว์เซอร์
+function handleBulkImportDrop(event) {
+    event.preventDefault();
+    const dropzone = document.getElementById('bulk-import-dropzone');
+    if (dropzone) dropzone.style.borderColor = '#cbd5e1';
+
+    const items = event.dataTransfer.items;
+    if (items && items.length > 0 && items[0].webkitGetAsEntry) {
+        const entries = [];
+        for (let i = 0; i < items.length; i++) {
+            const entry = items[i].webkitGetAsEntry();
+            if (entry) entries.push(entry);
+        }
+        readEntriesRecursively(entries).then(files => addFilesToBulkImport(files));
+    } else {
+        addFilesToBulkImport(Array.from(event.dataTransfer.files || []));
+    }
+}
+
+function readEntriesRecursively(entries) {
+    return Promise.all(entries.map(readEntry)).then(fileArrays => fileArrays.flat());
+}
+
+function readEntry(entry) {
+    return new Promise((resolve) => {
+        if (entry.isFile) {
+            entry.file(file => resolve([file]), () => resolve([]));
+        } else if (entry.isDirectory) {
+            const reader = entry.createReader();
+            const collected = [];
+            const readBatch = () => {
+                reader.readEntries((batch) => {
+                    if (batch.length === 0) {
+                        readEntriesRecursively(collected).then(resolve);
+                    } else {
+                        collected.push(...batch);
+                        readBatch();
+                    }
+                }, () => resolve([]));
+            };
+            readBatch();
+        } else {
+            resolve([]);
+        }
+    });
+}
+
+function addFilesToBulkImport(fileArray) {
+    const validFiles = fileArray.filter(f => f && (f.type.startsWith('image/') || f.type === 'application/pdf'));
+    validFiles.forEach(file => {
+        const wMatch = matchWorkerFromFilename(file.name);
+        const docType = matchDocTypeFromFilename(file.name);
+        bulkImportRows.push({
+            file,
+            fileName: file.name,
+            workerId: wMatch.workerId,
+            confidence: wMatch.confidence,
+            docType: docType,
+            selected: !!(wMatch.workerId && docType),
+            status: 'pending' // pending | success | failed
+        });
+    });
+    renderBulkImportTable();
+}
+
+function renderBulkImportTable() {
+    const tbody = document.getElementById('bulk-import-tbody');
+    if (!tbody) return;
+
+    const summary = document.getElementById('bulk-import-summary');
+
+    if (bulkImportRows.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-muted" style="text-align:center; padding:20px;">ยังไม่ได้เลือกไฟล์</td></tr>`;
+        if (summary) summary.style.display = 'none';
+        return;
+    }
+
+    tbody.innerHTML = bulkImportRows.map((row, idx) => {
+        let statusBadge;
+        if (row.status === 'success') statusBadge = '<span class="badge badge-success" style="font-size:10px;">✅ นำเข้าแล้ว</span>';
+        else if (row.status === 'failed') statusBadge = '<span class="badge badge-danger" style="font-size:10px;">❌ ล้มเหลว</span>';
+        else if (row.confidence === 'high') statusBadge = '<span class="badge badge-success" style="font-size:10px;">✅ ตรงเลข 13 หลัก</span>';
+        else if (row.confidence === 'medium') statusBadge = '<span class="badge badge-gold" style="font-size:10px;">🟡 จับคู่จากชื่อ</span>';
+        else statusBadge = '<span class="badge badge-danger" style="font-size:10px;">❌ ไม่พบคู่</span>';
+
+        const rowStyle = (!row.workerId || !row.docType) && row.status === 'pending' ? 'background:#fef2f2;' : '';
+
+        return `
+            <tr style="${rowStyle}">
+                <td><input type="checkbox" ${row.selected ? 'checked' : ''} onchange="bulkImportRows[${idx}].selected = this.checked"></td>
+                <td style="max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${row.fileName}">${row.fileName}</td>
+                <td>
+                    <select style="font-size:12px; max-width:200px;" onchange="updateBulkImportWorker(${idx}, this.value)">
+                        <option value="">--- เลือกคนงาน ---</option>
+                        ${workers.map(w => `<option value="${w.id}" ${row.workerId === w.id ? 'selected' : ''}>${w.firstName} ${w.lastName || ''} (${w.workerUid || 'ไม่มีเลข'})</option>`).join('')}
+                    </select>
+                </td>
+                <td>
+                    <select style="font-size:12px;" onchange="updateBulkImportDocType(${idx}, this.value)">
+                        <option value="">--- เลือกประเภท ---</option>
+                        ${WORKER_DOC_TYPES.map(dt => `<option value="${dt.key}" ${row.docType === dt.key ? 'selected' : ''}>${dt.label}</option>`).join('')}
+                    </select>
+                </td>
+                <td>${statusBadge}</td>
+                <td><button type="button" class="action-icon-btn delete-btn" onclick="removeBulkImportRow(${idx})" title="ลบแถวนี้ออกจากรายการ">🗑️</button></td>
+            </tr>
+        `;
+    }).join('');
+
+    const matchedCount = bulkImportRows.filter(r => r.workerId && r.docType).length;
+    if (summary) {
+        summary.style.display = 'block';
+        summary.innerHTML = `พบ ${bulkImportRows.length} ไฟล์ — จับคู่ได้อัตโนมัติ ${matchedCount} ไฟล์ (เหลืออีก ${bulkImportRows.length - matchedCount} ไฟล์ที่ต้องเลือกเอง)`;
+    }
+}
+
+function updateBulkImportWorker(idx, workerId) {
+    if (!bulkImportRows[idx]) return;
+    bulkImportRows[idx].workerId = workerId || null;
+    bulkImportRows[idx].selected = !!(bulkImportRows[idx].workerId && bulkImportRows[idx].docType);
+    renderBulkImportTable();
+}
+
+function updateBulkImportDocType(idx, docType) {
+    if (!bulkImportRows[idx]) return;
+    bulkImportRows[idx].docType = docType || null;
+    bulkImportRows[idx].selected = !!(bulkImportRows[idx].workerId && bulkImportRows[idx].docType);
+    renderBulkImportTable();
+}
+
+function removeBulkImportRow(idx) {
+    bulkImportRows.splice(idx, 1);
+    renderBulkImportTable();
+}
+
+function toggleAllBulkImportRows(checked) {
+    bulkImportRows.forEach(r => { if (r.workerId && r.docType) r.selected = checked; });
+    renderBulkImportTable();
+}
+
+async function runBulkImport() {
+    if (currentUser.role === 'staff') {
+        showToast("❌ สิทธิ์ Staff ไม่สามารถนำเข้าเอกสารได้", "danger");
+        return;
+    }
+
+    const rowsToImport = bulkImportRows.filter(r => r.selected && r.workerId && r.docType && r.status !== 'success');
+    if (rowsToImport.length === 0) {
+        alert('กรุณาเลือกอย่างน้อย 1 ไฟล์ที่จับคู่คนงานและประเภทเอกสารครบถ้วนแล้ว');
+        return;
+    }
+
+    const btn = document.getElementById('btn-run-bulk-import');
+    btn.disabled = true;
+    const progressEl = document.getElementById('bulk-import-progress');
+    progressEl.classList.remove('hidden');
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (let i = 0; i < rowsToImport.length; i++) {
+        const row = rowsToImport[i];
+        progressEl.innerText = `⏳ กำลังนำเข้า ${i + 1}/${rowsToImport.length}: ${row.fileName}...`;
+
+        try {
+            const fileContent = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = e => resolve(e.target.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(row.file);
+            });
+
+            const w = workers.find(item => item.id === row.workerId);
+            if (!w) throw new Error('ไม่พบคนงานที่จับคู่ไว้');
+
+            await attachDocumentToWorker(w, row.docType, fileContent);
+            row.status = 'success';
+            successCount++;
+        } catch (err) {
+            console.error('Bulk import failed for', row.fileName, err);
+            row.status = 'failed';
+            failCount++;
+        }
+        renderBulkImportTable();
+    }
+
+    btn.disabled = false;
+    progressEl.innerText = `✅ เสร็จสิ้น: สำเร็จ ${successCount} รายการ${failCount > 0 ? `, ล้มเหลว ${failCount} รายการ (ดูสถานะรายไฟล์ในตาราง)` : ''}`;
+
+    saveData();
+    renderWorkers();
+    renderDashboard();
+    showToast(`นำเข้าเอกสารสำเร็จ ${successCount}/${rowsToImport.length} รายการ`, failCount > 0 ? 'warning' : 'success');
 }
 
 // Rename file inside folder modal
@@ -4965,6 +5525,73 @@ function closeWorkerFolderPreview() {
     if (previewPanel) {
         previewPanel.classList.add("hidden");
     }
+}
+
+// ==================== ดูเอกสารทั้งหมดของคนงานพร้อมกันในหน้าเดียว (เหมือนเปิดโฟลเดอร์ใน Google Drive) ====================
+const WORKER_GALLERY_DOC_LABELS = {
+    'worker-wp-doc': '📄 ใบอนุญาตทำงาน',
+    'worker-passport': '✈️ พาสปอร์ต/CI',
+    'worker-myanmar-id': '🏡 บัตรประชาชน/ทะเบียนบ้านพม่า',
+    'worker-pink-card': '🌸 บัตรชมพู',
+    'worker-receipt': '🧾 ใบเสร็จรับเงิน',
+    'worker-medical': '🩺 ใบรับรองแพทย์',
+    'worker-application': '📝 ใบคำขอ'
+};
+
+function openWorkerFolderGallery() {
+    if (!activeFolderWorkerId) return;
+    const w = workers.find(item => item.id === activeFolderWorkerId);
+    if (!w) return;
+
+    document.getElementById('worker-folder-gallery-title').innerText =
+        `📁 เอกสารทั้งหมดของ ${w.firstName} ${w.lastName || ''}`;
+
+    const cards = [];
+    Object.keys(WORKER_GALLERY_DOC_LABELS).forEach(docType => {
+        getAttachments(w, docType).forEach(fileItem => {
+            cards.push({ label: WORKER_GALLERY_DOC_LABELS[docType], fileItem });
+        });
+    });
+
+    const grid = document.getElementById('worker-folder-gallery-grid');
+    if (cards.length === 0) {
+        grid.innerHTML = `<div class="text-muted" style="grid-column: 1 / -1; text-align:center; padding: 40px;">❌ ยังไม่มีเอกสารแนบสำหรับคนงานคนนี้</div>`;
+    } else {
+        grid.innerHTML = cards.map(renderWorkerGalleryCard).join('');
+    }
+
+    document.getElementById('worker-folder-modal').classList.add('hidden');
+    document.getElementById('worker-folder-gallery-modal').classList.remove('hidden');
+}
+
+function renderWorkerGalleryCard({ label, fileItem }) {
+    const data = fileItem.data || '';
+    let previewHtml;
+
+    if (data.startsWith('data:image/')) {
+        previewHtml = `<img src="${data}" style="width:100%; height:200px; object-fit:cover; display:block;">`;
+    } else if (data.startsWith('http') || data.startsWith('data:application/pdf')) {
+        // ไฟล์จริงบน Supabase Storage (หรือ data URL ของ PDF เก่า) — ฝัง preview จริงในกรอบเล็กเลย
+        previewHtml = `<iframe src="${data}" style="width:100%; height:200px; border:none; display:block; background:#f1f5f9;"></iframe>`;
+    } else {
+        previewHtml = `<div style="width:100%; height:200px; display:flex; align-items:center; justify-content:center; background:#f1f5f9; font-size:40px;">📄</div>`;
+    }
+
+    return `
+        <div style="border:1px solid #e2e8f0; border-radius:8px; overflow:hidden; background:white; display:flex; flex-direction:column;">
+            ${previewHtml}
+            <div style="padding:8px 10px; border-top:1px solid #f1f5f9;">
+                <div style="font-size:10.5px; font-weight:600; color:var(--gold-dark);">${label}</div>
+                <div style="font-size:11.5px; color:var(--navy-dark); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${fileItem.name}">${fileItem.name}</div>
+                ${data ? `<a href="${data}" target="_blank" rel="noopener" style="font-size:11px; color: var(--navy-medium);">🔗 เปิดเต็มจอ</a>` : ''}
+            </div>
+        </div>
+    `;
+}
+
+function closeWorkerFolderGallery() {
+    document.getElementById('worker-folder-gallery-modal').classList.add('hidden');
+    document.getElementById('worker-folder-modal').classList.remove('hidden');
 }
 
 function isWorkerMissingDocs(w) {
@@ -5125,7 +5752,7 @@ function renderJobsKanban(filtered) {
         "รอดำเนินการ": document.getElementById("kanban-pending"),
         "กำลังดำเนินการ": document.getElementById("kanban-progress"),
         "รอเอกสารเพิ่มเติม": document.getElementById("kanban-docs"),
-        "เสร็จสิ้น": document.getElementById("kanban-completed")
+        "ปิดงานแล้ว": document.getElementById("kanban-completed")
     };
 
     // Clear columns
@@ -5136,16 +5763,11 @@ function renderJobsKanban(filtered) {
         "รอดำเนินการ": 0,
         "กำลังดำเนินการ": 0,
         "รอเอกสารเพิ่มเติม": 0,
-        "เสร็จสิ้น": 0
+        "ปิดงานแล้ว": 0
     };
 
     filtered.forEach(j => {
-        // Map backend billing/paid statuses to operational "เสร็จสิ้น" column
-        let displayStatus = j.status;
-        if (j.status === 'เสร็จสิ้น/รอออกบิล' || j.status === 'ออกบิลแล้ว' || j.status === 'ชำระเงินแล้ว') {
-            displayStatus = 'เสร็จสิ้น';
-        }
-
+        const displayStatus = j.status;
         const container = containers[displayStatus] || containers["รอดำเนินการ"];
         if (container) {
             counts[displayStatus]++;
@@ -5153,30 +5775,32 @@ function renderJobsKanban(filtered) {
             const work = workers.find(w => w.id === j.workerId);
             const custName = cust ? cust.companyName : "ไม่พบนายจ้าง";
             const workName = work ? `${work.firstName} ${work.lastName} (${work.nationality})` : "ไม่พบคนงาน";
-            
-            // Build payment status badge
-            let paymentBadge = '';
-            if (j.status === 'ชำระเงินแล้ว') {
+
+            // Payment badge — เป็นอิสระจากสถานะขั้นตอนงาน ออกบิลได้ตั้งแต่เปิดงาน
+            const paymentStatus = j.paymentStatus || 'ยังไม่ออกบิล';
+            let paymentBadge = `<span class="badge badge-warning" style="font-size: 10px; padding: 2px 6px;">⏳ ยังไม่ออกบิล</span>`;
+            if (paymentStatus === 'ออกบิลแล้ว') {
+                paymentBadge = `<span class="badge" style="font-size: 10px; padding: 2px 6px; background-color: #3b82f6; color: white;">🧾 ออกบิลแล้ว</span>`;
+            } else if (paymentStatus === 'ชำระเงินแล้ว') {
                 paymentBadge = `<span class="badge badge-success" style="font-size: 10px; padding: 2px 6px;">✅ ชำระเงินแล้ว</span>`;
-            } else if (j.status === 'ออกบิลแล้ว') {
-                paymentBadge = `<span class="badge badge-info" style="font-size: 10px; padding: 2px 6px; background-color: #3b82f6; color: white;">🧾 ออกบิลแล้ว</span>`;
-            } else if (j.status === 'เสร็จสิ้น/รอออกบิล') {
-                paymentBadge = `<span class="badge badge-gold" style="font-size: 10px; padding: 2px 6px;">⏳ รอวางบิล</span>`;
-            } else {
-                paymentBadge = `<span class="badge badge-warning" style="font-size: 10px; padding: 2px 6px;">⏳ ค้างชำระ</span>`;
             }
 
             let badgeClass = 'badge-gold';
             if (displayStatus === 'รอดำเนินการ') badgeClass = 'badge-warning';
             if (displayStatus === 'กำลังดำเนินการ') badgeClass = 'badge-gold';
             if (displayStatus === 'รอเอกสารเพิ่มเติม') badgeClass = 'badge-danger';
-            if (displayStatus === 'เสร็จสิ้น') badgeClass = 'badge-success';
+            if (displayStatus === 'ปิดงานแล้ว') badgeClass = 'badge-success';
 
             let actionBtns = "";
             if (currentUser.role !== 'staff') {
                 actionBtns += `<button onclick="openJobModal('${j.id}')" style="background: none; border: none; cursor: pointer; font-size: 13px;" title="แก้ไข">✏️</button>`;
             }
             actionBtns += `<button onclick="openInvoiceModal('${j.id}')" style="background: none; border: none; cursor: pointer; font-size: 13px;" title="ออกบิล/รับเงิน">🧾</button>`;
+            if (displayStatus === 'ปิดงานแล้ว') {
+                actionBtns += `<button onclick="reopenJob('${j.id}')" style="background: none; border: none; cursor: pointer; font-size: 13px;" title="เปิดงานอีกครั้ง">🔓</button>`;
+            } else if (currentUser.role !== 'staff') {
+                actionBtns += `<button onclick="openJobCloseModal('${j.id}')" style="background: none; border: none; cursor: pointer; font-size: 13px;" title="แนบเอกสารและปิดงาน">📎</button>`;
+            }
 
             // Strip prices for clean display of types
             const cleanJobType = (j.jobType || "").replace(/\s*\(\d+\)/g, "");
@@ -5220,7 +5844,7 @@ function renderJobsKanban(filtered) {
     if (document.getElementById("count-kanban-pending")) document.getElementById("count-kanban-pending").innerText = counts["รอดำเนินการ"];
     if (document.getElementById("count-kanban-progress")) document.getElementById("count-kanban-progress").innerText = counts["กำลังดำเนินการ"];
     if (document.getElementById("count-kanban-docs")) document.getElementById("count-kanban-docs").innerText = counts["รอเอกสารเพิ่มเติม"];
-    if (document.getElementById("count-kanban-completed")) document.getElementById("count-kanban-completed").innerText = counts["เสร็จสิ้น"];
+    if (document.getElementById("count-kanban-completed")) document.getElementById("count-kanban-completed").innerText = counts["ปิดงานแล้ว"];
 }
 
 // Drag & Drop event handlers
@@ -5243,8 +5867,15 @@ async function onKanbanDrop(e, targetStatus) {
             return;
         }
 
+        // "ปิดงานแล้ว" เข้าได้เฉพาะผ่านปุ่ม 📎 ปิดงาน (ต้องแนบเอกสารก่อน) ลากเข้าคอลัมน์นี้ตรงๆ ไม่ได้
+        if (targetStatus === 'ปิดงานแล้ว') {
+            showToast("📎 ปิดงานต้องแนบเอกสารก่อน — กดปุ่ม \"ปิดงาน\" ที่ใบงานแทนการลาก", "warning");
+            renderJobs();
+            return;
+        }
+
         // ป้องกันเปิดงานประเภทเดียวกันซ้อนกัน: ถ้าลากใบงานนี้กลับเข้าสถานะ "เปิดอยู่"
-        // (เช่น ดึงงานที่เสร็จแล้วกลับมาทำต่อ) และคนงานคนนี้มีงานประเภทเดียวกัน
+        // (เช่น ดึงงานที่ปิดแล้วกลับมาทำต่อ) และคนงานคนนี้มีงานประเภทเดียวกัน
         // เปิดอยู่แล้วจากใบงานอื่น ให้บล็อกไว้ก่อน
         if (isJobStatusOpen(targetStatus)) {
             const cleanType = getCleanJobTypeName(job.jobType);
@@ -5255,22 +5886,31 @@ async function onKanbanDrop(e, targetStatus) {
                 return;
             }
         }
-        
+
         const oldStatus = job.status;
+        const oldClosedAt = job.closedAt;
+        const oldClosedBy = job.closedBy;
         job.status = targetStatus;
         job.updatedAt = new Date().toISOString().split('T')[0];
+        // ลากออกจาก "ปิดงานแล้ว" กลับมาทำต่อ = เปิดงานอีกครั้ง เคลียร์ข้อมูลการปิดงานเดิมทิ้ง
+        if (oldStatus === 'ปิดงานแล้ว') {
+            job.closedAt = null;
+            job.closedBy = null;
+        }
 
         showToast("🔄 กำลังอัปเดตสถานะในคลาวด์...", "warning");
         const res = await callCloudAPI("saveJob", { jobData: job });
-        
+
         if (!res) {
             // Revert the local status change since the cloud save failed
             job.status = oldStatus;
+            job.closedAt = oldClosedAt;
+            job.closedBy = oldClosedBy;
             renderJobs();
             showToast("❌ ย้ายสถานะไม่สำเร็จ (ยังไม่ถูกบันทึกลงชีต) กรุณาลองใหม่", "danger");
             return;
         }
-        
+
         saveData();
         renderJobs();
         showToast(`📋 ย้ายงาน ${getJobDisplayNo(job)} เป็น "${targetStatus}" สำเร็จ`, "success");

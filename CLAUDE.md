@@ -14,37 +14,40 @@ Vanilla HTML/CSS/JS SPA, no build step, no package manager.
 - `server.ps1` — local dev server (`http://localhost:3000`), also proxies
   file uploads to a local `uploads/` folder to avoid localStorage quota limits
 - `supabase/migrations/` — versioned Postgres schema, apply with `supabase db push`
-- `supabase/functions/` — Deno Edge Functions (`create-user`, `ocr-document`)
+- `supabase/functions/` — Deno Edge Functions (`create-user`, `ocr-document`). A third
+  function, `line-webhook`, is deployed and ACTIVE on the live Supabase project but its
+  source is *not* in this folder/repo — it was deployed from somewhere else. Pull it
+  down (`supabase functions download line-webhook`) before editing it, or its logic
+  only exists in the cloud.
 - `legacy/` — the old Google Apps Script backend, kept only until the
   Supabase migration is verified end-to-end. See `legacy/README.md` and
   `DEVELOPMENT.md` before touching anything in there.
 
-## Two backends (transitional state)
+## Two backends (transitional state) — migration is live now
 
 1. **Google Apps Script + Sheets** (`legacy/Code.gs`, `legacy/apps-script/`) —
-   the original backend. The production URL in `README.md` still points at a
-   deployment of this code. Data lives in a Google Sheet with tabs: Users,
-   Customers, Workers, Jobs, Banks, Line_Groups, Line_Logs. Also handles
-   Gemini OCR and LINE OA webhook/notifications. See `legacy/SETUP_INSTRUCTIONS.md`.
+   the original backend, kept only for reference. No longer what the deployed
+   app talks to. See `legacy/SETUP_INSTRUCTIONS.md`.
 2. **Supabase** (`supabase/migrations/`, `supabase-client.js`, `supabase/functions/`) —
-   in-progress migration target, and where all new work happens. Postgres
-   schema + two Deno Edge Functions (`create-user`, `ocr-document`). See
-   `DEPLOY_SUPABASE.md` for what's still unfinished: no LINE webhook
-   equivalent yet, connection-test/settings UI still assumes the old GAS
-   backend in places (dead code — see below), and it hasn't been exercised
-   against the real Supabase project yet.
+   the live backend. Migrations are applied, the `worker-documents` storage
+   bucket exists, all three Edge Functions are deployed and ACTIVE, `index.html`
+   points at the real project, and the first admin account
+   (auth user ↔ `profiles` row, role `admin`) is linked — login works. Data
+   tables (`customers`/`workers`/`jobs`/`banks`/`line_groups`) are intentionally
+   empty; legacy Google Sheets data was not migrated (decided 2026-08). See
+   `DEPLOY_SUPABASE.md` for the full status and what's still unverified
+   (which GitHub Pages branch actually deploys, Edge Function secrets).
 
-`index.html` already has `window.SUPABASE_URL` / `window.SUPABASE_ANON_KEY`
-pointed at the real project, so opening the app via `server.ps1` right now
-talks to Supabase, not Google Sheets — and Supabase is still empty, so login
-will fail until migrations + data + auth users are in place (see
-`DEPLOY_SUPABASE.md`).
+`index.html` has `window.SUPABASE_URL` / `window.SUPABASE_ANON_KEY` pointed
+at the real project, so opening the app via `server.ps1` talks to Supabase,
+not Google Sheets.
 
-`app.js` also still contains `syncRowToGoogleSheets` / `testGoogleSheetsConnection`
-/ `syncAllToGoogleSheets` (the "Google Sheets Cloud Sync" section on the
-backup page) — this is dead code left over from before the Supabase
-migration; `getApiUrl()` now always returns `window.SUPABASE_URL`, so these
-buttons don't do anything useful anymore. Safe to delete when convenient.
+The old "Google Sheets Cloud Sync" section on the Settings/backup page
+(`syncRowToGoogleSheets` / `testGoogleSheetsConnection` / `syncAllToGoogleSheets`
+in `app.js`, formerly "Section 3" in `index.html`) was dead code left over
+from before the Supabase migration — it's been removed entirely from both
+`app.js` and `index.html`, and the following section (Line Groups) was
+renumbered from 4 to 3 (2026-08).
 
 `window.SUPABASE_URL` / `window.SUPABASE_ANON_KEY` in `index.html` hold a
 real project's publishable (anon) key — safe for client exposure by design,

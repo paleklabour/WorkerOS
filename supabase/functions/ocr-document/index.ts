@@ -25,13 +25,20 @@ function buildPrompt(docType: string): string {
   return `You are a professional assistant. Parse this migrant worker document (${docType}) and extract the relevant fields. ` +
     `Convert all dates to DD/MM/YYYY format. Only fill fields you can actually read from the document — ` +
     `leave a field out entirely (do not guess or invent values) if it is not clearly present in the image/PDF. ` +
+    `IMPORTANT naming rule: Myanmar (Burmese) names do NOT have a family surname — the full printed name is a single ` +
+    `given name, even if it has multiple words (e.g. "HTET DO", "AUNG NAING WIN"). If nationality is Myanmar, put the ` +
+    `ENTIRE name into "firstName" and leave "lastName" empty. Only split into firstName/lastName for nationalities that ` +
+    `actually use a family surname (e.g. Lao, Cambodian names may still be a single name too — when in doubt, do not split). ` +
     `Output ONLY a valid JSON object matching this schema, without markdown wrapping, json declaration, or backticks:\n` +
     `{\n` +
-    `  "firstName": "English first name or Thai name",\n` +
-    `  "lastName": "English last name or Thai name",\n` +
+    `  "firstName": "Full given name (English or Thai) — see naming rule above",\n` +
+    `  "lastName": "Family surname only if one genuinely exists — leave empty for Myanmar nationals",\n` +
     `  "uid": "13-digit worker ID (เลขประจำตัวคนต่างด้าว 13 หลัก) if found",\n` +
     `  "passportNo": "Passport number if passport",\n` +
     `  "passportExpiry": "DD/MM/YYYY format if passport",\n` +
+    `  "passportPob": "Place of birth (as printed on passport/CI) if passport",\n` +
+    `  "passportAuth": "Issuing authority (Authority field) if passport",\n` +
+    `  "passportIssue": "Date of issue in DD/MM/YYYY format if passport",\n` +
     `  "permitNo": "Work permit number or Receipt number (เลขรับที่) if work permit",\n` +
     `  "permitExpiry": "DD/MM/YYYY format if work permit",\n` +
     `  "dob": "Date of birth in DD/MM/YYYY",\n` +
@@ -74,7 +81,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${GEMINI_API_KEY}`;
     const payload = {
       contents: [{ parts: [{ inlineData: { mimeType, data: base64Data } }, { text: buildPrompt(docType) }] }],
       generationConfig: { responseMimeType: "application/json" },
