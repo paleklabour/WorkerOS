@@ -119,11 +119,12 @@
 
     // -------------------- getData --------------------
     async function handleGetData() {
-        const [customersRes, workersRes, jobsRes, banksRes, profilesRes, agentsRes] = await Promise.all([
+        const [customersRes, workersRes, jobsRes, banksRes, lineGroupsRes, profilesRes, agentsRes] = await Promise.all([
             sb.from("customers").select("*"),
             sb.from("workers").select("*"),
             sb.from("jobs").select("*"),
             sb.from("banks").select("*"),
+            sb.from("line_groups").select("*"),
             sb.from("profiles").select("name, role, customer_id, id"),
             sb.from("agents").select("*")
         ]);
@@ -145,6 +146,7 @@
             workers,
             jobs,
             banks: toCamelList(banksRes.data, BANK_MAP),
+            lineGroups: lineGroupsRes.error ? [] : toCamelList(lineGroupsRes.data, LINE_GROUP_MAP),
             agents: agentsRes.error ? [] : toCamelList(agentsRes.data, AGENT_MAP),
             users: profilesRes.error ? [] : (profilesRes.data || []).map((p) => ({
                 id: p.id, email: p.id, name: p.name, role: p.role, customer_id: p.customer_id
@@ -165,13 +167,23 @@
         id: "id", bankName: "bank_name", accountName: "account_name",
         accountNumber: "account_number", promptPayId: "prompt_pay_id", qrImage: "qr_image"
     };
+    // Line groups: คีย์ทางธุรกิจจริงคือ group_id (รหัสกลุ่ม LINE) ไม่ใช่ id (uuid สุ่มของแถว)
+    const LINE_GROUP_MAP = { id: "id", groupId: "group_id", groupName: "group_name", createdAt: "created_at" };
 
     // ลบสำเร็จ (ไม่ error) แต่แถวไม่ตรงกับ RLS/id ที่ให้มา ก็จะลบได้ 0 แถวโดยไม่ error เลย (ดูเหมือนสำเร็จ
     // ทั้งที่ไม่มีอะไรถูกลบจริง) — ขอ count กลับมาด้วยเสมอ แล้วถือว่า error ถ้าไม่มีแถวไหนถูกลบจริง
     async function deleteRecord(sheetName, id) {
-        const table = { Customers: "customers", Workers: "workers", Jobs: "jobs", Agents: "agents", Banks: "banks" }[sheetName];
+        const table = { Customers: "customers", Workers: "workers", Jobs: "jobs", Line_Groups: "line_groups", Agents: "agents", Banks: "banks" }[sheetName];
         if (!table) return { status: "error", message: "Unknown table: " + sheetName };
         const { error, count } = await sb.from(table).delete({ count: "exact" }).eq("id", id);
+        if (error) return { status: "error", message: error.message };
+        if (!count) return { status: "error", message: "ไม่พบข้อมูลที่จะลบ หรือไม่มีสิทธิ์ลบรายการนี้ (0 แถวถูกลบ)" };
+        return { status: "success" };
+    }
+
+    // ลบกลุ่ม LINE ด้วย group_id (คีย์ทางธุรกิจ) ไม่ใช่ id (uuid) — deleteRecord ทั่วไปลบด้วย id เท่านั้น จึงต้องแยกเคสนี้
+    async function deleteLineGroupByGroupId(groupId) {
+        const { error, count } = await sb.from("line_groups").delete({ count: "exact" }).eq("group_id", groupId);
         if (error) return { status: "error", message: error.message };
         if (!count) return { status: "error", message: "ไม่พบข้อมูลที่จะลบ หรือไม่มีสิทธิ์ลบรายการนี้ (0 แถวถูกลบ)" };
         return { status: "success" };
@@ -269,6 +281,10 @@
                 return await upsertOne("agents", AGENT_MAP, payload.agentData);
             case "saveBank":
                 return await upsertOne("banks", BANK_MAP, payload.bankData);
+            case "saveLineGroup":
+                return await upsertOne("line_groups", LINE_GROUP_MAP, payload.groupData, "group_id");
+            case "deleteLineGroup":
+                return await deleteLineGroupByGroupId(payload.groupId);
             case "saveUser":
                 return await saveUser(payload.userData, payload.pin);
             case "updateUserProfile":
