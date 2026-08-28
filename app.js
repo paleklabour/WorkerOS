@@ -7,7 +7,6 @@ let customers = [];
 let workers = [];
 let jobs = [];
 let banks = [];
-let lineGroups = [];
 let users = [];
 let agents = [];
 
@@ -267,7 +266,6 @@ async function loadData() {
             workers = res.workers || [];
             jobs = res.jobs || [];
             banks = res.banks || [];
-            lineGroups = res.lineGroups || [];
             users = res.users || [];
             agents = res.agents || [];
 
@@ -276,7 +274,6 @@ async function loadData() {
             localStorage.setItem("mw_workers", JSON.stringify(workers));
             localStorage.setItem("mw_jobs", JSON.stringify(jobs));
             localStorage.setItem("mw_banks", JSON.stringify(banks));
-            localStorage.setItem("mw_line_groups", JSON.stringify(lineGroups));
             localStorage.setItem("mw_users", JSON.stringify(users));
             localStorage.setItem("mw_agents", JSON.stringify(agents));
 
@@ -292,14 +289,12 @@ async function loadData() {
     const cachedWorkers = localStorage.getItem("mw_workers");
     const cachedJobs = localStorage.getItem("mw_jobs");
     const cachedBanks = localStorage.getItem("mw_banks");
-    const cachedLineGroups = localStorage.getItem("mw_line_groups");
 
     if (cachedCustomers && cachedWorkers && cachedJobs && cachedBanks) {
         customers = JSON.parse(cachedCustomers);
         workers = JSON.parse(cachedWorkers);
         jobs = JSON.parse(cachedJobs);
         banks = JSON.parse(cachedBanks);
-        lineGroups = cachedLineGroups ? JSON.parse(cachedLineGroups) : [];
         const cachedAgents = localStorage.getItem("mw_agents");
         agents = cachedAgents ? JSON.parse(cachedAgents) : [];
     } else {
@@ -313,7 +308,6 @@ function saveData() {
     localStorage.setItem("mw_workers", JSON.stringify(workers));
     localStorage.setItem("mw_jobs", JSON.stringify(jobs));
     localStorage.setItem("mw_banks", JSON.stringify(banks));
-    localStorage.setItem("mw_line_groups", JSON.stringify(lineGroups));
     localStorage.setItem("mw_agents", JSON.stringify(agents));
 }
 
@@ -600,29 +594,6 @@ function seedMockData() {
         }
     ];
 
-    lineGroups = [
-        {
-            groupId: "c-mock-group-1",
-            groupName: "ใบอนุญาตทำงานถึงวันที่ 13 ก.พ. 2570",
-            createdAt: "2026-07-01"
-        },
-        {
-            groupId: "c-mock-group-2",
-            groupName: "ใบอนุญาตทำงานถึงวันที่ 31 มี.ค. 2570",
-            createdAt: "2026-07-02"
-        },
-        {
-            groupId: "c-mock-group-3",
-            groupName: "ใบอนุญาตทำงานถึงวันที่ 11 ธ.ค. 2569",
-            createdAt: "2026-07-03"
-        },
-        {
-            groupId: "c-mock-group-4",
-            groupName: "กลุ่มประสานงานทั่วไป (แอดมิน)",
-            createdAt: "2026-07-04"
-        }
-    ];
-
     saveData();
 }
 
@@ -870,7 +841,6 @@ function switchView(viewName) {
     } else if (viewName === 'users') {
         renderUsers();
     } else if (viewName === 'backup') {
-        renderLineGroups();
         renderAgentsList();
     }
 }
@@ -6213,149 +6183,5 @@ async function onKanbanDrop(e, targetStatus) {
         renderJobs();
         showToast(`📋 ย้ายงาน ${getJobDisplayNo(job)} เป็น "${targetStatus}" สำเร็จ`, "success");
     }
-}
-
-// ==================== LINE GROUPS SYSTEM ====================
-
-function renderLineGroups() {
-    const tbody = document.getElementById("line-groups-tbody");
-    if (!tbody) return;
-
-    if (lineGroups.length === 0) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="3" class="text-muted" style="text-align: center; padding: 25px;">
-                    ❌ ไม่พบรายชื่อกลุ่มแจ้งเตือน LINE ในระบบ (ลากบอทเข้ากลุ่มเพื่อเพิ่ม หรือกดเพิ่มกลุ่มด้านบน)
-                </td>
-            </tr>
-        `;
-        return;
-    }
-
-    tbody.innerHTML = lineGroups.map(g => {
-        let deleteBtn = '';
-        if (currentUser.role === 'admin') {
-            deleteBtn = `
-                <button class="action-icon-btn delete-btn" onclick="deleteLineGroup('${g.groupId}')" title="ลบกลุ่ม">
-                    🗑️
-                </button>
-            `;
-        }
-
-        const editBtn = `
-            <button class="action-icon-btn" onclick="openLineGroupModal('${g.groupId}')" title="แก้ไขชื่อกลุ่ม">
-                ✏️
-            </button>
-        `;
-
-        return `
-            <tr>
-                <td><strong>${g.groupName}</strong></td>
-                <td><code style="font-family: monospace; font-size: 11.5px; background: #f1f5f9; padding: 2px 6px; border-radius: 3px;">${g.groupId}</code></td>
-                <td style="text-align: center; padding: 8px;">
-                    <div style="display: flex; gap: 8px; justify-content: center; align-items: center;">
-                        ${editBtn}
-                        ${deleteBtn}
-                    </div>
-                </td>
-            </tr>
-        `;
-    }).join("");
-}
-
-function openLineGroupModal(groupId = null) {
-    // Check permission
-    if (currentUser.role === 'staff') {
-        showToast("❌ สิทธิ์ Staff ดูข้อมูลได้อย่างเดียว ไม่สามารถจัดการกลุ่มไลน์ได้", "danger");
-        return;
-    }
-
-    const modal = document.getElementById("line-group-modal");
-    const title = document.getElementById("line-group-modal-title");
-    const inpId = document.getElementById("line-group-id");
-    const inpName = document.getElementById("line-group-name");
-
-    if (groupId) {
-        // Edit mode
-        const g = lineGroups.find(x => x.groupId === groupId);
-        if (g) {
-            title.innerText = "✏️ แก้ไขข้อมูลกลุ่มแจ้งเตือน LINE";
-            inpId.value = g.groupId;
-            inpId.disabled = true; // Cannot edit Group ID once created
-            inpName.value = g.groupName;
-        }
-    } else {
-        // Add mode
-        title.innerText = "➕ เพิ่มกลุ่มแจ้งเตือน LINE";
-        inpId.value = "";
-        inpId.disabled = false;
-        inpName.value = "";
-    }
-
-    modal.classList.remove("hidden");
-}
-
-function closeLineGroupModal() {
-    document.getElementById("line-group-modal").classList.add("hidden");
-}
-
-async function saveLineGroup() {
-    const groupId = document.getElementById("line-group-id").value.trim();
-    const groupName = document.getElementById("line-group-name").value.trim();
-
-    if (!groupId || !groupName) {
-        showToast("⚠️ กรุณากรอกรหัสกลุ่ม และชื่อกลุ่ม LINE ให้ครบถ้วน", "warning");
-        return;
-    }
-
-    const matchedIdx = lineGroups.findIndex(g => g.groupId === groupId);
-    const timestamp = new Date().toISOString().split('T')[0];
-
-    const groupData = {
-        groupId: groupId,
-        groupName: groupName,
-        createdAt: matchedIdx > -1 ? lineGroups[matchedIdx].createdAt : timestamp
-    };
-
-    showToast("🔄 กำลังบันทึกข้อมูลกลุ่มไลน์...", "warning");
-    const res = await callCloudAPI("saveLineGroup", { groupData: groupData });
-    if (!res || res.status === "error") {
-        showToast("❌ บันทึกไม่สำเร็จ: " + (res && res.message ? res.message : "ข้อมูลกลุ่มไลน์ยังไม่ถูกบันทึกลงคลาวด์ กรุณาลองใหม่"), "danger");
-        return;
-    }
-
-    if (matchedIdx > -1) {
-        lineGroups[matchedIdx] = groupData;
-    } else {
-        lineGroups.push(groupData);
-    }
-
-    saveData();
-    closeLineGroupModal();
-    renderLineGroups();
-    showToast("💾 บันทึกข้อมูลกลุ่มไลน์เรียบร้อยแล้ว!", "success");
-}
-
-async function deleteLineGroup(groupId) {
-    if (currentUser.role !== 'admin') {
-        showToast("❌ เฉพาะแอดมิน (Admin) เท่านั้นที่สามารถลบกลุ่มได้", "danger");
-        return;
-    }
-
-    if (!confirm(`ต้องการลบกลุ่ม LINE รหัส ${groupId} หรือไม่?\n(การแจ้งเตือนของคนงานต่างด้าวในกลุ่มนี้จะไม่ถูกส่งอีกต่อไป)`)) {
-        return;
-    }
-
-    showToast("🗑️ กำลังลบข้อมูลกลุ่มไลน์...", "warning");
-    const res = await callCloudAPI("deleteLineGroup", { groupId });
-    if (!res || res.status === "error") {
-        showToast("❌ ลบไม่สำเร็จ: " + (res && res.message ? res.message : "unknown error"), "danger");
-        return;
-    }
-
-    lineGroups = lineGroups.filter(g => g.groupId !== groupId);
-    saveData();
-    renderLineGroups();
-    showToast("🗑️ ลบกลุ่ม LINE เรียบร้อยแล้ว", "success");
 }
 
