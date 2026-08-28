@@ -38,7 +38,7 @@
         passportIssue: "passport_issue", passportExpiry: "passport_expiry",
         status: "status", createdAt: "created_at", attachments: "attachments",
         gender: "gender", position: "position", workplace: "workplace", refNo: "ref_no",
-        drive_folder_id: "drive_folder_id"
+        drive_folder_id: "drive_folder_id", shareToken: "share_token"
     };
     const JOB_MAP = {
         id: "id", customerId: "customer_id", workerId: "worker_id", jobType: "job_type",

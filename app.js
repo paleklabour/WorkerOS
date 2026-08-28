@@ -1319,7 +1319,7 @@ function renderCustomers() {
         
         const attachHtml = `
             <div style="display: flex; gap: 4px; justify-content: center;">
-                <button class="action-icon-btn" onclick="openDriveFolder('${c.drive_folder_id || ''}')" title="เปิดโฟลเดอร์เอกสารของนายจ้างรายนี้ใน Google Drive">📁</button>
+                <button class="action-icon-btn" onclick="openCustomerModal('${c.id}')" title="ดูเอกสารที่แนบไว้ของนายจ้างรายนี้">📁</button>
             </div>
         `;
 
@@ -1494,13 +1494,13 @@ function renderWorkers() {
             statusBadge = '<span class="badge badge-warning">ใกล้หมดอายุ</span>';
         }
 
-        // Attachments logic: In-app folder manager + real Google Drive folder
+        // Attachments logic: เปิดแฟ้มเอกสารในระบบ (Supabase Storage) ไม่ใช่ Google Drive แล้ว
         const attachHtml = `
             <div style="display: flex; gap: 4px; justify-content: center; align-items: center;">
                 <button class="btn btn-sm btn-gold" onclick="openWorkerFolderModal('${w.id}')" style="font-size: 11.5px; padding: 5px 12px; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;">
                     📂 เปิดแฟ้มเอกสาร
                 </button>
-                <button class="action-icon-btn" onclick="openDriveFolder('${w.drive_folder_id || ''}')" title="เปิดโฟลเดอร์เอกสารของคนงานรายนี้ใน Google Drive">📁</button>
+                <button class="action-icon-btn" onclick="openWorkerFolderModal('${w.id}')" title="เปิดแฟ้มเอกสารของคนงานรายนี้">📁</button>
             </div>
         `;
 
@@ -1804,7 +1804,7 @@ function applyGeminiDataToWorkerForm(docType, parsedData) {
     }
 }
 
-// แนบไฟล์เอกสารคนงาน แล้วอัปโหลดขึ้น Google Drive (ไม่มีการอ่านข้อมูลด้วย AI ปลอมๆ อีกต่อไป — ใช้ Gemini จริงเท่านั้น)
+// แนบไฟล์เอกสารคนงาน แล้วอัปโหลดขึ้น Supabase Storage (ไม่มีการอ่านข้อมูลด้วย AI ปลอมๆ อีกต่อไป — ใช้ Gemini จริงเท่านั้น)
 function processUploadedFile(file, docType) {
     const statusEl = document.getElementById(`status-${docType}`);
     const uploadBox = document.getElementById(`drop-${docType}`);
@@ -1823,9 +1823,9 @@ function processUploadedFile(file, docType) {
         const nameClean = firstName.replace(/\s+/g, '_');
         const fileName = `${nameClean}_${docType}`;
         
-        const uploadResult = await uploadFileToGoogleDrive(fileContent, fileName, employerId, editId, docType);
-        const driveUrl = uploadResult ? uploadResult.fileUrl : null;
-        const serverUrl = driveUrl || await uploadFileToServer(fileContent, fileName);
+        const uploadResult = await uploadDocumentFile(fileContent, fileName, employerId, editId, docType);
+        const storedUrl = uploadResult ? uploadResult.fileUrl : null;
+        const serverUrl = storedUrl || await uploadFileToServer(fileContent, fileName);
         tempWorkerAttachments[docType] = [{ name: fileName, data: serverUrl || fileContent }];
         
         if (uploadResult && uploadResult.parsedData) {
@@ -1973,7 +1973,7 @@ async function saveCustomer(e) {
             const staged = tempCustomerAttachments[docType];
             const statusEl = document.getElementById(`status-${docType}`);
             try {
-                const uploadResult = await uploadFileToGoogleDrive(staged.data, staged.name, customerData.id, "", docType);
+                const uploadResult = await uploadDocumentFile(staged.data, staged.name, customerData.id, "", docType);
                 if (statusEl) {
                     statusEl.innerHTML = uploadResult
                         ? `<span class="ai-success">✅ อัปโหลดสำเร็จ</span>`
@@ -3194,7 +3194,7 @@ async function submitCloseJob(e) {
             reader.readAsDataURL(file);
         });
 
-        const uploadResult = await uploadFileToGoogleDrive(fileDataUrl, file.name, j.customerId, j.workerId, "job-close-doc");
+        const uploadResult = await uploadDocumentFile(fileDataUrl, file.name, j.customerId, j.workerId, "job-close-doc");
         if (!uploadResult) {
             showToast("❌ อัปโหลดเอกสารไม่สำเร็จ ยังไม่ปิดงาน", "danger");
             return;
@@ -4244,10 +4244,9 @@ async function uploadFileToServer(fileContent, fileName) {
     return null;
 }
 
-// หมายเหตุ: ชื่อฟังก์ชันคงเดิม (uploadFileToGoogleDrive) เพื่อไม่ต้องแก้จุดเรียกใช้
-// อื่นๆ ในไฟล์นี้ แต่ภายในเปลี่ยนไปอัปโหลดขึ้น Supabase Storage แทน Google Drive
-// และเรียก Edge Function "ocr-document" แทน Gemini call ฝั่ง Code.gs เดิม
-async function uploadFileToGoogleDrive(fileDataUrl, fileName, customerId = "", workerId = "", docType = "") {
+// อัปโหลดไฟล์ขึ้น Supabase Storage (bucket worker-documents) แล้วเรียก Edge Function
+// "ocr-document" (Gemini) ให้อ่านข้อมูลจากเอกสารกลับมาด้วยถ้าเป็นประเภทเอกสารที่รองรับ
+async function uploadDocumentFile(fileDataUrl, fileName, customerId = "", workerId = "", docType = "") {
     if (!window.supabaseAdapter) return null; // ยังไม่ได้ตั้งค่า Supabase
 
     try {
@@ -4285,15 +4284,6 @@ function filterWorkersByEmployer(employerId) {
         selectStatus.value = "all"; // show all to find both active and archived workers
     }
     renderWorkers();
-}
-
-// เปิดโฟลเดอร์เอกสารจริงใน Google Drive ของนายจ้าง/คนงานรายนั้นในแท็บใหม่
-function openDriveFolder(folderId) {
-    if (!folderId) {
-        showToast("⚠️ ยังไม่มีโฟลเดอร์ Drive สำหรับรายการนี้ (ระบบจะสร้างให้อัตโนมัติเมื่อมีการแนบไฟล์ครั้งแรก)", "warning");
-        return;
-    }
-    window.open(`https://drive.google.com/drive/folders/${folderId}`, '_blank');
 }
 
 function downloadAttachment(fileName, docType, dataUrl = null) {
@@ -4759,13 +4749,13 @@ function handleWorkerPhotoUpload(event) {
             icon.classList.add("hidden");
             showToast("✅ AI ลบฉากหลังเปลี่ยนเป็นสีขาวเรียบร้อย!", "success");
 
-            // Asynchronously upload to Google Drive if connected
+            // อัปโหลดขึ้น Supabase Storage แบบ async
             const editId = document.getElementById("worker-edit-id").value;
             const employerId = document.getElementById("worker-employer-id").value;
             const firstName = document.getElementById("worker-first-name").value.trim() || "worker";
-            const uploadResult = await uploadFileToGoogleDrive(processedDataUrl, `${firstName}_photo.jpg`, employerId, editId);
+            const uploadResult = await uploadDocumentFile(processedDataUrl, `${firstName}_photo.jpg`, employerId, editId);
             if (uploadResult && uploadResult.viewUrl) {
-                preview.src = uploadResult.viewUrl; // ใช้ลิงก์รูปภาพที่แสดงผลได้จริง แทนลิงก์เปิดไฟล์ใน Drive
+                preview.src = uploadResult.viewUrl; // สลับจาก data URL ชั่วคราวเป็นลิงก์ไฟล์จริงบน Storage
             }
         });
     };
@@ -5076,9 +5066,9 @@ async function attachDocumentToWorker(w, docType, fileContent) {
     const suffix = currentList.length > 0 ? `_${currentList.length + 1}` : "";
     const fileName = `${nameClean}_${docType}${suffix}`;
 
-    const uploadResult = await uploadFileToGoogleDrive(fileContent, fileName, w.employerId, w.id, docType);
-    const driveUrl = uploadResult ? uploadResult.fileUrl : null;
-    const serverUrl = driveUrl || await uploadFileToServer(fileContent, fileName);
+    const uploadResult = await uploadDocumentFile(fileContent, fileName, w.employerId, w.id, docType);
+    const storedUrl = uploadResult ? uploadResult.fileUrl : null;
+    const serverUrl = storedUrl || await uploadFileToServer(fileContent, fileName);
 
     w.attachments = w.attachments || {};
     w.attachments[docType] = currentList;
@@ -5594,6 +5584,48 @@ function closeWorkerFolderGallery() {
     document.getElementById('worker-folder-modal').classList.remove('hidden');
 }
 
+// สร้าง/นำลิงก์แชร์ "ทั้งโฟลเดอร์" ของคนงาน 1 คนมาคัดลอก — เปิดดูได้โดยไม่ต้องล็อกอินเข้า WorkerOS
+// (ใช้ share_token สุ่มผูกกับคนงานคนนั้น ผ่าน edge function share-worker-docs — ดู share.html)
+async function shareWorkerFolder(workerId) {
+    const w = workers.find(item => item.id === workerId);
+    if (!w) return;
+
+    let token = w.shareToken;
+    if (!token) {
+        token = crypto.randomUUID();
+        w.shareToken = token;
+        const res = await callCloudAPI("saveWorker", { workerData: w });
+        if (!res || res.status === "error") {
+            showToast("ไม่สามารถสร้างลิงก์แชร์ได้: " + (res && res.message ? res.message : "unknown error"), "error");
+            return;
+        }
+        saveData();
+    }
+
+    const link = new URL(`share.html?w=${encodeURIComponent(workerId)}&t=${encodeURIComponent(token)}`, location.href).toString();
+    navigator.clipboard.writeText(link).then(() => {
+        showToast(`📋 คัดลอกลิงก์แชร์ทั้งโฟลเดอร์ของ ${w.firstName} เรียบร้อยแล้ว! ส่งให้ลูกค้าได้เลย ไม่ต้องล็อกอิน`, "success");
+    }).catch(err => {
+        alert("ไม่สามารถคัดลอกได้: " + err);
+    });
+}
+
+// ยกเลิกลิงก์แชร์เดิม (ลิงก์ที่เคยส่งไปแล้วจะใช้ไม่ได้อีก — ต้องกด "สร้างลิงก์แชร์" ใหม่ถ้าต้องการอันใหม่)
+async function revokeWorkerShareLink(workerId) {
+    const w = workers.find(item => item.id === workerId);
+    if (!w || !w.shareToken) return;
+    if (!confirm(`ยกเลิกลิงก์แชร์ของ ${w.firstName}? ลิงก์เดิมที่เคยส่งให้ลูกค้าจะเปิดไม่ได้อีก`)) return;
+
+    w.shareToken = null;
+    const res = await callCloudAPI("saveWorker", { workerData: w });
+    if (!res || res.status === "error") {
+        showToast("ไม่สามารถยกเลิกลิงก์ได้: " + (res && res.message ? res.message : "unknown error"), "error");
+        return;
+    }
+    saveData();
+    showToast("🚫 ยกเลิกลิงก์แชร์เรียบร้อยแล้ว", "success");
+}
+
 function isWorkerMissingDocs(w) {
     if (w.status === 'archived') return false;
     return getAttachments(w, 'worker-wp-doc').length === 0 || getAttachments(w, 'worker-passport').length === 0;
@@ -5681,12 +5713,12 @@ function handleBankQrUpload(event) {
         btnDel.classList.remove("hidden");
         showToast("✅ อัปโหลดรูปภาพ QR Code รับเงินสำเร็จ", "success");
 
-        // Asynchronously upload to Google Drive
+        // อัปโหลดขึ้น Supabase Storage แบบ async (ไม่บล็อกการแสดง preview ที่ทำไปแล้วด้านบน)
         const bankName = document.getElementById("bank-name").value.trim() || "bank";
         const accNumber = document.getElementById("bank-account-number").value.trim() || "account";
-        uploadFileToGoogleDrive(fileContent, `${bankName}_${accNumber}_QR.jpg`).then(driveUrl => {
-            if (driveUrl) {
-                preview.src = driveUrl; // set to Google Drive URL
+        uploadDocumentFile(fileContent, `${bankName}_${accNumber}_QR.jpg`).then(uploadResult => {
+            if (uploadResult && uploadResult.fileUrl) {
+                preview.src = uploadResult.fileUrl; // สลับจาก data URL ชั่วคราวเป็นลิงก์ไฟล์จริงบน Storage
             }
         });
     };

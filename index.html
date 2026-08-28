@@ -1898,7 +1898,9 @@
                         <!-- Dynamic gallery cards -->
                     </div>
                 </div>
-                <div class="modal-footer">
+                <div class="modal-footer" style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <button type="button" class="btn btn-outline" style="flex:1; min-width:200px;" onclick="shareWorkerFolder(activeFolderWorkerId)">🔗 คัดลอกลิงก์แชร์ทั้งโฟลเดอร์ (ไม่ต้องล็อกอิน)</button>
+                    <button type="button" class="btn btn-outline" style="flex:0 0 auto; color:#b91c1c; border-color:#fca5a5;" onclick="revokeWorkerShareLink(activeFolderWorkerId)">🚫 ยกเลิกลิงก์</button>
                     <button type="button" class="btn btn-gold" style="width:100%;" onclick="closeWorkerFolderGallery()">⬅️ ย้อนกลับไปแฟ้มเอกสาร</button>
                 </div>
             </div>

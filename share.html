@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>เอกสารคนงาน</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --navy-dark: #0f172a;
+        --navy-medium: #1e293b;
+        --gold-primary: #1e3b8b;
+        --gold-light: rgba(30, 58, 138, 0.04);
+        --gold-border: rgba(30, 58, 138, 0.1);
+        --text-muted: #64748b;
+    }
+    * { box-sizing: border-box; }
+    body {
+        margin: 0;
+        font-family: "Prompt", sans-serif;
+        background: #f8fafc;
+        color: var(--navy-dark);
+        padding: 20px;
+    }
+    .wrap { max-width: 1000px; margin: 0 auto; }
+    header {
+        background: linear-gradient(135deg, var(--gold-primary) 0%, #3b82f6 100%);
+        color: white;
+        padding: 20px 24px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+    }
+    header h1 { margin: 0 0 4px 0; font-size: 18px; }
+    header p { margin: 0; font-size: 12.5px; opacity: 0.85; }
+    #grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 14px;
+    }
+    .card {
+        border: 1px solid var(--gold-border);
+        border-radius: 8px;
+        overflow: hidden;
+        background: white;
+        display: flex;
+        flex-direction: column;
+    }
+    .card iframe, .card img {
+        width: 100%; height: 200px; border: none; display: block; background: #f1f5f9; object-fit: cover;
+    }
+    .card .meta { padding: 8px 10px; border-top: 1px solid #f1f5f9; }
+    .card .label { font-size: 10.5px; font-weight: 600; color: var(--gold-primary); }
+    .card .fname { font-size: 11.5px; color: var(--navy-dark); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .card a { font-size: 11px; color: var(--gold-primary); text-decoration: none; }
+    .card a:hover { text-decoration: underline; }
+    #status { text-align: center; padding: 60px 20px; color: var(--text-muted); font-size: 13.5px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+    <header>
+        <h1 id="title">📁 กำลังโหลดเอกสาร...</h1>
+        <p>ลิงก์นี้ใช้ดู/ดาวน์โหลดเอกสารเท่านั้น — ไม่ต้องเข้าสู่ระบบ</p>
+    </header>
+    <div id="status"></div>
+    <div id="grid"></div>
+</div>
+<script>
+    const SUPABASE_URL = "https://cagpzvrqtjkuabhqaqon.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_publishable_QXr8rEnSqOhAZzc_pO_Egw_h-ZYb0nn";
+
+    const DOC_LABELS = {
+        'worker-wp-doc': '📄 ใบอนุญาตทำงาน',
+        'worker-passport': '✈️ พาสปอร์ต/CI',
+        'worker-myanmar-id': '🏡 บัตรประชาชน/ทะเบียนบ้านพม่า',
+        'worker-pink-card': '🌸 บัตรชมพู',
+        'worker-receipt': '🧾 ใบเสร็จรับเงิน',
+        'worker-medical': '🩺 ใบรับรองแพทย์',
+        'worker-application': '📝 ใบคำขอ'
+    };
+
+    function renderCard(label, fileItem) {
+        const data = fileItem.data || '';
+        let preview;
+        if (data.startsWith('data:image/')) {
+            preview = `<img src="${data}">`;
+        } else if (data.startsWith('http') || data.startsWith('data:application/pdf')) {
+            preview = `<iframe src="${data}"></iframe>`;
+        } else {
+            preview = `<div style="width:100%;height:200px;display:flex;align-items:center;justify-content:center;background:#f1f5f9;font-size:40px;">📄</div>`;
+        }
+        return `
+            <div class="card">
+                ${preview}
+                <div class="meta">
+                    <div class="label">${label}</div>
+                    <div class="fname" title="${fileItem.name}">${fileItem.name}</div>
+                    ${data ? `<a href="${data}" target="_blank" rel="noopener">⬇️ ดาวน์โหลด / เปิดเต็มจอ</a>` : ''}
+                </div>
+            </div>
+        `;
+    }
+
+    async function load() {
+        const params = new URLSearchParams(location.search);
+        const id = params.get('w');
+        const token = params.get('t');
+        const statusEl = document.getElementById('status');
+        const titleEl = document.getElementById('title');
+
+        if (!id || !token) {
+            titleEl.textContent = '❌ ลิงก์ไม่ถูกต้อง';
+            statusEl.textContent = 'ลิงก์นี้ไม่มีข้อมูลครบถ้วน กรุณาขอลิงก์ใหม่จากเจ้าหน้าที่';
+            return;
+        }
+
+        try {
+            const res = await fetch(
+                `${SUPABASE_URL}/functions/v1/share-worker-docs?id=${encodeURIComponent(id)}&token=${encodeURIComponent(token)}`,
+                { headers: { apikey: SUPABASE_ANON_KEY } }
+            );
+            const result = await res.json();
+            if (!res.ok || result.status !== 'success') {
+                titleEl.textContent = '❌ ไม่พบเอกสาร';
+                statusEl.textContent = result.message || 'ลิงก์นี้ถูกยกเลิกแล้ว หรือไม่ถูกต้อง กรุณาขอลิงก์ใหม่จากเจ้าหน้าที่';
+                return;
+            }
+
+            titleEl.textContent = `📁 เอกสารทั้งหมดของ ${result.firstName} ${result.lastName || ''}`.trim();
+
+            const cards = [];
+            Object.keys(DOC_LABELS).forEach(docType => {
+                const list = result.attachments[docType];
+                if (Array.isArray(list)) {
+                    list.forEach(fileItem => cards.push(renderCard(DOC_LABELS[docType], fileItem)));
+                }
+            });
+
+            if (cards.length === 0) {
+                statusEl.textContent = 'ยังไม่มีเอกสารแนบสำหรับคนงานคนนี้';
+            } else {
+                document.getElementById('grid').innerHTML = cards.join('');
+            }
+        } catch (e) {
+            titleEl.textContent = '❌ เกิดข้อผิดพลาด';
+            statusEl.textContent = 'ไม่สามารถโหลดข้อมูลได้ กรุณาลองใหม่อีกครั้ง';
+        }
+    }
+
+    load();
+</script>
+</body>
+</html>
