@@ -145,8 +145,8 @@
             customers,
             workers,
             jobs,
-            banks: banksRes.data || [],
-            lineGroups: lineGroupsRes.error ? [] : (lineGroupsRes.data || []),
+            banks: toCamelList(banksRes.data, BANK_MAP),
+            lineGroups: lineGroupsRes.error ? [] : toCamelList(lineGroupsRes.data, LINE_GROUP_MAP),
             agents: agentsRes.error ? [] : toCamelList(agentsRes.data, AGENT_MAP),
             users: profilesRes.error ? [] : (profilesRes.data || []).map((p) => ({
                 id: p.id, email: p.id, name: p.name, role: p.role, customer_id: p.customer_id
@@ -155,18 +155,37 @@
     }
 
     // -------------------- generic upsert helper --------------------
-    async function upsertOne(table, map, dataObj) {
+    async function upsertOne(table, map, dataObj, conflictColumn = "id") {
         const row = toRow(dataObj, map);
-        const { data, error } = await sb.from(table).upsert(row, { onConflict: "id" }).select().single();
+        const { data, error } = await sb.from(table).upsert(row, { onConflict: conflictColumn }).select().single();
         if (error) return { status: "error", message: error.message };
         return { status: "success", data: toCamel(data, map) };
     }
 
+    // Banks: bank_name/account_name/account_number/prompt_pay_id/qr_image
+    const BANK_MAP = {
+        id: "id", bankName: "bank_name", accountName: "account_name",
+        accountNumber: "account_number", promptPayId: "prompt_pay_id", qrImage: "qr_image"
+    };
+    // Line groups: คีย์ทางธุรกิจจริงคือ group_id (รหัสกลุ่ม LINE) ไม่ใช่ id (uuid สุ่มของแถว)
+    const LINE_GROUP_MAP = { id: "id", groupId: "group_id", groupName: "group_name", createdAt: "created_at" };
+
+    // ลบสำเร็จ (ไม่ error) แต่แถวไม่ตรงกับ RLS/id ที่ให้มา ก็จะลบได้ 0 แถวโดยไม่ error เลย (ดูเหมือนสำเร็จ
+    // ทั้งที่ไม่มีอะไรถูกลบจริง) — ขอ count กลับมาด้วยเสมอ แล้วถือว่า error ถ้าไม่มีแถวไหนถูกลบจริง
     async function deleteRecord(sheetName, id) {
-        const table = { Customers: "customers", Workers: "workers", Jobs: "jobs", Line_Groups: "line_groups", Agents: "agents" }[sheetName];
+        const table = { Customers: "customers", Workers: "workers", Jobs: "jobs", Line_Groups: "line_groups", Agents: "agents", Banks: "banks" }[sheetName];
         if (!table) return { status: "error", message: "Unknown table: " + sheetName };
-        const { error } = await sb.from(table).delete().eq("id", id);
+        const { error, count } = await sb.from(table).delete({ count: "exact" }).eq("id", id);
         if (error) return { status: "error", message: error.message };
+        if (!count) return { status: "error", message: "ไม่พบข้อมูลที่จะลบ หรือไม่มีสิทธิ์ลบรายการนี้ (0 แถวถูกลบ)" };
+        return { status: "success" };
+    }
+
+    // ลบกลุ่ม LINE ด้วย group_id (คีย์ทางธุรกิจ) ไม่ใช่ id (uuid) — deleteRecord ทั่วไปลบด้วย id เท่านั้น จึงต้องแยกเคสนี้
+    async function deleteLineGroupByGroupId(groupId) {
+        const { error, count } = await sb.from("line_groups").delete({ count: "exact" }).eq("group_id", groupId);
+        if (error) return { status: "error", message: error.message };
+        if (!count) return { status: "error", message: "ไม่พบข้อมูลที่จะลบ หรือไม่มีสิทธิ์ลบรายการนี้ (0 แถวถูกลบ)" };
         return { status: "success" };
     }
 
@@ -260,11 +279,12 @@
                 return await upsertOne("jobs", JOB_MAP, payload.jobData);
             case "saveAgent":
                 return await upsertOne("agents", AGENT_MAP, payload.agentData);
-            case "saveLineGroup": {
-                const { data, error } = await sb.from("line_groups").upsert(payload.groupData).select().single();
-                if (error) return { status: "error", message: error.message };
-                return { status: "success", data };
-            }
+            case "saveBank":
+                return await upsertOne("banks", BANK_MAP, payload.bankData);
+            case "saveLineGroup":
+                return await upsertOne("line_groups", LINE_GROUP_MAP, payload.groupData, "group_id");
+            case "deleteLineGroup":
+                return await deleteLineGroupByGroupId(payload.groupId);
             case "saveUser":
                 return await saveUser(payload.userData, payload.pin);
             case "updateUserProfile":

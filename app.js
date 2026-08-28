@@ -262,7 +262,7 @@ async function loadData() {
     if (url && currentUser) {
         showToast("⏳ กำลังดึงข้อมูลจาก Supabase...", "warning");
         const res = await callCloudAPI("getData");
-        if (res) {
+        if (res && res.status !== "error") {
             customers = res.customers || [];
             workers = res.workers || [];
             jobs = res.jobs || [];
@@ -282,6 +282,9 @@ async function loadData() {
 
             showToast("⚡ ดึงข้อมูลออนไลน์เรียบร้อยแล้ว", "success");
             return;
+        }
+        if (res && res.status === "error") {
+            showToast("⚠️ ดึงข้อมูลจากคลาวด์ไม่สำเร็จ: " + (res.message || "unknown error") + " — ใช้ข้อมูลที่แคชไว้ในเครื่องแทน", "danger");
         }
     }
 
@@ -1944,8 +1947,8 @@ async function saveCustomer(e) {
     // Cloud Sync
     showToast("💾 กำลังบันทึกข้อมูลเข้าคลาวด์...", "warning");
     const res = await callCloudAPI("saveCustomer", { customerData: customerData });
-    if (!res) {
-        showToast("❌ บันทึกไม่สำเร็จ ข้อมูลยังไม่ถูกบันทึกลงชีต กรุณาลองใหม่", "danger");
+    if (!res || res.status === "error") {
+        showToast("❌ บันทึกไม่สำเร็จ: " + (res && res.message ? res.message : "ข้อมูลยังไม่ถูกบันทึกลงคลาวด์ กรุณาลองใหม่"), "danger");
         return;
     }
     if (res && res.data) {
@@ -2023,15 +2026,17 @@ async function deleteCustomer(id, rowNum = null) {
         let res = await callCloudAPI("deleteRecord", { sheetName: "Customers", id: id });
 
         // ถ้าลบด้วย id ไม่สำเร็จ (เช่น id เพี้ยน/undefined จากปัญหาหัวตาราง) ให้ลองลบตามตำแหน่งแถวจริงแทน
-        if (!res && rowNum) {
+        if ((!res || res.status === "error") && rowNum) {
             res = await callCloudAPI("deleteRecordByRow", { sheetName: "Customers", rowNum: rowNum });
         }
 
-        if (res) {
+        if (res && res.status !== "error") {
             customers = customers.filter(c => c.id !== id && c._rowNum !== rowNum);
             saveData();
             renderCustomers();
             showToast("ลบข้อมูลลูกค้าเรียบร้อยแล้ว", "success");
+        } else {
+            showToast("❌ ลบไม่สำเร็จ: " + (res && res.message ? res.message : "unknown error"), "danger");
         }
     }
 }
@@ -2351,8 +2356,8 @@ async function saveWorker(e) {
 
     showToast("💾 กำลังบันทึกข้อมูลคนงานเข้าคลาวด์...", "warning");
     const workerSaveRes = await callCloudAPI("saveWorker", { workerData: finalWorkerData });
-    if (!workerSaveRes) {
-        showToast("❌ บันทึกไม่สำเร็จ ข้อมูลคนงานยังไม่ถูกบันทึกลงชีต กรุณาลองใหม่", "danger");
+    if (!workerSaveRes || workerSaveRes.status === "error") {
+        showToast("❌ บันทึกไม่สำเร็จ: " + (workerSaveRes && workerSaveRes.message ? workerSaveRes.message : "ข้อมูลคนงานยังไม่ถูกบันทึกลงคลาวด์ กรุณาลองใหม่"), "danger");
         return;
     }
 
@@ -2383,15 +2388,17 @@ async function deleteWorker(id, rowNum = null) {
         let res = await callCloudAPI("deleteRecord", { sheetName: "Workers", id: id });
 
         // ถ้าลบด้วย id ไม่สำเร็จ (เช่น id เพี้ยน/undefined จากปัญหาหัวตาราง) ให้ลองลบตามตำแหน่งแถวจริงแทน
-        if (!res && rowNum) {
+        if ((!res || res.status === "error") && rowNum) {
             res = await callCloudAPI("deleteRecordByRow", { sheetName: "Workers", rowNum: rowNum });
         }
 
-        if (res) {
+        if (res && res.status !== "error") {
             workers = workers.filter(w => w.id !== id && w._rowNum !== rowNum);
             saveData();
             renderWorkers();
             showToast("ลบข้อมูลคนงานเรียบร้อยแล้ว", "success");
+        } else {
+            showToast("❌ ลบไม่สำเร็จ: " + (res && res.message ? res.message : "unknown error"), "danger");
         }
     }
 }
@@ -2980,8 +2987,8 @@ async function saveJob(e) {
         };
         showToast("💾 กำลังบันทึกการแก้ไขใบสั่งงานเข้าคลาวด์...", "warning");
         const jobSaveRes = await callCloudAPI("saveJob", { jobData: jobData });
-        if (!jobSaveRes) {
-            showToast("❌ บันทึกไม่สำเร็จ การแก้ไขยังไม่ถูกบันทึกลงชีต กรุณาลองใหม่", "danger");
+        if (!jobSaveRes || jobSaveRes.status === "error") {
+            showToast("❌ บันทึกไม่สำเร็จ: " + (jobSaveRes && jobSaveRes.message ? jobSaveRes.message : "การแก้ไขยังไม่ถูกบันทึกลงคลาวด์ กรุณาลองใหม่"), "danger");
             return;
         }
 
@@ -3023,7 +3030,7 @@ async function saveJob(e) {
                 seq++;
 
                 const subJobRes = await callCloudAPI("saveJob", { jobData: subJobData });
-                if (subJobRes) {
+                if (subJobRes && subJobRes.status !== "error") {
                     jobs.push(subJobData);
                 } else {
                     failedCount++;
@@ -3054,11 +3061,13 @@ async function deleteJob(id) {
     if (confirm("คุณแน่ใจหรือไม่ที่จะลบใบแจ้งงานนี้?")) {
         showToast("🗑️ กำลังลบข้อมูลออกจากคลาวด์...", "warning");
         const res = await callCloudAPI("deleteRecord", { sheetName: "Jobs", id: id });
-        if (res) {
+        if (res && res.status !== "error") {
             jobs = jobs.filter(j => j.id !== id);
             saveData();
             renderJobs();
             showToast("ลบข้อมูลสั่งงานเรียบร้อยแล้ว", "success");
+        } else {
+            showToast("❌ ลบไม่สำเร็จ: " + (res && res.message ? res.message : "unknown error"), "danger");
         }
     }
 }
@@ -3125,7 +3134,10 @@ async function saveAgentForm(e) {
     const agentData = { id: editId || ('agent-' + Date.now().toString().slice(-8)), name };
     showToast("💾 กำลังบันทึก Agent...", "warning");
     const res = await callCloudAPI("saveAgent", { agentData });
-    if (!res) return;
+    if (!res || res.status === "error") {
+        showToast("❌ บันทึกไม่สำเร็จ: " + (res && res.message ? res.message : "unknown error"), "danger");
+        return;
+    }
 
     if (editId) {
         const idx = agents.findIndex(a => a.id === editId);
@@ -3150,7 +3162,10 @@ async function deleteAgent(id, name) {
 
     showToast("🗑️ กำลังลบ Agent...", "warning");
     const res = await callCloudAPI("deleteRecord", { sheetName: "Agents", id });
-    if (!res) return;
+    if (!res || res.status === "error") {
+        showToast("❌ ลบไม่สำเร็จ: " + (res && res.message ? res.message : "unknown error"), "danger");
+        return;
+    }
 
     agents = agents.filter(a => a.id !== id);
     saveData();
@@ -3229,8 +3244,8 @@ async function submitCloseJob(e) {
         });
 
         const res = await callCloudAPI("saveJob", { jobData });
-        if (!res) {
-            showToast("❌ บันทึกการปิดงานไม่สำเร็จ กรุณาลองใหม่", "danger");
+        if (!res || res.status === "error") {
+            showToast("❌ บันทึกการปิดงานไม่สำเร็จ: " + (res && res.message ? res.message : "กรุณาลองใหม่"), "danger");
             return;
         }
 
@@ -3265,8 +3280,8 @@ async function reopenJob(jobId) {
 
     showToast("🔓 กำลังเปิดงานอีกครั้ง...", "warning");
     const res = await callCloudAPI("saveJob", { jobData });
-    if (!res) {
-        showToast("❌ เปิดงานไม่สำเร็จ กรุณาลองใหม่", "danger");
+    if (!res || res.status === "error") {
+        showToast("❌ เปิดงานไม่สำเร็จ: " + (res && res.message ? res.message : "กรุณาลองใหม่"), "danger");
         return;
     }
 
@@ -3349,6 +3364,11 @@ function openBankModal(id = null) {
     const modalTitle = document.getElementById("bank-modal-title");
     const editIdInput = document.getElementById("bank-edit-id");
 
+    // Reset QR preview (แก้ไขบั๊กเดิม: preview ไม่เคยถูกเติมค่าเก่ากลับมาตอนเปิดแก้ไข)
+    const qrPreview = document.getElementById("bank-qr-preview");
+    const qrIcon = document.getElementById("bank-qr-icon");
+    const qrDelBtn = document.getElementById("btn-delete-bank-qr");
+
     if (id) {
         modalTitle.innerText = "แก้ไขข้อมูลบัญชีธนาคาร";
         editIdInput.value = id;
@@ -3358,9 +3378,27 @@ function openBankModal(id = null) {
         document.getElementById("bank-account-name").value = b.accountName;
         document.getElementById("bank-account-number").value = b.accountNumber;
         document.getElementById("bank-promptpay-id").value = b.promptPayId;
+
+        if (b.qrImage && qrPreview) {
+            qrPreview.src = b.qrImage;
+            qrPreview.classList.remove("hidden");
+            if (qrIcon) qrIcon.classList.add("hidden");
+            if (qrDelBtn) qrDelBtn.classList.remove("hidden");
+        } else if (qrPreview) {
+            qrPreview.src = "";
+            qrPreview.classList.add("hidden");
+            if (qrIcon) qrIcon.classList.remove("hidden");
+            if (qrDelBtn) qrDelBtn.classList.add("hidden");
+        }
     } else {
         modalTitle.innerText = "เพิ่มบัญชีธนาคารรับเงินใหม่";
         editIdInput.value = "";
+        if (qrPreview) {
+            qrPreview.src = "";
+            qrPreview.classList.add("hidden");
+        }
+        if (qrIcon) qrIcon.classList.remove("hidden");
+        if (qrDelBtn) qrDelBtn.classList.add("hidden");
     }
 
     document.getElementById("bank-modal").classList.remove("hidden");
@@ -3370,7 +3408,7 @@ function closeBankModal() {
     document.getElementById("bank-modal").classList.add("hidden");
 }
 
-function saveBank(e) {
+async function saveBank(e) {
     e.preventDefault();
     const editId = document.getElementById("bank-edit-id").value;
     const bankName = document.getElementById("bank-name").value;
@@ -3383,10 +3421,23 @@ function saveBank(e) {
         return;
     }
 
+    // เอารูป QR ที่อัปโหลด (ถ้ามี — ตอนนี้เป็นลิงก์ Supabase Storage จริงแล้วหลังอัปโหลดเสร็จ ไม่ใช่ data URL ชั่วคราว)
+    const qrPreview = document.getElementById("bank-qr-preview");
+    const qrImage = (qrPreview && !qrPreview.classList.contains("hidden") && qrPreview.src && !qrPreview.src.startsWith("data:"))
+        ? qrPreview.src
+        : (editId ? (banks.find(item => item.id === editId) || {}).qrImage || "" : "");
+
     const bankData = {
         id: editId || 'bank-' + Date.now(),
-        bankName, accountName, accountNumber, promptPayId
+        bankName, accountName, accountNumber, promptPayId, qrImage
     };
+
+    showToast("💾 กำลังบันทึกบัญชีธนาคารเข้าคลาวด์...", "warning");
+    const res = await callCloudAPI("saveBank", { bankData });
+    if (!res || res.status === "error") {
+        showToast("❌ บันทึกไม่สำเร็จ: " + (res && res.message ? res.message : "ข้อมูลยังไม่ถูกบันทึกลงคลาวด์ กรุณาลองใหม่"), "danger");
+        return;
+    }
 
     if (editId) {
         const idx = banks.findIndex(item => item.id === editId);
@@ -3539,7 +3590,10 @@ async function saveUser(e) {
             userId: editId,
             profileData: { name, role, customer_id: role === 'client' ? customerId : null }
         });
-        if (!res) return;
+        if (!res || res.status === "error") {
+            showToast("❌ บันทึกไม่สำเร็จ: " + (res && res.message ? res.message : "unknown error"), "danger");
+            return;
+        }
 
         const idx = users.findIndex(u => u.id === editId);
         if (idx !== -1) {
@@ -3570,8 +3624,8 @@ async function saveUser(e) {
 
     showToast("💾 กำลังบันทึกบัญชีผู้ใช้งานเข้าคลาวด์...", "warning");
     const res = await callCloudAPI("saveUser", { userData: userData, pin: pin });
-    if (!res) {
-        // callCloudAPI already shows the specific error toast (e.g. รหัส PIN ไม่ถูกต้อง / อีเมลซ้ำ)
+    if (!res || res.status === "error") {
+        showToast("❌ บันทึกไม่สำเร็จ: " + (res && res.message ? res.message : "unknown error"), "danger");
         return;
     }
 
@@ -3594,7 +3648,10 @@ async function deleteUserAccountUi(userId, userName) {
 
     showToast("🗑️ กำลังลบบัญชีผู้ใช้งาน...", "warning");
     const res = await callCloudAPI("deleteUser", { userId, pin });
-    if (!res) return;
+    if (!res || res.status === "error") {
+        showToast("❌ ลบไม่สำเร็จ: " + (res && res.message ? res.message : "unknown error"), "danger");
+        return;
+    }
 
     users = users.filter(u => u.id !== userId);
     localStorage.setItem("mw_users", JSON.stringify(users));
@@ -3602,18 +3659,24 @@ async function deleteUserAccountUi(userId, userName) {
     renderUsers();
 }
 
-function deleteBank(id) {
+async function deleteBank(id) {
     if (currentUser.role !== 'admin') {
         showToast("❌ คุณไม่มีสิทธิ์ลบข้อมูลนี้", "danger");
         return;
     }
+    if (!confirm("คุณแน่ใจหรือไม่ที่จะลบช่องทางการโอนเงินนี้?")) return;
 
-    if (confirm("คุณแน่ใจหรือไม่ที่จะลบช่องทางการโอนเงินนี้?")) {
-        banks = banks.filter(b => b.id !== id);
-        saveData();
-        renderBanks();
-        showToast("ลบบัญชีธนาคารเรียบร้อยแล้ว", "success");
+    showToast("🗑️ กำลังลบข้อมูลออกจากคลาวด์...", "warning");
+    const res = await callCloudAPI("deleteRecord", { sheetName: "Banks", id });
+    if (!res || res.status === "error") {
+        showToast("❌ ลบไม่สำเร็จ: " + (res && res.message ? res.message : "unknown error"), "danger");
+        return;
     }
+
+    banks = banks.filter(b => b.id !== id);
+    saveData();
+    renderBanks();
+    showToast("ลบบัญชีธนาคารเรียบร้อยแล้ว", "success");
 }
 
 
@@ -3644,7 +3707,11 @@ function openInvoiceModal(jobId) {
         if (j.paymentStatus !== 'ชำระเงินแล้ว' && j.paymentStatus !== 'ออกบิลแล้ว') {
             j.paymentStatus = 'ออกบิลแล้ว';
             j.updatedAt = new Date().toISOString().split('T')[0];
-            callCloudAPI("saveJob", { jobData: j });
+            callCloudAPI("saveJob", { jobData: j }).then(res => {
+                if (!res || res.status === "error") {
+                    showToast("⚠️ อัปเดตสถานะออกบิลไปคลาวด์ไม่สำเร็จ: " + (res && res.message ? res.message : "unknown error"), "danger");
+                }
+            });
             saveData();
             renderJobs();
             renderDashboard();
@@ -3920,7 +3987,7 @@ function markJobPaidFromInvoice() {
 
             // Sync status to cloud backend
             const res = await callCloudAPI("saveJob", { jobData: jobs[idx] });
-            if (!res) {
+            if (!res || res.status === "error") {
                 jobs[idx].paymentStatus = prevPaymentStatus; // revert local change since save failed
                 jobs[idx].paymentMethod = prevPaymentMethod;
                 paidFailedCount++;
@@ -4044,7 +4111,11 @@ function generateCombinedInvoice() {
         if (jIdx !== -1 && jobs[jIdx].paymentStatus !== 'ออกบิลแล้ว' && jobs[jIdx].paymentStatus !== 'ชำระเงินแล้ว') {
             jobs[jIdx].paymentStatus = 'ออกบิลแล้ว';
             jobs[jIdx].updatedAt = new Date().toISOString().split('T')[0];
-            callCloudAPI("saveJob", { jobData: jobs[jIdx] });
+            callCloudAPI("saveJob", { jobData: jobs[jIdx] }).then(res => {
+                if (!res || res.status === "error") {
+                    showToast("⚠️ อัปเดตสถานะออกบิลไปคลาวด์ไม่สำเร็จ: " + (res && res.message ? res.message : "unknown error"), "danger");
+                }
+            });
         }
     });
     saveData();
@@ -4185,20 +4256,41 @@ function importSystemData(event) {
     document.getElementById("import-file-name").innerText = file.name;
 
     const reader = new FileReader();
-    reader.onload = function(e) {
+    reader.onload = async function(e) {
         try {
             const imported = JSON.parse(e.target.result);
-            
+
             // Validate backup file structure
             if (!imported.customers || !imported.workers || !imported.banks || !imported.jobs) {
                 throw new Error("โครงสร้างไฟล์ข้อมูลไม่ถูกต้อง");
             }
 
-            if (!confirm(`⚠️ ยืนยันการนำเข้าข้อมูล? การนำเข้าข้อมูลนี้จะเขียนทับฐานข้อมูลเดิมทั้งหมดของคุณในปัจจุบัน (นายจ้าง ${imported.customers.length} ราย, คนงาน ${imported.workers.length} คน, งาน ${imported.jobs.length} รายการ)`)) {
+            if (!confirm(`⚠️ ยืนยันการนำเข้าข้อมูล? การนำเข้าข้อมูลนี้จะเขียนทับฐานข้อมูลเดิมทั้งหมดของคุณในคลาวด์ (นายจ้าง ${imported.customers.length} ราย, คนงาน ${imported.workers.length} คน, งาน ${imported.jobs.length} รายการ, บัญชีธนาคาร ${imported.banks.length} บัญชี)`)) {
                 // reset input file
                 event.target.value = '';
                 document.getElementById("import-file-name").innerText = "ยังไม่ได้เลือกไฟล์";
                 return;
+            }
+
+            // อัปโหลดข้อมูลที่นำเข้าขึ้นคลาวด์จริงทีละรายการ (เดิมเขียนแค่ localStorage เท่านั้น —
+            // หน้าจอขึ้น "สำเร็จ" แต่คลาวด์ไม่เคยถูกเขียนทับตามที่ข้อความยืนยันด้านบนบอกไว้เลย)
+            showToast("☁️ กำลังนำเข้าข้อมูลขึ้นคลาวด์ อาจใช้เวลาสักครู่...", "warning");
+            let failCount = 0;
+            for (const c of imported.customers) {
+                const res = await callCloudAPI("saveCustomer", { customerData: c });
+                if (!res || res.status === "error") failCount++;
+            }
+            for (const w of imported.workers) {
+                const res = await callCloudAPI("saveWorker", { workerData: w });
+                if (!res || res.status === "error") failCount++;
+            }
+            for (const b of imported.banks) {
+                const res = await callCloudAPI("saveBank", { bankData: b });
+                if (!res || res.status === "error") failCount++;
+            }
+            for (const j of imported.jobs) {
+                const res = await callCloudAPI("saveJob", { jobData: j });
+                if (!res || res.status === "error") failCount++;
             }
 
             // Write variables
@@ -4209,12 +4301,16 @@ function importSystemData(event) {
 
             // Save to localStorage
             saveData();
-            
-            showToast("✅ นำเข้าข้อมูลระบบทั้งหมดเสร็จสมบูรณ์!", "success");
-            
+
+            if (failCount > 0) {
+                showToast(`⚠️ นำเข้าข้อมูลเสร็จ แต่มี ${failCount} รายการบันทึกขึ้นคลาวด์ไม่สำเร็จ — ข้อมูลในเครื่องนี้กับคลาวด์อาจไม่ตรงกัน กรุณาตรวจสอบ`, "danger");
+            } else {
+                showToast("✅ นำเข้าข้อมูลระบบทั้งหมดขึ้นคลาวด์เสร็จสมบูรณ์!", "success");
+            }
+
             // Refresh dashboard and redirect to dashboard
             switchView('dashboard');
-            
+
             // reset file input
             event.target.value = '';
             document.getElementById("import-file-name").innerText = "ยังไม่ได้เลือกไฟล์";
@@ -5250,8 +5346,8 @@ async function attachDocumentToWorker(w, docType, fileContent) {
     // ไฟล์อัปโหลดขึ้น Storage ไปแล้วก็จริง แต่ถ้าไม่บันทึกจุดนี้ แถว worker ใน DB จะไม่รู้จักไฟล์นี้เลย
     // (เห็นแค่ในเบราว์เซอร์เครื่องนี้ผ่าน localStorage ชั่วคราว หายไปทันทีที่เปิดจากเครื่อง/บัญชีอื่น)
     const saveRes = await callCloudAPI("saveWorker", { workerData: w });
-    if (!saveRes) {
-        throw new Error('อัปโหลดไฟล์สำเร็จ แต่บันทึกข้อมูลคนงานขึ้นคลาวด์ไม่สำเร็จ');
+    if (!saveRes || saveRes.status === "error") {
+        throw new Error('อัปโหลดไฟล์สำเร็จ แต่บันทึกข้อมูลคนงานขึ้นคลาวด์ไม่สำเร็จ: ' + (saveRes && saveRes.message ? saveRes.message : 'unknown error'));
     }
 
     return uploadResult;
@@ -6103,13 +6199,13 @@ async function onKanbanDrop(e, targetStatus) {
         showToast("🔄 กำลังอัปเดตสถานะในคลาวด์...", "warning");
         const res = await callCloudAPI("saveJob", { jobData: job });
 
-        if (!res) {
+        if (!res || res.status === "error") {
             // Revert the local status change since the cloud save failed
             job.status = oldStatus;
             job.closedAt = oldClosedAt;
             job.closedBy = oldClosedBy;
             renderJobs();
-            showToast("❌ ย้ายสถานะไม่สำเร็จ (ยังไม่ถูกบันทึกลงชีต) กรุณาลองใหม่", "danger");
+            showToast("❌ ย้ายสถานะไม่สำเร็จ: " + (res && res.message ? res.message : "ยังไม่ถูกบันทึกลงคลาวด์ กรุณาลองใหม่"), "danger");
             return;
         }
 
@@ -6223,8 +6319,8 @@ async function saveLineGroup() {
 
     showToast("🔄 กำลังบันทึกข้อมูลกลุ่มไลน์...", "warning");
     const res = await callCloudAPI("saveLineGroup", { groupData: groupData });
-    if (!res) {
-        showToast("❌ บันทึกไม่สำเร็จ ข้อมูลกลุ่มไลน์ยังไม่ถูกบันทึกลงชีต กรุณาลองใหม่", "danger");
+    if (!res || res.status === "error") {
+        showToast("❌ บันทึกไม่สำเร็จ: " + (res && res.message ? res.message : "ข้อมูลกลุ่มไลน์ยังไม่ถูกบันทึกลงคลาวด์ กรุณาลองใหม่"), "danger");
         return;
     }
 
@@ -6251,7 +6347,11 @@ async function deleteLineGroup(groupId) {
     }
 
     showToast("🗑️ กำลังลบข้อมูลกลุ่มไลน์...", "warning");
-    const res = await callCloudAPI("deleteRecord", { sheetName: "Line_Groups", id: groupId });
+    const res = await callCloudAPI("deleteLineGroup", { groupId });
+    if (!res || res.status === "error") {
+        showToast("❌ ลบไม่สำเร็จ: " + (res && res.message ? res.message : "unknown error"), "danger");
+        return;
+    }
 
     lineGroups = lineGroups.filter(g => g.groupId !== groupId);
     saveData();
