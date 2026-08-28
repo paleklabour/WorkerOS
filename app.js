@@ -1319,7 +1319,7 @@ function renderCustomers() {
         
         const attachHtml = `
             <div style="display: flex; gap: 4px; justify-content: center;">
-                <button class="action-icon-btn" onclick="openCustomerModal('${c.id}')" title="ดูเอกสารที่แนบไว้ของนายจ้างรายนี้">📁</button>
+                <button class="action-icon-btn" onclick="openCustomerFolderModal('${c.id}')" title="ดูเอกสารที่แนบไว้ของนายจ้างรายนี้">📁</button>
             </div>
         `;
 
@@ -1925,8 +1925,9 @@ async function saveCustomer(e) {
         if (idx !== -1) {
             const oldCreatedAt = customers[idx].createdAt || new Date().toISOString().split('T')[0];
             const oldDriveId = customers[idx].drive_folder_id || "";
+            const oldAttachments = JSON.parse(JSON.stringify(customers[idx].attachments || {}));
             customerData = {
-                id: editId, taxId, companyName, directorId, businessType, coordinator, phone, branches: customerBranches, createdAt: oldCreatedAt, drive_folder_id: oldDriveId
+                id: editId, taxId, companyName, directorId, businessType, coordinator, phone, branches: customerBranches, createdAt: oldCreatedAt, drive_folder_id: oldDriveId, attachments: oldAttachments
             };
         }
     } else {
@@ -1934,7 +1935,7 @@ async function saveCustomer(e) {
         const newId = 'cust-' + Date.now();
         const createdAt = new Date().toISOString().split('T')[0];
         customerData = {
-            id: newId, taxId, companyName, directorId, businessType, coordinator, phone, branches: customerBranches, createdAt, drive_folder_id: ""
+            id: newId, taxId, companyName, directorId, businessType, coordinator, phone, branches: customerBranches, createdAt, drive_folder_id: "", attachments: {}
         };
     }
 
@@ -1965,15 +1966,19 @@ async function saveCustomer(e) {
         showToast("เพิ่มข้อมูลนายจ้าง/ลูกค้าคนใหม่สำเร็จ", "success");
     }
 
-    // อัปโหลดไฟล์แนบที่ค้างไว้ (ถ้ามี) ตอนนี้ลูกค้ามี id และโฟลเดอร์ Drive จริงแล้ว
+    // อัปโหลดไฟล์แนบที่ค้างไว้ (ถ้ามี) ตอนนี้ลูกค้ามี id จริงแล้ว
     const stagedDocTypes = Object.keys(tempCustomerAttachments);
     if (stagedDocTypes.length > 0) {
-        showToast(`📎 กำลังอัปโหลดไฟล์แนบ ${stagedDocTypes.length} ไฟล์เข้า Drive...`, "warning");
+        showToast(`📎 กำลังอัปโหลดไฟล์แนบ ${stagedDocTypes.length} ไฟล์...`, "warning");
+        customerData.attachments = customerData.attachments || {};
         for (const docType of stagedDocTypes) {
             const staged = tempCustomerAttachments[docType];
             const statusEl = document.getElementById(`status-${docType}`);
             try {
                 const uploadResult = await uploadDocumentFile(staged.data, staged.name, customerData.id, "", docType);
+                if (uploadResult && uploadResult.fileUrl) {
+                    customerData.attachments[docType] = [{ name: staged.name, data: uploadResult.fileUrl }];
+                }
                 if (statusEl) {
                     statusEl.innerHTML = uploadResult
                         ? `<span class="ai-success">✅ อัปโหลดสำเร็จ</span>`
@@ -1984,6 +1989,13 @@ async function saveCustomer(e) {
             }
         }
         tempCustomerAttachments = {};
+
+        // บันทึกซ้ำอีกครั้งเพื่อผูกลิงก์ไฟล์ที่เพิ่งอัปโหลดเข้ากับข้อมูลลูกค้า
+        // (ตอน save ครั้งแรกด้านบนยังไม่มีไฟล์ เพราะต้องรอ id ลูกค้าให้พร้อมก่อนถึงจะอัปโหลดได้)
+        const attachRes = await callCloudAPI("saveCustomer", { customerData });
+        if (!attachRes || attachRes.status === "error") {
+            showToast("⚠️ อัปโหลดไฟล์สำเร็จแต่บันทึกลิงก์เข้าข้อมูลลูกค้าไม่สำเร็จ กรุณาลองแนบใหม่จากหน้าแฟ้มเอกสาร", "danger");
+        }
     }
 
     saveData();
@@ -4272,6 +4284,152 @@ async function uploadDocumentFile(fileDataUrl, fileName, customerId = "", worker
     return null;
 }
 
+// ==================== CUSTOMER (นายจ้าง/ลูกค้าผู้ว่าจ้าง) DOCUMENTS FOLDER SYSTEM ====================
+let activeFolderCustomerId = null;
+let activeFolderCustomerDocType = null;
+
+const CUSTOMER_DOC_TYPES = [
+    { key: "cust-id-card", label: "🪪 บัตรประชาชนนายจ้าง" },
+    { key: "cust-cert", label: "📜 หนังสือรับรองบริษัท" },
+    { key: "cust-house", label: "🏠 ทะเบียนบ้านบริษัท" },
+    { key: "employer-house", label: "🏡 ทะเบียนบ้านนายจ้าง" },
+    { key: "cust-photos", label: "📸 รูปถ่ายกิจการ" },
+    { key: "cust-commerce", label: "💼 ทะเบียนพาณิชย์ (ถ้ามี)" }
+];
+
+function openCustomerFolderModal(customerId) {
+    activeFolderCustomerId = customerId;
+    const c = customers.find(item => item.id === customerId);
+    if (!c) return;
+
+    document.getElementById("customer-folder-name").innerText = c.companyName || "ไม่ระบุชื่อบริษัท";
+    document.getElementById("customer-folder-meta").innerText = `เลขผู้เสียภาษี: ${c.taxId || '-'}`;
+
+    const listContainer = document.getElementById("customer-folder-files-list");
+    listContainer.innerHTML = CUSTOMER_DOC_TYPES.map(docInfo => {
+        const fileList = getAttachments(c, docInfo.key);
+        let filesHtml = fileList.map((fItem, fIdx) => {
+            const safeData = fItem.data || '';
+            return `
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed #e2e8f0; gap: 10px; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 6px; flex: 1; min-width: 200px;">
+                        <span style="font-size: 12px; color: var(--success);">📄</span>
+                        <span style="font-size: 11.5px; color: var(--navy-dark); font-weight: 500;">${fItem.name}</span>
+                    </div>
+                    <div style="display: flex; gap: 4px; align-items: center;">
+                        <a class="btn btn-sm btn-outline" href="${safeData}" target="_blank" rel="noopener" style="padding: 3px 6px; font-size: 11px;">👁️ ดู</a>
+                        <button class="btn btn-sm btn-outline" onclick="downloadAttachment('${fItem.name}', '${docInfo.key}', '${safeData}')" style="padding: 3px 6px; font-size: 11px;">📥 โหลด</button>
+                        <button class="btn btn-sm btn-outline" onclick="shareAttachment('${fItem.name}', '${(c.companyName || '').replace(/'/g, "\\'")}', '${safeData}')" style="padding: 3px 6px; font-size: 11px;">🔗 แชร์</button>
+                        <button class="btn btn-sm btn-outline delete-btn" onclick="deleteCustomerFolderFileIndex('${docInfo.key}', ${fIdx})" style="padding: 3px 6px; font-size: 11px; height: auto; min-width: auto;">🗑️ ลบ</button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        if (fileList.length === 0) {
+            filesHtml = `<div style="padding: 6px 0; font-size: 12px; color: var(--danger);">⚠️ ยังไม่ได้แนบไฟล์</div>`;
+        }
+
+        return `
+            <div style="display: flex; flex-direction: column; padding: 12px; background-color: #ffffff; border-radius: 6px; border: 1px solid #e2e8f0; font-size: 13px; gap: 8px; margin-bottom: 10px;">
+                <span style="font-weight: 600; color: var(--navy-dark);">${docInfo.label}</span>
+                <div style="display: flex; flex-direction: column; gap: 4px;">${filesHtml}</div>
+                <div style="display: flex; justify-content: flex-end;">
+                    <button class="btn btn-sm btn-outline btn-add" onclick="triggerCustomerFolderFileUpload('${docInfo.key}')" style="padding: 3px 8px; font-size: 11px; color: var(--navy-dark); border-color: var(--navy-light);">📤 แนบไฟล์เพิ่ม</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    document.getElementById("customer-folder-modal").classList.remove("hidden");
+}
+
+function closeCustomerFolderModal() {
+    document.getElementById("customer-folder-modal").classList.add("hidden");
+}
+
+function triggerCustomerFolderFileUpload(docType) {
+    activeFolderCustomerDocType = docType;
+    const fileInput = document.getElementById("customer-folder-upload-input");
+    if (fileInput) {
+        fileInput.value = "";
+        fileInput.click();
+    }
+}
+
+// แนบไฟล์ 1 ไฟล์เข้าแฟ้มเอกสารนายจ้าง/ลูกค้า 1 ราย (upload ขึ้น Supabase Storage แล้วผูกลิงก์เข้าข้อมูลลูกค้าทันที)
+async function attachDocumentToCustomer(c, docType, fileContent) {
+    const nameClean = (c.companyName || 'customer').replace(/\s+/g, '_');
+    const currentList = getAttachments(c, docType);
+    const suffix = currentList.length > 0 ? `_${currentList.length + 1}` : "";
+    const fileName = `${nameClean}_${docType}${suffix}`;
+
+    const uploadResult = await uploadDocumentFile(fileContent, fileName, c.id, "", docType);
+    const storedUrl = uploadResult ? uploadResult.fileUrl : null;
+    const serverUrl = storedUrl || await uploadFileToServer(fileContent, fileName);
+
+    c.attachments = c.attachments || {};
+    c.attachments[docType] = currentList;
+    c.attachments[docType].push({ name: fileName, data: serverUrl || fileContent });
+
+    const saveRes = await callCloudAPI("saveCustomer", { customerData: c });
+    if (!saveRes || saveRes.status === "error") throw new Error(saveRes && saveRes.message ? saveRes.message : "บันทึกไม่สำเร็จ");
+    return uploadResult;
+}
+
+function handleCustomerFolderFileUpload(event) {
+    const file = event.target.files[0];
+    if (!file || !activeFolderCustomerId || !activeFolderCustomerDocType) return;
+
+    showToast("📤 กำลังอัปโหลดไฟล์...", "warning");
+
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        const fileContent = e.target.result;
+        const idx = customers.findIndex(x => x.id === activeFolderCustomerId);
+        if (idx !== -1) {
+            const c = customers[idx];
+            try {
+                await attachDocumentToCustomer(c, activeFolderCustomerDocType, fileContent);
+                saveData();
+                showToast("✅ อัปโหลดไฟล์และอัปเดตแฟ้มเอกสารสำเร็จ!", "success");
+            } catch (err) {
+                console.error("attachDocumentToCustomer failed:", err);
+                showToast("❌ " + (err.message || "อัปโหลดไฟล์ไม่สำเร็จ"), "danger");
+            }
+            openCustomerFolderModal(activeFolderCustomerId);
+            renderCustomers();
+        }
+    };
+    reader.readAsDataURL(file);
+}
+
+function deleteCustomerFolderFileIndex(docType, index) {
+    if (!activeFolderCustomerId) return;
+    if (!confirm("คุณแน่ใจหรือไม่ที่จะลบไฟล์นี้ออกจากแฟ้มเอกสารลูกค้า?")) return;
+
+    const idx = customers.findIndex(x => x.id === activeFolderCustomerId);
+    if (idx === -1) return;
+    const c = customers[idx];
+    const list = getAttachments(c, docType);
+    list.splice(index, 1);
+
+    c.attachments = c.attachments || {};
+    if (list.length === 0) delete c.attachments[docType];
+    else c.attachments[docType] = list;
+
+    callCloudAPI("saveCustomer", { customerData: c }).then(res => {
+        if (!res || res.status === "error") {
+            showToast("❌ ลบไม่สำเร็จ: " + (res && res.message ? res.message : "unknown error"), "danger");
+            return;
+        }
+        saveData();
+        showToast("🗑️ ลบไฟล์ออกจากแฟ้มเอกสารเรียบร้อยแล้ว", "success");
+        openCustomerFolderModal(activeFolderCustomerId);
+        renderCustomers();
+    });
+}
+
 // ==================== ATTACHMENT DOWNLOADS & SHARING HELPERS ====================
 function filterWorkersByEmployer(employerId) {
     switchView('workers');
@@ -5403,7 +5561,7 @@ async function runBulkImport() {
 }
 
 // Rename file inside folder modal
-function renameFolderFileIndex(docType, index, newName) {
+async function renameFolderFileIndex(docType, index, newName) {
     if (!activeFolderWorkerId) return;
     const nameClean = newName.trim();
     if (!nameClean) {
@@ -5419,40 +5577,52 @@ function renameFolderFileIndex(docType, index, newName) {
             list[index].name = nameClean;
             w.attachments = w.attachments || {};
             w.attachments[docType] = list;
+
+            const res = await callCloudAPI("saveWorker", { workerData: w });
+            if (!res || res.status === "error") {
+                showToast("❌ เปลี่ยนชื่อไฟล์ไม่สำเร็จ: " + (res && res.message ? res.message : "unknown error"), "danger");
+                openWorkerFolderModal(activeFolderWorkerId);
+                return;
+            }
             saveData();
             showToast("✏️ เปลี่ยนชื่อไฟล์เรียบร้อยแล้ว!", "success");
-            
+
             openWorkerFolderModal(activeFolderWorkerId);
         }
     }
 }
 
 // Delete specific file index inside folder modal
-function deleteFolderFileIndex(docType, index) {
+async function deleteFolderFileIndex(docType, index) {
     if (!activeFolderWorkerId) return;
+    if (!confirm("คุณแน่ใจหรือไม่ที่จะลบไฟล์นี้ออกจากแฟ้มประวัติคนงาน?")) return;
 
-    if (confirm("คุณแน่ใจหรือไม่ที่จะลบไฟล์นี้ออกจากแฟ้มประวัติคนงาน?")) {
-        const workerIdx = workers.findIndex(w => w.id === activeFolderWorkerId);
-        if (workerIdx !== -1) {
-            const w = workers[workerIdx];
-            const list = getAttachments(w, docType);
-            list.splice(index, 1);
-            
-            w.attachments = w.attachments || {};
-            if (list.length === 0) {
-                delete w.attachments[docType];
-            } else {
-                w.attachments[docType] = list;
-            }
-            
-            saveData();
-            showToast("🗑️ ลบไฟล์ออกจากประวัติเรียบร้อยแล้ว", "success");
-            
-            closeWorkerFolderPreview();
-            openWorkerFolderModal(activeFolderWorkerId);
-            renderWorkers();
-            renderDashboard();
+    const workerIdx = workers.findIndex(w => w.id === activeFolderWorkerId);
+    if (workerIdx !== -1) {
+        const w = workers[workerIdx];
+        const list = getAttachments(w, docType);
+        list.splice(index, 1);
+
+        w.attachments = w.attachments || {};
+        if (list.length === 0) {
+            delete w.attachments[docType];
+        } else {
+            w.attachments[docType] = list;
         }
+
+        const res = await callCloudAPI("saveWorker", { workerData: w });
+        if (!res || res.status === "error") {
+            showToast("❌ ลบไฟล์ไม่สำเร็จ: " + (res && res.message ? res.message : "unknown error"), "danger");
+            openWorkerFolderModal(activeFolderWorkerId);
+            return;
+        }
+        saveData();
+        showToast("🗑️ ลบไฟล์ออกจากประวัติเรียบร้อยแล้ว", "success");
+
+        closeWorkerFolderPreview();
+        openWorkerFolderModal(activeFolderWorkerId);
+        renderWorkers();
+        renderDashboard();
     }
 }
 

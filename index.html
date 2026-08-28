@@ -1847,6 +1847,30 @@
         </div>
 
         <!-- ==================== MODAL: WORKER DOCUMENTS FOLDER ==================== -->
+        <!-- ==================== MODAL: CUSTOMER (นายจ้าง/ลูกค้าผู้ว่าจ้าง) DOCUMENTS FOLDER ==================== -->
+        <div id="customer-folder-modal" class="modal-backdrop hidden" style="z-index: 1050;">
+            <div class="modal-content" style="max-width: 600px;">
+                <div class="modal-header">
+                    <h3>📁 แฟ้มเอกสารของนายจ้าง / ลูกค้าผู้ว่าจ้าง</h3>
+                    <button class="close-btn" onclick="closeCustomerFolderModal()">&times;</button>
+                </div>
+                <div class="modal-body" style="padding-top: 10px;">
+                    <input type="file" id="customer-folder-upload-input" accept="image/*,application/pdf" style="display:none;" onchange="handleCustomerFolderFileUpload(event)">
+                    <div style="margin-bottom: 20px; background-color: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                        <h4 id="customer-folder-name" style="margin: 0 0 4px 0; color: var(--navy-dark); font-size: 16px; font-weight: 600;"></h4>
+                        <p id="customer-folder-meta" style="margin: 0; font-size: 12.5px; color: var(--text-muted);"></p>
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 12px;" id="customer-folder-files-list">
+                        <!-- Dynamic files will be rendered here -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-gold" style="width:100%;" onclick="closeCustomerFolderModal()">ปิดหน้าต่าง</button>
+                </div>
+            </div>
+        </div>
+
         <div id="worker-folder-modal" class="modal-backdrop hidden" style="z-index: 1050;">
             <div class="modal-content" style="max-width: 600px;">
                 <div class="modal-header">

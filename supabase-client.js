@@ -28,7 +28,8 @@
     const CUSTOMER_MAP = {
         id: "id", taxId: "tax_id", companyName: "company_name", businessType: "business_type",
         coordinator: "coordinator", phone: "phone", createdAt: "created_at",
-        branches: "branches", drive_folder_id: "drive_folder_id", directorId: "director_id"
+        branches: "branches", drive_folder_id: "drive_folder_id", directorId: "director_id",
+        attachments: "attachments"
     };
     const WORKER_MAP = {
         id: "id", employerId: "employer_id", title: "title", nationality: "nationality",
@@ -169,6 +170,14 @@
         return { status: "success" };
     }
 
+    // Supabase Storage object keys ต้องเป็นอักขระปลอดภัยเท่านั้น (ไม่รองรับภาษาไทย/ยูนิโค้ดอื่นๆ
+    // โดยตรง — อัปโหลดจะพังด้วย "Invalid key" ถ้าชื่อไฟล์มีอักขระเหล่านี้ เช่น ชื่อบริษัทภาษาไทย)
+    // ชื่อที่ผู้ใช้เห็น (fItem.name ที่เก็บใน attachments) ยังคงเป็นภาษาไทยได้ตามปกติ อันนี้สะอาดแค่ path จริงบน Storage
+    function sanitizeStorageFileName(name) {
+        const cleaned = (name || "file").replace(/[^a-zA-Z0-9_.-]/g, "_").replace(/_+/g, "_");
+        return cleaned.slice(0, 150) || "file";
+    }
+
     // -------------------- File upload (Supabase Storage + OCR edge function) --------------------
     async function uploadFile(fileDataUrl, fileName, customerId, workerId, docType, currentUser) {
         const parts = fileDataUrl.split(",");
@@ -179,7 +188,7 @@
         const bytes = new Uint8Array(binary.length);
         for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
 
-        const path = `${customerId || "misc"}/${workerId || "employer"}/${Date.now()}_${fileName}`;
+        const path = `${customerId || "misc"}/${workerId || "employer"}/${Date.now()}_${sanitizeStorageFileName(fileName)}`;
         const { error: upErr } = await sb.storage.from("worker-documents").upload(path, bytes, { contentType: mimeType, upsert: true });
         if (upErr) return { status: "error", message: upErr.message };
 
