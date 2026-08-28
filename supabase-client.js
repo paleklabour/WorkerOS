@@ -29,7 +29,7 @@
         id: "id", taxId: "tax_id", companyName: "company_name", businessType: "business_type",
         coordinator: "coordinator", phone: "phone", createdAt: "created_at",
         branches: "branches", drive_folder_id: "drive_folder_id", directorId: "director_id",
-        attachments: "attachments"
+        attachments: "attachments", shareToken: "share_token"
     };
     const WORKER_MAP = {
         id: "id", employerId: "employer_id", title: "title", nationality: "nationality",

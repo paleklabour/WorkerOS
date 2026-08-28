@@ -4526,6 +4526,49 @@ function deleteCustomerFolderFileIndex(docType, index) {
     });
 }
 
+// สร้าง/นำลิงก์แชร์ "ทั้งโฟลเดอร์" ของนายจ้าง/ลูกค้า 1 รายมาคัดลอก — เปิดดูได้โดยไม่ต้องล็อกอินเข้า WorkerOS
+// (ใช้ share_token สุ่มผูกกับลูกค้ารายนั้น ผ่าน edge function share-customer-docs — ดู share-customer.html)
+// คู่เดียวกับ shareWorkerFolder ของฝั่งคนงาน
+async function shareCustomerFolder(customerId) {
+    const c = customers.find(item => item.id === customerId);
+    if (!c) return;
+
+    let token = c.shareToken;
+    if (!token) {
+        token = crypto.randomUUID();
+        c.shareToken = token;
+        const res = await callCloudAPI("saveCustomer", { customerData: c });
+        if (!res || res.status === "error") {
+            showToast("ไม่สามารถสร้างลิงก์แชร์ได้: " + (res && res.message ? res.message : "unknown error"), "error");
+            return;
+        }
+        saveData();
+    }
+
+    const link = new URL(`share-customer.html?c=${encodeURIComponent(customerId)}&t=${encodeURIComponent(token)}`, location.href).toString();
+    navigator.clipboard.writeText(link).then(() => {
+        showToast(`📋 คัดลอกลิงก์แชร์ทั้งโฟลเดอร์ของ ${c.companyName} เรียบร้อยแล้ว! ส่งให้ลูกค้าได้เลย ไม่ต้องล็อกอิน`, "success");
+    }).catch(err => {
+        alert("ไม่สามารถคัดลอกได้: " + err);
+    });
+}
+
+// ยกเลิกลิงก์แชร์เดิม (ลิงก์ที่เคยส่งไปแล้วจะใช้ไม่ได้อีก — ต้องกด "สร้างลิงก์แชร์" ใหม่ถ้าต้องการอันใหม่)
+async function revokeCustomerShareLink(customerId) {
+    const c = customers.find(item => item.id === customerId);
+    if (!c || !c.shareToken) return;
+    if (!confirm(`ยกเลิกลิงก์แชร์ของ ${c.companyName}? ลิงก์เดิมที่เคยส่งให้ลูกค้าจะเปิดไม่ได้อีก`)) return;
+
+    c.shareToken = null;
+    const res = await callCloudAPI("saveCustomer", { customerData: c });
+    if (!res || res.status === "error") {
+        showToast("ไม่สามารถยกเลิกลิงก์ได้: " + (res && res.message ? res.message : "unknown error"), "error");
+        return;
+    }
+    saveData();
+    showToast("🚫 ยกเลิกลิงก์แชร์เรียบร้อยแล้ว", "success");
+}
+
 // ==================== ATTACHMENT DOWNLOADS & SHARING HELPERS ====================
 function filterWorkersByEmployer(employerId) {
     switchView('workers');
