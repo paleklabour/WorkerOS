@@ -53,6 +53,11 @@
         attachments: "attachments", closedAt: "closed_at", closedBy: "closed_by"
     };
     const AGENT_MAP = { id: "id", name: "name", createdAt: "created_at" };
+    const EXPENSE_MAP = {
+        id: "id", expenseDate: "expense_date", category: "category", amount: "amount",
+        description: "description", paymentMethod: "payment_method", attachment: "attachment",
+        createdAt: "created_at"
+    };
 
     function toRow(obj, map) {
         const row = {};
@@ -120,13 +125,14 @@
 
     // -------------------- getData --------------------
     async function handleGetData() {
-        const [customersRes, workersRes, jobsRes, banksRes, profilesRes, agentsRes] = await Promise.all([
+        const [customersRes, workersRes, jobsRes, banksRes, profilesRes, agentsRes, expensesRes] = await Promise.all([
             sb.from("customers").select("*"),
             sb.from("workers").select("*"),
             sb.from("jobs").select("*"),
             sb.from("banks").select("*"),
             sb.from("profiles").select("name, role, customer_id, id"),
-            sb.from("agents").select("*")
+            sb.from("agents").select("*"),
+            sb.from("expenses").select("*")
         ]);
         // RLS กรองแถวให้อัตโนมัติตาม role/customer_id ของผู้ใช้ที่ล็อกอินอยู่แล้ว
         // (ไม่ต้อง filter ซ้ำฝั่ง client เหมือนโค้ด Code.gs เดิม)
@@ -147,6 +153,7 @@
             jobs,
             banks: toCamelList(banksRes.data, BANK_MAP),
             agents: agentsRes.error ? [] : toCamelList(agentsRes.data, AGENT_MAP),
+            expenses: expensesRes.error ? [] : toCamelList(expensesRes.data, EXPENSE_MAP),
             users: profilesRes.error ? [] : (profilesRes.data || []).map((p) => ({
                 id: p.id, email: p.id, name: p.name, role: p.role, customer_id: p.customer_id
             }))
@@ -170,7 +177,7 @@
     // ลบสำเร็จ (ไม่ error) แต่แถวไม่ตรงกับ RLS/id ที่ให้มา ก็จะลบได้ 0 แถวโดยไม่ error เลย (ดูเหมือนสำเร็จ
     // ทั้งที่ไม่มีอะไรถูกลบจริง) — ขอ count กลับมาด้วยเสมอ แล้วถือว่า error ถ้าไม่มีแถวไหนถูกลบจริง
     async function deleteRecord(sheetName, id) {
-        const table = { Customers: "customers", Workers: "workers", Jobs: "jobs", Agents: "agents", Banks: "banks" }[sheetName];
+        const table = { Customers: "customers", Workers: "workers", Jobs: "jobs", Agents: "agents", Banks: "banks", Expenses: "expenses" }[sheetName];
         if (!table) return { status: "error", message: "Unknown table: " + sheetName };
         const { error, count } = await sb.from(table).delete({ count: "exact" }).eq("id", id);
         if (error) return { status: "error", message: error.message };
@@ -204,7 +211,7 @@
         const fileUrl = pub.publicUrl;
 
         let parsedData = null;
-        if (docType && ["worker-passport", "worker-wp-doc", "worker-visa", "worker-myanmar-id"].includes(docType)) {
+        if (docType && ["worker-passport", "worker-wp-doc", "worker-visa", "worker-myanmar-id", "expense-slip"].includes(docType)) {
             try {
                 const headers = await getAuthHeaders();
                 const ocrRes = await fetch(`${FUNCTIONS_BASE}/ocr-document`, {
@@ -270,6 +277,8 @@
                 return await upsertOne("agents", AGENT_MAP, payload.agentData);
             case "saveBank":
                 return await upsertOne("banks", BANK_MAP, payload.bankData);
+            case "saveExpense":
+                return await upsertOne("expenses", EXPENSE_MAP, payload.expenseData);
             case "saveUser":
                 return await saveUser(payload.userData, payload.pin);
             case "updateUserProfile":

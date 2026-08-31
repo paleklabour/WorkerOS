@@ -131,17 +131,17 @@
                         </svg>
                         <span>ระบบแจ้งงาน / ใบสั่งงาน</span>
                     </a>
-                    <a href="#" class="menu-item" id="menu-banks" onclick="switchView('banks')">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="20">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                        </svg>
-                        <span>จัดการบัญชีธนาคาร</span>
-                    </a>
                     <a href="#" class="menu-item" id="menu-agents" onclick="switchView('agents')">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="20">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M9 20H4v-2a3 3 0 015.356-1.857M9 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M13 7a4 4 0 11-8 0 4 4 0 018 0zm6 3a2 2 0 11-4 0 2 2 0 014 0z" />
                         </svg>
                         <span>จัดการ Agent</span>
+                    </a>
+                    <a href="#" class="menu-item" id="menu-expenses" onclick="switchView('expenses')">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="20">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v14a2 2 0 01-2 2z" />
+                        </svg>
+                        <span>การเงิน & รายจ่าย</span>
                     </a>
                     <a href="#" class="menu-item hidden" id="menu-users" onclick="switchView('users')">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="20">
@@ -196,9 +196,6 @@
                             </button>
                             <button class="btn btn-outline" id="btn-tab-monthly" onclick="switchDashboardTab('monthly')" style="padding: 8px 18px; border-radius: var(--radius-sm); font-weight: 600;">
                                 📊 สถิติการเพิ่มนายจ้าง/ลูกจ้างรายเดือน
-                            </button>
-                            <button class="btn btn-outline" id="btn-tab-finance" onclick="switchDashboardTab('finance')" style="padding: 8px 18px; border-radius: var(--radius-sm); font-weight: 600;">
-                                💰 สรุปการเงินและบัญชีรายรับ
                             </button>
                             <button class="btn btn-outline" id="btn-tab-completed" onclick="switchDashboardTab('completed')" style="padding: 8px 18px; border-radius: var(--radius-sm); font-weight: 600;">
                                 ✅ สรุปงานที่แจ้งสำเร็จ
@@ -395,116 +392,6 @@
                                             <!-- List -->
                                         </ul>
                                     </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- TAB 3: FINANCE & REVENUE SUMMARY -->
-                        <div id="db-tab-finance" class="db-tab-content hidden">
-                            <!-- Finance Mini-Stats Cards -->
-                            <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 25px;">
-                                <div class="stats-card" style="border-left: 4px solid var(--navy-medium);">
-                                    <div class="stats-icon text-gold">💰</div>
-                                    <div class="stats-info">
-                                        <h3 id="stat-finance-total">0.00 บาท</h3>
-                                        <p>ประมาณการรายรับรวมทั้งหมด</p>
-                                    </div>
-                                </div>
-                                <div class="stats-card" style="border-left: 4px solid var(--success);">
-                                    <div class="stats-icon text-success">✅</div>
-                                    <div class="stats-info">
-                                        <h3 id="stat-finance-paid">0.00 บาท</h3>
-                                        <p>ชำระเงินเรียบร้อยแล้ว (Received)</p>
-                                    </div>
-                                </div>
-                                <div class="stats-card" style="border-left: 4px solid var(--danger);">
-                                    <div class="stats-icon text-danger">⏰</div>
-                                    <div class="stats-info">
-                                        <h3 id="stat-finance-unpaid">0.00 บาท</h3>
-                                        <p>ยอดค้างชำระทั้งหมด (Outstanding)</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Bank & Cash Account Cards -->
-                            <h4 style="font-size: 14.5px; font-weight: 700; color: var(--navy-dark); margin-bottom: 12px; margin-top: 15px;">🏦 ยอดรายรับแยกตามบัญชีธนาคารและเงินสด (Received by Accounts)</h4>
-                            <div class="stats-grid" id="db-finance-accounts-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 25px; gap: 15px;">
-                                <!-- Dynamic Bank and Cash stats cards -->
-                            </div>
-
-                            <div class="dashboard-grid" style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px; margin-bottom: 20px;">
-                                <!-- Panel 1: Revenue by Job Type -->
-                                <div class="dashboard-panel">
-                                    <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
-                                        <h3>📊 สรุปรายรับแยกตามประเภทงานที่แจ้ง (Revenue by Job Type)</h3>
-                                        <div style="display: flex; gap: 4px;">
-                                            <button type="button" class="btn btn-sm btn-gold" id="btn-jobtypes-view-table" onclick="toggleJobTypesView('table')" style="font-size: 11px; padding: 4px 10px;">📋 ตาราง</button>
-                                            <button type="button" class="btn btn-sm btn-outline" id="btn-jobtypes-view-chart" onclick="toggleJobTypesView('chart')" style="font-size: 11px; padding: 4px 10px;">🥧 กราฟวงกลม</button>
-                                        </div>
-                                    </div>
-                                    <div class="panel-content" id="db-finance-jobtypes-table-wrap" style="padding: 0; overflow-x: auto; max-height: 320px;">
-                                        <table class="data-table" style="box-shadow: none; border: none; border-radius: 0;">
-                                            <thead>
-                                                <tr>
-                                                    <th>ประเภทงานบริการ</th>
-                                                    <th style="text-align: center; width: 110px;">จำนวนงาน</th>
-                                                    <th style="text-align: right; width: 160px;">รายรับสะสม</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="db-finance-jobtypes-tbody">
-                                                <!-- Dynamic rows -->
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                    <div class="panel-content hidden" id="db-finance-jobtypes-chart-wrap" style="padding: 12px; max-height: 320px; overflow-y: auto;">
-                                        <div id="db-finance-jobtypes-chart" style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap; justify-content: center;">
-                                            <!-- Dynamic pie chart (SVG) -->
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Panel 2: Job Status & Payment Breakdown -->
-                                <div class="dashboard-panel">
-                                    <div class="panel-header">
-                                        <h3>📈 สัดส่วนความคืบหน้าและการชำระเงิน</h3>
-                                    </div>
-                                    <div class="panel-content" style="padding: 20px; display: flex; flex-direction: column; gap: 15px;">
-                                        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); padding: 16px;">
-                                            <h5 style="font-size: 13.5px; font-weight: 600; margin-bottom: 12px; color: var(--navy-dark);">สัดส่วนการชำระเงินงาน (Payment Status):</h5>
-                                            <div id="db-finance-payment-breakdown-container" style="display: flex; flex-direction: column; gap: 8px;">
-                                                <!-- Dynamic breakdown bars -->
-                                            </div>
-                                        </div>
-                                        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); padding: 16px;">
-                                            <h5 style="font-size: 13.5px; font-weight: 600; margin-bottom: 12px; color: var(--navy-dark);">ความคืบหน้างานบริการ (Service Progress):</h5>
-                                            <div id="db-finance-progress-breakdown-container" style="display: flex; flex-direction: column; gap: 8px;">
-                                                <!-- Dynamic progress bars -->
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Panel 3: Revenue & Outstanding by Customer -->
-                            <div class="dashboard-panel" style="margin-bottom: 20px;">
-                                <div class="panel-header">
-                                    <h3>🏢 สรุปรายรับและยอดเงินค้างชำระแยกตามลูกค้า/นายจ้าง (Revenue by Customer)</h3>
-                                </div>
-                                <div class="panel-content" style="padding: 0; overflow-x: auto;">
-                                    <table class="data-table" style="box-shadow: none; border: none; border-radius: 0;">
-                                        <thead>
-                                            <tr>
-                                                <th>ชื่อนายจ้าง / บริษัท</th>
-                                                <th style="text-align: right; width: 160px; font-weight: 600;">ยอดเงินรวมทั้งหมด</th>
-                                                <th style="text-align: right; width: 160px; color: var(--success); font-weight: 600;">ชำระเงินแล้ว</th>
-                                                <th style="text-align: right; width: 160px; color: var(--danger); font-weight: 600;">ค้างชำระ</th>
-                                                <th style="text-align: center; width: 120px;">จัดการ</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="db-finance-customers-tbody">
-                                            <!-- Dynamic customer finance rows -->
-                                        </tbody>
-                                    </table>
                                 </div>
                             </div>
                         </div>
@@ -843,28 +730,6 @@
                         </div>
                     </div>
 
-                    <!-- ==================== BANKS VIEW ==================== -->
-                    <div id="view-banks" class="content-section hidden">
-                        <div class="table-actions">
-                            <div class="search-box">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                </svg>
-                                <input type="text" id="search-bank" placeholder="ค้นหาชื่อบัญชี, ธนาคาร..." oninput="renderBanks()">
-                            </div>
-                            <button class="btn btn-gold btn-add" id="btn-add-bank" onclick="openBankModal()">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                                </svg>
-                                <span>เพิ่มบัญชีธนาคาร</span>
-                            </button>
-                        </div>
-
-                        <div class="bank-accounts-grid" id="banks-list-grid">
-                            <!-- Dynamic Bank Cards -->
-                        </div>
-                    </div>
-
                     <!-- ==================== AGENTS VIEW ==================== -->
                     <div id="view-agents" class="content-section hidden">
                         <div class="table-actions">
@@ -899,6 +764,295 @@
                                     <!-- Rendered dynamically -->
                                 </tbody>
                             </table>
+                        </div>
+                    </div>
+
+                    <!-- ==================== FINANCE / EXPENSES / BANKS (MERGED) VIEW ==================== -->
+                    <div id="view-expenses" class="content-section hidden">
+                        <div class="dashboard-tabs" style="margin-bottom: 18px;">
+                            <button type="button" class="btn btn-gold" id="btn-finpage-tab-overview" onclick="switchFinancePageTab('overview')">📊 สรุปการเงิน</button>
+                            <button type="button" class="btn btn-outline" id="btn-finpage-tab-expenses" onclick="switchFinancePageTab('expenses')">💸 จัดการรายจ่าย</button>
+                            <button type="button" class="btn btn-outline" id="btn-finpage-tab-banks" onclick="switchFinancePageTab('banks')">🏦 บัญชีธนาคาร</button>
+                        </div>
+
+                        <!-- SUB-TAB: FINANCE OVERVIEW -->
+                        <div id="finpage-tab-overview" class="db-tab-content">
+                            <!-- Period Filter -->
+                            <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; padding: 0;">
+                                <h4 style="font-size: 14.5px; font-weight: 700; color: var(--navy-dark); margin: 0;">📅 ช่วงเวลาที่ต้องการดูสรุป</h4>
+                                <select id="db-finance-period-select" onchange="renderFinanceStats()" style="padding: 8px 14px; border-radius: var(--radius-sm); border: 1px solid #cbd5e1; outline: none; font-size: 13.5px; min-width: 220px;">
+                                    <option value="">ทั้งหมด (All Time)</option>
+                                    <!-- Dynamic ปี/เดือน options -->
+                                </select>
+                            </div>
+
+                            <!-- Top Highlight Cards -->
+                            <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 15px;">
+                                <div class="stats-card" style="border-left: 4px solid var(--gold-primary);">
+                                    <div class="stats-icon text-gold">🏆</div>
+                                    <div class="stats-info">
+                                        <h3 id="stat-top-jobtype-count" style="font-size: 15px;">-</h3>
+                                        <p>บริการขายดีที่สุด (จำนวนงาน)</p>
+                                    </div>
+                                </div>
+                                <div class="stats-card" style="border-left: 4px solid var(--success);">
+                                    <div class="stats-icon text-success">💎</div>
+                                    <div class="stats-info">
+                                        <h3 id="stat-top-jobtype-revenue" style="font-size: 15px;">-</h3>
+                                        <p>บริการทำรายได้สูงสุด</p>
+                                    </div>
+                                </div>
+                                <div class="stats-card" style="border-left: 4px solid var(--navy-medium);">
+                                    <div class="stats-icon" style="color: var(--navy-dark);">👑</div>
+                                    <div class="stats-info">
+                                        <h3 id="stat-top-customer" style="font-size: 15px;">-</h3>
+                                        <p>ลูกค้าที่ทำรายได้ให้มากที่สุด</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Finance Mini-Stats Cards -->
+                            <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 25px;">
+                                <div class="stats-card" style="border-left: 4px solid var(--navy-medium);">
+                                    <div class="stats-icon text-gold">💰</div>
+                                    <div class="stats-info">
+                                        <h3 id="stat-finance-total">0.00 บาท</h3>
+                                        <p>ประมาณการรายรับรวมทั้งหมด</p>
+                                    </div>
+                                </div>
+                                <div class="stats-card" style="border-left: 4px solid var(--success);">
+                                    <div class="stats-icon text-success">✅</div>
+                                    <div class="stats-info">
+                                        <h3 id="stat-finance-paid">0.00 บาท</h3>
+                                        <p>ชำระเงินเรียบร้อยแล้ว (Received)</p>
+                                    </div>
+                                </div>
+                                <div class="stats-card" style="border-left: 4px solid var(--danger);">
+                                    <div class="stats-icon text-danger">⏰</div>
+                                    <div class="stats-info">
+                                        <h3 id="stat-finance-unpaid">0.00 บาท</h3>
+                                        <p>ยอดค้างชำระทั้งหมด (Outstanding)</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Expense & Net Profit Cards -->
+                            <div class="stats-grid" style="grid-template-columns: repeat(2, 1fr); margin-bottom: 25px;">
+                                <div class="stats-card" style="border-left: 4px solid var(--danger);">
+                                    <div class="stats-icon text-danger">📉</div>
+                                    <div class="stats-info">
+                                        <h3 id="stat-finance-expenses">0.00 บาท</h3>
+                                        <p>รายจ่ายรวมทั้งหมด</p>
+                                    </div>
+                                </div>
+                                <div class="stats-card" style="border-left: 4px solid var(--gold-primary);">
+                                    <div class="stats-icon" style="color: var(--gold-primary);">📊</div>
+                                    <div class="stats-info">
+                                        <h3 id="stat-finance-net-profit">0.00 บาท</h3>
+                                        <p>กำไรสุทธิ (รายรับที่ชำระแล้ว − รายจ่าย)</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Bank & Cash Account Cards -->
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px; margin-bottom: 12px;">
+                                <h4 style="font-size: 14.5px; font-weight: 700; color: var(--navy-dark); margin: 0;">🏦 ยอดรายรับแยกตามบัญชีธนาคารและเงินสด (Received by Accounts)</h4>
+                                <div style="display: flex; gap: 4px;">
+                                    <button type="button" class="btn btn-sm btn-gold" id="btn-accounts-view-table" onclick="toggleChartView('accounts', 'table')" style="font-size: 11px; padding: 4px 10px;">📋 การ์ด</button>
+                                    <button type="button" class="btn btn-sm btn-outline" id="btn-accounts-view-chart" onclick="toggleChartView('accounts', 'chart')" style="font-size: 11px; padding: 4px 10px;">🥧 กราฟวงกลม</button>
+                                </div>
+                            </div>
+                            <div id="db-finance-accounts-table-wrap" style="margin-bottom: 25px;">
+                                <div class="stats-grid" id="db-finance-accounts-grid" style="grid-template-columns: repeat(4, 1fr); gap: 15px;">
+                                    <!-- Dynamic Bank and Cash stats cards -->
+                                </div>
+                            </div>
+                            <div class="dashboard-panel hidden" id="db-finance-accounts-chart-wrap" style="margin-bottom: 25px;">
+                                <div class="panel-content" style="padding: 12px; max-height: 320px; overflow-y: auto;">
+                                    <div id="db-finance-accounts-chart" style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap; justify-content: center;">
+                                        <!-- Dynamic pie chart (SVG) -->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="dashboard-grid" style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px; margin-bottom: 20px;">
+                                <!-- Panel 1: Revenue by Job Type -->
+                                <div class="dashboard-panel">
+                                    <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+                                        <h3>📊 สรุปรายรับแยกตามประเภทงานที่แจ้ง (Revenue by Job Type)</h3>
+                                        <div style="display: flex; gap: 4px;">
+                                            <button type="button" class="btn btn-sm btn-gold" id="btn-jobtypes-view-table" onclick="toggleChartView('jobtypes', 'table')" style="font-size: 11px; padding: 4px 10px;">📋 ตาราง</button>
+                                            <button type="button" class="btn btn-sm btn-outline" id="btn-jobtypes-view-chart" onclick="toggleChartView('jobtypes', 'chart')" style="font-size: 11px; padding: 4px 10px;">🥧 กราฟวงกลม</button>
+                                        </div>
+                                    </div>
+                                    <div class="panel-content" id="db-finance-jobtypes-table-wrap" style="padding: 0; overflow-x: auto; max-height: 320px;">
+                                        <table class="data-table" style="box-shadow: none; border: none; border-radius: 0;">
+                                            <thead>
+                                                <tr>
+                                                    <th>ประเภทงานบริการ</th>
+                                                    <th style="text-align: center; width: 110px;">จำนวนงาน</th>
+                                                    <th style="text-align: right; width: 160px;">รายรับสะสม</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="db-finance-jobtypes-tbody">
+                                                <!-- Dynamic rows -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div class="panel-content hidden" id="db-finance-jobtypes-chart-wrap" style="padding: 12px; max-height: 320px; overflow-y: auto;">
+                                        <div id="db-finance-jobtypes-chart" style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap; justify-content: center;">
+                                            <!-- Dynamic pie chart (SVG) -->
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Panel 2: Job Status & Payment Breakdown -->
+                                <div class="dashboard-panel">
+                                    <div class="panel-header">
+                                        <h3>📈 สัดส่วนความคืบหน้าและการชำระเงิน</h3>
+                                    </div>
+                                    <div class="panel-content" style="padding: 20px; display: flex; flex-direction: column; gap: 15px;">
+                                        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); padding: 16px;">
+                                            <h5 style="font-size: 13.5px; font-weight: 600; margin-bottom: 12px; color: var(--navy-dark);">สัดส่วนการชำระเงินงาน (Payment Status):</h5>
+                                            <div id="db-finance-payment-breakdown-container" style="display: flex; flex-direction: column; gap: 8px;">
+                                                <!-- Dynamic breakdown bars -->
+                                            </div>
+                                        </div>
+                                        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); padding: 16px;">
+                                            <h5 style="font-size: 13.5px; font-weight: 600; margin-bottom: 12px; color: var(--navy-dark);">ความคืบหน้างานบริการ (Service Progress):</h5>
+                                            <div id="db-finance-progress-breakdown-container" style="display: flex; flex-direction: column; gap: 8px;">
+                                                <!-- Dynamic progress bars -->
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Panel 3: Revenue & Outstanding by Customer -->
+                            <div class="dashboard-panel" style="margin-bottom: 20px;">
+                                <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+                                    <h3>🏢 สรุปรายรับและยอดเงินค้างชำระแยกตามลูกค้า/นายจ้าง (Revenue by Customer)</h3>
+                                    <div style="display: flex; gap: 4px;">
+                                        <button type="button" class="btn btn-sm btn-gold" id="btn-customers-view-table" onclick="toggleChartView('customers', 'table')" style="font-size: 11px; padding: 4px 10px;">📋 ตาราง</button>
+                                        <button type="button" class="btn btn-sm btn-outline" id="btn-customers-view-chart" onclick="toggleChartView('customers', 'chart')" style="font-size: 11px; padding: 4px 10px;">🥧 กราฟวงกลม</button>
+                                    </div>
+                                </div>
+                                <div class="panel-content" id="db-finance-customers-table-wrap" style="padding: 0; overflow-x: auto;">
+                                    <table class="data-table" style="box-shadow: none; border: none; border-radius: 0;">
+                                        <thead>
+                                            <tr>
+                                                <th>ชื่อนายจ้าง / บริษัท</th>
+                                                <th style="text-align: right; width: 160px; font-weight: 600;">ยอดเงินรวมทั้งหมด</th>
+                                                <th style="text-align: right; width: 160px; color: var(--success); font-weight: 600;">ชำระเงินแล้ว</th>
+                                                <th style="text-align: right; width: 160px; color: var(--danger); font-weight: 600;">ค้างชำระ</th>
+                                                <th style="text-align: center; width: 120px;">จัดการ</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="db-finance-customers-tbody">
+                                            <!-- Dynamic customer finance rows -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="panel-content hidden" id="db-finance-customers-chart-wrap" style="padding: 12px; max-height: 400px; overflow-y: auto;">
+                                    <div id="db-finance-customers-chart" style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap; justify-content: center;">
+                                        <!-- Dynamic pie chart (SVG) -->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Panel 4: Expenses by Category -->
+                            <div class="dashboard-panel" style="margin-bottom: 20px;">
+                                <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+                                    <h3>📉 สรุปรายจ่ายแยกตามหมวดหมู่ (Expenses by Category)</h3>
+                                    <div style="display: flex; gap: 4px;">
+                                        <button type="button" class="btn btn-sm btn-gold" id="btn-expensecat-view-table" onclick="toggleChartView('expensecat', 'table')" style="font-size: 11px; padding: 4px 10px;">📋 ตาราง</button>
+                                        <button type="button" class="btn btn-sm btn-outline" id="btn-expensecat-view-chart" onclick="toggleChartView('expensecat', 'chart')" style="font-size: 11px; padding: 4px 10px;">🥧 กราฟวงกลม</button>
+                                    </div>
+                                </div>
+                                <div class="panel-content" id="db-finance-expensecat-table-wrap" style="padding: 0; overflow-x: auto;">
+                                    <table class="data-table" style="box-shadow: none; border: none; border-radius: 0;">
+                                        <thead>
+                                            <tr>
+                                                <th>หมวดหมู่</th>
+                                                <th style="text-align: center; width: 110px;">จำนวนรายการ</th>
+                                                <th style="text-align: right; width: 160px;">รวมรายจ่าย</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="db-finance-expensecat-tbody">
+                                            <!-- Dynamic rows -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="panel-content hidden" id="db-finance-expensecat-chart-wrap" style="padding: 12px; max-height: 320px; overflow-y: auto;">
+                                    <div id="db-finance-expensecat-chart" style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap; justify-content: center;">
+                                        <!-- Dynamic pie chart (SVG) -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- SUB-TAB: EXPENSE MANAGEMENT -->
+                        <div id="finpage-tab-expenses" class="db-tab-content hidden">
+                            <div class="table-actions">
+                                <div class="search-box">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                    </svg>
+                                    <input type="text" id="search-expense" placeholder="ค้นหารายละเอียด, หมวดหมู่..." oninput="renderExpenses()">
+                                </div>
+                                <select id="filter-expense-category" onchange="renderExpenses()" style="padding: 8px 14px; border-radius: var(--radius-sm); border: 1px solid #cbd5e1; outline: none; font-size: 13.5px;">
+                                    <option value="">ทุกหมวดหมู่</option>
+                                </select>
+                                <button class="btn btn-gold btn-add" id="btn-add-expense" onclick="openExpenseModal()">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                                    </svg>
+                                    <span>เพิ่มรายจ่ายใหม่</span>
+                                </button>
+                            </div>
+                            <p class="section-desc" style="margin: -8px 0 15px;">
+                                บันทึกค่าใช้จ่ายของกิจการ (ค่าเช่า, เงินเดือน, ค่าธรรมเนียมราชการ ฯลฯ) — ใช้คำนวณกำไรสุทธิและสรุปรายจ่ายแยกหมวดหมู่ในแท็บสรุปการเงิน
+                            </p>
+
+                            <div class="table-container">
+                                <table class="data-table" id="expenses-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 110px;">วันที่</th>
+                                            <th>หมวดหมู่</th>
+                                            <th>รายละเอียด</th>
+                                            <th style="text-align: right; width: 140px;">จำนวนเงิน</th>
+                                            <th style="width: 140px;">จ่ายจาก</th>
+                                            <th class="actions-col">จัดการ</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="expenses-tbody">
+                                        <!-- Rendered dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- SUB-TAB: BANK ACCOUNT MANAGEMENT -->
+                        <div id="finpage-tab-banks" class="db-tab-content hidden">
+                            <div class="table-actions">
+                                <div class="search-box">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                    </svg>
+                                    <input type="text" id="search-bank" placeholder="ค้นหาชื่อบัญชี, ธนาคาร..." oninput="renderBanks()">
+                                </div>
+                                <button class="btn btn-gold btn-add" id="btn-add-bank" onclick="openBankModal()">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                                    </svg>
+                                    <span>เพิ่มบัญชีธนาคาร</span>
+                                </button>
+                            </div>
+
+                            <div class="bank-accounts-grid" id="banks-list-grid">
+                                <!-- Dynamic Bank Cards -->
+                            </div>
                         </div>
                     </div>
 
@@ -1057,6 +1211,77 @@
                         <div class="modal-footer">
                             <button type="button" class="btn btn-outline" onclick="closeAgentModal()">ยกเลิก</button>
                             <button type="submit" class="btn btn-gold">บันทึก</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== MODAL: ADD/EDIT EXPENSE ==================== -->
+        <div id="expense-modal" class="modal-backdrop hidden" style="z-index: 1060;">
+            <div class="modal-content" style="max-width: 480px;">
+                <div class="modal-header">
+                    <h3 id="expense-modal-title">➕ เพิ่มรายจ่ายใหม่</h3>
+                    <button class="close-btn" onclick="closeExpenseModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="expense-form" onsubmit="saveExpense(event)">
+                        <input type="hidden" id="expense-edit-id">
+
+                        <div class="form-group">
+                            <label>แนบสลิป/ใบเสร็จ (ถ้ามี — AI จะอ่านและกรอกข้อมูลด้านล่างให้อัตโนมัติ)</label>
+                            <div class="upload-box highlight-box" id="drop-expense-slip" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropExpenseSlipHandler(event)" style="padding: 14px;">
+                                <input type="file" id="file-expense-slip" class="file-input" accept="image/*,application/pdf" onchange="expenseSlipFileSelectHandler(event)">
+                                <div class="upload-icon">🧾</div>
+                                <span class="doc-title">สลิปโอนเงิน / ใบเสร็จ</span>
+                                <span class="upload-hint">ลากไฟล์วางที่นี่ หรือคลิกเพื่ออัปโหลด</span>
+                                <div class="ocr-status" id="status-expense-slip"></div>
+                            </div>
+                            <div id="expense-slip-attached" class="hidden" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; padding: 8px 12px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); font-size: 12.5px;">
+                                <a id="expense-slip-link" href="#" target="_blank" rel="noopener" style="color: var(--navy-dark); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">📎 ไฟล์แนบ</a>
+                                <button type="button" class="btn btn-sm btn-outline delete-btn" onclick="removeExpenseSlip()" style="padding: 3px 8px; font-size: 11px; flex-shrink: 0;">ลบไฟล์แนบ</button>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group col-6">
+                                <label for="expense-date">วันที่ <span class="required">*</span></label>
+                                <input type="date" id="expense-date" required>
+                            </div>
+                            <div class="form-group col-6">
+                                <label for="expense-amount">จำนวนเงิน (บาท) <span class="required">*</span></label>
+                                <input type="number" id="expense-amount" min="0" step="0.01" placeholder="0.00" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="expense-category">หมวดหมู่ <span class="required">*</span></label>
+                            <select id="expense-category" required>
+                                <option value="" disabled selected>--- เลือกหมวดหมู่ ---</option>
+                                <option value="ค่าเช่าสำนักงาน">ค่าเช่าสำนักงาน</option>
+                                <option value="เงินเดือนพนักงาน">เงินเดือนพนักงาน</option>
+                                <option value="ค่าน้ำ-ไฟ-อินเทอร์เน็ต">ค่าน้ำ-ไฟ-อินเทอร์เน็ต</option>
+                                <option value="ค่าธรรมเนียมราชการ/กรมจัดหางาน">ค่าธรรมเนียมราชการ/กรมจัดหางาน</option>
+                                <option value="ค่าคอมมิชชั่น Agent">ค่าคอมมิชชั่น Agent</option>
+                                <option value="ค่าเดินทาง">ค่าเดินทาง</option>
+                                <option value="ค่าอุปกรณ์สำนักงาน">ค่าอุปกรณ์สำนักงาน</option>
+                                <option value="อื่นๆ">อื่นๆ</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="expense-description">รายละเอียด</label>
+                            <input type="text" id="expense-description" placeholder="เช่น ค่าเช่าสำนักงานประจำเดือนสิงหาคม">
+                        </div>
+                        <div class="form-group">
+                            <label for="expense-payment-method">จ่ายจากบัญชี</label>
+                            <select id="expense-payment-method">
+                                <option value="">-- ไม่ระบุ --</option>
+                                <option value="เงินสด">💵 เงินสด (Cash)</option>
+                                <!-- Dynamic bank options -->
+                            </select>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline" onclick="closeExpenseModal()">ยกเลิก</button>
+                            <button type="submit" class="btn btn-gold">บันทึกรายจ่าย</button>
                         </div>
                     </form>
                 </div>

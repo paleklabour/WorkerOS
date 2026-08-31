@@ -14,14 +14,36 @@ const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || "";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-const ALLOWED_DOC_TYPES = ["worker-passport", "worker-wp-doc", "worker-visa", "worker-myanmar-id"];
+const ALLOWED_DOC_TYPES = ["worker-passport", "worker-wp-doc", "worker-visa", "worker-myanmar-id", "expense-slip"];
+
+const EXPENSE_CATEGORIES = [
+  "ค่าเช่าสำนักงาน", "เงินเดือนพนักงาน", "ค่าน้ำ-ไฟ-อินเทอร์เน็ต",
+  "ค่าธรรมเนียมราชการ/กรมจัดหางาน", "ค่าคอมมิชชั่น Agent", "ค่าเดินทาง", "ค่าอุปกรณ์สำนักงาน", "อื่นๆ",
+];
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+function buildExpenseSlipPrompt(): string {
+  return `You are a professional bookkeeping assistant. Parse this payment slip / receipt / bank transfer confirmation ` +
+    `and extract the relevant fields for an expense record. Convert the date to DD/MM/YYYY format. Only fill fields you ` +
+    `can actually read from the image — leave a field out entirely (do not guess or invent values) if it is not clearly ` +
+    `present. For "amount", output digits only (no currency symbol, no commas, e.g. "1500.00"). For "category", pick the ` +
+    `single best match from this exact list based on the payee/memo/items shown, or omit the field if none clearly fit: ` +
+    `${JSON.stringify(EXPENSE_CATEGORIES)}. ` +
+    `Output ONLY a valid JSON object matching this schema, without markdown wrapping, json declaration, or backticks:\n` +
+    `{\n` +
+    `  "amount": "numeric amount only, e.g. 1500.00",\n` +
+    `  "date": "transaction/receipt date in DD/MM/YYYY format",\n` +
+    `  "description": "short description — payee name, memo, or what this payment is for",\n` +
+    `  "category": "one value from the fixed category list above, only if it clearly matches"\n` +
+    `}`;
+}
+
 function buildPrompt(docType: string): string {
+  if (docType === "expense-slip") return buildExpenseSlipPrompt();
   return `You are a professional assistant. Parse this migrant worker document (${docType}) and extract the relevant fields. ` +
     `Convert all dates to DD/MM/YYYY format. Only fill fields you can actually read from the document — ` +
     `leave a field out entirely (do not guess or invent values) if it is not clearly present in the image/PDF. ` +

@@ -9,6 +9,7 @@ let jobs = [];
 let banks = [];
 let users = [];
 let agents = [];
+let expenses = [];
 
 // Thai provinces selection constraint
 const PROVINCES = ["สงขลา", "ปัตตานี", "ยะลา", "พัทลุง"];
@@ -46,6 +47,12 @@ function renderBankLogoBadge(bankName, size = 30) {
     const meta = getBankMeta(bankName);
     return `<span style="display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; width:${size}px; height:${size}px; border-radius:50%; background-color:${meta.color}; color:#fff; font-weight:700; font-size:${Math.max(8, Math.round(size * 0.3))}px; line-height:1;" title="${meta.name}">${meta.short.slice(0, 4)}</span>`;
 }
+
+const MONTH_NAMES_TH = {
+    "01": "มกราคม", "02": "กุมภาพันธ์", "03": "มีนาคม", "04": "เมษายน",
+    "05": "พฤษภาคม", "06": "มิถุนายน", "07": "กรกฎาคม", "08": "สิงหาคม",
+    "09": "กันยายน", "10": "ตุลาคม", "11": "พฤศจิกายน", "12": "ธันวาคม"
+};
 
 const SOUTHERN_ADDRESS_DB = {
     "สงขลา": {
@@ -302,6 +309,7 @@ async function loadData() {
             banks = res.banks || [];
             users = res.users || [];
             agents = res.agents || [];
+            expenses = res.expenses || [];
 
             // Cache locally
             localStorage.setItem("mw_customers", JSON.stringify(customers));
@@ -310,6 +318,7 @@ async function loadData() {
             localStorage.setItem("mw_banks", JSON.stringify(banks));
             localStorage.setItem("mw_users", JSON.stringify(users));
             localStorage.setItem("mw_agents", JSON.stringify(agents));
+            localStorage.setItem("mw_expenses", JSON.stringify(expenses));
 
             showToast("⚡ ดึงข้อมูลออนไลน์เรียบร้อยแล้ว", "success");
             return;
@@ -331,6 +340,8 @@ async function loadData() {
         banks = JSON.parse(cachedBanks);
         const cachedAgents = localStorage.getItem("mw_agents");
         agents = cachedAgents ? JSON.parse(cachedAgents) : [];
+        const cachedExpenses = localStorage.getItem("mw_expenses");
+        expenses = cachedExpenses ? JSON.parse(cachedExpenses) : [];
     } else {
         // Generate Mock Data for immediate usage & wow factor
         seedMockData();
@@ -343,6 +354,7 @@ function saveData() {
     localStorage.setItem("mw_jobs", JSON.stringify(jobs));
     localStorage.setItem("mw_banks", JSON.stringify(banks));
     localStorage.setItem("mw_agents", JSON.stringify(agents));
+    localStorage.setItem("mw_expenses", JSON.stringify(expenses));
 }
 
 function seedMockData() {
@@ -856,8 +868,8 @@ function switchView(viewName) {
     if (viewName === 'customers') titleEl.innerText = "ฐานข้อมูลนายจ้าง / ลูกค้าผู้ว่าจ้าง";
     if (viewName === 'workers') titleEl.innerText = "ฐานข้อมูลคนงานต่างด้าว";
     if (viewName === 'jobs') titleEl.innerText = "ระบบจัดการแจ้งงานและออกบิล";
-    if (viewName === 'banks') titleEl.innerText = "จัดการบัญชีธนาคารผู้รับเงิน";
     if (viewName === 'agents') titleEl.innerText = "จัดการ Agent (ผู้ส่งงาน / ผู้แนะนำลูกค้า)";
+    if (viewName === 'expenses') titleEl.innerText = "การเงิน, รายจ่าย และบัญชีธนาคาร";
     if (viewName === 'users') titleEl.innerText = "จัดการบัญชีผู้ใช้งานระบบ";
     if (viewName === 'backup') titleEl.innerText = "สำรองและกู้คืนข้อมูลระบบ";
 
@@ -871,10 +883,10 @@ function switchView(viewName) {
         updateEmployerDropdownOptions();
     } else if (viewName === 'jobs') {
         renderJobs();
-    } else if (viewName === 'banks') {
-        renderBanks();
     } else if (viewName === 'agents') {
         renderAgentsList();
+    } else if (viewName === 'expenses') {
+        switchFinancePageTab('overview');
     } else if (viewName === 'users') {
         renderUsers();
     }
@@ -950,39 +962,43 @@ function calculateDeadlines() {
     return alerts;
 }
 
-// วาดกราฟวงกลม (SVG โดนัท) แสดงสัดส่วนรายรับแยกตามประเภทงาน — ไม่ใช้ไลบรารีภายนอก
-function renderJobTypesPieChart(jobTypeStats) {
-    const container = document.getElementById("db-finance-jobtypes-chart");
+const PIE_CHART_PALETTE = ['#d4af37', '#1e3a5f', '#16a34a', '#dc2626', '#7c3aed', '#0891b2', '#ea580c', '#64748b', '#db2777', '#65a30d'];
+
+// วาดกราฟวงกลม (SVG โดนัท) ทั่วไป — รับ entries = [{name, value, color?}] ไม่ใช้ไลบรารีภายนอก
+// ใช้ร่วมกันทั้งกราฟรายรับแยกประเภทงาน, แยกลูกค้า, และแยกบัญชีธนาคาร
+function renderPieChartInto(containerId, entries) {
+    const container = document.getElementById(containerId);
     if (!container) return;
 
-    const entries = Object.entries(jobTypeStats || {}).sort((a, b) => b[1].revenue - a[1].revenue);
-    const total = entries.reduce((sum, [, stat]) => sum + stat.revenue, 0);
+    const sorted = (entries || []).filter(e => e.value > 0).sort((a, b) => b.value - a.value);
+    const total = sorted.reduce((sum, e) => sum + e.value, 0);
 
-    if (entries.length === 0 || total <= 0) {
+    if (sorted.length === 0 || total <= 0) {
         container.innerHTML = `<p class="text-muted" style="text-align:center; padding: 25px;">❌ ไม่มีข้อมูลรายรับสำหรับแสดงกราฟ</p>`;
         return;
     }
 
-    const colors = ['#d4af37', '#1e3a5f', '#16a34a', '#dc2626', '#7c3aed', '#0891b2', '#ea580c', '#64748b', '#db2777', '#65a30d'];
     const radius = 80;
     const circumference = 2 * Math.PI * radius;
     let offsetAcc = 0;
 
-    const circles = entries.map(([name, stat], idx) => {
-        const fraction = stat.revenue / total;
+    const circles = sorted.map((e, idx) => {
+        const color = e.color || PIE_CHART_PALETTE[idx % PIE_CHART_PALETTE.length];
+        const fraction = e.value / total;
         const dash = fraction * circumference;
         const gap = circumference - dash;
-        const circle = `<circle r="${radius}" cx="100" cy="100" fill="transparent" stroke="${colors[idx % colors.length]}" stroke-width="36" stroke-dasharray="${dash} ${gap}" stroke-dashoffset="${-offsetAcc}"></circle>`;
+        const circle = `<circle r="${radius}" cx="100" cy="100" fill="transparent" stroke="${color}" stroke-width="36" stroke-dasharray="${dash} ${gap}" stroke-dashoffset="${-offsetAcc}"></circle>`;
         offsetAcc += dash;
         return circle;
     }).join('');
 
-    const legend = entries.map(([name, stat], idx) => {
-        const pct = ((stat.revenue / total) * 100).toFixed(1);
+    const legend = sorted.map((e, idx) => {
+        const color = e.color || PIE_CHART_PALETTE[idx % PIE_CHART_PALETTE.length];
+        const pct = ((e.value / total) * 100).toFixed(1);
         return `
             <div style="display:flex; align-items:center; gap:6px; font-size:12px; margin-bottom:6px;">
-                <span style="width:12px; height:12px; border-radius:3px; background:${colors[idx % colors.length]}; display:inline-block; flex-shrink:0;"></span>
-                <span>${name} — ${stat.revenue.toLocaleString('th-TH')} บ. (${pct}%)</span>
+                <span style="width:12px; height:12px; border-radius:3px; background:${color}; display:inline-block; flex-shrink:0;"></span>
+                <span>${e.name} — ${e.value.toLocaleString('th-TH')} บ. (${pct}%)</span>
             </div>
         `;
     }).join('');
@@ -995,12 +1011,13 @@ function renderJobTypesPieChart(jobTypeStats) {
     `;
 }
 
-// สลับมุมมองแดชบอร์ดระหว่างตารางเดิมกับกราฟวงกลม
-function toggleJobTypesView(mode) {
-    const tableWrap = document.getElementById("db-finance-jobtypes-table-wrap");
-    const chartWrap = document.getElementById("db-finance-jobtypes-chart-wrap");
-    const btnTable = document.getElementById("btn-jobtypes-view-table");
-    const btnChart = document.getElementById("btn-jobtypes-view-chart");
+// สลับมุมมองแดชบอร์ดระหว่างตาราง/การ์ดเดิมกับกราฟวงกลม — ใช้ร่วมกันได้ทุกแผงในแท็บการเงิน
+// โดยยึด id ตามรูปแบบ db-finance-{prefix}-table-wrap / -chart-wrap และ btn-{prefix}-view-table / -chart
+function toggleChartView(prefix, mode) {
+    const tableWrap = document.getElementById(`db-finance-${prefix}-table-wrap`);
+    const chartWrap = document.getElementById(`db-finance-${prefix}-chart-wrap`);
+    const btnTable = document.getElementById(`btn-${prefix}-view-table`);
+    const btnChart = document.getElementById(`btn-${prefix}-view-chart`);
     if (!tableWrap || !chartWrap || !btnTable || !btnChart) return;
 
     if (mode === 'chart') {
@@ -1051,7 +1068,7 @@ function renderDashboard() {
 }
 
 function switchDashboardTab(tabName) {
-    const tabs = ['overview', 'monthly', 'finance', 'completed'];
+    const tabs = ['overview', 'monthly', 'completed'];
     tabs.forEach(t => {
         const pane = document.getElementById(`db-tab-${t}`);
         const btn = document.getElementById(`btn-tab-${t}`);
@@ -1077,10 +1094,40 @@ function switchDashboardTab(tabName) {
         renderDashboardOverview();
     } else if (tabName === 'monthly') {
         renderMonthlyStats();
-    } else if (tabName === 'finance') {
-        renderFinanceStats();
     } else if (tabName === 'completed') {
         renderCompletedJobsStats();
+    }
+}
+
+function switchFinancePageTab(tabName) {
+    const tabs = ['overview', 'expenses', 'banks'];
+    tabs.forEach(t => {
+        const pane = document.getElementById(`finpage-tab-${t}`);
+        const btn = document.getElementById(`btn-finpage-tab-${t}`);
+        if (pane) {
+            if (t === tabName) {
+                pane.classList.remove('hidden');
+            } else {
+                pane.classList.add('hidden');
+            }
+        }
+        if (btn) {
+            if (t === tabName) {
+                btn.classList.add('btn-gold');
+                btn.classList.remove('btn-outline');
+            } else {
+                btn.classList.remove('btn-gold');
+                btn.classList.add('btn-outline');
+            }
+        }
+    });
+
+    if (tabName === 'overview') {
+        renderFinanceStats();
+    } else if (tabName === 'expenses') {
+        renderExpenses();
+    } else if (tabName === 'banks') {
+        renderBanks();
     }
 }
 
@@ -1762,6 +1809,7 @@ function fileSelectHandler(e, docType) {
 
 let tempWorkerAttachments = {};
 let tempCustomerAttachments = {}; // ไฟล์แนบของนายจ้างที่ยังไม่ได้อัปโหลด รอจนกว่าจะบันทึกลูกค้า/นายจ้างสำเร็จก่อน (มี id + โฟลเดอร์ Drive จริง)
+let tempExpenseAttachment = null; // สลิป/ใบเสร็จของรายจ่ายที่กำลังกรอกอยู่ — { name, data(url) } หรือ null
 
 function dropCustomerDocHandler(e, docType) {
     e.preventDefault();
@@ -3388,6 +3436,259 @@ async function deleteAgent(id, name) {
     showToast(`ลบ Agent "${name}" สำเร็จ`, "success");
 }
 
+// ==================== รายจ่ายของกิจการ (Expenses) ====================
+function renderExpenses() {
+    const query = (document.getElementById("search-expense").value || "").toLowerCase();
+    const categoryFilter = document.getElementById("filter-expense-category").value;
+    const tbody = document.getElementById("expenses-tbody");
+    if (!tbody) return;
+
+    // เติมตัวเลือกหมวดหมู่ในฟิลเตอร์จากหมวดที่มีข้อมูลอยู่จริง (คงค่าที่เลือกไว้เดิม)
+    const categorySelect = document.getElementById("filter-expense-category");
+    if (categorySelect) {
+        const currentFilter = categorySelect.value;
+        const categories = Array.from(new Set(expenses.map(e => e.category).filter(Boolean))).sort();
+        categorySelect.innerHTML = '<option value="">ทุกหมวดหมู่</option>' +
+            categories.map(c => `<option value="${c}">${c}</option>`).join('');
+        categorySelect.value = currentFilter;
+    }
+
+    const filtered = expenses.filter(e => {
+        const matchSearch = !query || (e.description || "").toLowerCase().includes(query) || (e.category || "").toLowerCase().includes(query);
+        const matchCategory = !categoryFilter || e.category === categoryFilter;
+        return matchSearch && matchCategory;
+    }).sort((a, b) => (b.expenseDate || "").localeCompare(a.expenseDate || ""));
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-muted" style="text-align:center; padding:30px;">❌ ยังไม่มีรายการรายจ่าย${query || categoryFilter ? "ตามตัวกรอง" : "ในระบบ"}</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(e => {
+        const payMethodHtml = e.paymentMethod === 'เงินสด'
+            ? '💵 เงินสด'
+            : (e.paymentMethod ? `${renderBankLogoBadge(e.paymentMethod, 20)} <span style="margin-left:4px;">${e.paymentMethod}</span>` : '<span class="text-muted">-</span>');
+        const dateLabel = e.expenseDate ? new Date(e.expenseDate).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' }) : '-';
+        const slipLink = (e.attachment && e.attachment.data)
+            ? ` <a href="${e.attachment.data}" target="_blank" rel="noopener" title="ดูสลิป/ใบเสร็จที่แนบไว้">🧾</a>`
+            : '';
+        return `
+            <tr>
+                <td>${dateLabel}</td>
+                <td><span class="badge badge-gold">${e.category || '-'}</span></td>
+                <td>${e.description || '<span class="text-muted">-</span>'}${slipLink}</td>
+                <td style="text-align: right; font-weight: 600; color: var(--danger);">${(e.amount || 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })} บ.</td>
+                <td style="display: flex; align-items: center;">${payMethodHtml}</td>
+                <td class="actions-col">
+                    <div class="actions-cell">
+                        <button class="action-icon-btn" onclick="openExpenseModal('${e.id}')" title="แก้ไข">✏️</button>
+                        ${currentUser.role === 'admin' ? `<button class="action-icon-btn delete-btn" onclick="deleteExpense('${e.id}')" title="ลบ">🗑️</button>` : ''}
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function populateExpensePaymentMethodOptions(selectedValue) {
+    const select = document.getElementById("expense-payment-method");
+    if (!select) return;
+    select.innerHTML = '<option value="">-- ไม่ระบุ --</option><option value="เงินสด">💵 เงินสด (Cash)</option>' +
+        banks.map(b => `<option value="${b.bankName}">${b.bankName} - ${b.accountName}</option>`).join('');
+    select.value = selectedValue || "";
+}
+
+// แนบสลิป/ใบเสร็จรายจ่าย + ใช้ Gemini OCR อ่านจำนวนเงิน/วันที่/รายละเอียด/หมวดหมู่ แล้วกรอกฟอร์มให้อัตโนมัติ
+function dropExpenseSlipHandler(e) {
+    e.preventDefault();
+    e.currentTarget.classList.remove("dragover");
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        processExpenseSlipFile(e.dataTransfer.files[0]);
+    }
+}
+
+function expenseSlipFileSelectHandler(e) {
+    if (e.target.files && e.target.files.length > 0) {
+        processExpenseSlipFile(e.target.files[0]);
+    }
+}
+
+function processExpenseSlipFile(file) {
+    const statusEl = document.getElementById("status-expense-slip");
+    const uploadBox = document.getElementById("drop-expense-slip");
+    statusEl.innerHTML = `<span class="ai-processing">🤖 กำลังอัปโหลดและให้ AI อ่านสลิป...</span>`;
+
+    const reader = new FileReader();
+    reader.onload = async function (ev) {
+        const fileContent = ev.target.result;
+        const fileName = file.name;
+
+        const uploadResult = await uploadDocumentFile(fileContent, fileName, "expenses", "", "expense-slip");
+        const storedUrl = uploadResult ? uploadResult.fileUrl : null;
+
+        if (!storedUrl) {
+            statusEl.innerHTML = `<span class="ai-error">❌ อัปโหลดไม่สำเร็จ</span>`;
+            return;
+        }
+
+        tempExpenseAttachment = { name: fileName, data: storedUrl };
+        showExpenseSlipAttached();
+        uploadBox.classList.add("success-upload");
+        statusEl.innerHTML = `<span class="ai-success">✅ แนบไฟล์สำเร็จ</span>`;
+
+        if (uploadResult.parsedData) {
+            applyGeminiDataToExpenseForm(uploadResult.parsedData);
+            showToast("✨ AI อ่านข้อมูลจากสลิปและกรอกฟอร์มให้อัตโนมัติแล้ว กรุณาตรวจสอบความถูกต้องอีกครั้ง", "success");
+        }
+    };
+    reader.readAsDataURL(file);
+}
+
+function applyGeminiDataToExpenseForm(parsedData) {
+    if (!parsedData) return;
+    if (parsedData.amount) {
+        const amount = parseFloat(String(parsedData.amount).replace(/,/g, ''));
+        if (!isNaN(amount)) document.getElementById("expense-amount").value = amount;
+    }
+    if (parsedData.date) {
+        const isoDate = parseDateInput(parsedData.date);
+        if (isoDate) document.getElementById("expense-date").value = isoDate;
+    }
+    if (parsedData.description) {
+        document.getElementById("expense-description").value = parsedData.description;
+    }
+    if (parsedData.category) {
+        const categorySelect = document.getElementById("expense-category");
+        const validOption = Array.from(categorySelect.options).some(o => o.value === parsedData.category);
+        if (validOption) categorySelect.value = parsedData.category;
+    }
+}
+
+function showExpenseSlipAttached() {
+    const wrap = document.getElementById("expense-slip-attached");
+    const link = document.getElementById("expense-slip-link");
+    if (!tempExpenseAttachment) {
+        wrap.classList.add("hidden");
+        return;
+    }
+    link.href = tempExpenseAttachment.data || "#";
+    link.innerText = `📎 ${tempExpenseAttachment.name}`;
+    wrap.classList.remove("hidden");
+}
+
+function removeExpenseSlip() {
+    tempExpenseAttachment = null;
+    showExpenseSlipAttached();
+    const uploadBox = document.getElementById("drop-expense-slip");
+    const statusEl = document.getElementById("status-expense-slip");
+    const fileInput = document.getElementById("file-expense-slip");
+    uploadBox.classList.remove("success-upload");
+    statusEl.innerHTML = "";
+    if (fileInput) fileInput.value = "";
+}
+
+function openExpenseModal(id = null) {
+    document.getElementById("expense-form").reset();
+    const modalTitle = document.getElementById("expense-modal-title");
+    const editIdInput = document.getElementById("expense-edit-id");
+
+    tempExpenseAttachment = null;
+    document.getElementById("drop-expense-slip").classList.remove("success-upload");
+    document.getElementById("status-expense-slip").innerHTML = "";
+
+    if (id) {
+        modalTitle.innerText = "✏️ แก้ไขรายการรายจ่าย";
+        editIdInput.value = id;
+        const e = expenses.find(item => item.id === id);
+        if (e) {
+            document.getElementById("expense-date").value = e.expenseDate || "";
+            document.getElementById("expense-amount").value = e.amount || 0;
+            document.getElementById("expense-category").value = e.category || "";
+            document.getElementById("expense-description").value = e.description || "";
+            populateExpensePaymentMethodOptions(e.paymentMethod);
+            if (e.attachment && e.attachment.data) {
+                tempExpenseAttachment = e.attachment;
+                document.getElementById("drop-expense-slip").classList.add("success-upload");
+            }
+        }
+    } else {
+        modalTitle.innerText = "➕ เพิ่มรายจ่ายใหม่";
+        editIdInput.value = "";
+        document.getElementById("expense-date").value = new Date().toISOString().split('T')[0];
+        populateExpensePaymentMethodOptions();
+    }
+
+    showExpenseSlipAttached();
+    document.getElementById("expense-modal").classList.remove("hidden");
+}
+
+function closeExpenseModal() {
+    document.getElementById("expense-modal").classList.add("hidden");
+}
+
+async function saveExpense(e) {
+    e.preventDefault();
+    const editId = document.getElementById("expense-edit-id").value;
+    const expenseDate = document.getElementById("expense-date").value;
+    const amount = parseFloat(document.getElementById("expense-amount").value);
+    const category = document.getElementById("expense-category").value;
+    const description = document.getElementById("expense-description").value.trim();
+    const paymentMethod = document.getElementById("expense-payment-method").value || null;
+
+    if (!expenseDate || !category || isNaN(amount) || amount < 0) {
+        alert("กรุณากรอกวันที่ หมวดหมู่ และจำนวนเงินให้ถูกต้อง");
+        return;
+    }
+
+    const expenseData = {
+        id: editId || 'expense-' + Date.now(),
+        expenseDate, amount, category, description, paymentMethod,
+        attachment: tempExpenseAttachment || {}
+    };
+
+    showToast("💾 กำลังบันทึกรายจ่ายเข้าคลาวด์...", "warning");
+    const res = await callCloudAPI("saveExpense", { expenseData });
+    if (!res || res.status === "error") {
+        showToast("❌ บันทึกไม่สำเร็จ: " + (res && res.message ? res.message : "ข้อมูลยังไม่ถูกบันทึกลงคลาวด์ กรุณาลองใหม่"), "danger");
+        return;
+    }
+
+    if (editId) {
+        const idx = expenses.findIndex(item => item.id === editId);
+        if (idx !== -1) {
+            expenses[idx] = expenseData;
+            showToast("แก้ไขรายการรายจ่ายสำเร็จ", "success");
+        }
+    } else {
+        expenses.push(expenseData);
+        showToast("เพิ่มรายการรายจ่ายสำเร็จ", "success");
+    }
+
+    saveData();
+    renderExpenses();
+    closeExpenseModal();
+}
+
+async function deleteExpense(id) {
+    if (currentUser.role !== 'admin') {
+        showToast("❌ เฉพาะแอดมิน (Admin) เท่านั้นที่สามารถลบรายจ่ายได้", "danger");
+        return;
+    }
+    if (!confirm("ลบรายการรายจ่ายนี้หรือไม่?")) return;
+
+    showToast("🗑️ กำลังลบรายจ่าย...", "warning");
+    const res = await callCloudAPI("deleteRecord", { sheetName: "Expenses", id });
+    if (!res || res.status === "error") {
+        showToast("❌ ลบไม่สำเร็จ: " + (res && res.message ? res.message : "unknown error"), "danger");
+        return;
+    }
+
+    expenses = expenses.filter(item => item.id !== id);
+    saveData();
+    renderExpenses();
+    showToast("ลบรายการรายจ่ายสำเร็จ", "success");
+}
+
 // ==================== ปิดงาน (แนบเอกสารแล้วปิด) / เปิดงานอีกครั้ง ====================
 function openJobCloseModal(jobId) {
     const j = jobs.find(item => item.id === jobId);
@@ -3884,7 +4185,8 @@ let currentInvoiceJobIds = [];
 function openInvoiceModal(jobId) {
     if (banks.length === 0) {
         alert("กรุณาเพิ่มข้อมูลบัญชีธนาคารอย่างน้อย 1 บัญชีก่อนออกบิลและเก็บเงิน");
-        switchView('banks');
+        switchView('expenses');
+        switchFinancePageTab('banks');
         return;
     }
 
@@ -4877,11 +5179,7 @@ function renderMonthlyStats() {
         ...Object.keys(monthlyWorkers)
     ])).sort().reverse(); // Sort descending (latest months first)
 
-    const monthNamesTh = {
-        "01": "มกราคม", "02": "กุมภาพันธ์", "03": "มีนาคม", "04": "เมษายน",
-        "05": "พฤษภาคม", "06": "มิถุนายน", "07": "กรกฎาคม", "08": "สิงหาคม",
-        "09": "กันยายน", "10": "ตุลาคม", "11": "พฤศจิกายน", "12": "ธันวาคม"
-    };
+    const monthNamesTh = MONTH_NAMES_TH;
 
     // Populate Tables
     const custTbody = document.getElementById("db-monthly-customers-tbody");
@@ -4995,13 +5293,63 @@ function getJobPaymentMethod(j) {
     return j.paymentMethod || "ไม่ระบุบัญชี";
 }
 
+// สร้างตัวเลือกช่วงเวลา (ปี/เดือน) จากวันที่เปิดงานจริงของ jobs และวันที่ของ expenses ทั้งหมด — คงค่าที่เลือกไว้เดิม
+function populateFinancePeriodSelect() {
+    const select = document.getElementById("db-finance-period-select");
+    if (!select) return "";
+    const currentSelection = select.value;
+
+    const months = new Set();
+    const years = new Set();
+    const addPeriod = (dateStr) => {
+        const [year, month] = (dateStr || "").split('-');
+        if (year && month) {
+            months.add(`${year}-${month}`);
+            years.add(year);
+        }
+    };
+    jobs.forEach(j => addPeriod((j.createdAt || j.updatedAt || "").split('T')[0]));
+    expenses.forEach(x => addPeriod(x.expenseDate));
+
+    const yearOptions = Array.from(years).sort().reverse()
+        .map(y => `<option value="${y}">ปี ${parseInt(y) + 543} (ทั้งปี)</option>`).join('');
+    const monthOptions = Array.from(months).sort().reverse()
+        .map(k => {
+            const [y, m] = k.split('-');
+            return `<option value="${k}">${MONTH_NAMES_TH[m] || m} ${parseInt(y) + 543}</option>`;
+        }).join('');
+
+    select.innerHTML = `<option value="">ทั้งหมด (All Time)</option>${yearOptions}${monthOptions}`;
+    select.value = currentSelection;
+    return select.value;
+}
+
+// กรอง jobs ตามช่วงเวลาที่เลือก — periodValue เป็น "" (ทั้งหมด), "YYYY" (ทั้งปี), หรือ "YYYY-MM" (รายเดือน)
+function getFinancePeriodFilteredJobs(periodValue) {
+    if (!periodValue) return jobs;
+    return jobs.filter(j => {
+        const dateStr = (j.createdAt || j.updatedAt || "").split('T')[0];
+        return dateStr.startsWith(periodValue);
+    });
+}
+
+// กรอง expenses ตามช่วงเวลาเดียวกันกับตัวกรองฝั่งรายรับ (ใช้ periodValue รูปแบบเดียวกัน)
+function getFinancePeriodFilteredExpenses(periodValue) {
+    if (!periodValue) return expenses;
+    return expenses.filter(x => (x.expenseDate || "").startsWith(periodValue));
+}
+
 function renderFinanceStats() {
+    const periodValue = populateFinancePeriodSelect();
+    const periodJobs = getFinancePeriodFilteredJobs(periodValue);
+    const periodExpenses = getFinancePeriodFilteredExpenses(periodValue);
+
     // 1. Calculations
     let totalRevenue = 0;
     let paidRevenue = 0;
     let unpaidRevenue = 0;
 
-    jobs.forEach(j => {
+    periodJobs.forEach(j => {
         totalRevenue += j.fee;
         if (isJobPaid(j)) {
             paidRevenue += j.fee;
@@ -5010,10 +5358,17 @@ function renderFinanceStats() {
         }
     });
 
+    const totalExpenses = periodExpenses.reduce((sum, x) => sum + (x.amount || 0), 0);
+    const netProfit = paidRevenue - totalExpenses;
+
     // Update stats cards
     document.getElementById("stat-finance-total").innerText = totalRevenue.toLocaleString('th-TH', { minimumFractionDigits: 2 }) + " บาท";
     document.getElementById("stat-finance-paid").innerText = paidRevenue.toLocaleString('th-TH', { minimumFractionDigits: 2 }) + " บาท";
     document.getElementById("stat-finance-unpaid").innerText = unpaidRevenue.toLocaleString('th-TH', { minimumFractionDigits: 2 }) + " บาท";
+    document.getElementById("stat-finance-expenses").innerText = totalExpenses.toLocaleString('th-TH', { minimumFractionDigits: 2 }) + " บาท";
+    const netProfitEl = document.getElementById("stat-finance-net-profit");
+    netProfitEl.innerText = netProfit.toLocaleString('th-TH', { minimumFractionDigits: 2 }) + " บาท";
+    netProfitEl.style.color = netProfit < 0 ? "var(--danger)" : "var(--navy-dark)";
 
     // 2. Bank & Cash account summaries
     const accountsGrid = document.getElementById("db-finance-accounts-grid");
@@ -5023,7 +5378,7 @@ function renderFinanceStats() {
         banks.forEach(b => { bankSums[b.bankName] = 0; });
         let unspecifiedSum = 0;
 
-        jobs.forEach(j => {
+        periodJobs.forEach(j => {
             if (isJobPaid(j)) {
                 const payMethod = getJobPaymentMethod(j);
                 if (payMethod === 'เงินสด') {
@@ -5079,11 +5434,19 @@ function renderFinanceStats() {
         }
 
         accountsGrid.innerHTML = accountsHtml;
+
+        // Pie chart: revenue by account, colored using each bank's actual brand color
+        const accountEntries = [{ name: "เงินสด (Cash)", value: cashSum, color: "#10b981" }];
+        Object.entries(bankSums).forEach(([bankName, sum]) => {
+            accountEntries.push({ name: bankName, value: sum, color: getBankMeta(bankName).color });
+        });
+        if (unspecifiedSum > 0) accountEntries.push({ name: "บัญชีธนาคาร (ไม่ระบุ)", value: unspecifiedSum, color: "#94a3b8" });
+        renderPieChartInto("db-finance-accounts-chart", accountEntries);
     }
 
     // 3. Revenue by Job Type
     const jobTypeStats = {};
-    jobs.forEach(j => {
+    periodJobs.forEach(j => {
         const parsed = parseJobTypeItems(j.jobType, j.fee);
         const isPaid = isJobPaid(j);
         parsed.forEach(item => {
@@ -5119,11 +5482,24 @@ function renderFinanceStats() {
             `).join('');
         }
     }
-    renderJobTypesPieChart(jobTypeStats);
+    renderPieChartInto("db-finance-jobtypes-chart", Object.entries(jobTypeStats).map(([name, stat]) => ({ name, value: stat.revenue })));
+
+    // Top highlight: บริการขายดีที่สุด (by count) และบริการทำรายได้สูงสุด (by revenue)
+    const topByCountEl = document.getElementById("stat-top-jobtype-count");
+    const topByRevenueEl = document.getElementById("stat-top-jobtype-revenue");
+    const jobTypeEntries = Object.entries(jobTypeStats);
+    if (topByCountEl) {
+        const top = jobTypeEntries.slice().sort((a, b) => b[1].count - a[1].count)[0];
+        topByCountEl.innerText = top ? `${top[0]} (${top[1].count} งาน)` : "-";
+    }
+    if (topByRevenueEl) {
+        const top = jobTypeEntries.slice().sort((a, b) => b[1].revenue - a[1].revenue)[0];
+        topByRevenueEl.innerText = top && top[1].revenue > 0 ? `${top[0]} (${top[1].revenue.toLocaleString('th-TH')} บ.)` : "-";
+    }
 
     // 4. Revenue & Outstanding by Customer
     const custStats = customers.map(c => {
-        const custJobs = jobs.filter(j => j.customerId === c.id);
+        const custJobs = periodJobs.filter(j => j.customerId === c.id);
         const total = custJobs.reduce((sum, j) => sum + j.fee, 0);
         const paid = custJobs.reduce((sum, j) => sum + (isJobPaid(j) ? j.fee : 0), 0);
         const unpaid = total - paid;
@@ -5171,15 +5547,23 @@ function renderFinanceStats() {
              }).join('');
          }
      }
+    renderPieChartInto("db-finance-customers-chart", custStats.map(item => ({ name: item.customer.companyName, value: item.paid })));
+
+    // Top highlight: ลูกค้าที่ทำรายได้ (ชำระเงินแล้ว) ให้มากที่สุด
+    const topCustomerEl = document.getElementById("stat-top-customer");
+    if (topCustomerEl) {
+        const top = custStats.slice().sort((a, b) => b.paid - a.paid)[0];
+        topCustomerEl.innerText = top && top.paid > 0 ? `${top.customer.companyName} (${top.paid.toLocaleString('th-TH')} บ.)` : "-";
+    }
 
     // 5. Render payment status breakdown bars
     const payStatusEl = document.getElementById("db-finance-payment-breakdown-container");
     if (payStatusEl) {
-        const totalJobs = jobs.length;
+        const totalJobs = periodJobs.length;
         if (totalJobs === 0) {
             payStatusEl.innerHTML = '<p class="text-muted">ไม่มีข้อมูลงานจ้าง</p>';
         } else {
-            const paidJobs = jobs.filter(isJobPaid).length;
+            const paidJobs = periodJobs.filter(isJobPaid).length;
             const unpaidJobs = totalJobs - paidJobs;
             const paidPct = Math.round((paidJobs / totalJobs) * 100);
             const unpaidPct = 100 - paidPct;
@@ -5210,12 +5594,12 @@ function renderFinanceStats() {
     // 6. Render progress breakdown bars
     const progressEl = document.getElementById("db-finance-progress-breakdown-container");
     if (progressEl) {
-        const totalJobs = jobs.length;
+        const totalJobs = periodJobs.length;
         if (totalJobs === 0) {
             progressEl.innerHTML = '<p class="text-muted">ไม่มีข้อมูลงานจ้าง</p>';
         } else {
             const statusCounts = {};
-            jobs.forEach(j => {
+            periodJobs.forEach(j => {
                 statusCounts[j.status] = (statusCounts[j.status] || 0) + 1;
             });
 
@@ -5240,6 +5624,38 @@ function renderFinanceStats() {
             }).join('');
         }
     }
+
+    // 7. Expenses by Category
+    const expenseCatStats = {};
+    periodExpenses.forEach(x => {
+        const name = x.category || "ไม่ระบุหมวดหมู่";
+        if (!expenseCatStats[name]) expenseCatStats[name] = { count: 0, total: 0 };
+        expenseCatStats[name].count++;
+        expenseCatStats[name].total += x.amount || 0;
+    });
+
+    const expenseCatTbody = document.getElementById("db-finance-expensecat-tbody");
+    if (expenseCatTbody) {
+        const sortedCats = Object.entries(expenseCatStats).sort((a, b) => b[1].total - a[1].total);
+        if (sortedCats.length === 0) {
+            expenseCatTbody.innerHTML = `
+                <tr>
+                    <td colspan="3" class="text-muted" style="text-align: center; padding: 25px;">
+                        ❌ ยังไม่มีข้อมูลรายจ่ายในระบบ
+                    </td>
+                </tr>
+            `;
+        } else {
+            expenseCatTbody.innerHTML = sortedCats.map(([name, stat]) => `
+                <tr>
+                    <td><strong>${name}</strong></td>
+                    <td style="text-align: center; font-weight: 500;">${stat.count} รายการ</td>
+                    <td style="text-align: right; font-weight: 600; color: var(--danger);">${stat.total.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท</td>
+                </tr>
+            `).join('');
+        }
+    }
+    renderPieChartInto("db-finance-expensecat-chart", Object.entries(expenseCatStats).map(([name, stat]) => ({ name, value: stat.total })));
 }
 
 // ==================== COMPLETED JOBS SUMMARY (MONTHLY + BY TYPE) ====================
@@ -5290,11 +5706,7 @@ function renderCompletedJobsStats() {
     const thisMonthEl = document.getElementById("stat-completed-this-month");
     if (thisMonthEl) thisMonthEl.innerText = thisMonthCount;
 
-    const monthNamesTh = {
-        "01": "มกราคม", "02": "กุมภาพันธ์", "03": "มีนาคม", "04": "เมษายน",
-        "05": "พฤษภาคม", "06": "มิถุนายน", "07": "กรกฎาคม", "08": "สิงหาคม",
-        "09": "กันยายน", "10": "ตุลาคม", "11": "พฤศจิกายน", "12": "ธันวาคม"
-    };
+    const monthNamesTh = MONTH_NAMES_TH;
     const noDataMsg = `❌ ยังไม่มีงานที่แจ้งสำเร็จ${selectedEmployerId ? "ของนายจ้างรายนี้" : ""}${selectedAgentId ? "ของลูกค้าที่ Agent รายนี้แนะนำมา" : ""}`;
 
     // Monthly breakdown (grouped by closedAt year-month)
