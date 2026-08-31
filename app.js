@@ -13,6 +13,40 @@ let agents = [];
 // Thai provinces selection constraint
 const PROVINCES = ["สงขลา", "ปัตตานี", "ยะลา", "พัทลุง"];
 
+// รายชื่อธนาคารพาณิชย์และสถาบันการเงินเฉพาะกิจในประเทศไทยทั้งหมด (ตามรายชื่อธนาคารแห่งประเทศไทย)
+// ใช้สร้างตัวเลือกธนาคารในฟอร์ม + badge "โลโก้" สีประจำธนาคาร (ไม่ใช้รูปโลโก้จริงเพื่อเลี่ยงปัญหาลิขสิทธิ์/พึ่งพาอินเทอร์เน็ต)
+const THAI_BANKS = [
+    { name: "ธนาคารกรุงเทพ", short: "BBL", color: "#1e4598" },
+    { name: "ธนาคารกสิกรไทย", short: "KBank", color: "#138f2d" },
+    { name: "ธนาคารกรุงไทย", short: "KTB", color: "#1ba5e1" },
+    { name: "ธนาคารทหารไทยธนชาต", short: "ttb", color: "#1279be" },
+    { name: "ธนาคารไทยพาณิชย์", short: "SCB", color: "#4e2a84" },
+    { name: "ธนาคารกรุงศรีอยุธยา", short: "BAY", color: "#fec43b" },
+    { name: "ธนาคารเกียรตินาคินภัทร", short: "KKP", color: "#00a99d" },
+    { name: "ธนาคารซีไอเอ็มบีไทย", short: "CIMB", color: "#7d0f27" },
+    { name: "ธนาคารทิสโก้", short: "TISCO", color: "#004a95" },
+    { name: "ธนาคารยูโอบี", short: "UOB", color: "#002878" },
+    { name: "ธนาคารแลนด์ แอนด์ เฮ้าส์", short: "LH", color: "#f7941d" },
+    { name: "ธนาคารไอซีบีซี (ไทย)", short: "ICBC", color: "#c8161d" },
+    { name: "ธนาคารไทยเครดิต", short: "TCB", color: "#f26a21" },
+    { name: "ธนาคารออมสิน", short: "GSB", color: "#eb198d" },
+    { name: "ธนาคารอาคารสงเคราะห์", short: "GHB", color: "#f68b1f" },
+    { name: "ธนาคารเพื่อการเกษตรและสหกรณ์การเกษตร", short: "BAAC", color: "#2e7d32" },
+    { name: "ธนาคารอิสลามแห่งประเทศไทย", short: "iBank", color: "#00693e" },
+    { name: "ธนาคารเพื่อการส่งออกและนำเข้าแห่งประเทศไทย", short: "EXIM", color: "#003876" },
+    { name: "ธนาคารพัฒนาวิสาหกิจขนาดกลางและขนาดย่อมแห่งประเทศไทย", short: "SME D", color: "#0072bc" }
+];
+
+function getBankMeta(bankName) {
+    return THAI_BANKS.find(b => b.name === bankName) || { name: bankName, short: (bankName || "").slice(0, 4) || "BANK", color: "#64748b" };
+}
+
+// สร้าง badge วงกลมสีประจำธนาคารไว้หน้าชื่อธนาคาร ("โลโก้") ในจุดที่ใช้ HTML จริงได้ (ไม่ใช่ใน <option>)
+function renderBankLogoBadge(bankName, size = 30) {
+    const meta = getBankMeta(bankName);
+    return `<span style="display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; width:${size}px; height:${size}px; border-radius:50%; background-color:${meta.color}; color:#fff; font-weight:700; font-size:${Math.max(8, Math.round(size * 0.3))}px; line-height:1;" title="${meta.name}">${meta.short.slice(0, 4)}</span>`;
+}
+
 const SOUTHERN_ADDRESS_DB = {
     "สงขลา": {
         "เมืองสงขลา": { "zip": "90000", "subs": ["บ่อยาง", "เขารูปช้าง", "เกาะแต้ว", "พะวง", "เกาะยอ", "ทุ่งหวัง"] },
@@ -1347,6 +1381,22 @@ function updateEmployerDropdownOptions() {
     }
 }
 
+// ที่อยู่สำนักงานใหญ่ของนายจ้าง 1 ราย ใช้เติมช่อง "สถานที่ทำงาน" ของคนงานอัตโนมัติตอนเลือกนายจ้าง
+function getCustomerHQAddress(customerId) {
+    const c = customers.find(item => item.id === customerId);
+    if (!c || !Array.isArray(c.branches) || c.branches.length === 0) return "";
+    const hqBranch = c.branches.find(b => (b.name || "").includes("สำนักงานใหญ่")) || c.branches[0];
+    if (!hqBranch) return "";
+    return `เลขที่ ${hqBranch.houseNo || ''} ม.${hqBranch.moo || ''} ต.${hqBranch.subdistrict || ''} อ.${hqBranch.district || ''} จ.${hqBranch.province || ''}`;
+}
+
+function fillWorkerWorkplaceFromEmployer(employerId) {
+    const workplaceInput = document.getElementById("worker-workplace");
+    if (!workplaceInput || !employerId) return;
+    const address = getCustomerHQAddress(employerId);
+    if (address) workplaceInput.value = address;
+}
+
 let workersCurrentPage = 1;
 const workersPageSize = 50; // optimized for 3,000+ migrant workers
 
@@ -1853,6 +1903,7 @@ function openCustomerModal(id = null) {
         document.getElementById("cust-business-type").value = c.businessType;
         document.getElementById("cust-coordinator").value = c.coordinator;
         document.getElementById("cust-phone").value = c.phone;
+        document.getElementById("cust-billing-note").value = c.billingNote || "";
         refreshCustomerAgentDropdown(c.referredByAgentId);
 
         customerBranches = JSON.parse(JSON.stringify(c.branches)); // Clone
@@ -1886,6 +1937,7 @@ async function saveCustomer(e) {
     const coordinator = document.getElementById("cust-coordinator").value;
     const phone = document.getElementById("cust-phone").value;
     const referredByAgentId = document.getElementById("cust-referred-by-agent").value || null;
+    const billingNote = document.getElementById("cust-billing-note").value.trim();
 
     // Validate branches
     for (let b of customerBranches) {
@@ -1912,7 +1964,7 @@ async function saveCustomer(e) {
             const oldDriveId = customers[idx].drive_folder_id || "";
             const oldAttachments = JSON.parse(JSON.stringify(customers[idx].attachments || {}));
             customerData = {
-                id: editId, taxId, companyName, directorId, businessType, coordinator, phone, referredByAgentId, branches: customerBranches, createdAt: oldCreatedAt, drive_folder_id: oldDriveId, attachments: oldAttachments
+                id: editId, taxId, companyName, directorId, businessType, coordinator, phone, referredByAgentId, billingNote, branches: customerBranches, createdAt: oldCreatedAt, drive_folder_id: oldDriveId, attachments: oldAttachments
             };
         }
     } else {
@@ -1920,7 +1972,7 @@ async function saveCustomer(e) {
         const newId = 'cust-' + Date.now();
         const createdAt = new Date().toISOString().split('T')[0];
         customerData = {
-            id: newId, taxId, companyName, directorId, businessType, coordinator, phone, referredByAgentId, branches: customerBranches, createdAt, drive_folder_id: "", attachments: {}
+            id: newId, taxId, companyName, directorId, businessType, coordinator, phone, referredByAgentId, billingNote, branches: customerBranches, createdAt, drive_folder_id: "", attachments: {}
         };
     }
 
@@ -2431,7 +2483,11 @@ function getJobDisplayNo(job) {
     if (!job) return '';
     // ใช้วันที่ "เปิดงานครั้งแรก" (createdAt) เสมอ ไม่ใช้ updatedAt เพราะจะเปลี่ยนทุกครั้งที่แก้ไขงาน
     // (รองรับใบงานเก่าที่ยังไม่มี createdAt ด้วยการ fallback ไป updatedAt ครั้งเดียวตอนนั้น)
-    const dateStr = (job.createdAt || job.updatedAt || new Date().toISOString().split('T')[0]).replace(/-/g, '');
+    // ตัดส่วนเวลา/timezone ออกก่อนเสมอ เพราะ Supabase (timestamptz) จะคืนค่า createdAt เป็น
+    // ISO เต็มรูปแบบ "2026-08-17T00:00:00+00:00" หลังโหลดข้อมูลจากคลาวด์ ไม่ใช่แค่ "2026-08-17"
+    // เหมือนตอนสร้างงานครั้งแรกในเครื่อง — ถ้าไม่ตัด "T00:00:00+00:00" จะติดมาด้วยตรงๆ
+    const rawDate = job.createdAt || job.updatedAt || new Date().toISOString();
+    const dateStr = String(rawDate).split('T')[0].replace(/-/g, '');
     const numPart = (job.id || '').replace(/\D/g, '').slice(-6) || '000000';
     return `${dateStr}-${numPart}`;
 }
@@ -3348,7 +3404,10 @@ function renderBanks() {
                     ${deleteBtn}
                 </div>
                 <div class="bank-card-info">
-                    <span class="badge badge-gold" style="margin-bottom: 8px;">${b.bankName}</span>
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                        ${renderBankLogoBadge(b.bankName, 32)}
+                        <span class="badge badge-gold">${b.bankName}</span>
+                    </div>
                     <h4>${b.accountName}</h4>
                     <div class="bank-card-acc-no">${b.accountNumber}</div>
                 </div>
@@ -3366,11 +3425,6 @@ function openBankModal(id = null) {
     const modalTitle = document.getElementById("bank-modal-title");
     const editIdInput = document.getElementById("bank-edit-id");
 
-    // Reset QR preview (แก้ไขบั๊กเดิม: preview ไม่เคยถูกเติมค่าเก่ากลับมาตอนเปิดแก้ไข)
-    const qrPreview = document.getElementById("bank-qr-preview");
-    const qrIcon = document.getElementById("bank-qr-icon");
-    const qrDelBtn = document.getElementById("btn-delete-bank-qr");
-
     if (id) {
         modalTitle.innerText = "แก้ไขข้อมูลบัญชีธนาคาร";
         editIdInput.value = id;
@@ -3380,30 +3434,20 @@ function openBankModal(id = null) {
         document.getElementById("bank-account-name").value = b.accountName;
         document.getElementById("bank-account-number").value = b.accountNumber;
         document.getElementById("bank-promptpay-id").value = b.promptPayId;
-
-        if (b.qrImage && qrPreview) {
-            qrPreview.src = b.qrImage;
-            qrPreview.classList.remove("hidden");
-            if (qrIcon) qrIcon.classList.add("hidden");
-            if (qrDelBtn) qrDelBtn.classList.remove("hidden");
-        } else if (qrPreview) {
-            qrPreview.src = "";
-            qrPreview.classList.add("hidden");
-            if (qrIcon) qrIcon.classList.remove("hidden");
-            if (qrDelBtn) qrDelBtn.classList.add("hidden");
-        }
     } else {
         modalTitle.innerText = "เพิ่มบัญชีธนาคารรับเงินใหม่";
         editIdInput.value = "";
-        if (qrPreview) {
-            qrPreview.src = "";
-            qrPreview.classList.add("hidden");
-        }
-        if (qrIcon) qrIcon.classList.remove("hidden");
-        if (qrDelBtn) qrDelBtn.classList.add("hidden");
     }
 
+    updateBankNameLogoPreview();
     document.getElementById("bank-modal").classList.remove("hidden");
+}
+
+function updateBankNameLogoPreview() {
+    const select = document.getElementById("bank-name");
+    const preview = document.getElementById("bank-name-logo-preview");
+    if (!select || !preview) return;
+    preview.innerHTML = select.value ? renderBankLogoBadge(select.value, 34) : "";
 }
 
 function closeBankModal() {
@@ -3423,15 +3467,9 @@ async function saveBank(e) {
         return;
     }
 
-    // เอารูป QR ที่อัปโหลด (ถ้ามี — ตอนนี้เป็นลิงก์ Supabase Storage จริงแล้วหลังอัปโหลดเสร็จ ไม่ใช่ data URL ชั่วคราว)
-    const qrPreview = document.getElementById("bank-qr-preview");
-    const qrImage = (qrPreview && !qrPreview.classList.contains("hidden") && qrPreview.src && !qrPreview.src.startsWith("data:"))
-        ? qrPreview.src
-        : (editId ? (banks.find(item => item.id === editId) || {}).qrImage || "" : "");
-
     const bankData = {
         id: editId || 'bank-' + Date.now(),
-        bankName, accountName, accountNumber, promptPayId, qrImage
+        bankName, accountName, accountNumber, promptPayId
     };
 
     showToast("💾 กำลังบันทึกบัญชีธนาคารเข้าคลาวด์...", "warning");
@@ -3682,10 +3720,8 @@ async function deleteBank(id) {
 }
 
 
-// ==================== INVOICE & PROMPTPAY QR GENERATOR ====================
+// ==================== INVOICE / BILLING NOTE GENERATOR ====================
 let currentActiveJobForInvoice = null;
-
-// ==================== INVOICE & PROMPTPAY QR GENERATOR ====================
 let currentInvoiceItems = [];
 let currentInvoiceJobIds = [];
 
@@ -3699,6 +3735,12 @@ function openInvoiceModal(jobId) {
     const dateOptions = { year: 'numeric', month: 'long', day: 'numeric' };
     const selectBank = document.getElementById("invoice-bank-select");
     const markPaidBtn = document.getElementById("btn-mark-paid");
+
+    // รีเซ็ตช่องกำหนดชำระ/หมายเหตุ ไม่ให้ค้างข้อความจากบิลใบก่อนหน้า
+    const dueDateEl = document.getElementById("inv-due-date");
+    const notesEl = document.getElementById("inv-notes");
+    if (dueDateEl) dueDateEl.innerText = "ชำระทันทีเมื่อได้รับบิล";
+    if (notesEl) notesEl.innerText = "-";
 
     if (jobId) {
         // --- Single Linked Job Mode ---
@@ -3845,8 +3887,8 @@ function renderInvoiceItemsTable() {
                 </td>
                 <td style="text-align: center;">${qty}</td>
                 <td style="text-align: right;" id="inv-item-unitprice-${item.id}">${unitPrice.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                <td style="text-align: right; font-weight: 600; background-color: rgba(212, 175, 55, 0.05); border: 1px dashed var(--gold-primary); outline: none;" 
-                    id="inv-item-fee-${item.id}" 
+                <td style="text-align: right; font-weight: 600; background-color: rgba(212, 175, 55, 0.05); border: 1px solid var(--gold-primary); outline: none;"
+                    id="inv-item-fee-${item.id}"
                     contenteditable="true" 
                     oninput="recalculateInvoiceFromEdit()"
                     title="คลิกเพื่อแก้ไขราคา">${item.fee.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
@@ -3891,9 +3933,7 @@ function calculateInvoiceTotals() {
     document.getElementById("inv-subtotal").innerText = subtotal.toLocaleString('th-TH', { minimumFractionDigits: 2 });
     document.getElementById("inv-vat").innerText = vat.toLocaleString('th-TH', { minimumFractionDigits: 2 });
     document.getElementById("inv-grand-total").innerText = grandTotal.toLocaleString('th-TH', { minimumFractionDigits: 2 });
-    document.getElementById("inv-qr-amount").innerText = grandTotal.toLocaleString('th-TH', { minimumFractionDigits: 2 });
 
-    // Update active dynamic QR Code
     updateInvoiceBankDetails();
 }
 
@@ -3906,50 +3946,16 @@ function updateInvoiceBankDetails() {
         document.getElementById("inv-bank-name").innerText = "รับชำระเป็นเงินสด (Cash)";
         document.getElementById("inv-bank-acc-name").innerText = "รับเงินสดโดยตรง";
         document.getElementById("inv-bank-acc-no").innerText = "-";
-        
-        const qrImg = document.getElementById("inv-qrcode-img");
-        const qrFallback = document.getElementById("inv-qrcode-fallback");
-        if (qrImg) qrImg.classList.add("hidden");
-        if (qrFallback) qrFallback.classList.add("hidden");
         return;
     }
-    
+
     const b = banks.find(item => item.id === activeBankId);
     if (!b) return;
 
     // Display Bank Card details inside invoice sheet
-    document.getElementById("inv-bank-name").innerText = b.bankName;
+    document.getElementById("inv-bank-name").innerHTML = `<span style="display:inline-flex; align-items:center; gap:8px;">${renderBankLogoBadge(b.bankName, 22)}${b.bankName}</span>`;
     document.getElementById("inv-bank-acc-name").innerText = b.accountName;
     document.getElementById("inv-bank-acc-no").innerText = b.accountNumber;
-
-    // Dynamic PromptPay QR Code Generation via promptpay.io API
-    const qrImg = document.getElementById("inv-qrcode-img");
-    const qrFallback = document.getElementById("inv-qrcode-fallback");
-    
-    const amount = currentInvoiceItems.reduce((sum, item) => sum + item.fee, 0);
-    const promptpayId = b.promptPayId;
-
-    if (b.qrImage) {
-        qrImg.classList.remove("hidden");
-        qrFallback.classList.add("hidden");
-        qrImg.src = b.qrImage;
-        qrImg.onerror = null;
-    } else if (promptpayId) {
-        qrImg.classList.remove("hidden");
-        qrFallback.classList.add("hidden");
-        
-        // Set live URL image source. This service generates PromptPay QR Code dynamically!
-        qrImg.src = 'https:' + '/' + '/promptpay.io/' + promptpayId + '/' + amount + '.png';
-        
-        // Handle image loading error fallback
-        qrImg.onerror = () => {
-            qrImg.classList.add("hidden");
-            qrFallback.classList.remove("hidden");
-        };
-    } else {
-        qrImg.classList.add("hidden");
-        qrFallback.classList.remove("hidden");
-    }
 }
 
 function markJobPaidFromInvoice() {
@@ -4029,6 +4035,7 @@ function openCombineBillsModal() {
         </span>
     `;
 
+    document.getElementById("combine-billing-note-wrap").classList.add("hidden");
     document.getElementById("combine-total-amount").innerText = "0.00";
     document.getElementById("btn-generate-combined").disabled = true;
 
@@ -4042,6 +4049,19 @@ function closeCombineBillsModal() {
 function onCombineCustomerChange() {
     const custId = document.getElementById("combine-cust-select").value;
     const listContainer = document.getElementById("combine-jobs-list");
+
+    // แสดง note วางบิลของนายจ้างรายนี้ (ถ้ามี) ให้เจ้าหน้าที่เห็นก่อนออกบิล — ไม่ถูกพิมพ์ลงในใบแจ้งหนี้
+    const noteWrap = document.getElementById("combine-billing-note-wrap");
+    const noteText = document.getElementById("combine-billing-note-text");
+    const cust = customers.find(c => c.id === custId);
+    if (noteWrap && noteText) {
+        if (cust && cust.billingNote) {
+            noteText.innerText = cust.billingNote;
+            noteWrap.classList.remove("hidden");
+        } else {
+            noteWrap.classList.add("hidden");
+        }
+    }
 
     // Filter unpaid jobs under this customer
     const unpaidJobs = jobs.filter(j => j.customerId === custId && j.paymentStatus !== 'ชำระเงินแล้ว');
@@ -4392,7 +4412,8 @@ const CUSTOMER_DOC_TYPES = [
     { key: "cust-house", label: "🏠 ทะเบียนบ้านบริษัท" },
     { key: "employer-house", label: "🏡 ทะเบียนบ้านนายจ้าง" },
     { key: "cust-photos", label: "📸 รูปถ่ายกิจการ" },
-    { key: "cust-commerce", label: "💼 ทะเบียนพาณิชย์ (ถ้ามี)" }
+    { key: "cust-commerce", label: "💼 ทะเบียนพาณิชย์ (ถ้ามี)" },
+    { key: "cust-other", label: "📎 เอกสารอื่นๆ" }
 ];
 
 function openCustomerFolderModal(customerId) {
@@ -4403,43 +4424,86 @@ function openCustomerFolderModal(customerId) {
     document.getElementById("customer-folder-name").innerText = c.companyName || "ไม่ระบุชื่อบริษัท";
     document.getElementById("customer-folder-meta").innerText = `เลขผู้เสียภาษี: ${c.taxId || '-'}`;
 
-    const listContainer = document.getElementById("customer-folder-files-list");
-    listContainer.innerHTML = CUSTOMER_DOC_TYPES.map(docInfo => {
-        const fileList = getAttachments(c, docInfo.key);
-        let filesHtml = fileList.map((fItem, fIdx) => {
-            const safeData = fItem.data || '';
-            return `
-                <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed #e2e8f0; gap: 10px; flex-wrap: wrap;">
-                    <div style="display: flex; align-items: center; gap: 6px; flex: 1; min-width: 200px;">
-                        <span style="font-size: 12px; color: var(--success);">📄</span>
-                        <span style="font-size: 11.5px; color: var(--navy-dark); font-weight: 500;">${fItem.name}</span>
-                    </div>
-                    <div style="display: flex; gap: 4px; align-items: center;">
-                        <a class="btn btn-sm btn-outline" href="${safeData}" target="_blank" rel="noopener" style="padding: 3px 6px; font-size: 11px;">👁️ ดู</a>
-                        <button class="btn btn-sm btn-outline" onclick="downloadAttachment('${fItem.name}', '${docInfo.key}', '${safeData}')" style="padding: 3px 6px; font-size: 11px;">📥 โหลด</button>
-                        <button class="btn btn-sm btn-outline" onclick="shareAttachment('${fItem.name}', '${(c.companyName || '').replace(/'/g, "\\'")}', '${safeData}')" style="padding: 3px 6px; font-size: 11px;">🔗 แชร์</button>
-                        <button class="btn btn-sm btn-outline delete-btn" onclick="deleteCustomerFolderFileIndex('${docInfo.key}', ${fIdx})" style="padding: 3px 6px; font-size: 11px; height: auto; min-width: auto;">🗑️ ลบ</button>
-                    </div>
-                </div>
-            `;
-        }).join('');
+    const tiles = [];
+    CUSTOMER_DOC_TYPES.forEach(docInfo => {
+        getAttachments(c, docInfo.key).forEach((fItem, fIdx) => {
+            tiles.push(renderCustomerDriveTile(docInfo, fItem, fIdx, c.companyName));
+        });
+        tiles.push(renderDriveAddTile(docInfo.label, `triggerCustomerFolderFileUpload('${docInfo.key}')`));
+    });
 
-        if (fileList.length === 0) {
-            filesHtml = `<div style="padding: 6px 0; font-size: 12px; color: var(--danger);">⚠️ ยังไม่ได้แนบไฟล์</div>`;
-        }
-
-        return `
-            <div style="display: flex; flex-direction: column; padding: 12px; background-color: #ffffff; border-radius: 6px; border: 1px solid #e2e8f0; font-size: 13px; gap: 8px; margin-bottom: 10px;">
-                <span style="font-weight: 600; color: var(--navy-dark);">${docInfo.label}</span>
-                <div style="display: flex; flex-direction: column; gap: 4px;">${filesHtml}</div>
-                <div style="display: flex; justify-content: flex-end;">
-                    <button class="btn btn-sm btn-outline btn-add" onclick="triggerCustomerFolderFileUpload('${docInfo.key}')" style="padding: 3px 8px; font-size: 11px; color: var(--navy-dark); border-color: var(--navy-light);">📤 แนบไฟล์เพิ่ม</button>
-                </div>
-            </div>
-        `;
-    }).join('');
-
+    document.getElementById("customer-folder-files-list").innerHTML = tiles.join('');
     document.getElementById("customer-folder-modal").classList.remove("hidden");
+}
+
+// ==================== GOOGLE-DRIVE-STYLE FOLDER GRID (shared by customer/worker folder modals) ====================
+function renderDriveThumbnail(fileData) {
+    if (!fileData) return `<div class="drive-tile-thumb">📄</div>`;
+    const isImage = fileData.startsWith('data:image/') || /\.(jpe?g|png|gif|webp|bmp)(\?|#|$)/i.test(fileData);
+    if (isImage) {
+        return `<div class="drive-tile-thumb"><img src="${fileData}" alt="" loading="lazy"></div>`;
+    }
+    if (fileData.startsWith('http') || fileData.startsWith('data:application/pdf')) {
+        return `<div class="drive-tile-thumb"><iframe src="${fileData}" loading="lazy"></iframe></div>`;
+    }
+    return `<div class="drive-tile-thumb">📄</div>`;
+}
+
+function renderDriveAddTile(label, triggerCall) {
+    return `
+        <div class="drive-tile add-tile" onclick="${triggerCall}" title="แนบไฟล์: ${label}">
+            <div class="add-tile-icon">➕</div>
+            <div class="add-tile-label">${label}</div>
+        </div>
+    `;
+}
+
+function renderCustomerDriveTile(docInfo, fileItem, idx, entityName) {
+    const data = fileItem.data || '';
+    const safeName = (fileItem.name || '').replace(/'/g, "\\'");
+    const safeEntityName = (entityName || '').replace(/'/g, "\\'");
+    return `
+        <div class="drive-tile">
+            <a class="drive-tile-thumb-link" href="${data}" target="_blank" rel="noopener">${renderDriveThumbnail(data)}</a>
+            <div class="drive-tile-body">
+                <span class="drive-tile-category" title="${docInfo.label}">${docInfo.label}</span>
+                <input type="text" class="drive-tile-name" value="${fileItem.name}" title="${fileItem.name}" onchange="renameCustomerFolderFileIndex('${docInfo.key}', ${idx}, this.value)">
+            </div>
+            <div class="drive-tile-actions">
+                <button type="button" class="drive-tile-action-btn" onclick="downloadAttachment('${safeName}', '${docInfo.key}', '${data}')" title="ดาวน์โหลด">📥</button>
+                <button type="button" class="drive-tile-action-btn" onclick="shareAttachment('${safeName}', '${safeEntityName}', '${data}')" title="แชร์ลิงก์">🔗</button>
+                <button type="button" class="drive-tile-action-btn danger" onclick="deleteCustomerFolderFileIndex('${docInfo.key}', ${idx})" title="ลบไฟล์">🗑️</button>
+            </div>
+        </div>
+    `;
+}
+
+async function renameCustomerFolderFileIndex(docType, index, newName) {
+    if (!activeFolderCustomerId) return;
+    const nameClean = newName.trim();
+    if (!nameClean) {
+        showToast("⚠️ กรุณาระบุชื่อไฟล์ให้ถูกต้อง", "warning");
+        return;
+    }
+
+    const idx = customers.findIndex(x => x.id === activeFolderCustomerId);
+    if (idx === -1) return;
+    const c = customers[idx];
+    const list = getAttachments(c, docType);
+    if (!list[index]) return;
+    list[index].name = nameClean;
+    c.attachments = c.attachments || {};
+    c.attachments[docType] = list;
+
+    const res = await callCloudAPI("saveCustomer", { customerData: c });
+    if (!res || res.status === "error") {
+        showToast("❌ เปลี่ยนชื่อไฟล์ไม่สำเร็จ: " + (res && res.message ? res.message : "unknown error"), "danger");
+        openCustomerFolderModal(activeFolderCustomerId);
+        return;
+    }
+    saveData();
+    showToast("✏️ เปลี่ยนชื่อไฟล์เรียบร้อยแล้ว!", "success");
+    openCustomerFolderModal(activeFolderCustomerId);
 }
 
 function closeCustomerFolderModal() {
@@ -4831,9 +4895,10 @@ function renderFinanceStats() {
 
         // Bank Accounts
         Object.entries(bankSums).forEach(([bankName, sum]) => {
+            const meta = getBankMeta(bankName);
             accountsHtml += `
-                <div class="stats-card" style="border-left: 4px solid var(--gold-primary); background: #ffffff; padding: 12px; border-radius: var(--radius-sm); border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 10px;">
-                    <div style="font-size: 24px;">🏦</div>
+                <div class="stats-card" style="border-left: 4px solid ${meta.color}; background: #ffffff; padding: 12px; border-radius: var(--radius-sm); border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 10px;">
+                    ${renderBankLogoBadge(bankName, 28)}
                     <div style="display: flex; flex-direction: column;">
                         <span style="font-size: 11px; color: #64748b; font-weight: 500; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; max-width: 120px;" title="${bankName}">${bankName}</span>
                         <strong style="font-size: 13.5px; color: #0f172a; margin-top: 2px;">${sum.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บ.</strong>
@@ -5286,9 +5351,6 @@ function openWorkerFolderModal(workerId) {
     const w = workers.find(item => item.id === workerId);
     if (!w) return;
 
-    // Reset preview
-    closeWorkerFolderPreview();
-
     document.getElementById("worker-folder-name").innerText = `คุณ ${w.firstName} ${w.lastName || ''}`;
     const emp = customers.find(c => c.id === w.employerId);
     const empName = emp ? emp.companyName : "ไม่ระบุนายจ้าง";
@@ -5306,88 +5368,42 @@ function openWorkerFolderModal(workerId) {
         { key: "worker-pink-card", label: "🌸 บัตรชมพู (Pink Card)", defaultName: `${nameClean}_PinkCard.pdf`, type: "บัตรชมพู" },
         { key: "worker-receipt", label: "🧾 ใบเสร็จรับเงิน (Receipt)", defaultName: `${nameClean}_Receipt.pdf`, type: "ใบเสร็จ" },
         { key: "worker-medical", label: "🩺 ใบรับรองแพทย์ (Medical Certificate)", defaultName: `${nameClean}_Medical.pdf`, type: "ใบรับรองแพทย์" },
-        { key: "worker-application", label: "📝 ใบคำขอ (Application Form)", defaultName: `${nameClean}_Application.pdf`, type: "ใบคำขอ" }
+        { key: "worker-application", label: "📝 ใบคำขอ (Application Form)", defaultName: `${nameClean}_Application.pdf`, type: "ใบคำขอ" },
+        { key: "worker-other", label: "📎 เอกสารอื่นๆ", defaultName: `${nameClean}_Other.pdf`, type: "เอกสารอื่นๆ" }
     ];
 
-    const listContainer = document.getElementById("worker-folder-files-list");
-    listContainer.innerHTML = files.map(file => {
-        const fileList = getAttachments(w, file.key);
-        const isUploaded = fileList.length > 0;
+    const entityName = `${w.firstName} ${w.lastName || ''}`;
+    const tiles = [];
+    files.forEach(file => {
+        getAttachments(w, file.key).forEach((fItem, fIdx) => {
+            tiles.push(renderWorkerDriveTile(file, fItem, fIdx, entityName));
+        });
+        tiles.push(renderDriveAddTile(file.label, `triggerFolderFileUpload('${file.key}')`));
+    });
 
-        let filesHtml = '';
-        if (!isUploaded) {
-            filesHtml = `
-                <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 0; font-size: 12px; color: var(--danger);">
-                    <span>⚠️ ยังไม่ได้แนบไฟล์</span>
-                    <button class="btn btn-sm btn-outline btn-add" onclick="triggerFolderFileUpload('${file.key}')" style="padding: 3px 8px; font-size: 11px; color: var(--navy-dark); border-color: var(--navy-light);">
-                        📤 อัปโหลดไฟล์
-                    </button>
-                </div>
-            `;
-        } else {
-            filesHtml = fileList.map((fItem, fIdx) => {
-                const previewBtn = `
-                    <button class="btn btn-sm btn-outline" onclick="previewFolderFileIndex('${file.key}', ${fIdx}, '${file.label}')" style="padding: 3px 6px; font-size: 11px;">
-                        👁️ ดูตัวอย่าง
-                    </button>
-                `;
-                
-                const downloadBtn = `
-                    <button class="btn btn-sm btn-outline" onclick="downloadAttachment('${fItem.name}', '${file.type}', '${fItem.data || ''}')" style="padding: 3px 6px; font-size: 11px;">
-                        📥 โหลด
-                    </button>
-                `;
-
-                const shareBtn = `
-                    <button class="btn btn-sm btn-outline" onclick="shareAttachment('${fItem.name}', '${w.firstName} ${w.lastName || ''}', '${fItem.data || ''}')" style="padding: 3px 6px; font-size: 11px;">
-                        🔗 แชร์ลิงก์
-                    </button>
-                `;
-
-                const deleteBtn = `
-                    <button class="btn btn-sm btn-outline delete-btn" onclick="deleteFolderFileIndex('${file.key}', ${fIdx})" style="padding: 3px 6px; font-size: 11px; height: auto; min-width: auto;">
-                        🗑️ ลบ
-                    </button>
-                `;
-
-                return `
-                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed #e2e8f0; gap: 10px; flex-wrap: wrap;">
-                        <div style="display: flex; align-items: center; gap: 6px; flex: 1; min-width: 200px;">
-                            <span style="font-size: 12px; color: var(--success);">📄</span>
-                            <input type="text" value="${fItem.name}" onchange="renameFolderFileIndex('${file.key}', ${fIdx}, this.value)" style="padding: 2px 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 11.5px; width: 100%; max-width: 240px; height: 24px; color: var(--navy-dark); font-weight: 500;" placeholder="ตั้งชื่อไฟล์...">
-                        </div>
-                        <div style="display: flex; gap: 4px; align-items: center;">
-                            ${previewBtn}
-                            ${downloadBtn}
-                            ${shareBtn}
-                            ${deleteBtn}
-                        </div>
-                    </div>
-                `;
-            }).join('');
-
-            // Add button to allow appending multiple files
-            filesHtml += `
-                <div style="display: flex; justify-content: flex-end; padding-top: 6px;">
-                    <button class="btn btn-sm btn-outline btn-add" onclick="triggerFolderFileUpload('${file.key}')" style="padding: 3px 8px; font-size: 11px; color: var(--navy-dark); border-color: var(--navy-light);">
-                        ➕ แนบไฟล์เพิ่มในช่องนี้
-                    </button>
-                </div>
-            `;
-        }
-
-        return `
-            <div style="display: flex; flex-direction: column; padding: 12px; background-color: #ffffff; border-radius: 6px; border: 1px solid #e2e8f0; font-size: 13px; gap: 8px; margin-bottom: 10px;">
-                <span style="font-weight: 600; color: var(--navy-dark);">${file.label}</span>
-                <div style="display: flex; flex-direction: column; gap: 4px;">
-                    ${filesHtml}
-                </div>
-            </div>
-        `;
-    }).join('');
-
+    document.getElementById("worker-folder-files-list").innerHTML = tiles.join('');
     document.getElementById("btn-copy-worker-folder").setAttribute("onclick", `copyWorkerFolderLink('${w.id}')`);
     document.getElementById("worker-folder-modal").classList.remove("hidden");
+}
+
+function renderWorkerDriveTile(file, fileItem, idx, entityName) {
+    const data = fileItem.data || '';
+    const safeName = (fileItem.name || '').replace(/'/g, "\\'");
+    const safeEntityName = (entityName || '').replace(/'/g, "\\'");
+    return `
+        <div class="drive-tile">
+            <a class="drive-tile-thumb-link" href="${data}" target="_blank" rel="noopener">${renderDriveThumbnail(data)}</a>
+            <div class="drive-tile-body">
+                <span class="drive-tile-category" title="${file.label}">${file.label}</span>
+                <input type="text" class="drive-tile-name" value="${fileItem.name}" title="${fileItem.name}" onchange="renameFolderFileIndex('${file.key}', ${idx}, this.value)">
+            </div>
+            <div class="drive-tile-actions">
+                <button type="button" class="drive-tile-action-btn" onclick="downloadAttachment('${safeName}', '${file.type}', '${data}')" title="ดาวน์โหลด">📥</button>
+                <button type="button" class="drive-tile-action-btn" onclick="shareAttachment('${safeName}', '${safeEntityName}', '${data}')" title="แชร์ลิงก์">🔗</button>
+                <button type="button" class="drive-tile-action-btn danger" onclick="deleteFolderFileIndex('${file.key}', ${idx})" title="ลบไฟล์">🗑️</button>
+            </div>
+        </div>
+    `;
 }
 
 function closeWorkerFolderModal() {
@@ -5863,139 +5879,10 @@ async function deleteFolderFileIndex(docType, index) {
         saveData();
         showToast("🗑️ ลบไฟล์ออกจากประวัติเรียบร้อยแล้ว", "success");
 
-        closeWorkerFolderPreview();
         openWorkerFolderModal(activeFolderWorkerId);
         renderWorkers();
         renderDashboard();
     }
-}
-
-// Preview file inside folder modal using index
-function previewFolderFileIndex(docType, index, docLabel) {
-    if (!activeFolderWorkerId) return;
-    
-    const w = workers.find(item => item.id === activeFolderWorkerId);
-    if (!w) return;
-
-    const list = getAttachments(w, docType);
-    const fileItem = list[index];
-    if (!fileItem) return;
-
-    const fileData = fileItem.data;
-    const previewPanel = document.getElementById("worker-folder-preview-panel");
-    const previewTitle = document.getElementById("worker-folder-preview-title");
-    const previewBody = document.getElementById("worker-folder-preview-body");
-
-    if (!previewPanel || !previewBody || !fileData) return;
-
-    previewTitle.innerText = `👁️ ตัวอย่างเอกสาร: ${fileItem.name}`;
-
-    // If it is a Google Drive or web link, render embedded preview in iframe
-    if (fileData.startsWith("http")) {
-        let embedUrl = fileData;
-        if (fileData.includes("drive.google.com")) {
-            embedUrl = fileData.replace("/view", "/preview").split("?")[0] + "?usp=sharing";
-        }
-        previewBody.innerHTML = `<iframe src="${embedUrl}" style="width: 100%; height: 380px; border: 1px solid #cbd5e1; border-radius: 4px; background: white;"></iframe>`;
-    } else if (!fileData.startsWith("data:")) {
-        previewBody.innerHTML = `
-            <div style="padding: 20px; text-align: center; color: var(--navy-dark); font-family: monospace;">
-                <div style="font-size: 40px; margin-bottom: 10px;">📄</div>
-                <h4 style="margin: 0 0 5px 0; font-size:14px;">MOCK SCAN: ${fileData}</h4>
-                <p style="font-size: 11.5px; color: var(--text-muted); max-width: 320px; margin: 0 auto; line-height: 1.4;">
-                    (ไฟล์ PDF สแกนดิจิทัลเก็บอยู่ใน Google Drive / เครื่องหลัก)
-                </p>
-            </div>
-        `;
-    } else {
-        // If it's base64 image or dataUrl, render image preview or PDF frame
-        if (fileData.startsWith("data:image/") || fileData.startsWith("data:application/pdf")) {
-            if (fileData.startsWith("data:image/")) {
-                previewBody.innerHTML = `<img src="${fileData}" style="max-width: 100%; max-height: 380px; border-radius: 4px; box-shadow: var(--shadow-sm); object-fit: contain;">`;
-            } else {
-                // Render live PDF document dynamically inside an iframe!
-                previewBody.innerHTML = `<iframe src="${fileData}" style="width: 100%; height: 380px; border: 1px solid #cbd5e1; border-radius: 4px; background: white;"></iframe>`;
-            }
-        } else {
-            previewBody.innerHTML = `<div style="font-size:12px; color:var(--text-muted);">ไม่สามารถแสดงตัวอย่างได้ (ประเภทไฟล์ไม่รองรับ)</div>`;
-        }
-    }
-
-    previewPanel.classList.remove("hidden");
-}
-
-function closeWorkerFolderPreview() {
-    const previewPanel = document.getElementById("worker-folder-preview-panel");
-    if (previewPanel) {
-        previewPanel.classList.add("hidden");
-    }
-}
-
-// ==================== ดูเอกสารทั้งหมดของคนงานพร้อมกันในหน้าเดียว (เหมือนเปิดโฟลเดอร์ใน Google Drive) ====================
-const WORKER_GALLERY_DOC_LABELS = {
-    'worker-wp-doc': '📄 ใบอนุญาตทำงาน',
-    'worker-passport': '✈️ พาสปอร์ต/CI',
-    'worker-myanmar-id': '🏡 บัตรประชาชน/ทะเบียนบ้านพม่า',
-    'worker-pink-card': '🌸 บัตรชมพู',
-    'worker-receipt': '🧾 ใบเสร็จรับเงิน',
-    'worker-medical': '🩺 ใบรับรองแพทย์',
-    'worker-application': '📝 ใบคำขอ'
-};
-
-function openWorkerFolderGallery() {
-    if (!activeFolderWorkerId) return;
-    const w = workers.find(item => item.id === activeFolderWorkerId);
-    if (!w) return;
-
-    document.getElementById('worker-folder-gallery-title').innerText =
-        `📁 เอกสารทั้งหมดของ ${w.firstName} ${w.lastName || ''}`;
-
-    const cards = [];
-    Object.keys(WORKER_GALLERY_DOC_LABELS).forEach(docType => {
-        getAttachments(w, docType).forEach(fileItem => {
-            cards.push({ label: WORKER_GALLERY_DOC_LABELS[docType], fileItem });
-        });
-    });
-
-    const grid = document.getElementById('worker-folder-gallery-grid');
-    if (cards.length === 0) {
-        grid.innerHTML = `<div class="text-muted" style="grid-column: 1 / -1; text-align:center; padding: 40px;">❌ ยังไม่มีเอกสารแนบสำหรับคนงานคนนี้</div>`;
-    } else {
-        grid.innerHTML = cards.map(renderWorkerGalleryCard).join('');
-    }
-
-    document.getElementById('worker-folder-modal').classList.add('hidden');
-    document.getElementById('worker-folder-gallery-modal').classList.remove('hidden');
-}
-
-function renderWorkerGalleryCard({ label, fileItem }) {
-    const data = fileItem.data || '';
-    let previewHtml;
-
-    if (data.startsWith('data:image/')) {
-        previewHtml = `<img src="${data}" style="width:100%; height:200px; object-fit:cover; display:block;">`;
-    } else if (data.startsWith('http') || data.startsWith('data:application/pdf')) {
-        // ไฟล์จริงบน Supabase Storage (หรือ data URL ของ PDF เก่า) — ฝัง preview จริงในกรอบเล็กเลย
-        previewHtml = `<iframe src="${data}" style="width:100%; height:200px; border:none; display:block; background:#f1f5f9;"></iframe>`;
-    } else {
-        previewHtml = `<div style="width:100%; height:200px; display:flex; align-items:center; justify-content:center; background:#f1f5f9; font-size:40px;">📄</div>`;
-    }
-
-    return `
-        <div style="border:1px solid #e2e8f0; border-radius:8px; overflow:hidden; background:white; display:flex; flex-direction:column;">
-            ${previewHtml}
-            <div style="padding:8px 10px; border-top:1px solid #f1f5f9;">
-                <div style="font-size:10.5px; font-weight:600; color:var(--gold-dark);">${label}</div>
-                <div style="font-size:11.5px; color:var(--navy-dark); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${fileItem.name}">${fileItem.name}</div>
-                ${data ? `<a href="${data}" target="_blank" rel="noopener" style="font-size:11px; color: var(--navy-medium);">🔗 เปิดเต็มจอ</a>` : ''}
-            </div>
-        </div>
-    `;
-}
-
-function closeWorkerFolderGallery() {
-    document.getElementById('worker-folder-gallery-modal').classList.add('hidden');
-    document.getElementById('worker-folder-modal').classList.remove('hidden');
 }
 
 // สร้าง/นำลิงก์แชร์ "ทั้งโฟลเดอร์" ของคนงาน 1 คนมาคัดลอก — เปิดดูได้โดยไม่ต้องล็อกอินเข้า WorkerOS
@@ -6105,54 +5992,6 @@ function renderMissingDocsOverview() {
             </tr>
         `;
     }).join('');
-}
-
-// ==================== BANK ACCOUNT QR CODE UPLOAD ====================
-function handleBankQrUpload(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const preview = document.getElementById("bank-qr-preview");
-    const icon = document.getElementById("bank-qr-icon");
-    const btnDel = document.getElementById("btn-delete-bank-qr");
-
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        const fileContent = e.target.result;
-        
-        // Show local preview first
-        preview.src = fileContent;
-        preview.classList.remove("hidden");
-        icon.classList.add("hidden");
-        btnDel.classList.remove("hidden");
-        showToast("✅ อัปโหลดรูปภาพ QR Code รับเงินสำเร็จ", "success");
-
-        // อัปโหลดขึ้น Supabase Storage แบบ async (ไม่บล็อกการแสดง preview ที่ทำไปแล้วด้านบน)
-        const bankName = document.getElementById("bank-name").value.trim() || "bank";
-        const accNumber = document.getElementById("bank-account-number").value.trim() || "account";
-        uploadDocumentFile(fileContent, `${bankName}_${accNumber}_QR.jpg`).then(uploadResult => {
-            if (uploadResult && uploadResult.fileUrl) {
-                preview.src = uploadResult.fileUrl; // สลับจาก data URL ชั่วคราวเป็นลิงก์ไฟล์จริงบน Storage
-            }
-        });
-    };
-    reader.readAsDataURL(file);
-}
-
-function removeBankQrImage() {
-    if (!confirm("คุณแน่ใจหรือไม่ที่จะลบรูปภาพ QR Code รับเงินนี้?")) return;
-
-    const preview = document.getElementById("bank-qr-preview");
-    const icon = document.getElementById("bank-qr-icon");
-    const btnDel = document.getElementById("btn-delete-bank-qr");
-    const input = document.getElementById("bank-qr-input");
-
-    preview.src = "";
-    preview.classList.add("hidden");
-    icon.classList.remove("hidden");
-    btnDel.classList.add("hidden");
-    if (input) input.value = "";
-    showToast("🗑️ ลบรูปภาพ QR Code รับเงินเรียบร้อยแล้ว", "success");
 }
 
 // ==================== KANBAN BOARD SYSTEM ====================

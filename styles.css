@@ -1437,10 +1437,9 @@ h1, h2, h3, h4, h5, h6 {
 
 .invoice-sheet {
     background-color: #ffffff;
-    border: 1px solid #cbd5e1;
+    border: 1px solid #e2e8f0;
     border-radius: var(--radius-sm);
     padding: 40px;
-    box-shadow: var(--shadow-sm);
     color: #1e293b;
     max-width: 800px;
     margin: 0 auto;
@@ -1460,20 +1459,21 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .invoice-logo {
-    width: 48px;
-    height: 48px;
-    background: linear-gradient(135deg, var(--gold-primary) 0%, #b89228 100%);
+    width: 38px;
+    height: 38px;
+    background-color: var(--navy-dark);
     border-radius: var(--radius-sm);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--navy-dark);
+    color: #ffffff;
     font-weight: 700;
-    font-size: 22px;
+    font-size: 15px;
 }
 
 .invoice-brand h2 {
-    font-size: 18px;
+    font-size: 16px;
+    font-weight: 600;
     margin-bottom: 2px;
 }
 
@@ -1488,15 +1488,16 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .invoice-meta-title h1 {
-    font-size: 28px;
+    font-size: 24px;
+    font-weight: 600;
     color: var(--navy-dark);
     margin-bottom: 2px;
 }
 
-.gold-hr {
+.invoice-hr {
     border: none;
-    height: 2px;
-    background-color: var(--gold-primary);
+    height: 1px;
+    background-color: #e2e8f0;
     margin: 20px 0;
 }
 
@@ -1523,16 +1524,18 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .invoice-table th {
-    background-color: var(--navy-dark);
-    color: #ffffff;
+    background-color: transparent;
+    color: var(--navy-dark);
     font-weight: 600;
-    padding: 10px 14px;
-    border: 1px solid var(--navy-dark);
+    padding: 8px 14px 10px;
+    border: none;
+    border-bottom: 2px solid var(--navy-dark);
 }
 
 .invoice-table td {
     padding: 12px 14px;
-    border: 1px solid #e2e8f0;
+    border: none;
+    border-bottom: 1px solid #e2e8f0;
 }
 
 .inv-summary-row td {
@@ -1553,6 +1556,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .inv-summary-row.grand-total td {
     padding: 12px 14px;
+    border-top: 2px solid var(--navy-dark);
 }
 
 .inv-summary-row.grand-total .sum-label {
@@ -1564,19 +1568,17 @@ h1, h2, h3, h4, h5, h6 {
 .inv-summary-row.grand-total .sum-value {
     font-size: 16px;
     font-weight: 700;
-    color: #b89228;
-    border-bottom: 2px double var(--navy-dark);
-    background-color: var(--gold-light);
+    color: var(--navy-dark);
+    border-bottom: none;
+    background-color: transparent;
 }
 
 .invoice-payment-section {
     display: flex;
     justify-content: space-between;
     gap: 30px;
-    background-color: var(--gray-bg);
-    border: 1px solid #cbd5e1;
-    border-radius: var(--radius-sm);
-    padding: 24px;
+    border-top: 1px solid #e2e8f0;
+    padding-top: 20px;
     margin-top: 30px;
 }
 
@@ -1592,52 +1594,49 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .bank-info-card {
-    background-color: #ffffff;
+    background-color: #fafafa;
     border-radius: var(--radius-sm);
-    border-left: 3px solid var(--gold-primary);
+    border: 1px solid #e2e8f0;
     padding: 12px 16px;
     font-size: 13px;
     line-height: 1.5;
 }
 
-.promptpay-qr-box {
-    width: 160px;
-    flex-shrink: 0;
-    background-color: #ffffff;
-    border: 1px solid #cbd5e1;
-    border-radius: var(--radius-sm);
-    padding: 12px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+.invoice-notes-row {
+    margin-top: 20px;
+    font-size: 12.5px;
+    color: var(--text-muted);
+    border-top: 1px dashed #e2e8f0;
+    padding-top: 10px;
 }
 
-.promptpay-logo {
-    width: 100%;
-    height: 24px;
-    background-color: #002D62; /* PromptPay Blue */
-    color: white;
-    font-size: 10px;
-    font-weight: 700;
+.invoice-signature-row {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
-    margin-bottom: 8px;
+    justify-content: space-between;
+    gap: 30px;
+    margin-top: 50px;
 }
 
-.qr-code-wrapper {
-    width: 120px;
-    height: 120px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid #e2e8f0;
+.invoice-signature-block {
+    flex: 1;
+    text-align: center;
+    font-size: 12.5px;
+    color: var(--navy-dark);
 }
 
-.qr-code-wrapper img {
-    max-width: 100%;
-    max-height: 100%;
+.invoice-signature-block .signature-line {
+    border-bottom: 1px dashed #94a3b8;
+    height: 40px;
+    margin-bottom: 10px;
+}
+
+.invoice-signature-block p {
+    margin: 2px 0;
+}
+
+.invoice-signature-block .signature-date {
+    color: var(--text-muted);
+    font-size: 11.5px;
 }
 
 /* ==================== PRINT CSS STYLING ==================== */
@@ -1761,6 +1760,160 @@ h1, h2, h3, h4, h5, h6 {
     margin-top: 15px;
     padding: 10px 0;
     border-top: 1px solid rgba(212, 175, 55, 0.1);
+}
+
+/* ==================== GOOGLE-DRIVE-STYLE DOCUMENT FOLDER GRID ==================== */
+.drive-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 14px;
+}
+
+.drive-tile {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #e2e8f0;
+    border-radius: var(--radius-sm);
+    background-color: #ffffff;
+    overflow: hidden;
+    transition: box-shadow 0.15s, border-color 0.15s;
+}
+
+.drive-tile:hover {
+    border-color: var(--gold-primary);
+    box-shadow: var(--shadow-sm);
+}
+
+.drive-tile-thumb-link {
+    display: contents;
+}
+
+.drive-tile-thumb {
+    height: 110px;
+    background-color: #f1f5f9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 38px;
+    overflow: hidden;
+}
+
+.drive-tile-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.drive-tile-thumb iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    pointer-events: none;
+}
+
+.drive-tile-body {
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.drive-tile-category {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--gold-dark, var(--gold-primary));
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.drive-tile-name {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--navy-dark);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border: none;
+    background: transparent;
+    width: 100%;
+    padding: 1px 0;
+}
+
+.drive-tile-name:focus {
+    outline: 1px solid var(--gold-primary);
+    border-radius: 3px;
+}
+
+.drive-tile-actions {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: opacity 0.15s, transform 0.15s;
+}
+
+.drive-tile:hover .drive-tile-actions {
+    opacity: 1;
+    transform: none;
+}
+
+.drive-tile-action-btn {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.95);
+    border: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    cursor: pointer;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.drive-tile-action-btn:hover {
+    background-color: #ffffff;
+    border-color: var(--gold-primary);
+}
+
+.drive-tile-action-btn.danger:hover {
+    border-color: var(--danger);
+    color: var(--danger);
+}
+
+.drive-tile.add-tile {
+    align-items: center;
+    justify-content: center;
+    min-height: 152px;
+    border-style: dashed;
+    background-color: #f8fafc;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.drive-tile.add-tile:hover {
+    border-color: var(--gold-primary);
+    color: var(--gold-primary);
+    background-color: #fffdf7;
+}
+
+.drive-tile.add-tile .add-tile-icon {
+    font-size: 24px;
+    margin-bottom: 6px;
+}
+
+.drive-tile.add-tile .add-tile-label {
+    font-size: 11px;
+    text-align: center;
+    line-height: 1.35;
+    padding: 0 10px;
 }
 
 .pagination-info {
