@@ -1696,6 +1696,7 @@ function removeBranchInput(idx) {
 function updateBranchField(idx, field, value) {
     if (customerBranches[idx]) {
         customerBranches[idx][field] = value;
+        refreshDeliverySamePreview();
     }
 }
 
@@ -1706,6 +1707,7 @@ function updateBranchProvince(idx, province) {
         customerBranches[idx].subdistrict = "";
         customerBranches[idx].postalCode = "";
         renderBranchesInputs();
+        refreshDeliverySamePreview();
     }
 }
 
@@ -1715,6 +1717,7 @@ function updateBranchDistrict(idx, district) {
         customerBranches[idx].subdistrict = "";
         customerBranches[idx].postalCode = "";
         renderBranchesInputs();
+        refreshDeliverySamePreview();
     }
 }
 
@@ -1727,6 +1730,7 @@ function updateBranchSubdistrict(idx, subdistrict) {
             customerBranches[idx].postalCode = SOUTHERN_ADDRESS_DB[prov][dist].zip;
         }
         renderBranchesInputs();
+        refreshDeliverySamePreview();
     }
 }
 
@@ -1907,6 +1911,7 @@ function openCustomerModal(id = null) {
         refreshCustomerAgentDropdown(c.referredByAgentId);
 
         customerBranches = JSON.parse(JSON.stringify(c.branches)); // Clone
+        loadDeliveryAddressFields(c.deliveryAddress);
     } else {
         modalTitle.innerText = "เพิ่มลูกค้า / นายจ้างใหม่";
         editIdInput.value = "";
@@ -1917,14 +1922,149 @@ function openCustomerModal(id = null) {
             name: "สำนักงานใหญ่",
             houseNo: "", moo: "", soi: "", road: "", subdistrict: "", district: "", province: "สงขลา", postalCode: ""
         }];
+        loadDeliveryAddressFields(null);
     }
 
     renderBranchesInputs();
+    switchCustomerModalTab('general');
     document.getElementById("customer-modal").classList.remove("hidden");
 }
 
 function closeCustomerModal() {
     document.getElementById("customer-modal").classList.add("hidden");
+}
+
+// ==================== DOCUMENT DELIVERY ADDRESS (ใบปะหน้า A5) ====================
+function switchCustomerModalTab(tab) {
+    const tabs = ['general', 'delivery'];
+    tabs.forEach(t => {
+        const pane = document.getElementById(`cust-tab-${t}`);
+        const btn = document.getElementById(`btn-cust-tab-${t}`);
+        if (pane) pane.classList.toggle('hidden', t !== tab);
+        if (btn) {
+            btn.classList.toggle('btn-gold', t === tab);
+            btn.classList.toggle('btn-outline', t !== tab);
+        }
+    });
+    if (tab === 'delivery') refreshDeliverySamePreview();
+}
+
+function loadDeliveryAddressFields(deliveryAddress) {
+    const da = deliveryAddress || { sameAsMain: true };
+    const sameAsMain = da.sameAsMain !== false;
+    document.getElementById("cust-delivery-same-as-main").checked = sameAsMain;
+    document.getElementById("cust-delivery-recipient").value = da.recipientName || "";
+    document.getElementById("cust-delivery-phone").value = da.phone || "";
+    document.getElementById("cust-delivery-house-no").value = da.houseNo || "";
+    document.getElementById("cust-delivery-moo").value = da.moo || "";
+    document.getElementById("cust-delivery-soi").value = da.soi || "";
+    document.getElementById("cust-delivery-road").value = da.road || "";
+    document.getElementById("cust-delivery-subdistrict").value = da.subdistrict || "";
+    document.getElementById("cust-delivery-district").value = da.district || "";
+    document.getElementById("cust-delivery-province").value = da.province || "";
+    document.getElementById("cust-delivery-postal").value = da.postalCode || "";
+    toggleDeliverySameAsMain();
+}
+
+function toggleDeliverySameAsMain() {
+    const sameAsMain = document.getElementById("cust-delivery-same-as-main").checked;
+    document.getElementById("cust-delivery-fields-wrap").classList.toggle('hidden', sameAsMain);
+    document.getElementById("cust-delivery-same-preview").classList.toggle('hidden', !sameAsMain);
+    if (sameAsMain) refreshDeliverySamePreview();
+}
+
+// อ่านที่อยู่จัดส่งเอกสารจาก "สถานะปัจจุบันของฟอร์ม" เสมอ (ไม่ใช่ข้อมูลที่บันทึกไว้ล่าสุด)
+// เพื่อให้ preview และใบปะหน้า A5 ตรงกับสิ่งที่กำลังกรอกอยู่ ไม่ต้องกดบันทึกก่อนถึงจะพิมพ์ได้
+function getCurrentFormDeliveryInfo() {
+    const companyName = document.getElementById("cust-company-name").value || "";
+    const phone = document.getElementById("cust-phone").value || "";
+    const coordinator = document.getElementById("cust-coordinator").value || "";
+    const sameAsMain = document.getElementById("cust-delivery-same-as-main").checked;
+
+    if (sameAsMain) {
+        const hq = customerBranches.find(b => (b.name || "").includes("สำนักงานใหญ่")) || customerBranches[0] || {};
+        return {
+            recipientName: coordinator || companyName,
+            companyName, phone,
+            houseNo: hq.houseNo || '', moo: hq.moo || '', soi: hq.soi || '', road: hq.road || '',
+            subdistrict: hq.subdistrict || '', district: hq.district || '', province: hq.province || '', postalCode: hq.postalCode || ''
+        };
+    }
+
+    return {
+        recipientName: document.getElementById("cust-delivery-recipient").value || coordinator || companyName,
+        companyName,
+        phone: document.getElementById("cust-delivery-phone").value || phone,
+        houseNo: document.getElementById("cust-delivery-house-no").value,
+        moo: document.getElementById("cust-delivery-moo").value,
+        soi: document.getElementById("cust-delivery-soi").value,
+        road: document.getElementById("cust-delivery-road").value,
+        subdistrict: document.getElementById("cust-delivery-subdistrict").value,
+        district: document.getElementById("cust-delivery-district").value,
+        province: document.getElementById("cust-delivery-province").value,
+        postalCode: document.getElementById("cust-delivery-postal").value
+    };
+}
+
+function formatDeliveryAddressLine(info) {
+    const parts = [
+        `เลขที่ ${info.houseNo || '-'}`,
+        info.moo ? `ม.${info.moo}` : '',
+        info.soi ? `ซอย${info.soi}` : '',
+        info.road ? `ถ.${info.road}` : '',
+        `ต.${info.subdistrict || '-'}`,
+        `อ.${info.district || '-'}`,
+        `จ.${info.province || '-'}`,
+        info.postalCode || ''
+    ];
+    return parts.filter(Boolean).join(' ');
+}
+
+function refreshDeliverySamePreview() {
+    const previewEl = document.getElementById("cust-delivery-same-preview");
+    if (!previewEl) return;
+    const info = getCurrentFormDeliveryInfo();
+
+    // ยังไม่มีข้อมูลอะไรให้ดึงเลย (เช่น เพิ่งเปิดฟอร์ม "เพิ่มลูกค้าใหม่" แล้วสลับมาแท็บนี้ทันที
+    // ก่อนกรอกแท็บ "ข้อมูลทั่วไป" เลย) — โชว์คำแนะนำแทนกล่องว่างๆ ที่ดูเหมือนบั๊ก
+    const hasAnyData = info.recipientName || info.companyName || info.phone || info.houseNo || info.subdistrict;
+    if (!hasAnyData) {
+        previewEl.innerHTML = `<span class="text-muted">⚠️ ยังไม่มีข้อมูลให้ดึงมาแสดง — กรุณากรอกชื่อบริษัท, เบอร์โทร และที่อยู่สำนักงานใหญ่ในแท็บ "📋 ข้อมูลทั่วไป" ก่อน แล้วค่อยกลับมาที่แท็บนี้</span>`;
+        return;
+    }
+
+    previewEl.innerHTML = `
+        <strong>${info.recipientName || '-'}</strong>${info.companyName ? ` (${info.companyName})` : ''}<br>
+        ${formatDeliveryAddressLine(info)}<br>
+        โทร: ${info.phone || '-'}
+    `;
+}
+
+function setPrintPageSize(pageCss) {
+    let styleTag = document.getElementById("dynamic-print-page-size");
+    if (!styleTag) {
+        styleTag = document.createElement("style");
+        styleTag.id = "dynamic-print-page-size";
+        document.head.appendChild(styleTag);
+    }
+    styleTag.textContent = pageCss ? `@media print { @page { ${pageCss} } }` : "";
+}
+
+function openDeliveryLabelModal() {
+    const info = getCurrentFormDeliveryInfo();
+    document.getElementById("dlv-recipient-name").innerText = info.recipientName || "-";
+    document.getElementById("dlv-company-name").innerText = info.companyName || "-";
+    document.getElementById("dlv-address").innerText = formatDeliveryAddressLine(info);
+    document.getElementById("dlv-phone").innerText = info.phone ? `โทร: ${info.phone}` : "-";
+    document.getElementById("dlv-date").innerText = new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+
+    setPrintPageSize("size: A5; margin: 12mm;");
+    document.getElementById("delivery-label-modal").classList.remove("hidden");
+}
+
+function closeDeliveryLabelModal() {
+    document.getElementById("delivery-label-modal").classList.add("hidden");
+    setPrintPageSize("");
 }
 
 async function saveCustomer(e) {
@@ -1938,6 +2078,22 @@ async function saveCustomer(e) {
     const phone = document.getElementById("cust-phone").value;
     const referredByAgentId = document.getElementById("cust-referred-by-agent").value || null;
     const billingNote = document.getElementById("cust-billing-note").value.trim();
+    const deliverySameAsMain = document.getElementById("cust-delivery-same-as-main").checked;
+    const deliveryAddress = deliverySameAsMain
+        ? { sameAsMain: true }
+        : {
+            sameAsMain: false,
+            recipientName: document.getElementById("cust-delivery-recipient").value.trim(),
+            phone: document.getElementById("cust-delivery-phone").value.trim(),
+            houseNo: document.getElementById("cust-delivery-house-no").value.trim(),
+            moo: document.getElementById("cust-delivery-moo").value.trim(),
+            soi: document.getElementById("cust-delivery-soi").value.trim(),
+            road: document.getElementById("cust-delivery-road").value.trim(),
+            subdistrict: document.getElementById("cust-delivery-subdistrict").value.trim(),
+            district: document.getElementById("cust-delivery-district").value.trim(),
+            province: document.getElementById("cust-delivery-province").value.trim(),
+            postalCode: document.getElementById("cust-delivery-postal").value.trim()
+        };
 
     // Validate branches
     for (let b of customerBranches) {
@@ -1964,7 +2120,7 @@ async function saveCustomer(e) {
             const oldDriveId = customers[idx].drive_folder_id || "";
             const oldAttachments = JSON.parse(JSON.stringify(customers[idx].attachments || {}));
             customerData = {
-                id: editId, taxId, companyName, directorId, businessType, coordinator, phone, referredByAgentId, billingNote, branches: customerBranches, createdAt: oldCreatedAt, drive_folder_id: oldDriveId, attachments: oldAttachments
+                id: editId, taxId, companyName, directorId, businessType, coordinator, phone, referredByAgentId, billingNote, deliveryAddress, branches: customerBranches, createdAt: oldCreatedAt, drive_folder_id: oldDriveId, attachments: oldAttachments
             };
         }
     } else {
@@ -1972,7 +2128,7 @@ async function saveCustomer(e) {
         const newId = 'cust-' + Date.now();
         const createdAt = new Date().toISOString().split('T')[0];
         customerData = {
-            id: newId, taxId, companyName, directorId, businessType, coordinator, phone, referredByAgentId, billingNote, branches: customerBranches, createdAt, drive_folder_id: "", attachments: {}
+            id: newId, taxId, companyName, directorId, businessType, coordinator, phone, referredByAgentId, billingNote, deliveryAddress, branches: customerBranches, createdAt, drive_folder_id: "", attachments: {}
         };
     }
 
@@ -3731,6 +3887,8 @@ function openInvoiceModal(jobId) {
         switchView('banks');
         return;
     }
+
+    setPrintPageSize(""); // เผื่อยังค้าง @page A5 จากใบปะหน้าจัดส่งเอกสารรอบก่อน
 
     const dateOptions = { year: 'numeric', month: 'long', day: 'numeric' };
     const selectBank = document.getElementById("invoice-bank-select");

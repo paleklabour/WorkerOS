@@ -1073,7 +1073,17 @@
                 <div class="modal-body">
                     <form id="customer-form" onsubmit="saveCustomer(event)">
                         <input type="hidden" id="customer-edit-id">
-                        
+
+                        <div class="dashboard-tabs" style="display: flex; gap: 15px; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px;">
+                            <button type="button" class="btn btn-gold" id="btn-cust-tab-general" onclick="switchCustomerModalTab('general')" style="padding: 8px 18px; border-radius: var(--radius-sm); font-weight: 600;">
+                                📋 ข้อมูลทั่วไป
+                            </button>
+                            <button type="button" class="btn btn-outline" id="btn-cust-tab-delivery" onclick="switchCustomerModalTab('delivery')" style="padding: 8px 18px; border-radius: var(--radius-sm); font-weight: 600;">
+                                📦 ที่อยู่จัดส่งเอกสาร
+                            </button>
+                        </div>
+
+                        <div id="cust-tab-general">
                         <div class="form-row">
                             <div class="form-group col-6">
                                 <label for="cust-tax-id">เลขประจำตัวผู้เสียภาษี / เลขทะเบียนบริษัท (13 หลัก) <span class="required">*</span></label>
@@ -1081,7 +1091,7 @@
                             </div>
                             <div class="form-group col-6">
                                 <label for="cust-company-name">ชื่อบริษัท / ชื่อผู้ว่าจ้าง <span class="required">*</span></label>
-                                <input type="text" id="cust-company-name" placeholder="กรอกชื่อบริษัทหรือชื่อบุคคล" required>
+                                <input type="text" id="cust-company-name" placeholder="กรอกชื่อบริษัทหรือชื่อบุคคล" required oninput="refreshDeliverySamePreview()">
                             </div>
                         </div>
 
@@ -1125,14 +1135,14 @@
                             </div>
                             <div class="form-group col-6">
                                 <label for="cust-coordinator">ชื่อผู้ประสานงาน <span class="required">*</span></label>
-                                <input type="text" id="cust-coordinator" placeholder="กรอกชื่อผู้ประสานงานหลัก" required>
+                                <input type="text" id="cust-coordinator" placeholder="กรอกชื่อผู้ประสานงานหลัก" required oninput="refreshDeliverySamePreview()">
                             </div>
                         </div>
 
                         <div class="form-row">
                             <div class="form-group col-6">
                                 <label for="cust-phone">เบอร์โทรติดต่อ <span class="required">*</span></label>
-                                <input type="text" id="cust-phone" placeholder="กรอกเบอร์โทรศัพท์ผู้ติดต่อ" required>
+                                <input type="text" id="cust-phone" placeholder="กรอกเบอร์โทรศัพท์ผู้ติดต่อ" required oninput="refreshDeliverySamePreview()">
                             </div>
                             <div class="form-group col-6">
                                 <label for="cust-referred-by-agent">Agent ผู้แนะนำ/ส่งลูกค้ารายนี้มาให้ (ถ้ามี)</label>
@@ -1233,12 +1243,130 @@
                                 </div>
                             </div>
                         </div>
+                        </div>
+                        <!-- /cust-tab-general -->
+
+                        <!-- ==================== TAB: DOCUMENT DELIVERY ADDRESS ==================== -->
+                        <div id="cust-tab-delivery" class="hidden">
+                            <p class="section-desc" style="margin-top: -5px;">
+                                💾 ข้อมูลในแท็บนี้จะถูกบันทึกพร้อมกับปุ่ม "บันทึกข้อมูล" ด้านล่างของฟอร์ม (ใช้ปุ่มเดียวกับแท็บ "ข้อมูลทั่วไป") — ไม่ต้องกดบันทึกแยก ครั้งหน้าที่เปิดแก้ไขนายจ้างรายนี้จะดึงค่าที่เคยกรอกไว้กลับมาให้อัตโนมัติ
+                            </p>
+                            <div class="form-row">
+                                <div class="form-group col-12">
+                                    <label style="display: flex; align-items: center; gap: 8px; font-weight: 600; cursor: pointer;">
+                                        <input type="checkbox" id="cust-delivery-same-as-main" checked onchange="toggleDeliverySameAsMain()" style="width: 16px; height: 16px; cursor: pointer;">
+                                        ใช้เป็นสถานที่เดียวกับข้อมูลที่อยู่ (สำนักงานใหญ่)
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div id="cust-delivery-same-preview" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); padding: 14px 16px; font-size: 13px; line-height: 1.7; color: var(--navy-dark); margin-bottom: 15px;">
+                                <!-- Populated by JS from company/HQ branch data -->
+                            </div>
+
+                            <div id="cust-delivery-fields-wrap" class="hidden">
+                                <div class="form-row">
+                                    <div class="form-group col-6">
+                                        <label for="cust-delivery-recipient">ชื่อผู้รับเอกสาร</label>
+                                        <input type="text" id="cust-delivery-recipient" placeholder="ชื่อผู้รับ/แผนกที่รับเอกสาร">
+                                    </div>
+                                    <div class="form-group col-6">
+                                        <label for="cust-delivery-phone">เบอร์โทรผู้รับเอกสาร</label>
+                                        <input type="text" id="cust-delivery-phone" placeholder="เบอร์โทรติดต่อผู้รับ">
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group col-4">
+                                        <label for="cust-delivery-house-no">เลขที่ บ้านเลขที่</label>
+                                        <input type="text" id="cust-delivery-house-no" placeholder="เช่น 123/4">
+                                    </div>
+                                    <div class="form-group col-4">
+                                        <label for="cust-delivery-moo">หมู่ที่</label>
+                                        <input type="text" id="cust-delivery-moo" placeholder="เช่น 5">
+                                    </div>
+                                    <div class="form-group col-4">
+                                        <label for="cust-delivery-soi">ซอย</label>
+                                        <input type="text" id="cust-delivery-soi" placeholder="เช่น ซอย 2">
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group col-6">
+                                        <label for="cust-delivery-road">ถนน</label>
+                                        <input type="text" id="cust-delivery-road" placeholder="เช่น ถ.สุขุมวิท">
+                                    </div>
+                                    <div class="form-group col-6">
+                                        <label for="cust-delivery-subdistrict">ตำบล / แขวง</label>
+                                        <input type="text" id="cust-delivery-subdistrict" placeholder="ตำบล/แขวง">
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group col-4">
+                                        <label for="cust-delivery-district">อำเภอ / เขต</label>
+                                        <input type="text" id="cust-delivery-district" placeholder="อำเภอ/เขต">
+                                    </div>
+                                    <div class="form-group col-4">
+                                        <label for="cust-delivery-province">จังหวัด</label>
+                                        <input type="text" id="cust-delivery-province" placeholder="จังหวัด">
+                                    </div>
+                                    <div class="form-group col-4">
+                                        <label for="cust-delivery-postal">รหัสไปรษณีย์</label>
+                                        <input type="text" id="cust-delivery-postal" placeholder="รหัสไปรษณีย์" maxlength="5">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-row" style="margin-top: 10px;">
+                                <div class="form-group col-12">
+                                    <button type="button" class="btn btn-outline" onclick="openDeliveryLabelModal()">
+                                        🖨️ พิมพ์ใบปะหน้า A5 สำหรับจัดส่งเอกสาร
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- /cust-tab-delivery -->
 
                         <div class="modal-footer">
                             <button type="button" class="btn btn-outline" onclick="closeCustomerModal()">ยกเลิก</button>
                             <button type="submit" class="btn btn-gold" id="btn-save-customer-submit">บันทึกข้อมูล</button>
                         </div>
                     </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== MODAL: DELIVERY LABEL (ใบปะหน้า A5) ==================== -->
+        <div id="delivery-label-modal" class="modal-backdrop hidden">
+            <div class="modal-content printable-modal-content" style="max-width: 520px;">
+                <div class="modal-header no-print">
+                    <h3>ใบปะหน้าจัดส่งเอกสาร (A5)</h3>
+                    <button class="close-btn" onclick="closeDeliveryLabelModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="no-print" style="margin-bottom: 15px; text-align: right;">
+                        <button class="btn btn-gold" onclick="window.print()">🖨️ พิมพ์ (Print)</button>
+                    </div>
+                    <div class="delivery-label-sheet" id="delivery-label-sheet">
+                        <div class="delivery-label-from">
+                            <h5>จาก (From)</h5>
+                            <p><strong>นาย ศรุต คุณารักษ์</strong></p>
+                            <p>เลขที่ 14 หมู่ 2 ถ.เลียบคลอง ร.5 ต.คอหงส์ อ.หาดใหญ่ จ.สงขลา 90110</p>
+                            <p>โทร 098-7415888</p>
+                        </div>
+                        <div class="delivery-label-to">
+                            <h5>ถึง (To)</h5>
+                            <p class="delivery-label-recipient" id="dlv-recipient-name">-</p>
+                            <p class="delivery-label-company" id="dlv-company-name">-</p>
+                            <p class="delivery-label-address" id="dlv-address">-</p>
+                            <p class="delivery-label-phone" id="dlv-phone">-</p>
+                        </div>
+                        <div class="delivery-label-notes">
+                            <strong>รายการเอกสารที่จัดส่ง:</strong>
+                            <span id="dlv-notes" contenteditable="true" style="outline: none; border-bottom: 1px dashed transparent;" title="คลิกเพื่อแก้ไข">-</span>
+                        </div>
+                        <div class="delivery-label-footer">
+                            <span id="dlv-date"></span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
