@@ -137,6 +137,12 @@
                         </svg>
                         <span>จัดการบัญชีธนาคาร</span>
                     </a>
+                    <a href="#" class="menu-item" id="menu-agents" onclick="switchView('agents')">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="20">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M9 20H4v-2a3 3 0 015.356-1.857M9 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M13 7a4 4 0 11-8 0 4 4 0 018 0zm6 3a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                        <span>จัดการ Agent</span>
+                    </a>
                     <a href="#" class="menu-item hidden" id="menu-users" onclick="switchView('users')">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="20">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -193,6 +199,9 @@
                             </button>
                             <button class="btn btn-outline" id="btn-tab-finance" onclick="switchDashboardTab('finance')" style="padding: 8px 18px; border-radius: var(--radius-sm); font-weight: 600;">
                                 💰 สรุปการเงินและบัญชีรายรับ
+                            </button>
+                            <button class="btn btn-outline" id="btn-tab-completed" onclick="switchDashboardTab('completed')" style="padding: 8px 18px; border-radius: var(--radius-sm); font-weight: 600;">
+                                ✅ สรุปงานที่แจ้งสำเร็จ
                             </button>
                         </div>
 
@@ -499,6 +508,84 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- TAB 4: COMPLETED JOBS SUMMARY -->
+                        <div id="db-tab-completed" class="db-tab-content hidden">
+                            <div class="dashboard-panel" style="margin-bottom: 20px;">
+                                <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                                    <h3 style="margin: 0;">🔍 ค้นหางานที่แจ้งสำเร็จ</h3>
+                                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                                        <select id="db-completed-select-employer" onchange="renderCompletedJobsStats()" style="padding: 8px 14px; border-radius: var(--radius-sm); border: 1px solid #cbd5e1; outline: none; font-size: 13.5px; min-width: 260px;">
+                                            <option value="">🌐 ภาพรวมทั้งหมด (ทุกนายจ้าง)</option>
+                                            <!-- Dynamic employer options -->
+                                        </select>
+                                        <select id="db-completed-select-agent" onchange="renderCompletedJobsStats()" style="padding: 8px 14px; border-radius: var(--radius-sm); border: 1px solid #cbd5e1; outline: none; font-size: 13.5px; min-width: 260px;">
+                                            <option value="">🤝 ทุก Agent (ไม่กรอง)</option>
+                                            <!-- Dynamic agent options -->
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="stats-grid" style="grid-template-columns: repeat(2, 1fr); margin-bottom: 20px;">
+                                <div class="stats-card" style="border-left: 4px solid var(--success);">
+                                    <div class="stats-icon text-success">✅</div>
+                                    <div class="stats-info">
+                                        <h3 id="stat-completed-total">0</h3>
+                                        <p>งานที่แจ้งสำเร็จทั้งหมด (ตามตัวกรอง)</p>
+                                    </div>
+                                </div>
+                                <div class="stats-card" style="border-left: 4px solid var(--navy-medium);">
+                                    <div class="stats-icon text-gold">📅</div>
+                                    <div class="stats-info">
+                                        <h3 id="stat-completed-this-month">0</h3>
+                                        <p>งานที่แจ้งสำเร็จเดือนนี้</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="dashboard-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                                <!-- Left panel: Completed Jobs by Month -->
+                                <div class="dashboard-panel">
+                                    <div class="panel-header">
+                                        <h3>📆 สรุปงานที่แจ้งสำเร็จรายเดือน</h3>
+                                    </div>
+                                    <div class="panel-content" style="padding: 0; overflow-x: auto; max-height: 400px;">
+                                        <table class="data-table" style="box-shadow: none; border: none; border-radius: 0;">
+                                            <thead>
+                                                <tr>
+                                                    <th>ประจำเดือน (Month)</th>
+                                                    <th style="text-align: center; width: 140px;">งานที่สำเร็จ</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="db-completed-monthly-tbody">
+                                                <!-- Dynamic -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                <!-- Right panel: Completed Jobs by Job Type -->
+                                <div class="dashboard-panel">
+                                    <div class="panel-header">
+                                        <h3>🗂️ สรุปงานที่แจ้งสำเร็จแยกประเภทงาน</h3>
+                                    </div>
+                                    <div class="panel-content" style="padding: 0; overflow-x: auto; max-height: 400px;">
+                                        <table class="data-table" style="box-shadow: none; border: none; border-radius: 0;">
+                                            <thead>
+                                                <tr>
+                                                    <th>ประเภทงานบริการ</th>
+                                                    <th style="text-align: center; width: 140px;">งานที่สำเร็จ</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="db-completed-jobtype-tbody">
+                                                <!-- Dynamic -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- ==================== CUSTOMERS VIEW ==================== -->
@@ -527,6 +614,7 @@
                                         <th>ประเภทกิจการ</th>
                                         <th>ที่อยู่ (สาขาหลัก)</th>
                                         <th>ผู้ประสานงาน / เบอร์โทร</th>
+                                        <th>แนะนำโดย (Agent)</th>
                                         <th>จำนวนคนงาน</th>
                                         <th>เอกสารแนบ</th>
                                         <th class="actions-col">จัดการ</th>
@@ -777,6 +865,43 @@
                         </div>
                     </div>
 
+                    <!-- ==================== AGENTS VIEW ==================== -->
+                    <div id="view-agents" class="content-section hidden">
+                        <div class="table-actions">
+                            <div class="search-box">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                                <input type="text" id="search-agent" placeholder="ค้นหาชื่อ Agent..." oninput="renderAgentsList()">
+                            </div>
+                            <button class="btn btn-gold btn-add" id="btn-add-agent" onclick="openAgentModal()">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                                </svg>
+                                <span>เพิ่ม Agent ใหม่</span>
+                            </button>
+                        </div>
+                        <p class="section-desc" style="margin: -8px 0 15px;">
+                            รายชื่อ Agent สำหรับเลือกตอนแจ้งสั่งงานใหม่ (ผู้ส่งงาน) และตอนเพิ่ม/แก้ไขข้อมูลนายจ้าง (ผู้แนะนำลูกค้า)
+                        </p>
+
+                        <div class="table-container">
+                            <table class="data-table" id="agents-table">
+                                <thead>
+                                    <tr>
+                                        <th>ชื่อ Agent</th>
+                                        <th style="text-align: center; width: 160px;">นายจ้างที่แนะนำ</th>
+                                        <th style="text-align: center; width: 140px;">งานที่ส่ง</th>
+                                        <th class="actions-col">จัดการ</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="agents-tbody">
+                                    <!-- Rendered dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
                     <!-- ==================== USERS VIEW ==================== -->
                     <div id="view-users" class="content-section hidden">
                         <div class="table-actions">
@@ -896,35 +1021,17 @@
                                     </div>
                                 </div>
 
-                                <!-- Section 3: Agents (ผู้ส่งงาน) Management -->
-                                <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); padding: 20px;">
-                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                                        <h4 style="font-size: 14.5px; font-weight: 600; color: var(--navy-dark); margin: 0;">3. จัดการ Agent ผู้ส่งงาน (Manage Agents)</h4>
-                                        <button class="btn btn-gold btn-sm" onclick="openAgentModal()" style="padding: 6px 12px; font-size: 12px;">
-                                            ➕ เพิ่ม Agent ใหม่
-                                        </button>
+                                <!-- Section 3: Agents management moved to its own page (menu-agents / view-agents) -->
+                                <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); padding: 20px; display: flex; justify-content: space-between; align-items: center; gap: 15px; flex-wrap: wrap;">
+                                    <div>
+                                        <h4 style="font-size: 14.5px; font-weight: 600; margin-bottom: 4px; color: var(--navy-dark);">3. จัดการ Agent (ผู้ส่งงาน / ผู้แนะนำลูกค้า)</h4>
+                                        <p style="font-size: 12.5px; color: var(--text-muted); margin: 0; line-height: 1.5;">
+                                            ย้ายไปอยู่หน้าเมนู "จัดการ Agent" แล้ว — เพิ่ม/แก้ไข/ลบ Agent ได้ที่นั่น
+                                        </p>
                                     </div>
-                                    <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 15px; line-height: 1.5;">
-                                        รายชื่อ Agent ผู้ส่งงาน สำหรับเลือกตอนแจ้งสั่งงานใหม่ เพิ่ม/แก้ไข/ลบได้ที่นี่
-                                    </p>
-
-                                    <div class="table-container" style="box-shadow: none; border: 1px solid #e2e8f0; max-height: 250px; overflow-y: auto; margin-top: 10px;">
-                                        <table class="data-table" style="min-width: 100%; font-size: 13px;">
-                                            <thead>
-                                                <tr>
-                                                    <th>ชื่อ Agent</th>
-                                                    <th style="width: 80px; text-align: center;">จัดการ</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="agents-tbody">
-                                                <tr>
-                                                    <td colspan="2" class="text-muted" style="text-align: center; padding: 20px;">
-                                                        ⏳ กำลังโหลดข้อมูล Agent...
-                                                    </td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
+                                    <button class="btn btn-gold btn-sm" onclick="switchView('agents')" style="padding: 8px 16px; font-size: 12.5px; white-space: nowrap;">
+                                        ไปที่หน้าจัดการ Agent →
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -1023,9 +1130,16 @@
                         </div>
 
                         <div class="form-row">
-                            <div class="form-group col-12">
+                            <div class="form-group col-6">
                                 <label for="cust-phone">เบอร์โทรติดต่อ <span class="required">*</span></label>
                                 <input type="text" id="cust-phone" placeholder="กรอกเบอร์โทรศัพท์ผู้ติดต่อ" required>
+                            </div>
+                            <div class="form-group col-6">
+                                <label for="cust-referred-by-agent">Agent ผู้แนะนำ/ส่งลูกค้ารายนี้มาให้ (ถ้ามี)</label>
+                                <select id="cust-referred-by-agent">
+                                    <option value="">--- ไม่ระบุ ---</option>
+                                    <!-- Dynamic agent options -->
+                                </select>
                             </div>
                         </div>
 

@@ -823,6 +823,7 @@ function switchView(viewName) {
     if (viewName === 'workers') titleEl.innerText = "ฐานข้อมูลคนงานต่างด้าว";
     if (viewName === 'jobs') titleEl.innerText = "ระบบจัดการแจ้งงานและออกบิล";
     if (viewName === 'banks') titleEl.innerText = "จัดการบัญชีธนาคารผู้รับเงิน";
+    if (viewName === 'agents') titleEl.innerText = "จัดการ Agent (ผู้ส่งงาน / ผู้แนะนำลูกค้า)";
     if (viewName === 'users') titleEl.innerText = "จัดการบัญชีผู้ใช้งานระบบ";
     if (viewName === 'backup') titleEl.innerText = "สำรองและกู้คืนข้อมูลระบบ";
 
@@ -838,10 +839,10 @@ function switchView(viewName) {
         renderJobs();
     } else if (viewName === 'banks') {
         renderBanks();
+    } else if (viewName === 'agents') {
+        renderAgentsList();
     } else if (viewName === 'users') {
         renderUsers();
-    } else if (viewName === 'backup') {
-        renderAgentsList();
     }
 }
 
@@ -1016,7 +1017,7 @@ function renderDashboard() {
 }
 
 function switchDashboardTab(tabName) {
-    const tabs = ['overview', 'monthly', 'finance'];
+    const tabs = ['overview', 'monthly', 'finance', 'completed'];
     tabs.forEach(t => {
         const pane = document.getElementById(`db-tab-${t}`);
         const btn = document.getElementById(`btn-tab-${t}`);
@@ -1044,6 +1045,8 @@ function switchDashboardTab(tabName) {
         renderMonthlyStats();
     } else if (tabName === 'finance') {
         renderFinanceStats();
+    } else if (tabName === 'completed') {
+        renderCompletedJobsStats();
     }
 }
 
@@ -1247,7 +1250,7 @@ function renderCustomers() {
     if (filtered.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="7" class="text-muted" style="text-align: center; padding: 40px;">
+                <td colspan="9" class="text-muted" style="text-align: center; padding: 40px;">
                     ❌ ไม่พบข้อมูลลูกค้า/นายจ้างตามคำค้นหา
                 </td>
             </tr>
@@ -1296,6 +1299,11 @@ function renderCustomers() {
             </div>
         `;
 
+        const referredAgent = c.referredByAgentId ? agents.find(a => a.id === c.referredByAgentId) : null;
+        const referredAgentHtml = referredAgent
+            ? `<span class="badge" style="background-color:#e0f2fe; color:#0369a1; font-weight:600;">🤝 ${referredAgent.name}</span>`
+            : `<span class="text-muted" style="font-size:12px;">-</span>`;
+
         return `
             <tr>
                 <td><strong>${c.taxId}</strong></td>
@@ -1306,6 +1314,7 @@ function renderCustomers() {
                     <div>${c.coordinator}</div>
                     <small class="text-muted">${c.phone}</small>
                 </td>
+                <td>${referredAgentHtml}</td>
                 <td>
                     <span class="badge badge-gold" style="cursor: pointer;" onclick="filterWorkersByEmployer('${c.id}')" title="คลิกเพื่อสืบค้นรายชื่อคนงาน">
                         👤 ${activeWorkersCount} คน (ทั้งหมด ${totalWorkersCount} คน)
@@ -1844,19 +1853,21 @@ function openCustomerModal(id = null) {
         document.getElementById("cust-business-type").value = c.businessType;
         document.getElementById("cust-coordinator").value = c.coordinator;
         document.getElementById("cust-phone").value = c.phone;
-        
+        refreshCustomerAgentDropdown(c.referredByAgentId);
+
         customerBranches = JSON.parse(JSON.stringify(c.branches)); // Clone
     } else {
         modalTitle.innerText = "เพิ่มลูกค้า / นายจ้างใหม่";
         editIdInput.value = "";
-        
+        refreshCustomerAgentDropdown();
+
         // Initialize with default empty branch
         customerBranches = [{
             name: "สำนักงานใหญ่",
             houseNo: "", moo: "", soi: "", road: "", subdistrict: "", district: "", province: "สงขลา", postalCode: ""
         }];
     }
-    
+
     renderBranchesInputs();
     document.getElementById("customer-modal").classList.remove("hidden");
 }
@@ -1874,6 +1885,7 @@ async function saveCustomer(e) {
     const businessType = document.getElementById("cust-business-type").value;
     const coordinator = document.getElementById("cust-coordinator").value;
     const phone = document.getElementById("cust-phone").value;
+    const referredByAgentId = document.getElementById("cust-referred-by-agent").value || null;
 
     // Validate branches
     for (let b of customerBranches) {
@@ -1900,7 +1912,7 @@ async function saveCustomer(e) {
             const oldDriveId = customers[idx].drive_folder_id || "";
             const oldAttachments = JSON.parse(JSON.stringify(customers[idx].attachments || {}));
             customerData = {
-                id: editId, taxId, companyName, directorId, businessType, coordinator, phone, branches: customerBranches, createdAt: oldCreatedAt, drive_folder_id: oldDriveId, attachments: oldAttachments
+                id: editId, taxId, companyName, directorId, businessType, coordinator, phone, referredByAgentId, branches: customerBranches, createdAt: oldCreatedAt, drive_folder_id: oldDriveId, attachments: oldAttachments
             };
         }
     } else {
@@ -1908,7 +1920,7 @@ async function saveCustomer(e) {
         const newId = 'cust-' + Date.now();
         const createdAt = new Date().toISOString().split('T')[0];
         customerData = {
-            id: newId, taxId, companyName, directorId, businessType, coordinator, phone, branches: customerBranches, createdAt, drive_folder_id: "", attachments: {}
+            id: newId, taxId, companyName, directorId, businessType, coordinator, phone, referredByAgentId, branches: customerBranches, createdAt, drive_folder_id: "", attachments: {}
         };
     }
 
@@ -3047,20 +3059,32 @@ function renderAgentsList() {
     const tbody = document.getElementById("agents-tbody");
     if (!tbody) return;
 
-    if (agents.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="2" class="text-muted" style="text-align:center; padding:20px;">❌ ยังไม่มี Agent ในระบบ (กดเพิ่ม Agent ใหม่ด้านบน)</td></tr>`;
+    const searchInput = document.getElementById("search-agent");
+    const query = searchInput ? searchInput.value.toLowerCase() : "";
+    const filtered = query ? agents.filter(a => (a.name || "").toLowerCase().includes(query)) : agents;
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" class="text-muted" style="text-align:center; padding:20px;">❌ ${query ? 'ไม่พบ Agent ตามคำค้นหา' : 'ยังไม่มี Agent ในระบบ (กดเพิ่ม Agent ใหม่ด้านบน)'}</td></tr>`;
         return;
     }
 
-    tbody.innerHTML = agents.map(a => `
+    tbody.innerHTML = filtered.map(a => {
+        const referredCount = customers.filter(c => c.referredByAgentId === a.id).length;
+        const jobCount = jobs.filter(j => j.agentId === a.id).length;
+        return `
         <tr>
-            <td>${a.name}</td>
-            <td style="text-align:center;">
-                <button class="action-icon-btn" onclick="openAgentModal('${a.id}')" title="แก้ไข">✏️</button>
-                ${currentUser.role === 'admin' ? `<button class="action-icon-btn delete-btn" onclick="deleteAgent('${a.id}', '${(a.name || '').replace(/'/g, "\\'")}')" title="ลบ">🗑️</button>` : ''}
+            <td><strong>${a.name}</strong></td>
+            <td style="text-align:center;">${referredCount} ราย</td>
+            <td style="text-align:center;">${jobCount} งาน</td>
+            <td class="actions-col">
+                <div class="actions-cell">
+                    <button class="action-icon-btn" onclick="openAgentModal('${a.id}')" title="แก้ไข">✏️</button>
+                    ${currentUser.role === 'admin' ? `<button class="action-icon-btn delete-btn" onclick="deleteAgent('${a.id}', '${(a.name || '').replace(/'/g, "\\'")}')" title="ลบ">🗑️</button>` : ''}
+                </div>
             </td>
         </tr>
-    `).join('');
+    `;
+    }).join('');
 }
 
 function refreshJobAgentDropdown(selectedId) {
@@ -3069,6 +3093,14 @@ function refreshJobAgentDropdown(selectedId) {
     agentSelect.innerHTML = '<option value="">--- ไม่ระบุ ---</option>' +
         agents.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
     if (selectedId) agentSelect.value = selectedId;
+}
+
+function refreshCustomerAgentDropdown(selectedId) {
+    const agentSelect = document.getElementById("cust-referred-by-agent");
+    if (!agentSelect) return;
+    agentSelect.innerHTML = '<option value="">--- ไม่ระบุ ---</option>' +
+        agents.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+    agentSelect.value = selectedId || "";
 }
 
 function openAgentModal(id = null) {
@@ -4984,6 +5016,109 @@ function renderFinanceStats() {
                 `;
             }).join('');
         }
+    }
+}
+
+// ==================== COMPLETED JOBS SUMMARY (MONTHLY + BY TYPE) ====================
+function renderCompletedJobsStats() {
+    const employerSelect = document.getElementById("db-completed-select-employer");
+    if (!employerSelect) return;
+
+    // Populate employer options (preserve current selection across re-renders)
+    const currentSelection = employerSelect.value;
+    const sortedCustomers = [...customers].sort((a, b) =>
+        (a.companyName || "").localeCompare(b.companyName || "", 'th')
+    );
+    employerSelect.innerHTML = '<option value="">🌐 ภาพรวมทั้งหมด (ทุกนายจ้าง)</option>' +
+        sortedCustomers.map(c => `<option value="${c.id}">${c.companyName}</option>`).join('');
+    employerSelect.value = currentSelection;
+    const selectedEmployerId = employerSelect.value;
+
+    // Populate agent options (preserve current selection across re-renders)
+    const agentSelect = document.getElementById("db-completed-select-agent");
+    let selectedAgentId = "";
+    if (agentSelect) {
+        const currentAgentSelection = agentSelect.value;
+        const sortedAgents = [...agents].sort((a, b) => (a.name || "").localeCompare(b.name || "", 'th'));
+        agentSelect.innerHTML = '<option value="">🤝 ทุก Agent (ไม่กรอง)</option>' +
+            sortedAgents.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+        agentSelect.value = currentAgentSelection;
+        selectedAgentId = agentSelect.value;
+    }
+
+    // Only closed/successful jobs, optionally scoped to one employer and/or one agent's referred customers
+    let completedJobs = jobs.filter(j => j.status === 'ปิดงานแล้ว');
+    if (selectedEmployerId) {
+        completedJobs = completedJobs.filter(j => j.customerId === selectedEmployerId);
+    }
+    if (selectedAgentId) {
+        const referredCustomerIds = new Set(
+            customers.filter(c => c.referredByAgentId === selectedAgentId).map(c => c.id)
+        );
+        completedJobs = completedJobs.filter(j => referredCustomerIds.has(j.customerId));
+    }
+
+    const totalEl = document.getElementById("stat-completed-total");
+    if (totalEl) totalEl.innerText = completedJobs.length;
+
+    const now = new Date();
+    const thisMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const thisMonthCount = completedJobs.filter(j => (j.closedAt || "").startsWith(thisMonthKey)).length;
+    const thisMonthEl = document.getElementById("stat-completed-this-month");
+    if (thisMonthEl) thisMonthEl.innerText = thisMonthCount;
+
+    const monthNamesTh = {
+        "01": "มกราคม", "02": "กุมภาพันธ์", "03": "มีนาคม", "04": "เมษายน",
+        "05": "พฤษภาคม", "06": "มิถุนายน", "07": "กรกฎาคม", "08": "สิงหาคม",
+        "09": "กันยายน", "10": "ตุลาคม", "11": "พฤศจิกายน", "12": "ธันวาคม"
+    };
+    const noDataMsg = `❌ ยังไม่มีงานที่แจ้งสำเร็จ${selectedEmployerId ? "ของนายจ้างรายนี้" : ""}${selectedAgentId ? "ของลูกค้าที่ Agent รายนี้แนะนำมา" : ""}`;
+
+    // Monthly breakdown (grouped by closedAt year-month)
+    const monthlyCounts = {};
+    completedJobs.forEach(j => {
+        const dateStr = (j.closedAt || "").split('T')[0];
+        const [year, month] = dateStr.split('-');
+        if (!year || !month) return;
+        const key = `${year}-${month}`;
+        monthlyCounts[key] = (monthlyCounts[key] || 0) + 1;
+    });
+    const monthKeys = Object.keys(monthlyCounts).sort().reverse();
+
+    const monthlyTbody = document.getElementById("db-completed-monthly-tbody");
+    if (monthlyTbody) {
+        monthlyTbody.innerHTML = monthKeys.length === 0
+            ? `<tr><td colspan="2" class="text-muted" style="text-align:center; padding:20px;">${noDataMsg}</td></tr>`
+            : monthKeys.map(k => {
+                const [year, month] = k.split('-');
+                const monthLabel = `${monthNamesTh[month] || month} ${parseInt(year) + 543}`;
+                return `
+                    <tr>
+                        <td><strong>${monthLabel}</strong></td>
+                        <td style="text-align: center; font-weight: 600; color: var(--success);">${monthlyCounts[k]} งาน</td>
+                    </tr>
+                `;
+            }).join('');
+    }
+
+    // Breakdown by job type/category
+    const typeCounts = {};
+    completedJobs.forEach(j => {
+        const name = getCleanJobTypeName(j.jobType) || "ไม่ระบุประเภทงาน";
+        typeCounts[name] = (typeCounts[name] || 0) + 1;
+    });
+    const sortedTypes = Object.entries(typeCounts).sort((a, b) => b[1] - a[1]);
+
+    const typeTbody = document.getElementById("db-completed-jobtype-tbody");
+    if (typeTbody) {
+        typeTbody.innerHTML = sortedTypes.length === 0
+            ? `<tr><td colspan="2" class="text-muted" style="text-align:center; padding:20px;">${noDataMsg}</td></tr>`
+            : sortedTypes.map(([name, count]) => `
+                <tr>
+                    <td><strong>${name}</strong></td>
+                    <td style="text-align: center; font-weight: 600; color: var(--success);">${count} งาน</td>
+                </tr>
+            `).join('');
     }
 }
 
