@@ -1375,8 +1375,10 @@ function renderCustomers() {
             '';
         
         const attachHtml = `
-            <div style="display: flex; gap: 4px; justify-content: center;">
-                <button class="action-icon-btn" onclick="openCustomerFolderModal('${c.id}')" title="ดูเอกสารที่แนบไว้ของนายจ้างรายนี้">📁</button>
+            <div style="display: flex; gap: 4px; justify-content: center; align-items: center;">
+                <button class="btn btn-sm btn-gold" onclick="openCustomerFolderModal('${c.id}')" style="font-size: 11.5px; padding: 5px 12px; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;">
+                    📂 เปิดแฟ้มเอกสาร
+                </button>
             </div>
         `;
 
@@ -1579,7 +1581,6 @@ function renderWorkers() {
                 <button class="btn btn-sm btn-gold" onclick="openWorkerFolderModal('${w.id}')" style="font-size: 11.5px; padding: 5px 12px; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;">
                     📂 เปิดแฟ้มเอกสาร
                 </button>
-                <button class="action-icon-btn" onclick="openWorkerFolderModal('${w.id}')" title="เปิดแฟ้มเอกสารของคนงานรายนี้">📁</button>
             </div>
         `;
 
@@ -1795,15 +1796,15 @@ function dragLeaveHandler(e) {
 function dropDocHandler(e, docType) {
     e.preventDefault();
     e.currentTarget.classList.remove("dragover");
-    
+
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-        processUploadedFile(e.dataTransfer.files[0], docType);
+        Array.from(e.dataTransfer.files).forEach(file => processUploadedFile(file, docType));
     }
 }
 
 function fileSelectHandler(e, docType) {
     if (e.target.files && e.target.files.length > 0) {
-        processUploadedFile(e.target.files[0], docType);
+        Array.from(e.target.files).forEach(file => processUploadedFile(file, docType));
     }
 }
 
@@ -1900,25 +1901,29 @@ function processUploadedFile(file, docType) {
     const reader = new FileReader();
     reader.onload = async function(e) {
         const fileContent = e.target.result;
-        
+
         const editId = document.getElementById("worker-edit-id").value;
         const employerId = document.getElementById("worker-employer-id").value;
         const firstName = document.getElementById("worker-first-name").value.trim() || "worker";
         const nameClean = firstName.replace(/\s+/g, '_');
-        const fileName = `${nameClean}_${docType}`;
-        
+        const existingList = tempWorkerAttachments[docType] || [];
+        const suffix = existingList.length > 0 ? `_${existingList.length + 1}` : "";
+        const fileName = `${nameClean}_${docType}${suffix}`;
+
         const uploadResult = await uploadDocumentFile(fileContent, fileName, employerId, editId, docType);
         const storedUrl = uploadResult ? uploadResult.fileUrl : null;
         const serverUrl = storedUrl || await uploadFileToServer(fileContent, fileName);
-        tempWorkerAttachments[docType] = [{ name: fileName, data: serverUrl || fileContent }];
-        
+        // เก็บสะสมทุกไฟล์ที่เคยแนบไว้ (เช่น เอกสารต่ออายุรายปี) ไม่ลบของเก่าทิ้งเมื่อแนบไฟล์ใหม่
+        const updatedList = [...(tempWorkerAttachments[docType] || []), { name: fileName, data: serverUrl || fileContent }];
+        tempWorkerAttachments[docType] = updatedList;
+
         if (uploadResult && uploadResult.parsedData) {
             applyGeminiDataToWorkerForm(docType, uploadResult.parsedData);
             showToast("✨ AI อ่านข้อมูลจากเอกสารและกรอกฟอร์มให้อัตโนมัติแล้ว กรุณาตรวจสอบความถูกต้องอีกครั้ง", "success");
         }
 
         if (uploadResult) {
-            statusEl.innerHTML = `<span class="ai-success">✅ แนบไฟล์สำเร็จ</span>`;
+            statusEl.innerHTML = `<span class="ai-success">✅ แนบไฟล์แล้ว (${updatedList.length} ไฟล์)</span>`;
             uploadBox.classList.add("success-upload");
         } else {
             statusEl.innerHTML = `<span class="ai-error">❌ อัปโหลดไม่สำเร็จ (ไฟล์ถูกเก็บไว้ในเครื่องชั่วคราว)</span>`;
@@ -2421,7 +2426,7 @@ function openWorkerModal(id = null) {
         tempWorkerAttachments = JSON.parse(JSON.stringify(w.attachments || {}));
 
         // Display existing attachments status visually in the modal
-        ['worker-wp-doc', 'worker-passport'].forEach(key => {
+        ['worker-wp-doc', 'worker-passport', 'worker-myanmar-id', 'worker-pink-card', 'worker-receipt', 'worker-other'].forEach(key => {
             const list = getAttachments(w, key);
             if (list.length > 0) {
                 const dropBox = document.getElementById(`drop-${key}`);
@@ -2477,6 +2482,11 @@ function openWorkerModal(id = null) {
         document.getElementById("worker-passport-issue").value = formatDateForInput(w.passportIssue || '');
         document.getElementById("worker-passport-expiry").value = formatDateForInput(w.passportExpiry || '');
         document.getElementById("worker-employment-status").value = w.status || 'active';
+
+        // Pink Card / Insurance Info
+        document.getElementById("worker-pink-card-no").value = w.pinkCardNo || '';
+        document.getElementById("worker-thai-name").value = w.thaiName || '';
+        document.getElementById("worker-insurance-no").value = w.insuranceNo || '';
     } else {
         modalTitle.innerText = "เพิ่มคนงานต่างด้าวใหม่";
         editIdInput.value = "";
@@ -2542,6 +2552,11 @@ async function saveWorker(e) {
     const passportExpiry = document.getElementById("worker-passport-expiry").value.trim();
     const status = document.getElementById("worker-employment-status").value;
 
+    // Pink Card / Insurance Info
+    const pinkCardNo = document.getElementById("worker-pink-card-no").value.trim();
+    const thaiName = document.getElementById("worker-thai-name").value.trim();
+    const insuranceNo = document.getElementById("worker-insurance-no").value.trim();
+
     // Validate date formats (DD/MM/YYYY)
     if (dob && !isValidDate(dob)) {
         alert("วันเดือนปีเกิด ไม่ถูกต้อง (รูปแบบคือ วัน/เดือน/ปี ค.ศ. เช่น 15/08/1994)");
@@ -2587,7 +2602,8 @@ async function saveWorker(e) {
         gender,
         position,
         workplace,
-        refNo
+        refNo,
+        pinkCardNo, thaiName, insuranceNo
     };
 
     const finalWorkerData = editId ? { ...workerData, createdAt: workers.find(item => item.id === editId).createdAt || new Date().toISOString().split('T')[0] } : { ...workerData, createdAt: new Date().toISOString().split('T')[0] };

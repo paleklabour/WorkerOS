@@ -1777,6 +1777,26 @@
                             </div>
                         </div>
 
+                        <!-- 1.3 Pink Card / Insurance Info -->
+                        <div class="form-section-header">
+                            <h4>ส่วนที่ 1.3: ข้อมูลบัตรชมพู / เลขประกัน</h4>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group col-4">
+                                <label for="worker-pink-card-no">เลขที่บัตร (13 หลัก)</label>
+                                <input type="text" id="worker-pink-card-no" placeholder="เลขที่บัตรชมพู 13 หลัก" maxlength="13" pattern="\d{13}">
+                            </div>
+                            <div class="form-group col-4">
+                                <label for="worker-thai-name">ชื่อภาษาไทย</label>
+                                <input type="text" id="worker-thai-name" placeholder="กรอกชื่อ-นามสกุลภาษาไทย (ตามบัตรชมพู)">
+                            </div>
+                            <div class="form-group col-4">
+                                <label for="worker-insurance-no">เลขประกัน</label>
+                                <input type="text" id="worker-insurance-no" placeholder="กรอกเลขประกันสุขภาพ">
+                            </div>
+                        </div>
+
                         <!-- Worker Documents Drag and Drop Section -->
                         <div class="documents-section">
                             <h4>แนบเอกสารคนงานต่างด้าว</h4>
@@ -1784,55 +1804,55 @@
                             <div class="doc-upload-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
                                 <!-- Doc 1: WP / Personal -->
                                 <div class="upload-box highlight-box" id="drop-worker-wp-doc" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropDocHandler(event, 'worker-wp-doc')">
-                                    <input type="file" id="file-worker-wp-doc" class="file-input" onchange="fileSelectHandler(event, 'worker-wp-doc')">
+                                    <input type="file" id="file-worker-wp-doc" class="file-input" multiple onchange="fileSelectHandler(event, 'worker-wp-doc')">
                                     <div class="upload-icon">🪪</div>
                                     <span class="doc-title">เอกสารใบอนุญาตทำงาน (1.1)</span>
-                                    <span class="upload-hint">ลากไฟล์วางที่นี่ หรือคลิกเพื่ออัปโหลด</span>
+                                    <span class="upload-hint">ลากไฟล์วางที่นี่ หรือคลิกเพื่ออัปโหลด (แนบเพิ่มได้หลายไฟล์)</span>
                                     <div class="ocr-status" id="status-worker-wp-doc"></div>
                                 </div>
 
                                 <!-- Doc 2: Passport -->
                                 <div class="upload-box highlight-box" id="drop-worker-passport" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropDocHandler(event, 'worker-passport')">
-                                    <input type="file" id="file-worker-passport" class="file-input" onchange="fileSelectHandler(event, 'worker-passport')">
+                                    <input type="file" id="file-worker-passport" class="file-input" multiple onchange="fileSelectHandler(event, 'worker-passport')">
                                     <div class="upload-icon">✈️</div>
                                     <span class="doc-title">พาสปอร์ต / CI (1.2)</span>
-                                    <span class="upload-hint">ลากไฟล์วางที่นี่ หรือคลิกเพื่ออัปโหลด</span>
+                                    <span class="upload-hint">ลากไฟล์วางที่นี่ หรือคลิกเพื่ออัปโหลด (แนบเพิ่มได้หลายไฟล์)</span>
                                     <div class="ocr-status" id="status-worker-passport"></div>
                                 </div>
 
                                 <!-- Doc 3: Myanmar Card / House Reg -->
                                 <div class="upload-box" id="drop-worker-myanmar-id" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropDocHandler(event, 'worker-myanmar-id')">
-                                    <input type="file" id="file-worker-myanmar-id" class="file-input" onchange="fileSelectHandler(event, 'worker-myanmar-id')">
+                                    <input type="file" id="file-worker-myanmar-id" class="file-input" multiple onchange="fileSelectHandler(event, 'worker-myanmar-id')">
                                     <div class="upload-icon">🏡</div>
                                     <span class="doc-title">บัตรประชาชน/ทะเบียนบ้านพม่า</span>
-                                    <span class="upload-hint">ลากวางไฟล์ หรือคลิกอัปโหลด</span>
+                                    <span class="upload-hint">ลากวางไฟล์ หรือคลิกอัปโหลด (แนบเพิ่มได้หลายไฟล์)</span>
                                     <div class="ocr-status" id="status-worker-myanmar-id"></div>
                                 </div>
 
                                 <!-- Doc 4: Pink Card -->
                                 <div class="upload-box" id="drop-worker-pink-card" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropDocHandler(event, 'worker-pink-card')">
-                                    <input type="file" id="file-worker-pink-card" class="file-input" onchange="fileSelectHandler(event, 'worker-pink-card')">
+                                    <input type="file" id="file-worker-pink-card" class="file-input" multiple onchange="fileSelectHandler(event, 'worker-pink-card')">
                                     <div class="upload-icon">🌸</div>
                                     <span class="doc-title">บัตรชมพู (Pink Card)</span>
-                                    <span class="upload-hint">ลากวางไฟล์ หรือคลิกอัปโหลด</span>
+                                    <span class="upload-hint">ลากวางไฟล์ หรือคลิกอัปโหลด (แนบเพิ่มได้หลายไฟล์)</span>
                                     <div class="ocr-status" id="status-worker-pink-card"></div>
                                 </div>
 
                                 <!-- Doc 5: Receipt -->
                                 <div class="upload-box" id="drop-worker-receipt" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropDocHandler(event, 'worker-receipt')">
-                                    <input type="file" id="file-worker-receipt" class="file-input" onchange="fileSelectHandler(event, 'worker-receipt')">
+                                    <input type="file" id="file-worker-receipt" class="file-input" multiple onchange="fileSelectHandler(event, 'worker-receipt')">
                                     <div class="upload-icon">🧾</div>
                                     <span class="doc-title">ใบเสร็จ (Receipt)</span>
-                                    <span class="upload-hint">ลากวางไฟล์ หรือคลิกอัปโหลด</span>
+                                    <span class="upload-hint">ลากวางไฟล์ หรือคลิกอัปโหลด (แนบเพิ่มได้หลายไฟล์)</span>
                                     <div class="ocr-status" id="status-worker-receipt"></div>
                                 </div>
 
                                 <!-- Doc 6: Other -->
                                 <div class="upload-box" id="drop-worker-other" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropDocHandler(event, 'worker-other')">
-                                    <input type="file" id="file-worker-other" class="file-input" onchange="fileSelectHandler(event, 'worker-other')">
+                                    <input type="file" id="file-worker-other" class="file-input" multiple onchange="fileSelectHandler(event, 'worker-other')">
                                     <div class="upload-icon">📎</div>
                                     <span class="doc-title">เอกสารอื่นๆ</span>
-                                    <span class="upload-hint">ลากวางไฟล์ หรือคลิกอัปโหลด</span>
+                                    <span class="upload-hint">ลากวางไฟล์ หรือคลิกอัปโหลด (แนบเพิ่มได้หลายไฟล์)</span>
                                     <div class="ocr-status" id="status-worker-other"></div>
                                 </div>
                             </div>
