@@ -41,7 +41,8 @@
         status: "status", createdAt: "created_at", attachments: "attachments",
         gender: "gender", position: "position", workplace: "workplace", refNo: "ref_no",
         drive_folder_id: "drive_folder_id", shareToken: "share_token",
-        pinkCardNo: "pink_card_no", thaiName: "thai_name", insuranceNo: "insurance_no"
+        pinkCardNo: "pink_card_no", thaiName: "thai_name", insuranceNo: "insurance_no",
+        email: "email"
     };
     const JOB_MAP = {
         id: "id", customerId: "customer_id", workerId: "worker_id", jobType: "job_type",

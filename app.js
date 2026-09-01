@@ -144,6 +144,9 @@ const USERS = {
 //    ประเภทเดียวกันซ้ำให้คนงานคนนั้นได้อีกครั้ง
 const JOB_OPEN_STATUSES = ["รอดำเนินการ", "กำลังดำเนินการ", "รอเอกสารเพิ่มเติม"];
 
+// ประเภทงานที่เมื่อ "ปิดงาน" สำเร็จแล้ว ให้ตั้งสถานะคนงานที่ผูกกับงานนั้นเป็น "พ้นสภาพ/แจ้งออก" อัตโนมัติ
+const EXIT_JOB_TYPE = "แจ้งออกคนงานต่างด้าว";
+
 function isJobStatusOpen(status) {
     return JOB_OPEN_STATUSES.includes(status);
 }
@@ -868,6 +871,7 @@ function switchView(viewName) {
     if (viewName === 'customers') titleEl.innerText = "ฐานข้อมูลนายจ้าง / ลูกค้าผู้ว่าจ้าง";
     if (viewName === 'workers') titleEl.innerText = "ฐานข้อมูลคนงานต่างด้าว";
     if (viewName === 'jobs') titleEl.innerText = "ระบบจัดการแจ้งงานและออกบิล";
+    if (viewName === 'renewals') titleEl.innerText = "ข้อมูลคนงานต่ออายุ (จัดกลุ่มตามวันหมดอายุใบอนุญาต)";
     if (viewName === 'agents') titleEl.innerText = "จัดการ Agent (ผู้ส่งงาน / ผู้แนะนำลูกค้า)";
     if (viewName === 'expenses') titleEl.innerText = "การเงิน, รายจ่าย และบัญชีธนาคาร";
     if (viewName === 'users') titleEl.innerText = "จัดการบัญชีผู้ใช้งานระบบ";
@@ -883,6 +887,8 @@ function switchView(viewName) {
         updateEmployerDropdownOptions();
     } else if (viewName === 'jobs') {
         renderJobs();
+    } else if (viewName === 'renewals') {
+        renderRenewalGroups();
     } else if (viewName === 'agents') {
         renderAgentsList();
     } else if (viewName === 'expenses') {
@@ -890,6 +896,107 @@ function switchView(viewName) {
     } else if (viewName === 'users') {
         renderUsers();
     }
+}
+
+// ==================== RENEWALS VIEW (ข้อมูลคนงานต่ออายุ) ====================
+// จัดกลุ่มคนงานอัตโนมัติตาม "วันหมดอายุใบอนุญาตทำงาน" ที่ตรงกันเป๊ะ ๆ:
+//   - วันหมดอายุตรงกันตั้งแต่ 2 คนขึ้นไป = กลุ่มมติ/รอบลงทะเบียน (batch) ตั้งชื่อกลุ่มตามวันที่นั้นเลย
+//     กลุ่มใหม่จะโผล่ขึ้นเองทุกครั้งที่เพิ่มปีใหม่ ไม่ต้องแก้โค้ด
+//   - วันหมดอายุไม่ซ้ำกับใครเลย = เหมารวมไว้ในกลุ่ม MOU (แต่ละคนหมดอายุคนละวัน)
+function renderRenewalGroups() {
+    const container = document.getElementById("renewal-groups-container");
+    if (!container) return;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const relevant = workers.filter(w => w.status !== 'archived' && w.status !== 'deleted' && w.permitExpiry);
+
+    const byDateKey = {};
+    relevant.forEach(w => {
+        const d = safeParseDate(w.permitExpiry);
+        if (!d) return;
+        const key = d.toISOString().split('T')[0];
+        if (!byDateKey[key]) byDateKey[key] = { date: d, workers: [] };
+        byDateKey[key].workers.push(w);
+    });
+
+    const batchGroups = [];
+    const mouWorkers = [];
+    Object.values(byDateKey).forEach(g => {
+        if (g.workers.length >= 2) {
+            batchGroups.push(g);
+        } else {
+            mouWorkers.push(...g.workers);
+        }
+    });
+    batchGroups.sort((a, b) => a.date - b.date);
+    mouWorkers.sort((a, b) => (safeParseDate(a.permitExpiry) || 0) - (safeParseDate(b.permitExpiry) || 0));
+
+    function daysLeftOf(w) {
+        const d = safeParseDate(w.permitExpiry);
+        return d ? Math.ceil((d - today) / (1000 * 60 * 60 * 24)) : null;
+    }
+
+    function statusBadgeOf(daysDiff) {
+        if (daysDiff === null) return '-';
+        if (daysDiff < 0) return `<span class="badge badge-danger">หมดอายุแล้ว</span>`;
+        if (daysDiff <= 60) return `<span class="badge badge-warning">เหลือ ${daysDiff} วัน</span>`;
+        return `<span class="badge badge-success">ปกติ (${daysDiff} วัน)</span>`;
+    }
+
+    function buildGroupPanel(title, list) {
+        const expiredCount = list.filter(w => { const d = daysLeftOf(w); return d !== null && d < 0; }).length;
+        const warningCount = list.filter(w => { const d = daysLeftOf(w); return d !== null && d >= 0 && d <= 60; }).length;
+
+        const rows = list.map(w => {
+            const emp = customers.find(c => c.id === w.employerId);
+            const daysDiff = daysLeftOf(w);
+            return `
+                <tr>
+                    <td>${w.workerUid || '-'}</td>
+                    <td>${w.firstName || ''} ${w.lastName || ''}</td>
+                    <td>${w.nationality || '-'}</td>
+                    <td>${emp ? emp.companyName : '-'}</td>
+                    <td>${w.permitNo || '-'}</td>
+                    <td>${w.permitExpiry || '-'}</td>
+                    <td>${statusBadgeOf(daysDiff)}</td>
+                </tr>
+            `;
+        }).join('');
+
+        return `
+            <div class="dashboard-panel" style="flex: 1; margin-bottom: 20px;">
+                <div class="panel-header">
+                    <h3 style="margin:0;">${title}</h3>
+                    <span style="font-size: 12.5px; color: #64748b;">
+                        ทั้งหมด ${list.length} คน • ⚠️ ใกล้หมดอายุ ${warningCount} • ❌ หมดอายุแล้ว ${expiredCount}
+                    </span>
+                </div>
+                <div class="panel-content" style="padding: 0; overflow-x: auto;">
+                    <table class="data-table" style="box-shadow: none; border: none; border-radius: 0;">
+                        <thead>
+                            <tr>
+                                <th>เลขคนงาน</th><th>ชื่อ-นามสกุล</th><th>สัญชาติ</th><th>นายจ้าง</th>
+                                <th>เลขใบอนุญาต</th><th>วันหมดอายุ</th><th>สถานะ</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows || `<tr><td colspan="7" style="text-align:center; padding: 16px;">ไม่มีข้อมูล</td></tr>`}</tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    }
+
+    let html = '';
+    batchGroups.forEach(g => {
+        html += buildGroupPanel(`กลุ่ม ${g.date.toLocaleDateString('th-TH')}`, g.workers);
+    });
+    if (mouWorkers.length > 0) {
+        html += buildGroupPanel('กลุ่ม MOU', mouWorkers);
+    }
+
+    container.innerHTML = html || `<p class="text-muted" style="text-align:center; padding: 30px;">ไม่มีข้อมูลคนงานที่ต้องต่ออายุ</p>`;
 }
 
 // ==================== DASHBOARD ENGINE & CALCULATIONS ====================
@@ -1100,7 +1207,7 @@ function switchDashboardTab(tabName) {
 }
 
 function switchFinancePageTab(tabName) {
-    const tabs = ['overview', 'expenses', 'banks'];
+    const tabs = ['overview', 'billing', 'expenses', 'banks'];
     tabs.forEach(t => {
         const pane = document.getElementById(`finpage-tab-${t}`);
         const btn = document.getElementById(`btn-finpage-tab-${t}`);
@@ -1124,11 +1231,83 @@ function switchFinancePageTab(tabName) {
 
     if (tabName === 'overview') {
         renderFinanceStats();
+    } else if (tabName === 'billing') {
+        renderBillingTab();
     } else if (tabName === 'expenses') {
         renderExpenses();
     } else if (tabName === 'banks') {
         renderBanks();
     }
+}
+
+// รายการงานที่ผ่านระบบแจ้งงานที่ยังไม่ได้รับชำระเงิน — ย้ายมาจากหน้า "ระบบแจ้งงาน / ใบสั่งงาน"
+// มาไว้ที่นี่ทั้งหมด (ปุ่มออกบิล/รับเงินต่อรายการ + รวมบิลนายจ้าง + สร้างบิลอิสระ)
+function renderBillingTab() {
+    const searchInput = document.getElementById("search-billing");
+    const query = searchInput ? searchInput.value.toLowerCase() : "";
+    const tbody = document.getElementById("billing-list-tbody");
+    if (!tbody) return;
+
+    const pending = jobs.filter(j => (j.paymentStatus || 'ยังไม่ออกบิล') !== 'ชำระเงินแล้ว').filter(j => {
+        if (!query) return true;
+        const cust = customers.find(c => c.id === j.customerId);
+        const work = workers.find(w => w.id === j.workerId);
+        const custName = cust ? cust.companyName.toLowerCase() : "";
+        const workName = work ? `${work.firstName} ${work.lastName}`.toLowerCase() : "";
+        return (j.id || "").toLowerCase().includes(query) || custName.includes(query) || workName.includes(query);
+    });
+
+    if (pending.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" class="text-muted" style="text-align: center; padding: 40px;">
+                    ✅ ไม่มีรายการที่ค้างรับชำระ
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    tbody.innerHTML = pending.map(j => {
+        const cust = customers.find(c => c.id === j.customerId);
+        const work = workers.find(w => w.id === j.workerId);
+        const custName = cust ? cust.companyName : "ไม่พบนายจ้าง";
+        const workName = work ? `${work.firstName} ${work.lastName} (${work.nationality})` : "ไม่พบข้อมูลคนงาน";
+        const cleanJobType = (j.jobType || "").replace(/\s*\(\d+\)/g, "");
+
+        let statusClass = 'badge-gold';
+        if (j.status === 'รอดำเนินการ') statusClass = 'badge-warning';
+        else if (j.status === 'รอเอกสารเพิ่มเติม') statusClass = 'badge-danger';
+        else if (j.status === 'ปิดงานแล้ว') statusClass = 'badge-success';
+
+        const paymentStatus = j.paymentStatus || 'ยังไม่ออกบิล';
+        const isClosedUnpaid = j.status === 'ปิดงานแล้ว';
+        let paymentBadge = `<span class="badge badge-warning" style="font-size: 10px; padding: 2px 6px;">⏳ ยังไม่ออกบิล</span>`;
+        if (isClosedUnpaid && paymentStatus === 'ยังไม่ออกบิล') {
+            paymentBadge = `<span class="badge badge-danger" style="font-size: 10px; padding: 2px 6px;">⚠️ ยังไม่ออกบิล/ยังไม่ชำระ</span>`;
+        } else if (isClosedUnpaid && paymentStatus === 'ออกบิลแล้ว') {
+            paymentBadge = `<span class="badge badge-danger" style="font-size: 10px; padding: 2px 6px;">⚠️ ออกบิลแล้ว รอชำระ</span>`;
+        } else if (paymentStatus === 'ออกบิลแล้ว') {
+            paymentBadge = `<span class="badge" style="font-size: 10px; padding: 2px 6px; background-color: #3b82f6; color: white;">🧾 ออกบิลแล้ว</span>`;
+        }
+
+        return `
+            <tr>
+                <td><strong>${getJobDisplayNo(j)}</strong></td>
+                <td><span class="badge badge-gold">${cleanJobType}</span></td>
+                <td>${custName}</td>
+                <td>${workName}</td>
+                <td><strong>${j.fee.toLocaleString()} บาท</strong></td>
+                <td><span class="badge ${statusClass}">${j.status}</span></td>
+                <td>${paymentBadge}</td>
+                <td class="actions-col">
+                    <button class="btn btn-sm btn-gold" onclick="openInvoiceModal('${j.id}')" style="white-space: nowrap;">
+                        🧾 ออกบิล/รับเงิน
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
 }
 
 function renderDashboardOverview() {
@@ -2459,6 +2638,7 @@ function openWorkerModal(id = null) {
         document.getElementById("worker-gender").value = w.gender || '';
         document.getElementById("worker-position").value = w.position || '';
         document.getElementById("worker-workplace").value = w.workplace || '';
+        document.getElementById("worker-email").value = w.email || '';
         
         // Parent names
         document.getElementById("worker-father-name").value = w.fatherName || '';
@@ -2535,6 +2715,7 @@ async function saveWorker(e) {
     const gender = document.getElementById("worker-gender").value;
     const position = document.getElementById("worker-position").value.trim();
     const workplace = document.getElementById("worker-workplace").value.trim();
+    const email = document.getElementById("worker-email").value.trim();
     
     // Parent info
     const fatherName = document.getElementById("worker-father-name").value.trim();
@@ -2602,6 +2783,7 @@ async function saveWorker(e) {
         gender,
         position,
         workplace,
+        email,
         refNo,
         pinkCardNo, thaiName, insuranceNo
     };
@@ -2769,6 +2951,8 @@ function renderJobs() {
         const work = workers.find(w => w.id === j.workerId);
         const custName = cust ? cust.companyName : "ไม่พบนายจ้าง";
         const workName = work ? `${work.firstName} ${work.lastName} (${work.nationality})` : "ไม่พบข้อมูลคนงาน";
+        const jobAgent = j.agentId ? agents.find(a => a.id === j.agentId) : null;
+        const agentLine = jobAgent ? `<br><span style="font-size:11px; color:var(--text-muted);">👤 Agent: ${jobAgent.name}</span>` : '';
 
         // Status styling and display (สถานะขั้นตอนงาน — แยกจากสถานะการเงินโดยสิ้นเชิงแล้ว)
         let displayStatus = j.status;
@@ -2796,7 +2980,6 @@ function renderJobs() {
         // Action buttons
         let editBtn = '';
         let deleteBtn = '';
-        let billBtn = '';
         let closeBtn = '';
         if (j.status === 'ปิดงานแล้ว') {
             closeBtn = `<button class="btn btn-sm btn-outline" onclick="reopenJob('${j.id}')" title="เปิดงานอีกครั้ง" style="white-space: nowrap;">🔓 เปิดงาน</button>`;
@@ -2820,13 +3003,6 @@ function renderJobs() {
             `;
         }
 
-        // Universal Billing: shown in all statuses!
-        billBtn = `
-            <button class="btn btn-sm btn-gold" onclick="openInvoiceModal('${j.id}')" style="white-space: nowrap;">
-                🧾 ออกบิล/รับเงิน
-            </button>
-        `;
-
         const cleanJobType = (j.jobType || "").replace(/\s*\(\d+\)/g, "");
         const siblings = getJobBatchSiblings(j);
         const batchBadge = siblings.length > 0
@@ -2842,16 +3018,20 @@ function renderJobs() {
 
         return `
             <tr>
-                <td><strong>${getJobDisplayNo(j)}</strong>${j.orderNo ? `<br><span style="font-size: 11px; color: var(--text-muted);">Order No: ${j.orderNo}</span>` : ''}${batchBadge}</td>
+                <td><strong>${getJobDisplayNo(j)}</strong>${batchBadge}</td>
                 <td><span class="badge badge-gold">${cleanJobType}</span>${siblingPills}</td>
-                <td>${custName}</td>
+                <td>${custName}${agentLine}</td>
                 <td>${workName}</td>
-                <td><strong>${j.fee.toLocaleString()} บาท</strong></td>
+                <td>${work && work.email ? work.email : '<span class="text-muted">-</span>'}</td>
                 <td><span class="badge ${statusClass}">${displayStatus}</span><br>${paymentBadge}</td>
-                <td><small>${j.updatedAt}</small></td>
+                <td>
+                    <div style="display:flex; gap:4px; align-items:center;">
+                        <input type="text" id="job-order-no-${j.id}" value="${j.orderNo || ''}" placeholder="Order No." ${j.orderNo ? 'disabled' : ''} style="width:140px; padding:4px 6px; font-size:12px; border:1px solid #cbd5e1; border-radius:4px;">
+                        <button type="button" class="action-icon-btn" onclick="handleJobOrderNoButton('${j.id}')" title="${j.orderNo ? 'แก้ไข Order No.' : 'บันทึก Order No.'}">${j.orderNo ? '✏️' : '💾'}</button>
+                    </div>
+                </td>
                 <td class="actions-col">
                     <div class="actions-cell">
-                        ${billBtn}
                         ${closeBtn}
                         ${editBtn}
                         ${deleteBtn}
@@ -2860,6 +3040,64 @@ function renderJobs() {
             </tr>
         `;
     }).join('');
+}
+
+// ปุ่มเดียวสลับ 2 โหมด: ถ้าช่องถูกล็อกอยู่ (บันทึกแล้ว) กดเพื่อปลดล็อกแก้ไข / ถ้าช่องแก้ไขได้อยู่ กดเพื่อบันทึกแล้วล็อก
+function handleJobOrderNoButton(jobId) {
+    const input = document.getElementById(`job-order-no-${jobId}`);
+    if (!input) return;
+
+    if (input.disabled) {
+        input.disabled = false;
+        input.focus();
+        const btn = input.nextElementSibling;
+        if (btn) { btn.title = "บันทึก Order No."; btn.textContent = "💾"; }
+    } else {
+        saveJobOrderNo(jobId);
+    }
+}
+
+// บันทึกเลข Order No. แบบแก้ไขในตารางใบงานโดยตรง (แทนการกรอกในฟอร์มแจ้งงาน) แล้วล็อกช่องไว้ไม่ให้พิมพ์ซ้ำ
+async function saveJobOrderNo(jobId) {
+    const input = document.getElementById(`job-order-no-${jobId}`);
+    if (!input) return;
+
+    const j = jobs.find(item => item.id === jobId);
+    if (!j) return;
+
+    const orderNo = input.value.trim();
+    const jobData = Object.assign({}, j, { orderNo: orderNo || null });
+
+    // บันทึก Order No. แล้ว = ถือว่าเริ่มดำเนินการแล้ว ย้ายไปคอลัมน์ "กำลังดำเนินการ" ให้อัตโนมัติ
+    // (ยกเว้นงานที่ปิดไปแล้ว ไม่ไปแตะสถานะปิดงานให้เปิดขึ้นมาเอง)
+    const movesToProgress = !!orderNo && j.status !== 'กำลังดำเนินการ' && j.status !== 'ปิดงานแล้ว';
+    if (movesToProgress) {
+        jobData.status = 'กำลังดำเนินการ';
+        jobData.updatedAt = new Date().toISOString().split('T')[0];
+    }
+
+    const res = await callCloudAPI("saveJob", { jobData });
+    if (!res || res.status === "error") {
+        showToast("❌ บันทึก Order No. ไม่สำเร็จ: " + (res && res.message ? res.message : "กรุณาลองใหม่"), "danger");
+        return;
+    }
+
+    const idx = jobs.findIndex(item => item.id === jobId);
+    if (idx !== -1) jobs[idx] = jobData;
+    saveData();
+
+    if (movesToProgress) {
+        renderJobs();
+        showToast(`💾 บันทึก Order No. และย้ายใบงาน ${getJobDisplayNo(jobData)} ไปสถานะ "กำลังดำเนินการ" สำเร็จ`, "success");
+        return;
+    }
+
+    if (orderNo) {
+        input.disabled = true;
+        const btn = input.nextElementSibling;
+        if (btn) { btn.title = "แก้ไข Order No."; btn.textContent = "✏️"; }
+    }
+    showToast(`💾 บันทึก Order No. ของ ${getJobDisplayNo(jobData)} สำเร็จ`, "success");
 }
 
 function toggleJobTypePriceInput(cb) {
@@ -2953,9 +3191,8 @@ function openJobModal(id = null) {
 
         const j = jobs.find(item => item.id === id);
         custSelect.value = j.customerId;
-        document.getElementById("job-agent-id").value = j.agentId || "";
 
-        // Trigger worker dropdown generation
+        // Trigger worker dropdown generation (จะเซ็ต Agent ให้ตามนายจ้างที่เลือกไปในตัวด้วย)
         onJobCustomerChange(j.workerId);
 
         // Populate checkboxes and prices
@@ -2990,7 +3227,6 @@ function openJobModal(id = null) {
         }
 
         document.getElementById("job-notes").value = j.notes || '';
-        document.getElementById("job-order-no").value = j.orderNo || '';
 
         // ผู้เปิดงาน: แสดงอย่างเดียว แก้ไม่ได้ (ล็อกจาก user ที่เปิดงานครั้งแรก)
         if (j.openedBy) {
@@ -3034,7 +3270,11 @@ function closeJobModal() {
 function onJobCustomerChange(selectedWorkerId = null) {
     const custId = document.getElementById("job-customer-id").value;
     const workerSelect = document.getElementById("job-worker-id");
-    
+
+    // Agent ผู้ส่งงาน: ล็อกตาม Agent ผู้แนะนำของนายจ้างที่เลือกเสมอ (ตั้งค่าได้ที่หน้าข้อมูลนายจ้างเท่านั้น)
+    const cust = customers.find(c => c.id === custId);
+    document.getElementById("job-agent-id").value = (cust && cust.referredByAgentId) || "";
+
     // Filter workers under this customer
     const custWorkers = workers.filter(w => w.employerId === custId);
     
@@ -3224,7 +3464,6 @@ async function saveJob(e) {
     const jobTypeLabel = selectedItems.map(it => `${it.name} (${it.price})`).join(", ");
     const status = document.getElementById("job-status").value;
     const notes = document.getElementById("job-notes").value;
-    const orderNo = document.getElementById("job-order-no").value.trim();
     const updatedAt = new Date().toISOString().split('T')[0];
 
     if (!customerId || !jobTypeLabel || isNaN(totalFee)) {
@@ -3241,7 +3480,8 @@ async function saveJob(e) {
             id: editId,
             batchId: originalJob ? (originalJob.batchId || null) : null,
             createdAt: originalJob ? (originalJob.createdAt || originalJob.updatedAt) : updatedAt,
-            customerId, workerId, jobType: jobTypeLabel, fee: totalFee, status, notes, orderNo, updatedAt, agentId
+            orderNo: originalJob ? (originalJob.orderNo || null) : null,
+            customerId, workerId, jobType: jobTypeLabel, fee: totalFee, status, notes, updatedAt, agentId
         };
         showToast("💾 กำลังบันทึกการแก้ไขใบสั่งงานเข้าคลาวด์...", "warning");
         const jobSaveRes = await callCloudAPI("saveJob", { jobData: jobData });
@@ -3278,7 +3518,7 @@ async function saveJob(e) {
                     fee: item.price,
                     status: status,
                     notes: notes,
-                    orderNo: orderNo,
+                    orderNo: null,
                     updatedAt: updatedAt,
                     agentId,
                     openedBy: currentUser.id || null,
@@ -3706,6 +3946,29 @@ async function deleteExpense(id) {
 }
 
 // ==================== ปิดงาน (แนบเอกสารแล้วปิด) / เปิดงานอีกครั้ง ====================
+
+// ถ้าใบงานนี้เป็นประเภท "แจ้งออกคนงานต่างด้าว" ให้ sync สถานะคนงานที่ผูกกับงานตาม targetStatus
+// (ปิดงาน -> archived, เปิดงานอีกครั้ง -> active) คืนค่า { applied: true } เมื่อมีการเปลี่ยนสถานะจริง
+async function syncWorkerStatusForExitJob(job, targetStatus) {
+    if (getCleanJobTypeName(job.jobType) !== EXIT_JOB_TYPE) return { applied: false };
+
+    const worker = workers.find(w => w.id === job.workerId);
+    if (!worker || worker.status === targetStatus) return { applied: false };
+
+    const updatedWorker = Object.assign({}, worker, { status: targetStatus });
+    const res = await callCloudAPI("saveWorker", { workerData: updatedWorker });
+    if (!res || res.status === "error") {
+        showToast("⚠️ บันทึกใบงานสำเร็จ แต่ตั้งสถานะคนงานอัตโนมัติไม่สำเร็จ กรุณาแก้ไขสถานะคนงานด้วยตนเอง", "warning");
+        return { applied: false };
+    }
+
+    const idx = workers.findIndex(w => w.id === worker.id);
+    if (idx !== -1) workers[idx] = updatedWorker;
+    saveData();
+    renderWorkers();
+    return { applied: true };
+}
+
 function openJobCloseModal(jobId) {
     const j = jobs.find(item => item.id === jobId);
     if (!j) return;
@@ -3785,8 +4048,12 @@ async function submitCloseJob(e) {
         saveData();
         closeJobCloseModal();
         renderJobs();
+        renderBillingTab();
         renderDashboard();
-        showToast(`📎 ปิดงาน ${getJobDisplayNo(jobData)} สำเร็จ`, "success");
+
+        const archiveResult = await syncWorkerStatusForExitJob(jobData, 'archived');
+        const archiveMsg = archiveResult.applied ? " และตั้งสถานะคนงานเป็น 'พ้นสภาพ/แจ้งออก' อัตโนมัติ" : "";
+        showToast(`📎 ปิดงาน ${getJobDisplayNo(jobData)} สำเร็จ${archiveMsg}`, "success");
     } finally {
         btn.disabled = false;
         btn.innerText = "✅ ยืนยันปิดงาน";
@@ -3820,8 +4087,12 @@ async function reopenJob(jobId) {
     if (idx !== -1) jobs[idx] = jobData;
     saveData();
     renderJobs();
+    renderBillingTab();
     renderDashboard();
-    showToast(`🔓 เปิดงาน ${getJobDisplayNo(jobData)} อีกครั้งสำเร็จ`, "success");
+
+    const restoreResult = await syncWorkerStatusForExitJob(jobData, 'active');
+    const restoreMsg = restoreResult.applied ? " และคืนสถานะคนงานเป็น 'ปกติ' อัตโนมัติ" : "";
+    showToast(`🔓 เปิดงาน ${getJobDisplayNo(jobData)} อีกครั้งสำเร็จ${restoreMsg}`, "success");
 }
 
 function reopenJobFromModal() {
@@ -4211,6 +4482,7 @@ function openInvoiceModal(jobId) {
     const dateOptions = { year: 'numeric', month: 'long', day: 'numeric' };
     const selectBank = document.getElementById("invoice-bank-select");
     const markPaidBtn = document.getElementById("btn-mark-paid");
+    const saveEditsBtn = document.getElementById("btn-save-invoice-edits");
 
     // รีเซ็ตช่องกำหนดชำระ/หมายเหตุ ไม่ให้ค้างข้อความจากบิลใบก่อนหน้า
     const dueDateEl = document.getElementById("inv-due-date");
@@ -4234,6 +4506,7 @@ function openInvoiceModal(jobId) {
             });
             saveData();
             renderJobs();
+            renderBillingTab();
             renderDashboard();
         }
 
@@ -4266,15 +4539,21 @@ function openInvoiceModal(jobId) {
                 desc: workDetails,
                 qty: 1,
                 unitPrice: item.price,
-                fee: item.price
+                fee: item.price,
+                // ใช้ตอนบันทึกการแก้ไขราคาบิลย้อนกลับเข้าใบงานจริง (ดู computeEditedJobUpdates) —
+                // serviceName ใช้สร้างสตริง jobType ใหม่ (แยกจาก title ที่ผู้ใช้แก้เป็นข้อความอิสระได้)
+                serviceName: item.name,
+                jobBreakdown: [{ jobId: j.id, price: item.price }]
             };
         });
         currentInvoiceJobIds = [j.id];
 
         if (j.paymentStatus === 'ชำระเงินแล้ว') {
             if (markPaidBtn) markPaidBtn.style.display = 'none';
+            if (saveEditsBtn) saveEditsBtn.style.display = 'none';
         } else {
             if (markPaidBtn) markPaidBtn.style.display = 'inline-block';
+            if (saveEditsBtn) saveEditsBtn.style.display = 'inline-block';
         }
 
     } else {
@@ -4310,6 +4589,7 @@ function openInvoiceModal(jobId) {
         currentInvoiceJobIds = [];
 
         if (markPaidBtn) markPaidBtn.style.display = 'inline-block';
+        if (saveEditsBtn) saveEditsBtn.style.display = 'none'; // บิลอิสระไม่ได้ผูกกับใบงานจริง ไม่มีอะไรให้บันทึกย้อนกลับ
     }
 
     // Populate bank account dropdown selection list
@@ -4326,6 +4606,8 @@ function closeInvoiceModal() {
     document.getElementById("invoice-modal").classList.add("hidden");
     currentInvoiceItems = [];
     currentInvoiceJobIds = [];
+    const proofInput = document.getElementById("invoice-payment-proof-input");
+    if (proofInput) proofInput.value = '';
 }
 
 function renderInvoiceItemsTable() {
@@ -4350,24 +4632,28 @@ function renderInvoiceItemsTable() {
             <tr>
                 <td style="text-align: center;">${index + 1}</td>
                 <td>
-                    <div style="font-weight: 600; outline: none; border-bottom: 1px dashed transparent;" 
-                         id="inv-item-title-${item.id}" 
-                         contenteditable="true" 
-                         oninput="recalculateInvoiceFromEdit()"
+                    <div style="font-weight: 600; outline: none; border-bottom: 1px dashed transparent;"
+                         id="inv-item-title-${item.id}"
+                         contenteditable="true"
+                         oninput="onInvoiceItemTextInput('${item.id}')"
                          title="คลิกเพื่อแก้ไขคำอธิบาย">${item.title}</div>
-                    <div style="font-size: 12.5px; color: var(--text-muted); margin-top: 4px; outline: none; border-bottom: 1px dashed transparent; white-space: pre-line;" 
-                         id="inv-item-desc-${item.id}" 
-                         contenteditable="true" 
-                         oninput="recalculateInvoiceFromEdit()"
+                    <div style="font-size: 12.5px; color: var(--text-muted); margin-top: 4px; outline: none; border-bottom: 1px dashed transparent; white-space: pre-line;"
+                         id="inv-item-desc-${item.id}"
+                         contenteditable="true"
+                         oninput="onInvoiceItemTextInput('${item.id}')"
                          title="คลิกเพื่อแก้ไขคำอธิบายย่อย">${item.desc}</div>
                 </td>
                 <td style="text-align: center;">${qty}</td>
-                <td style="text-align: right;" id="inv-item-unitprice-${item.id}">${unitPrice.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td style="text-align: right; background-color: rgba(212, 175, 55, 0.05); border: 1px solid var(--gold-primary); outline: none;"
+                    id="inv-item-unitprice-${item.id}"
+                    contenteditable="true"
+                    oninput="onInvoiceItemUnitPriceInput('${item.id}')"
+                    title="คลิกเพื่อแก้ไขราคาต่อหน่วย">${unitPrice.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 <td style="text-align: right; font-weight: 600; background-color: rgba(212, 175, 55, 0.05); border: 1px solid var(--gold-primary); outline: none;"
                     id="inv-item-fee-${item.id}"
-                    contenteditable="true" 
-                    oninput="recalculateInvoiceFromEdit()"
-                    title="คลิกเพื่อแก้ไขราคา">${item.fee.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    contenteditable="true"
+                    oninput="onInvoiceItemFeeInput('${item.id}')"
+                    title="คลิกเพื่อแก้ไขราคารวม">${item.fee.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
             </tr>
         `;
     }).join('');
@@ -4376,27 +4662,61 @@ function renderInvoiceItemsTable() {
     calculateInvoiceTotals();
 }
 
-function recalculateInvoiceFromEdit() {
-    currentInvoiceItems.forEach(item => {
-        const titleEl = document.getElementById(`inv-item-title-${item.id}`);
-        const descEl = document.getElementById(`inv-item-desc-${item.id}`);
-        const feeEl = document.getElementById(`inv-item-fee-${item.id}`);
+function syncInvoiceItemTextFields(item) {
+    const titleEl = document.getElementById(`inv-item-title-${item.id}`);
+    const descEl = document.getElementById(`inv-item-desc-${item.id}`);
+    if (titleEl) item.title = titleEl.innerText.trim();
+    if (descEl) item.desc = descEl.innerText.trim();
+}
 
-        if (titleEl) item.title = titleEl.innerText.trim();
-        if (descEl) item.desc = descEl.innerText.trim();
-        if (feeEl) {
-            let feeText = feeEl.innerText.replace(/,/g, '').trim();
-            let fee = parseFloat(feeText);
-            item.fee = isNaN(fee) ? 0 : fee;
-            const qty = item.qty || 1;
-            item.unitPrice = item.fee / qty;
-            
-            const unitPriceEl = document.getElementById(`inv-item-unitprice-${item.id}`);
-            if (unitPriceEl) {
-                unitPriceEl.innerText = item.unitPrice.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            }
+function onInvoiceItemTextInput(itemId) {
+    const item = currentInvoiceItems.find(x => x.id === itemId);
+    if (!item) return;
+    syncInvoiceItemTextFields(item);
+}
+
+// แก้ "ราคารวม" ต่อรายการ -> คำนวณ "ราคาต่อหน่วย" ย้อนกลับ (ราคารวม / จำนวน)
+function onInvoiceItemFeeInput(itemId) {
+    const item = currentInvoiceItems.find(x => x.id === itemId);
+    if (!item) return;
+    syncInvoiceItemTextFields(item);
+
+    const feeEl = document.getElementById(`inv-item-fee-${itemId}`);
+    if (feeEl) {
+        const feeText = feeEl.innerText.replace(/,/g, '').trim();
+        const fee = parseFloat(feeText);
+        item.fee = isNaN(fee) ? 0 : fee;
+        const qty = item.qty || 1;
+        item.unitPrice = qty > 0 ? item.fee / qty : 0;
+
+        const unitPriceEl = document.getElementById(`inv-item-unitprice-${itemId}`);
+        if (unitPriceEl) {
+            unitPriceEl.innerText = item.unitPrice.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
-    });
+    }
+
+    calculateInvoiceTotals();
+}
+
+// แก้ "ราคาต่อหน่วย" -> คำนวณ "ราคารวม" ใหม่ (ราคาต่อหน่วย x จำนวน)
+function onInvoiceItemUnitPriceInput(itemId) {
+    const item = currentInvoiceItems.find(x => x.id === itemId);
+    if (!item) return;
+    syncInvoiceItemTextFields(item);
+
+    const unitPriceEl = document.getElementById(`inv-item-unitprice-${itemId}`);
+    if (unitPriceEl) {
+        const priceText = unitPriceEl.innerText.replace(/,/g, '').trim();
+        const unitPrice = parseFloat(priceText);
+        item.unitPrice = isNaN(unitPrice) ? 0 : unitPrice;
+        const qty = item.qty || 1;
+        item.fee = item.unitPrice * qty;
+
+        const feeEl = document.getElementById(`inv-item-fee-${itemId}`);
+        if (feeEl) {
+            feeEl.innerText = item.fee.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+    }
 
     calculateInvoiceTotals();
 }
@@ -4418,6 +4738,17 @@ function updateInvoiceBankDetails() {
 
     const selectBank = document.getElementById("invoice-bank-select");
     const activeBankId = selectBank.value;
+
+    // ช่องแนบหลักฐานการโอนเงิน: โชว์เฉพาะตอนเลือกช่องทางเป็นบัญชีธนาคาร (ไม่ใช่เงินสด)
+    const proofRow = document.getElementById("invoice-payment-proof-row");
+    if (proofRow) {
+        proofRow.style.display = activeBankId === 'cash' ? 'none' : 'block';
+        if (activeBankId === 'cash') {
+            const proofInput = document.getElementById("invoice-payment-proof-input");
+            if (proofInput) proofInput.value = '';
+        }
+    }
+
     if (activeBankId === 'cash') {
         document.getElementById("inv-bank-name").innerText = "รับชำระเป็นเงินสด (Cash)";
         document.getElementById("inv-bank-acc-name").innerText = "รับเงินสดโดยตรง";
@@ -4434,7 +4765,75 @@ function updateInvoiceBankDetails() {
     document.getElementById("inv-bank-acc-no").innerText = b.accountNumber;
 }
 
-function markJobPaidFromInvoice() {
+// รวมยอดที่แก้ไขแล้วในใบวางบิล (currentInvoiceItems) กลับเป็นค่า fee + jobType ใหม่ต่อ "ใบงานจริง" แต่ละใบ
+// (รองรับทั้งบิลเดี่ยว และบิลรวมที่ 1 แถวในใบวางบิลอาจครอบคลุมหลายใบงาน โดยเฉลี่ยตามสัดส่วนราคาต้นฉบับ)
+// ต้องคืน jobType ใหม่ด้วยเสมอ ไม่ใช่แค่ fee — เพราะราคาต่อประเภทงานถูกฝังอยู่ในสตริง jobType เอง
+// (เช่น "ตี VISA (500)") ซึ่งเป็นค่าที่ parseJobTypeItems ใช้สร้างรายการในบิลตอนเปิดใหม่ทุกครั้ง
+// ถ้าไม่อัปเดตสตริงนี้ด้วย การแก้ราคาจะ "หาย" ไปเมื่อเปิดใบวางบิลซ้ำ
+function computeEditedJobUpdates() {
+    const jobUpdates = {}; // jobId -> { feeTotal, typeSegments: [{serviceName, price}] }
+    currentInvoiceItems.forEach(item => {
+        const breakdown = item.jobBreakdown || [];
+        if (breakdown.length === 0) return;
+        const oldTotal = breakdown.reduce((sum, b) => sum + b.price, 0);
+        const serviceName = item.serviceName || item.title;
+        breakdown.forEach(b => {
+            const share = oldTotal > 0 ? (b.price / oldTotal) * item.fee : item.fee / breakdown.length;
+            if (!jobUpdates[b.jobId]) jobUpdates[b.jobId] = { feeTotal: 0, typeSegments: [] };
+            jobUpdates[b.jobId].feeTotal += share;
+            jobUpdates[b.jobId].typeSegments.push({ serviceName, price: share });
+        });
+    });
+    return jobUpdates;
+}
+
+// บันทึกราคาที่แก้ไขในใบวางบิลกลับเข้าใบงานจริงในคลาวด์ — ใช้ได้ทั้งก่อนและหลังออกบิลไปแล้ว
+// (ไม่เปลี่ยนสถานะการชำระเงิน แค่แก้ตัวเลข fee/jobType ให้ตรงกับสิ่งที่พิมพ์/ตกลงกันจริง)
+async function saveInvoiceFeeEdits() {
+    if (currentUser.role === 'staff') {
+        showToast("❌ คุณไม่มีสิทธิ์แก้ไขราคาบิลนี้", "danger");
+        return;
+    }
+    if (currentInvoiceJobIds.length === 0) {
+        showToast("⚠️ บิลอิสระนี้ไม่ได้ผูกกับใบงานจริง ไม่มีอะไรให้บันทึก", "warning");
+        return;
+    }
+
+    const jobUpdates = computeEditedJobUpdates();
+    let failCount = 0;
+    for (const jobId of Object.keys(jobUpdates)) {
+        const idx = jobs.findIndex(j => j.id === jobId);
+        if (idx === -1) continue;
+        const newFee = Math.round(jobUpdates[jobId].feeTotal * 100) / 100;
+        const newJobType = jobUpdates[jobId].typeSegments.map(s => `${s.serviceName} (${Math.round(s.price)})`).join(', ');
+        if (newFee === jobs[idx].fee && newJobType === jobs[idx].jobType) continue;
+
+        const prevFee = jobs[idx].fee;
+        const prevJobType = jobs[idx].jobType;
+        jobs[idx].fee = newFee;
+        jobs[idx].jobType = newJobType;
+        jobs[idx].updatedAt = new Date().toISOString().split('T')[0];
+        const res = await callCloudAPI("saveJob", { jobData: jobs[idx] });
+        if (!res || res.status === "error") {
+            jobs[idx].fee = prevFee;
+            jobs[idx].jobType = prevJobType;
+            failCount++;
+        }
+    }
+
+    saveData();
+    renderJobs();
+    renderBillingTab();
+    renderDashboard();
+
+    if (failCount > 0) {
+        showToast(`⚠️ บันทึกราคาไม่สำเร็จ ${failCount} รายการ`, "danger");
+    } else {
+        showToast("💾 บันทึกการแก้ไขราคาบิลเรียบร้อยแล้ว", "success");
+    }
+}
+
+async function markJobPaidFromInvoice() {
     if (currentUser.role === 'staff') {
         showToast("❌ คุณไม่มีสิทธิ์เปลี่ยนสถานะงานนี้", "danger");
         return;
@@ -4443,12 +4842,45 @@ function markJobPaidFromInvoice() {
     const selectBank = document.getElementById("invoice-bank-select");
     const activeBankId = selectBank ? selectBank.value : 'cash';
     let payMethodLabel = "เงินสด";
-    
+
     if (activeBankId !== 'cash') {
         const b = banks.find(item => item.id === activeBankId);
         if (b) {
             payMethodLabel = b.bankName;
         }
+    }
+
+    // แนบหลักฐานการโอนเงิน (ใช้เฉพาะกรณีเลือกช่องทางเป็นบัญชีธนาคาร ไม่ใช่เงินสด)
+    const proofInput = document.getElementById("invoice-payment-proof-input");
+    const proofFile = (activeBankId !== 'cash' && proofInput && proofInput.files && proofInput.files.length > 0) ? proofInput.files[0] : null;
+
+    if (activeBankId !== 'cash' && !proofFile) {
+        if (!confirm("ยังไม่ได้แนบหลักฐานการโอนเงิน ต้องการยืนยันการรับชำระโดยไม่มีหลักฐานแนบหรือไม่?")) {
+            return;
+        }
+    }
+
+    let proofAttachment = null;
+    if (proofFile) {
+        const fileDataUrl = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(proofFile);
+        });
+        const firstJob = currentInvoiceJobIds.length > 0 ? jobs.find(j => j.id === currentInvoiceJobIds[0]) : null;
+        const uploadResult = await uploadDocumentFile(fileDataUrl, proofFile.name, firstJob ? firstJob.customerId : "", "", "payment-proof");
+        if (!uploadResult) {
+            showToast("❌ อัปโหลดหลักฐานการโอนเงินไม่สำเร็จ ยังไม่ได้ยืนยันการชำระ", "danger");
+            return;
+        }
+        proofAttachment = {
+            name: proofFile.name,
+            url: uploadResult.fileUrl,
+            note: "หลักฐานการโอนเงิน",
+            uploadedAt: new Date().toISOString(),
+            uploadedBy: currentUser.id || null
+        };
     }
 
     if (currentInvoiceJobIds.length === 0) {
@@ -4458,6 +4890,9 @@ function markJobPaidFromInvoice() {
         return;
     }
 
+    // ราคาที่แก้ไขในใบวางบิล (ถ้ามี) ให้บันทึกลงใบงานจริงไปพร้อมกันตอนยืนยันรับชำระเลย
+    const jobUpdates = computeEditedJobUpdates();
+
     // Mark all combined jobs as Paid
     let paidFailedCount = 0;
     const updatePromises = currentInvoiceJobIds.map(async jobId => {
@@ -4465,15 +4900,29 @@ function markJobPaidFromInvoice() {
         if (idx !== -1) {
             const prevPaymentStatus = jobs[idx].paymentStatus;
             const prevPaymentMethod = jobs[idx].paymentMethod;
+            const prevAttachments = jobs[idx].attachments;
+            const prevFee = jobs[idx].fee;
+            const prevJobType = jobs[idx].jobType;
             jobs[idx].paymentStatus = 'ชำระเงินแล้ว';
             jobs[idx].paymentMethod = payMethodLabel;
             jobs[idx].updatedAt = new Date().toISOString().split('T')[0];
+            if (jobUpdates[jobId] !== undefined) {
+                jobs[idx].fee = Math.round(jobUpdates[jobId].feeTotal * 100) / 100;
+                jobs[idx].jobType = jobUpdates[jobId].typeSegments.map(s => `${s.serviceName} (${Math.round(s.price)})`).join(', ');
+            }
+            if (proofAttachment) {
+                const existingAttachments = Array.isArray(jobs[idx].attachments) ? jobs[idx].attachments : [];
+                jobs[idx].attachments = existingAttachments.concat([proofAttachment]);
+            }
 
             // Sync status to cloud backend
             const res = await callCloudAPI("saveJob", { jobData: jobs[idx] });
             if (!res || res.status === "error") {
                 jobs[idx].paymentStatus = prevPaymentStatus; // revert local change since save failed
                 jobs[idx].paymentMethod = prevPaymentMethod;
+                jobs[idx].attachments = prevAttachments;
+                jobs[idx].fee = prevFee;
+                jobs[idx].jobType = prevJobType;
                 paidFailedCount++;
             }
         }
@@ -4489,6 +4938,7 @@ function markJobPaidFromInvoice() {
         saveData();
         closeInvoiceModal();
         renderJobs();
+        renderBillingTab();
         renderDashboard();
     });
 }
@@ -4618,6 +5068,7 @@ function generateCombinedInvoice() {
     });
     saveData();
     renderJobs();
+    renderBillingTab();
     renderDashboard();
 
     // Fill Client Info inside modal
@@ -4699,7 +5150,10 @@ function generateCombinedInvoice() {
             desc: workerList,
             qty: qty,
             unitPrice: unitPrice,
-            fee: fee
+            fee: fee,
+            // ใช้ตอนบันทึกการแก้ไขราคาบิลย้อนกลับเข้าใบงานจริงแต่ละใบ (ดู computeEditedJobUpdates)
+            serviceName: serviceName,
+            jobBreakdown: group.jobs.map(x => ({ jobId: x.jobId, price: x.price }))
         });
     });
     currentInvoiceJobIds = selectedJobIds;
@@ -4714,6 +5168,8 @@ function generateCombinedInvoice() {
     // Toggle button display
     const markPaidBtn = document.getElementById("btn-mark-paid");
     if (markPaidBtn) markPaidBtn.style.display = 'inline-block';
+    const saveEditsBtn = document.getElementById("btn-save-invoice-edits");
+    if (saveEditsBtn) saveEditsBtn.style.display = 'inline-block';
 
     // Close combine bills modal and open invoice sheet
     closeCombineBillsModal();
@@ -6636,6 +7092,7 @@ function renderJobsKanban(filtered) {
         "รอเอกสารเพิ่มเติม": 0,
         "ปิดงานแล้ว": 0
     };
+    let closedUnbilledCount = 0;
 
     filtered.forEach(j => {
         const displayStatus = j.status;
@@ -6646,11 +7103,21 @@ function renderJobsKanban(filtered) {
             const work = workers.find(w => w.id === j.workerId);
             const custName = cust ? cust.companyName : "ไม่พบนายจ้าง";
             const workName = work ? `${work.firstName} ${work.lastName} (${work.nationality})` : "ไม่พบคนงาน";
+            const jobAgent = j.agentId ? agents.find(a => a.id === j.agentId) : null;
 
             // Payment badge — เป็นอิสระจากสถานะขั้นตอนงาน ออกบิลได้ตั้งแต่เปิดงาน
             const paymentStatus = j.paymentStatus || 'ยังไม่ออกบิล';
+            // ปิดงานแล้วแต่ยังไม่ได้รับชำระ (ไม่ว่าจะออกบิลไปแล้วหรือยังไม่ออกก็ตาม) ถือเป็นเรื่องเร่งด่วนกว่างานที่ยังเปิดอยู่
+            // (ซึ่งยังไม่ออกบิลถือว่าปกติ) — ต้องยังโชว์เด่นไว้จนกว่าลูกค้าจะชำระเงินครบจริง ๆ เท่านั้น
+            const isClosedUnpaid = displayStatus === 'ปิดงานแล้ว' && paymentStatus !== 'ชำระเงินแล้ว';
+            if (isClosedUnpaid) closedUnbilledCount++;
+
             let paymentBadge = `<span class="badge badge-warning" style="font-size: 10px; padding: 2px 6px;">⏳ ยังไม่ออกบิล</span>`;
-            if (paymentStatus === 'ออกบิลแล้ว') {
+            if (isClosedUnpaid && paymentStatus === 'ยังไม่ออกบิล') {
+                paymentBadge = `<span class="badge badge-danger" style="font-size: 10px; padding: 2px 6px;">⚠️ ยังไม่ออกบิล/ยังไม่ชำระ</span>`;
+            } else if (isClosedUnpaid && paymentStatus === 'ออกบิลแล้ว') {
+                paymentBadge = `<span class="badge badge-danger" style="font-size: 10px; padding: 2px 6px;">⚠️ ออกบิลแล้ว รอชำระ</span>`;
+            } else if (paymentStatus === 'ออกบิลแล้ว') {
                 paymentBadge = `<span class="badge" style="font-size: 10px; padding: 2px 6px; background-color: #3b82f6; color: white;">🧾 ออกบิลแล้ว</span>`;
             } else if (paymentStatus === 'ชำระเงินแล้ว') {
                 paymentBadge = `<span class="badge badge-success" style="font-size: 10px; padding: 2px 6px;">✅ ชำระเงินแล้ว</span>`;
@@ -6666,7 +7133,6 @@ function renderJobsKanban(filtered) {
             if (currentUser.role !== 'staff') {
                 actionBtns += `<button onclick="openJobModal('${j.id}')" style="background: none; border: none; cursor: pointer; font-size: 13px;" title="แก้ไข">✏️</button>`;
             }
-            actionBtns += `<button onclick="openInvoiceModal('${j.id}')" style="background: none; border: none; cursor: pointer; font-size: 13px;" title="ออกบิล/รับเงิน">🧾</button>`;
             if (displayStatus === 'ปิดงานแล้ว') {
                 actionBtns += `<button onclick="reopenJob('${j.id}')" style="background: none; border: none; cursor: pointer; font-size: 13px;" title="เปิดงานอีกครั้ง">🔓</button>`;
             } else if (currentUser.role !== 'staff') {
@@ -6688,14 +7154,17 @@ function renderJobsKanban(filtered) {
                    </div>`
                 : '';
 
+            const cardBorder = isClosedUnpaid ? '1px solid #fca5a5' : '1px solid #e2e8f0';
+            const cardBg = isClosedUnpaid ? '#fef2f2' : 'white';
             container.innerHTML += `
-                <div class="kanban-card" draggable="true" ondragstart="onKanbanDragStart(event, '${j.id}')" style="background: white; border-radius: 6px; padding: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); cursor: grab; display: flex; flex-direction: column; gap: 8px;">
+                <div class="kanban-card" draggable="true" ondragstart="onKanbanDragStart(event, '${j.id}')" style="background: ${cardBg}; border-radius: 6px; padding: 12px; border: ${cardBorder}; box-shadow: 0 1px 3px rgba(0,0,0,0.05); cursor: grab; display: flex; flex-direction: column; gap: 8px;">
                     <div style="display: flex; justify-content: space-between; align-items: start; gap: 8px;">
                         <span style="font-weight: 700; font-size: 11px; color: var(--gold-dark);">${getJobDisplayNo(j)}</span>
                         <span class="badge badge-sm ${badgeClass}" style="font-size: 10px; padding: 1px 6px;">${cleanJobType}</span>
                     </div>
                     <div style="font-weight: 600; font-size: 12.5px; color: #1e293b; line-height: 1.4;">👤 ${workName}</div>
                     <div style="font-size: 11.5px; color: #64748b;">🏢 ${custName}</div>
+                    ${jobAgent ? `<div style="font-size: 11px; color: #64748b;">👤 Agent: ${jobAgent.name}</div>` : ''}
                     ${batchTag}
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; padding-top: 8px; border-top: 1px solid #f1f5f9;">
                         <div style="font-size: 12px; font-weight: 700; color: #0f172a;">💰 ${j.fee.toLocaleString()} บ.</div>
@@ -6716,6 +7185,16 @@ function renderJobsKanban(filtered) {
     if (document.getElementById("count-kanban-progress")) document.getElementById("count-kanban-progress").innerText = counts["กำลังดำเนินการ"];
     if (document.getElementById("count-kanban-docs")) document.getElementById("count-kanban-docs").innerText = counts["รอเอกสารเพิ่มเติม"];
     if (document.getElementById("count-kanban-completed")) document.getElementById("count-kanban-completed").innerText = counts["ปิดงานแล้ว"];
+
+    const unbilledBadge = document.getElementById("count-kanban-completed-unbilled");
+    if (unbilledBadge) {
+        if (closedUnbilledCount > 0) {
+            unbilledBadge.innerText = `⚠️ ${closedUnbilledCount} ยังไม่ได้ชำระ`;
+            unbilledBadge.style.display = "inline-block";
+        } else {
+            unbilledBadge.style.display = "none";
+        }
+    }
 }
 
 // Drag & Drop event handlers

@@ -131,23 +131,29 @@
                         </svg>
                         <span>ระบบแจ้งงาน / ใบสั่งงาน</span>
                     </a>
+                    <a href="#" class="menu-item" id="menu-renewals" onclick="switchView('renewals')">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="20">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        <span>ข้อมูลคนงานต่ออายุ</span>
+                    </a>
+                    <a href="#" class="menu-item" id="menu-expenses" onclick="switchView('expenses')">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="20">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                        <span>บัญชีและการเงิน</span>
+                    </a>
                     <a href="#" class="menu-item" id="menu-agents" onclick="switchView('agents')">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="20">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M9 20H4v-2a3 3 0 015.356-1.857M9 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M13 7a4 4 0 11-8 0 4 4 0 018 0zm6 3a2 2 0 11-4 0 2 2 0 014 0z" />
                         </svg>
-                        <span>จัดการ Agent</span>
-                    </a>
-                    <a href="#" class="menu-item" id="menu-expenses" onclick="switchView('expenses')">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="20">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v14a2 2 0 01-2 2z" />
-                        </svg>
-                        <span>การเงิน & รายจ่าย</span>
+                        <span>การจัดการ Agent</span>
                     </a>
                     <a href="#" class="menu-item hidden" id="menu-users" onclick="switchView('users')">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="20">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                         </svg>
-                        <span>จัดการผู้ใช้งาน</span>
+                        <span>การจัดการผู้ใช้งาน</span>
                     </a>
                     <a href="#" class="menu-item" id="menu-backup" onclick="switchView('backup')">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="20">
@@ -609,9 +615,7 @@
                                 <div class="filter-box">
                                     <select id="filter-job-type" onchange="renderJobs()">
                                         <option value="">ทุกประเภทงาน</option>
-                                        <option value="ต่อใบอนุญาตทำงาน">ต่อใบอนุญาตทำงานให้กับคนงานต่างด้าว</option>
                                         <option value="ขึ้นทะเบียนแรงงานต่างด้าว">ขึ้นทะเบียนแรงงานต่างด้าว</option>
-                                        <option value="ทำเล่ม CI/Passport">ทำเล่ม CI/Passport</option>
                                         <option value="ต่อเล่ม CI/Passport">ต่อเล่ม CI/Passport</option>
                                         <option value="ตี VISA">ตี VISA</option>
                                         <option value="ย้ายตรา">ย้ายตรา</option>
@@ -633,12 +637,6 @@
                                 </div>
                             </div>
                             <div class="action-buttons-group" style="display: flex; gap: 10px;">
-                                <button class="btn btn-outline" id="btn-combine-bills" onclick="openCombineBillsModal()" style="border-color: var(--gold-primary); color: var(--gold-primary);">
-                                    <span>🧾 รวมบิลนายจ้าง (Combine Invoice)</span>
-                                </button>
-                                <button class="btn btn-outline" id="btn-quick-invoice" onclick="openInvoiceModal(null)" style="border-color: var(--gold-primary); color: var(--gold-primary);">
-                                    <span>สร้างบิลอิสระ (Quick Invoice)</span>
-                                </button>
                                 <button class="btn btn-gold btn-add" id="btn-add-job" onclick="openJobModal()">
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -666,10 +664,10 @@
                                         <th>ประเภทงาน</th>
                                         <th>นายจ้าง/ผู้ว่าจ้าง</th>
                                         <th>คนงานต่างด้าว</th>
-                                        <th>ค่าบริการ</th>
+                                        <th>อีเมลคนงาน</th>
                                         <th>สถานะดำเนินการ</th>
-                                        <th>อัปเดตล่าสุด</th>
-                                        <th class="actions-col">จัดการ / ออกบิล</th>
+                                        <th>Order No.</th>
+                                        <th class="actions-col">จัดการ</th>
                                     </tr>
                                 </thead>
                                 <tbody id="jobs-list-tbody">
@@ -681,26 +679,6 @@
                         <!-- Kanban Board Container -->
                         <div id="jobs-kanban-container" class="kanban-board-wrapper hidden" style="margin-top: 10px; min-height: 500px;">
                             <div class="kanban-board" style="display: flex; gap: 16px; overflow-x: auto; padding-bottom: 16px;">
-                                <!-- Column: Pending -->
-                                <div class="kanban-column" style="flex: 1; min-width: 250px; background: #f8fafc; border-radius: var(--radius-md); border: 1px solid #e2e8f0; display: flex; flex-direction: column; height: fit-content; max-height: 650px;">
-                                    <div class="kanban-column-header" style="padding: 12px; border-bottom: 2px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f1f5f9; border-top-left-radius: var(--radius-md); border-top-right-radius: var(--radius-md);">
-                                        <h4 style="font-weight: 600; font-size: 13px; color: #475569; margin: 0;">⏳ รอดำเนินการ</h4>
-                                        <span class="badge badge-warning" id="count-kanban-pending" style="font-size: 11px; padding: 2px 8px;">0</span>
-                                    </div>
-                                    <div class="kanban-cards-container" id="kanban-pending" ondragover="onKanbanDragOver(event)" ondrop="onKanbanDrop(event, 'รอดำเนินการ')" style="padding: 12px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-height: 200px; flex-grow: 1;">
-                                    </div>
-                                </div>
-                                
-                                <!-- Column: In Progress -->
-                                <div class="kanban-column" style="flex: 1; min-width: 250px; background: #f8fafc; border-radius: var(--radius-md); border: 1px solid #e2e8f0; display: flex; flex-direction: column; height: fit-content; max-height: 650px;">
-                                    <div class="kanban-column-header" style="padding: 12px; border-bottom: 2px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f1f5f9; border-top-left-radius: var(--radius-md); border-top-right-radius: var(--radius-md);">
-                                        <h4 style="font-weight: 600; font-size: 13px; color: #475569; margin: 0;">⚙️ กำลังดำเนินการ</h4>
-                                        <span class="badge badge-gold" id="count-kanban-progress" style="font-size: 11px; padding: 2px 8px;">0</span>
-                                    </div>
-                                    <div class="kanban-cards-container" id="kanban-progress" ondragover="onKanbanDragOver(event)" ondrop="onKanbanDrop(event, 'กำลังดำเนินการ')" style="padding: 12px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-height: 200px; flex-grow: 1;">
-                                    </div>
-                                </div>
-                                
                                 <!-- Column: Waiting for Docs -->
                                 <div class="kanban-column" style="flex: 1; min-width: 250px; background: #f8fafc; border-radius: var(--radius-md); border: 1px solid #e2e8f0; display: flex; flex-direction: column; height: fit-content; max-height: 650px;">
                                     <div class="kanban-column-header" style="padding: 12px; border-bottom: 2px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f1f5f9; border-top-left-radius: var(--radius-md); border-top-right-radius: var(--radius-md);">
@@ -710,12 +688,35 @@
                                     <div class="kanban-cards-container" id="kanban-docs" ondragover="onKanbanDragOver(event)" ondrop="onKanbanDrop(event, 'รอเอกสารเพิ่มเติม')" style="padding: 12px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-height: 200px; flex-grow: 1;">
                                     </div>
                                 </div>
-                                
+
+                                <!-- Column: Pending -->
+                                <div class="kanban-column" style="flex: 1; min-width: 250px; background: #f8fafc; border-radius: var(--radius-md); border: 1px solid #e2e8f0; display: flex; flex-direction: column; height: fit-content; max-height: 650px;">
+                                    <div class="kanban-column-header" style="padding: 12px; border-bottom: 2px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f1f5f9; border-top-left-radius: var(--radius-md); border-top-right-radius: var(--radius-md);">
+                                        <h4 style="font-weight: 600; font-size: 13px; color: #475569; margin: 0;">⏳ รอดำเนินการ</h4>
+                                        <span class="badge badge-warning" id="count-kanban-pending" style="font-size: 11px; padding: 2px 8px;">0</span>
+                                    </div>
+                                    <div class="kanban-cards-container" id="kanban-pending" ondragover="onKanbanDragOver(event)" ondrop="onKanbanDrop(event, 'รอดำเนินการ')" style="padding: 12px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-height: 200px; flex-grow: 1;">
+                                    </div>
+                                </div>
+
+                                <!-- Column: In Progress -->
+                                <div class="kanban-column" style="flex: 1; min-width: 250px; background: #f8fafc; border-radius: var(--radius-md); border: 1px solid #e2e8f0; display: flex; flex-direction: column; height: fit-content; max-height: 650px;">
+                                    <div class="kanban-column-header" style="padding: 12px; border-bottom: 2px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f1f5f9; border-top-left-radius: var(--radius-md); border-top-right-radius: var(--radius-md);">
+                                        <h4 style="font-weight: 600; font-size: 13px; color: #475569; margin: 0;">⚙️ กำลังดำเนินการ</h4>
+                                        <span class="badge badge-gold" id="count-kanban-progress" style="font-size: 11px; padding: 2px 8px;">0</span>
+                                    </div>
+                                    <div class="kanban-cards-container" id="kanban-progress" ondragover="onKanbanDragOver(event)" ondrop="onKanbanDrop(event, 'กำลังดำเนินการ')" style="padding: 12px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-height: 200px; flex-grow: 1;">
+                                    </div>
+                                </div>
+
                                 <!-- Column: Closed (ปิดงานแล้ว — เข้าได้เฉพาะผ่านปุ่ม "ปิดงาน" ที่แนบเอกสาร ลากเข้ามาตรงๆ ไม่ได้) -->
                                 <div class="kanban-column" style="flex: 1; min-width: 250px; background: #f8fafc; border-radius: var(--radius-md); border: 1px solid #e2e8f0; display: flex; flex-direction: column; height: fit-content; max-height: 650px;">
                                     <div class="kanban-column-header" style="padding: 12px; border-bottom: 2px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f1f5f9; border-top-left-radius: var(--radius-md); border-top-right-radius: var(--radius-md);">
                                         <h4 style="font-weight: 600; font-size: 13px; color: #475569; margin: 0;" title="เข้าคอลัมน์นี้ได้เฉพาะผ่านปุ่ม 📎 ปิดงาน (ต้องแนบเอกสารก่อน)">🔒 ปิดงานแล้ว</h4>
-                                        <span class="badge badge-success" id="count-kanban-completed" style="font-size: 11px; padding: 2px 8px;">0</span>
+                                        <div style="display: flex; gap: 4px; align-items: center;">
+                                            <span class="badge badge-danger" id="count-kanban-completed-unbilled" style="font-size: 10px; padding: 2px 6px; display: none;" title="ปิดงานแล้วแต่ยังไม่ได้รับชำระเงิน (ไม่ว่าจะออกบิลไปแล้วหรือยัง) — หายไปเมื่อลูกค้าชำระครบแล้ว">⚠️ 0 ยังไม่ได้ชำระ</span>
+                                            <span class="badge badge-success" id="count-kanban-completed" style="font-size: 11px; padding: 2px 8px;">0</span>
+                                        </div>
                                     </div>
                                     <div class="kanban-cards-container" id="kanban-completed" ondragover="onKanbanDragOver(event)" ondrop="onKanbanDrop(event, 'ปิดงานแล้ว')" style="padding: 12px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-height: 200px; flex-grow: 1;">
                                     </div>
@@ -727,6 +728,17 @@
                             <button class="btn btn-sm btn-outline" id="btn-prev-jobs" onclick="changeJobsPage(-1)">ย้อนกลับ</button>
                             <span class="pagination-info" id="jobs-page-info">หน้า 1 จาก 1</span>
                             <button class="btn btn-sm btn-outline" id="btn-next-jobs" onclick="changeJobsPage(1)">ถัดไป</button>
+                        </div>
+                    </div>
+
+                    <!-- ==================== RENEWALS VIEW (ข้อมูลคนงานต่ออายุ) ==================== -->
+                    <div id="view-renewals" class="content-section hidden">
+                        <p class="text-muted" style="font-size: 12.5px; margin-bottom: 16px;">
+                            จัดกลุ่มคนงานที่ยังทำงานอยู่ตาม "วันหมดอายุใบอนุญาตทำงาน" ที่ตรงกันเป๊ะโดยอัตโนมัติ (ตั้งชื่อกลุ่มตามวันที่นั้น)
+                            — คนงานที่วันหมดอายุไม่ตรงกับใครเลยจะถูกจัดไว้ในกลุ่ม MOU
+                        </p>
+                        <div id="renewal-groups-container">
+                            <!-- Dynamic renewal groups -->
                         </div>
                     </div>
 
@@ -771,6 +783,7 @@
                     <div id="view-expenses" class="content-section hidden">
                         <div class="dashboard-tabs" style="margin-bottom: 18px;">
                             <button type="button" class="btn btn-gold" id="btn-finpage-tab-overview" onclick="switchFinancePageTab('overview')">📊 สรุปการเงิน</button>
+                            <button type="button" class="btn btn-outline" id="btn-finpage-tab-billing" onclick="switchFinancePageTab('billing')">🧾 ออกบิล / รับเงิน</button>
                             <button type="button" class="btn btn-outline" id="btn-finpage-tab-expenses" onclick="switchFinancePageTab('expenses')">💸 จัดการรายจ่าย</button>
                             <button type="button" class="btn btn-outline" id="btn-finpage-tab-banks" onclick="switchFinancePageTab('banks')">🏦 บัญชีธนาคาร</button>
                         </div>
@@ -988,6 +1001,48 @@
                                         <!-- Dynamic pie chart (SVG) -->
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+
+                        <!-- SUB-TAB: BILLING (ออกบิล / รับเงิน — งานที่ผ่านระบบแจ้งงานที่ยังไม่ได้รับชำระ) -->
+                        <div id="finpage-tab-billing" class="db-tab-content hidden">
+                            <div class="table-actions">
+                                <div class="search-box">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                    </svg>
+                                    <input type="text" id="search-billing" placeholder="ค้นหาใบสั่งงาน, นายจ้าง, คนงาน..." oninput="renderBillingTab()">
+                                </div>
+                                <div class="action-buttons-group" style="display: flex; gap: 10px;">
+                                    <button class="btn btn-outline" id="btn-combine-bills" onclick="openCombineBillsModal()" style="border-color: var(--gold-primary); color: var(--gold-primary);">
+                                        <span>🧾 รวมบิลนายจ้าง (Combine Invoice)</span>
+                                    </button>
+                                    <button class="btn btn-outline" id="btn-quick-invoice" onclick="openInvoiceModal(null)" style="border-color: var(--gold-primary); color: var(--gold-primary);">
+                                        <span>สร้างบิลอิสระ (Quick Invoice)</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <p class="section-desc" style="margin: -8px 0 15px;">
+                                รายการงานที่ผ่านระบบแจ้งงานทั้งหมดที่ยังไม่ได้รับชำระเงิน (ไม่ว่าจะออกบิลไปแล้วหรือยังไม่ออก) — รายการจะหายไปจากตารางนี้เมื่อลูกค้าชำระเงินเรียบร้อยแล้ว
+                            </p>
+                            <div class="table-container">
+                                <table class="data-table" id="billing-table">
+                                    <thead>
+                                        <tr>
+                                            <th>เลขที่แจ้งงาน</th>
+                                            <th>ประเภทงาน</th>
+                                            <th>นายจ้าง/ผู้ว่าจ้าง</th>
+                                            <th>คนงานต่างด้าว</th>
+                                            <th>ค่าบริการ</th>
+                                            <th>สถานะดำเนินการ</th>
+                                            <th>สถานะการเงิน</th>
+                                            <th class="actions-col">จัดการ</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="billing-list-tbody">
+                                        <!-- Dynamic -->
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
 
@@ -1734,6 +1789,13 @@
                             </div>
                         </div>
 
+                        <div class="form-row">
+                            <div class="form-group col-6">
+                                <label for="worker-email">อีเมล (Email)</label>
+                                <input type="email" id="worker-email" placeholder="กรอกอีเมลคนงาน (ถ้ามี)">
+                            </div>
+                        </div>
+
                         <!-- Parent Info (Father & Mother Names) -->
                         <div class="form-row">
                             <div class="form-group col-6">
@@ -1869,7 +1931,7 @@
 
         <!-- ==================== MODAL: ADD/EDIT JOB ==================== -->
         <div id="job-modal" class="modal-backdrop hidden">
-            <div class="modal-content">
+            <div class="modal-content" style="max-width: 1000px;">
                 <div class="modal-header">
                     <h3 id="job-modal-title">แจ้งสั่งงานและขั้นตอนดำเนินการ</h3>
                     <button class="close-btn" onclick="closeJobModal()">&times;</button>
@@ -1877,11 +1939,6 @@
                 <div class="modal-body">
                     <form id="job-form" onsubmit="saveJob(event)">
                         <input type="hidden" id="job-edit-id">
-                        
-                        <div class="form-group">
-                            <label for="job-order-no">เลข Order No. (กรอกเอง หากมี)</label>
-                            <input type="text" id="job-order-no" placeholder="กรอกเลข Order No. ของทางบริษัท">
-                        </div>
 
                         <div class="form-group">
                             <label for="job-customer-id">นายจ้าง / ลูกค้าผู้สั่งงาน <span class="required">*</span></label>
@@ -1900,16 +1957,13 @@
                         </div>
 
                         <div class="form-row">
-                            <div class="form-group col-6">
-                                <label for="job-agent-id">Agent ผู้ส่งงาน (ถ้ามี)</label>
-                                <select id="job-agent-id">
+                            <div class="form-group">
+                                <label for="job-agent-id">Agent ผู้ส่งงาน (ล็อกตาม Agent ผู้แนะนำของนายจ้างที่เลือก)</label>
+                                <select id="job-agent-id" disabled style="background-color: #f1f5f9; color: var(--text-muted);">
                                     <option value="">--- ไม่ระบุ ---</option>
                                     <!-- Dynamic -->
                                 </select>
-                            </div>
-                            <div class="form-group col-6">
-                                <label>&nbsp;</label>
-                                <button type="button" class="btn btn-outline btn-sm" style="width:100%;" onclick="openAgentModal()">+ เพิ่ม Agent ใหม่</button>
+                                <small class="text-muted" style="display:block; margin-top:4px;">แก้ไข Agent ผู้แนะนำได้ที่หน้า "ข้อมูลนายจ้าง/ลูกค้า" ของนายจ้างรายนี้เท่านั้น</small>
                             </div>
                         </div>
 
@@ -1920,25 +1974,7 @@
                             <div id="job-type-checkboxes-container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: var(--radius-sm); padding: 12px;">
                                 <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
                                     <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
-                                        <input type="checkbox" name="job-type-checkbox" value="ต่อใบอนุญาตทำงาน" onchange="toggleJobTypePriceInput(this)" style="width: 16px; height: 16px;"> ต่อใบอนุญาตทำงาน
-                                    </label>
-                                    <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
-                                        <input type="number" name="job-type-price" placeholder="ราคา" min="0" disabled style="width: 75px; padding: 4px 6px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: right; margin: 0; outline: none;">
-                                        <span style="font-size: 11px; color: var(--text-muted);">บ.</span>
-                                    </div>
-                                </div>
-                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
-                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
                                         <input type="checkbox" name="job-type-checkbox" value="ขึ้นทะเบียนแรงงานต่างด้าว" onchange="toggleJobTypePriceInput(this)" style="width: 16px; height: 16px;"> ขึ้นทะเบียนแรงงานฯ
-                                    </label>
-                                    <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
-                                        <input type="number" name="job-type-price" placeholder="ราคา" min="0" disabled style="width: 75px; padding: 4px 6px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: right; margin: 0; outline: none;">
-                                        <span style="font-size: 11px; color: var(--text-muted);">บ.</span>
-                                    </div>
-                                </div>
-                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
-                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
-                                        <input type="checkbox" name="job-type-checkbox" value="ทำเล่ม CI/Passport" onchange="toggleJobTypePriceInput(this)" style="width: 16px; height: 16px;"> ทำเล่ม CI/Passport
                                     </label>
                                     <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
                                         <input type="number" name="job-type-price" placeholder="ราคา" min="0" disabled style="width: 75px; padding: 4px 6px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: right; margin: 0; outline: none;">
@@ -2162,7 +2198,7 @@
 
         <!-- ==================== MODAL: INVOICE BILLING PREVIEW ==================== -->
         <div id="invoice-modal" class="modal-backdrop hidden">
-            <div class="modal-content large printable-modal-content">
+            <div class="modal-content large printable-modal-content" style="max-width: 1100px;">
                 <div class="modal-header no-print">
                     <h3>ใบวางบิล / ใบแจ้งหนี้ (Billing Note Preview)</h3>
                     <button class="close-btn" onclick="closeInvoiceModal()">&times;</button>
@@ -2221,9 +2257,9 @@
                             <thead>
                                 <tr>
                                     <th style="width: 50px; text-align: center;">ลำดับ</th>
-                                    <th>รายการคำขอแจ้งงานต่างด้าว (Services Description)</th>
+                                    <th style="white-space: nowrap;">รายการคำขอแจ้งงานต่างด้าว (Services Description)</th>
                                     <th style="width: 80px; text-align: center;">จำนวน</th>
-                                    <th style="width: 120px; text-align: right;">ราคาต่อหน่วย (บ.)</th>
+                                    <th style="width: 130px; text-align: right; white-space: nowrap;">ราคาต่อหน่วย (บาท)</th>
                                     <th style="width: 130px; text-align: right;">จำนวนเงิน (บาท)</th>
                                 </tr>
                             </thead>
@@ -2282,11 +2318,20 @@
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer no-print">
-                    <button class="btn btn-outline" onclick="closeInvoiceModal()">ปิดหน้าต่าง</button>
-                    <button class="btn btn-gold" id="btn-mark-paid" onclick="markJobPaidFromInvoice()">
-                        ✅ ยืนยันการรับชำระเงิน (Mark as Paid)
-                    </button>
+                <div class="modal-footer no-print" style="flex-direction: column; align-items: stretch; gap: 10px;">
+                    <div id="invoice-payment-proof-row" class="form-group" style="margin: 0; display: none;">
+                        <label for="invoice-payment-proof-input">📎 แนบหลักฐานการโอนเงิน (สลิป/ภาพถ่ายการโอน)</label>
+                        <input type="file" id="invoice-payment-proof-input" accept="image/*,application/pdf">
+                    </div>
+                    <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                        <button class="btn btn-outline" onclick="closeInvoiceModal()">ปิดหน้าต่าง</button>
+                        <button class="btn btn-outline" id="btn-save-invoice-edits" onclick="saveInvoiceFeeEdits()" style="border-color: var(--gold-primary); color: var(--gold-primary);">
+                            💾 บันทึกการแก้ไขราคาบิล
+                        </button>
+                        <button class="btn btn-gold" id="btn-mark-paid" onclick="markJobPaidFromInvoice()">
+                            ✅ ยืนยันการรับชำระเงิน (Mark as Paid)
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -2335,7 +2380,7 @@
         <!-- ==================== MODAL: WORKER DOCUMENTS FOLDER ==================== -->
         <!-- ==================== MODAL: CUSTOMER (นายจ้าง/ลูกค้าผู้ว่าจ้าง) DOCUMENTS FOLDER ==================== -->
         <div id="customer-folder-modal" class="modal-backdrop hidden" style="z-index: 1050;">
-            <div class="modal-content" style="max-width: 780px;">
+            <div class="modal-content" style="max-width: 1100px;">
                 <div class="modal-header">
                     <h3>📁 แฟ้มเอกสารของนายจ้าง / ลูกค้าผู้ว่าจ้าง</h3>
                     <button class="close-btn" onclick="closeCustomerFolderModal()">&times;</button>
@@ -2360,7 +2405,7 @@
         </div>
 
         <div id="worker-folder-modal" class="modal-backdrop hidden" style="z-index: 1050;">
-            <div class="modal-content" style="max-width: 780px;">
+            <div class="modal-content" style="max-width: 1100px;">
                 <div class="modal-header">
                     <h3 id="worker-folder-title">📁 แฟ้มเอกสารของคนงานต่างด้าว</h3>
                     <button class="close-btn" onclick="closeWorkerFolderModal()">&times;</button>
