@@ -213,7 +213,7 @@
         const fileUrl = pub.publicUrl;
 
         let parsedData = null;
-        if (docType && ["worker-passport", "worker-wp-doc", "worker-visa", "worker-myanmar-id", "expense-slip"].includes(docType)) {
+        if (docType && ["worker-passport", "worker-wp-doc", "worker-visa", "worker-myanmar-id", "worker-pink-card", "cust-id-card", "cust-cert", "expense-slip"].includes(docType)) {
             try {
                 const headers = await getAuthHeaders();
                 const ocrRes = await fetch(`${FUNCTIONS_BASE}/ocr-document`, {

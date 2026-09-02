@@ -14,7 +14,12 @@ const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || "";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-const ALLOWED_DOC_TYPES = ["worker-passport", "worker-wp-doc", "worker-visa", "worker-myanmar-id", "expense-slip"];
+const ALLOWED_DOC_TYPES = [
+  "worker-passport", "worker-wp-doc", "worker-visa", "worker-myanmar-id", "worker-pink-card",
+  "cust-id-card", "cust-cert",
+  "expense-slip",
+];
+const CUSTOMER_DOC_TYPES = ["cust-id-card", "cust-cert"];
 
 const EXPENSE_CATEGORIES = [
   "ค่าเช่าสำนักงาน", "เงินเดือนพนักงาน", "ค่าน้ำ-ไฟ-อินเทอร์เน็ต",
@@ -42,8 +47,23 @@ function buildExpenseSlipPrompt(): string {
     `}`;
 }
 
+function buildCustomerDocPrompt(docType: string): string {
+  const docLabel = docType === "cust-id-card" ? "Thai national ID card of the employer/director" : "Thai company registration certificate (หนังสือรับรองบริษัท)";
+  return `You are a professional assistant. Parse this ${docLabel} and extract the relevant fields. ` +
+    `Convert dates to DD/MM/YYYY format. Only fill fields you can actually read from the document — ` +
+    `leave a field out entirely (do not guess or invent values) if it is not clearly present. ` +
+    `Output ONLY a valid JSON object matching this schema, without markdown wrapping, json declaration, or backticks:\n` +
+    `{\n` +
+    `  "companyName": "Registered company name, only if this is a company certificate",\n` +
+    `  "taxId": "13-digit tax ID / company registration number (เลขทะเบียนนิติบุคคล / เลขผู้เสียภาษี) if found",\n` +
+    `  "directorId": "13-digit Thai national ID number (เลขบัตรประชาชน) if this is a national ID card",\n` +
+    `  "coordinatorName": "Full name of the ID card holder / director, if found"\n` +
+    `}`;
+}
+
 function buildPrompt(docType: string): string {
   if (docType === "expense-slip") return buildExpenseSlipPrompt();
+  if (CUSTOMER_DOC_TYPES.includes(docType)) return buildCustomerDocPrompt(docType);
   return `You are a professional assistant. Parse this migrant worker document (${docType}) and extract the relevant fields. ` +
     `Convert all dates to DD/MM/YYYY format. Only fill fields you can actually read from the document — ` +
     `leave a field out entirely (do not guess or invent values) if it is not clearly present in the image/PDF. ` +
@@ -66,9 +86,13 @@ function buildPrompt(docType: string): string {
     `  "dob": "Date of birth in DD/MM/YYYY",\n` +
     `  "nationality": "Myanmar, Cambodia, or Laos",\n` +
     `  "gender": "Male or Female or ชาย or หญิง",\n` +
+    `  "title": "Name title/honorific if printed — นาย, นาง, นางสาว, เด็กชาย, เด็กหญิง, Mr, Mrs, or Miss",\n` +
     `  "position": "Job position (ตำแหน่งงาน) e.g., กรรมกร",\n` +
     `  "workplace": "Workplace address (สถานที่ทำงาน) if found",\n` +
-    `  "refNo": "17-digit reference number (รหัสอ้างอิงคนต่างด้าว) starting with RA if found"\n` +
+    `  "refNo": "17-digit reference number (รหัสอ้างอิงคนต่างด้าว) starting with RA if found",\n` +
+    `  "pinkCardNo": "13-digit pink card number (เลขที่บัตรชมพู) if this is a pink card",\n` +
+    `  "thaiName": "Full name as printed in Thai script on the pink card, if this is a pink card",\n` +
+    `  "insuranceNo": "Health insurance number (เลขประกันสุขภาพ) if found, e.g. on a pink card"\n` +
     `}`;
 }
 

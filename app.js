@@ -1995,44 +1995,112 @@ function dropCustomerDocHandler(e, docType) {
     e.preventDefault();
     e.currentTarget.classList.remove("dragover");
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-        processCustomerDocFile(e.dataTransfer.files[0], docType);
+        Array.from(e.dataTransfer.files).forEach(file => processCustomerDocFile(file, docType));
     }
 }
 
 function customerFileSelectHandler(e, docType) {
     if (e.target.files && e.target.files.length > 0) {
-        processCustomerDocFile(e.target.files[0], docType);
+        Array.from(e.target.files).forEach(file => processCustomerDocFile(file, docType));
     }
 }
 
 // เก็บไฟล์แนบของนายจ้างไว้ในหน่วยความจำก่อน (ยังไม่อัปโหลดขึ้น Drive ทันที) เพราะตอนนี้ลูกค้า/นายจ้าง
 // อาจยังไม่มี id หรือโฟลเดอร์ Drive จริง (กรณีเพิ่มนายจ้างใหม่) — ไฟล์จะถูกอัปโหลดจริงหลังกด "บันทึกข้อมูล"
 // สำเร็จแล้วเท่านั้น เพื่อให้ไฟล์ไปอยู่ในโฟลเดอร์ของนายจ้างรายนั้นถูกต้อง ไม่มีการอ่านข้อมูลด้วย AI ใดๆ
+// แนบได้หลายไฟล์ต่อประเภทเอกสาร (สะสมไว้ทั้งหมด) และลบไฟล์ที่แนบผิดออกได้ก่อนกดบันทึก
 function processCustomerDocFile(file, docType) {
     const statusEl = document.getElementById(`status-${docType}`);
-    const uploadBox = document.getElementById(`drop-${docType}`);
     if (!statusEl) return;
-
-    statusEl.innerHTML = `<span class="ai-processing">📎 กำลังแนบไฟล์...</span>`;
 
     const reader = new FileReader();
     reader.onload = function(e) {
         const fileContent = e.target.result;
-        tempCustomerAttachments[docType] = { name: file.name, data: fileContent };
-        statusEl.innerHTML = `<span class="ai-success">✅ แนบไฟล์แล้ว (จะอัปโหลดตอนกดบันทึก)</span>`;
-        if (uploadBox) uploadBox.classList.add("success-upload");
+        const updatedList = [...(tempCustomerAttachments[docType] || []), { name: file.name, data: fileContent }];
+        tempCustomerAttachments[docType] = updatedList;
+        renderCustomerAttachmentStatus(docType);
     };
     reader.readAsDataURL(file);
 }
 
+// สร้าง HTML รายการไฟล์ที่แนบไว้ (ยังไม่ได้อัปโหลด/บันทึก) พร้อมปุ่ม × ลบไฟล์ที่แนบผิดออกทีละไฟล์
+function renderAttachmentChipsHtml(fileList, buildRemoveCall) {
+    if (!fileList || fileList.length === 0) return '';
+    return `<div style="display:flex; flex-direction:column; gap:4px; text-align:left; margin-top:4px;">` +
+        fileList.map((f, idx) => `
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:6px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:4px; padding:3px 6px; font-size:11px;">
+                <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#166534;" title="${f.name}">✅ ${f.name}</span>
+                <button type="button" onclick="${buildRemoveCall(idx)}" title="ลบไฟล์นี้ออก" style="background:none; border:none; color:#dc2626; cursor:pointer; font-weight:700; font-size:14px; line-height:1; flex-shrink:0; padding:0 2px;">×</button>
+            </div>
+        `).join('') +
+    `</div>`;
+}
+
+function renderCustomerAttachmentStatus(docType) {
+    const statusEl = document.getElementById(`status-${docType}`);
+    const uploadBox = document.getElementById(`drop-${docType}`);
+    if (!statusEl) return;
+    const list = tempCustomerAttachments[docType] || [];
+    statusEl.innerHTML = renderAttachmentChipsHtml(list, idx => `removeStagedCustomerAttachment('${docType}', ${idx})`);
+    if (uploadBox) uploadBox.classList.toggle('success-upload', list.length > 0);
+}
+
+// ลบไฟล์ที่แนบผิดออกจากรายการที่รอบันทึก (ยังไม่ได้อัปโหลดขึ้นคลาวด์ ลบได้ทันทีไม่ต้องยืนยัน)
+function removeStagedCustomerAttachment(docType, index) {
+    const list = tempCustomerAttachments[docType] || [];
+    list.splice(index, 1);
+    if (list.length === 0) delete tempCustomerAttachments[docType];
+    else tempCustomerAttachments[docType] = list;
+    renderCustomerAttachmentStatus(docType);
+}
+
+// ==================== AI (Gemini) FIELD MAPPING — ใช้ร่วมกันทั้งฝั่งฟอร์ม (DOM) และฝั่งแฟ้มเอกสาร/bulk import (object) ====================
+// แปลงค่าเพศ/คำนำหน้าดิบจาก AI ให้เป็นค่ามาตรฐานของระบบ คืน null ถ้าอ่านไม่ออก/ไม่ตรงรูปแบบที่รู้จัก
+function mapGeminiGender(rawGender) {
+    if (!rawGender) return null;
+    const g = rawGender.toLowerCase();
+    if (g.includes("female") || g.includes("หญิง")) return "Female";
+    if (g.includes("male") || g.includes("ชาย")) return "Male";
+    return null;
+}
+
+function mapGeminiTitle(rawTitle) {
+    if (!rawTitle) return null;
+    const t = rawTitle.trim();
+    if (["นาย", "นาง", "นางสาว", "เด็กชาย", "เด็กหญิง"].includes(t)) return t;
+    const lower = t.toLowerCase();
+    if (lower.includes("mrs")) return "นาง";
+    if (lower.includes("miss") || lower.includes("ms")) return "นางสาว";
+    if (lower.includes("mr")) return "นาย";
+    return null;
+}
+
 // เติมข้อมูลลงฟอร์มคนงานจากผลลัพธ์ AI (Gemini) เท่านั้น — เติมเฉพาะฟิลด์ที่ AI อ่านเจอจริงๆ
 // ไม่มีการเดา/สุ่มข้อมูลใดๆ ถ้า AI อ่านฟิลด์ไหนไม่เจอ ฟิลด์นั้นจะถูกข้ามไปเฉยๆ
+function applyGeminiGenderToWorkerForm(rawGender) {
+    const mapped = mapGeminiGender(rawGender);
+    const genderSelect = document.getElementById("worker-gender");
+    if (mapped && genderSelect) genderSelect.value = mapped;
+}
+
+function applyGeminiTitleToWorkerForm(rawTitle) {
+    const mapped = mapGeminiTitle(rawTitle);
+    const titleSelect = document.getElementById("worker-title");
+    if (mapped && titleSelect) titleSelect.value = mapped;
+}
+
 function applyGeminiDataToWorkerForm(docType, parsedData) {
     if (!parsedData) return;
     const setVal = (id, val) => {
         if (val === undefined || val === null || val === "") return;
         const el = document.getElementById(id);
         if (el) el.value = val;
+    };
+    const applyNationality = () => {
+        if (!parsedData.nationality) return;
+        const natSelect = document.getElementById("worker-nationality");
+        const validOption = Array.from(natSelect.options).some(o => o.value === parsedData.nationality);
+        if (validOption) natSelect.value = parsedData.nationality;
     };
 
     if (docType === 'worker-wp-doc') {
@@ -2045,19 +2113,9 @@ function applyGeminiDataToWorkerForm(docType, parsedData) {
         setVal("worker-ref-no", parsedData.refNo);
         setVal("worker-position", parsedData.position);
         setVal("worker-workplace", parsedData.workplace);
-        if (parsedData.nationality) {
-            const natSelect = document.getElementById("worker-nationality");
-            const validOption = Array.from(natSelect.options).some(o => o.value === parsedData.nationality);
-            if (validOption) natSelect.value = parsedData.nationality;
-        }
-        if (parsedData.gender) {
-            const g = parsedData.gender.toLowerCase();
-            const genderSelect = document.getElementById("worker-gender");
-            if (genderSelect) {
-                if (g.includes("female") || g.includes("หญิง")) genderSelect.value = "Female";
-                else if (g.includes("male") || g.includes("ชาย")) genderSelect.value = "Male";
-            }
-        }
+        applyNationality();
+        applyGeminiGenderToWorkerForm(parsedData.gender);
+        applyGeminiTitleToWorkerForm(parsedData.title);
     } else if (docType === 'worker-passport') {
         setVal("worker-passport-no", parsedData.passportNo);
         setVal("worker-passport-pob", parsedData.passportPob);
@@ -2065,6 +2123,22 @@ function applyGeminiDataToWorkerForm(docType, parsedData) {
         setVal("worker-passport-issue", parsedData.passportIssue);
         setVal("worker-passport-expiry", parsedData.passportExpiry);
         setVal("worker-dob", parsedData.dob);
+        applyGeminiGenderToWorkerForm(parsedData.gender);
+        applyGeminiTitleToWorkerForm(parsedData.title);
+    } else if (docType === 'worker-pink-card') {
+        setVal("worker-pink-card-no", parsedData.pinkCardNo);
+        setVal("worker-thai-name", parsedData.thaiName);
+        setVal("worker-insurance-no", parsedData.insuranceNo);
+        setVal("worker-dob", parsedData.dob);
+        applyGeminiGenderToWorkerForm(parsedData.gender);
+        applyGeminiTitleToWorkerForm(parsedData.title);
+    } else if (docType === 'worker-myanmar-id') {
+        setVal("worker-first-name", parsedData.firstName);
+        setVal("worker-last-name", parsedData.lastName);
+        setVal("worker-dob", parsedData.dob);
+        applyNationality();
+        applyGeminiGenderToWorkerForm(parsedData.gender);
+        applyGeminiTitleToWorkerForm(parsedData.title);
     }
 }
 
@@ -2102,13 +2176,32 @@ function processUploadedFile(file, docType) {
         }
 
         if (uploadResult) {
-            statusEl.innerHTML = `<span class="ai-success">✅ แนบไฟล์แล้ว (${updatedList.length} ไฟล์)</span>`;
-            uploadBox.classList.add("success-upload");
+            renderWorkerAttachmentStatus(docType);
         } else {
-            statusEl.innerHTML = `<span class="ai-error">❌ อัปโหลดไม่สำเร็จ (ไฟล์ถูกเก็บไว้ในเครื่องชั่วคราว)</span>`;
+            statusEl.innerHTML = `<span class="ai-error">❌ อัปโหลดไม่สำเร็จ (ไฟล์ถูกเก็บไว้ในเครื่องชั่วคราว)</span>` + renderAttachmentChipsHtml(updatedList, idx => `removeStagedWorkerAttachment('${docType}', ${idx})`);
+            uploadBox.classList.add("success-upload");
         }
     };
     reader.readAsDataURL(file);
+}
+
+function renderWorkerAttachmentStatus(docType) {
+    const statusEl = document.getElementById(`status-${docType}`);
+    const uploadBox = document.getElementById(`drop-${docType}`);
+    if (!statusEl) return;
+    const list = tempWorkerAttachments[docType] || [];
+    statusEl.innerHTML = renderAttachmentChipsHtml(list, idx => `removeStagedWorkerAttachment('${docType}', ${idx})`);
+    if (uploadBox) uploadBox.classList.toggle('success-upload', list.length > 0);
+}
+
+// ลบไฟล์ที่แนบผิดออกจากรายการที่รอบันทึก — ใช้ได้ทั้งไฟล์ที่เพิ่งแนบใหม่และไฟล์เดิมตอนแก้ไขคนงาน
+// (ถ้าเป็นไฟล์เดิมที่เคยบันทึกไว้แล้ว ต้องกด "บันทึกข้อมูล" อีกครั้งถึงจะมีผลจริงกับฐานข้อมูล)
+function removeStagedWorkerAttachment(docType, index) {
+    const list = tempWorkerAttachments[docType] || [];
+    list.splice(index, 1);
+    if (list.length === 0) delete tempWorkerAttachments[docType];
+    else tempWorkerAttachments[docType] = list;
+    renderWorkerAttachmentStatus(docType);
 }
 
 // ==================== MODAL ACTIONS (SAVE, EDIT, DELETE) ====================
@@ -2391,26 +2484,38 @@ async function saveCustomer(e) {
         showToast("เพิ่มข้อมูลนายจ้าง/ลูกค้าคนใหม่สำเร็จ", "success");
     }
 
-    // อัปโหลดไฟล์แนบที่ค้างไว้ (ถ้ามี) ตอนนี้ลูกค้ามี id จริงแล้ว
+    // อัปโหลดไฟล์แนบที่ค้างไว้ (ถ้ามี) ตอนนี้ลูกค้ามี id จริงแล้ว — แนบเพิ่มได้หลายไฟล์ต่อประเภทเอกสาร
+    // (รวมเข้ากับไฟล์เดิมที่มีอยู่แล้ว ไม่เขียนทับ เผื่อกรณีแก้ไขลูกค้าที่มีเอกสารเดิมอยู่ก่อนแล้ว)
     const stagedDocTypes = Object.keys(tempCustomerAttachments);
     if (stagedDocTypes.length > 0) {
-        showToast(`📎 กำลังอัปโหลดไฟล์แนบ ${stagedDocTypes.length} ไฟล์...`, "warning");
+        const totalStagedFiles = stagedDocTypes.reduce((sum, dt) => sum + (tempCustomerAttachments[dt] || []).length, 0);
+        showToast(`📎 กำลังอัปโหลดไฟล์แนบ ${totalStagedFiles} ไฟล์...`, "warning");
         customerData.attachments = customerData.attachments || {};
         for (const docType of stagedDocTypes) {
-            const staged = tempCustomerAttachments[docType];
+            const stagedFiles = tempCustomerAttachments[docType] || [];
             const statusEl = document.getElementById(`status-${docType}`);
-            try {
-                const uploadResult = await uploadDocumentFile(staged.data, staged.name, customerData.id, "", docType);
-                if (uploadResult && uploadResult.fileUrl) {
-                    customerData.attachments[docType] = [{ name: staged.name, data: uploadResult.fileUrl }];
+            const uploadedEntries = [];
+            let anyFailed = false;
+            for (const staged of stagedFiles) {
+                try {
+                    const uploadResult = await uploadDocumentFile(staged.data, staged.name, customerData.id, "", docType);
+                    if (uploadResult && uploadResult.fileUrl) {
+                        uploadedEntries.push({ name: staged.name, data: uploadResult.fileUrl });
+                    } else {
+                        anyFailed = true;
+                    }
+                } catch (err) {
+                    anyFailed = true;
                 }
-                if (statusEl) {
-                    statusEl.innerHTML = uploadResult
-                        ? `<span class="ai-success">✅ อัปโหลดสำเร็จ</span>`
-                        : `<span class="ai-error">❌ อัปโหลดไม่สำเร็จ</span>`;
-                }
-            } catch (err) {
-                if (statusEl) statusEl.innerHTML = `<span class="ai-error">❌ อัปโหลดไม่สำเร็จ</span>`;
+            }
+            if (uploadedEntries.length > 0) {
+                const existing = getAttachments(customerData, docType);
+                customerData.attachments[docType] = existing.concat(uploadedEntries);
+            }
+            if (statusEl) {
+                statusEl.innerHTML = anyFailed
+                    ? `<span class="ai-error">❌ อัปโหลดไม่สำเร็จบางไฟล์</span>`
+                    : `<span class="ai-success">✅ อัปโหลดสำเร็จ (${uploadedEntries.length} ไฟล์)</span>`;
             }
         }
         tempCustomerAttachments = {};
@@ -2520,6 +2625,17 @@ function safeParseDate(dateStr) {
     return null;
 }
 
+// ตัดเวลา/timezone ทิ้ง เหลือแค่วันที่ล้วนๆ สำหรับแสดงผล — รับได้ทั้งค่าปกติ ("2026-09-01") ค่าที่ Supabase
+// (timestamptz) คืนมาเป็น ISO เต็มรูปแบบ ("2026-09-01T00:00:00+00:00") และค่าที่พังมีต่อท้ายซ้ำ
+// ("...+00:00+00:00" จากข้อมูลเก่าที่เคยบันทึกผิด) เพราะดึงแค่ตัวเลขวันที่ 10 ตัวแรกไปแปลง ไม่สนใจส่วนที่เหลือเลย
+function formatDateOnly(dateStr) {
+    if (!dateStr) return '-';
+    const match = String(dateStr).match(/^(\d{4}-\d{2}-\d{2})/);
+    const datePart = match ? match[1] : dateStr;
+    const d = safeParseDate(datePart);
+    return d ? d.toLocaleDateString('th-TH') : String(dateStr);
+}
+
 function parseDateInput(val) {
     if (!val) return '';
     const parts = val.split('/');
@@ -2601,18 +2717,17 @@ function openWorkerModal(id = null) {
 
         const w = workers.find(item => item.id === id);
         
-        // Load existing attachments to temp store
+        // Load existing attachments to temp store (แปลงฟอร์แมตเก่าที่เก็บเป็น string เดี่ยวให้เป็น array ก่อนเสมอ)
         tempWorkerAttachments = JSON.parse(JSON.stringify(w.attachments || {}));
-
-        // Display existing attachments status visually in the modal
-        ['worker-wp-doc', 'worker-passport', 'worker-myanmar-id', 'worker-pink-card', 'worker-receipt', 'worker-other'].forEach(key => {
-            const list = getAttachments(w, key);
-            if (list.length > 0) {
-                const dropBox = document.getElementById(`drop-${key}`);
-                const statusBox = document.getElementById(`status-${key}`);
-                if (dropBox) dropBox.classList.add("success-upload");
-                if (statusBox) statusBox.innerHTML = `<span class="ai-success">✅ มีไฟล์แนบอยู่แล้ว (${list.length} ไฟล์)</span>`;
+        Object.keys(tempWorkerAttachments).forEach(key => {
+            if (!Array.isArray(tempWorkerAttachments[key])) {
+                tempWorkerAttachments[key] = getAttachments(w, key);
             }
+        });
+
+        // Display existing attachments status visually in the modal (พร้อมปุ่มลบไฟล์ที่แนบผิดออกทีละไฟล์)
+        ['worker-wp-doc', 'worker-passport', 'worker-myanmar-id', 'worker-pink-card', 'worker-receipt', 'worker-other'].forEach(key => {
+            renderWorkerAttachmentStatus(key);
         });
 
         document.getElementById("worker-employer-id").value = w.employerId;
@@ -4007,31 +4122,29 @@ async function submitCloseJob(e) {
     btn.innerText = "⏳ กำลังอัปโหลด...";
 
     try {
-        const file = fileInput.files[0];
-        const fileDataUrl = await new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result);
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-        });
-
-        const uploadResult = await uploadDocumentFile(fileDataUrl, file.name, j.customerId, j.workerId, "job-close-doc");
-        if (!uploadResult) {
-            showToast("❌ อัปโหลดเอกสารไม่สำเร็จ ยังไม่ปิดงาน", "danger");
-            return;
-        }
-
+        const files = Array.from(fileInput.files);
         const closedAt = new Date().toISOString();
-        const existingAttachments = Array.isArray(j.attachments) ? j.attachments : [];
-        const jobData = Object.assign({}, j, {
-            status: 'ปิดงานแล้ว',
-            attachments: existingAttachments.concat([{
+        const newAttachments = [];
+        for (const file of files) {
+            const fileDataUrl = await readFileAsDataUrl(file);
+            const uploadResult = await uploadDocumentFile(fileDataUrl, file.name, j.customerId, j.workerId, "job-close-doc");
+            if (!uploadResult) {
+                showToast(`❌ อัปโหลดเอกสาร "${file.name}" ไม่สำเร็จ ยังไม่ปิดงาน`, "danger");
+                return;
+            }
+            newAttachments.push({
                 name: file.name,
                 url: uploadResult.fileUrl,
                 note: note || null,
                 uploadedAt: closedAt,
                 uploadedBy: currentUser.id || null
-            }]),
+            });
+        }
+
+        const existingAttachments = Array.isArray(j.attachments) ? j.attachments : [];
+        const jobData = Object.assign({}, j, {
+            status: 'ปิดงานแล้ว',
+            attachments: existingAttachments.concat(newAttachments),
             closedAt,
             closedBy: currentUser.id || null,
             updatedAt: closedAt.split('T')[0]
@@ -4723,7 +4836,7 @@ function onInvoiceItemUnitPriceInput(itemId) {
 
 function calculateInvoiceTotals() {
     const subtotal = currentInvoiceItems.reduce((sum, item) => sum + item.fee, 0);
-    const vat = 0; // standard setup is 0 VAT
+    const vat = 0; // กิจการไม่ได้จด VAT จริง — ป้าย "ภาษีมูลค่าเพิ่ม" ในใบวางบิลตัดคำว่า "7%" ออกแล้วให้ตรงกับที่นี่
     const grandTotal = subtotal + vat;
 
     document.getElementById("inv-subtotal").innerText = subtotal.toLocaleString('th-TH', { minimumFractionDigits: 2 });
@@ -4850,37 +4963,34 @@ async function markJobPaidFromInvoice() {
         }
     }
 
-    // แนบหลักฐานการโอนเงิน (ใช้เฉพาะกรณีเลือกช่องทางเป็นบัญชีธนาคาร ไม่ใช่เงินสด)
+    // แนบหลักฐานการโอนเงิน (ใช้เฉพาะกรณีเลือกช่องทางเป็นบัญชีธนาคาร ไม่ใช่เงินสด) — แนบได้หลายไฟล์
     const proofInput = document.getElementById("invoice-payment-proof-input");
-    const proofFile = (activeBankId !== 'cash' && proofInput && proofInput.files && proofInput.files.length > 0) ? proofInput.files[0] : null;
+    const proofFiles = (activeBankId !== 'cash' && proofInput && proofInput.files) ? Array.from(proofInput.files) : [];
 
-    if (activeBankId !== 'cash' && !proofFile) {
+    if (activeBankId !== 'cash' && proofFiles.length === 0) {
         if (!confirm("ยังไม่ได้แนบหลักฐานการโอนเงิน ต้องการยืนยันการรับชำระโดยไม่มีหลักฐานแนบหรือไม่?")) {
             return;
         }
     }
 
-    let proofAttachment = null;
-    if (proofFile) {
-        const fileDataUrl = await new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result);
-            reader.onerror = reject;
-            reader.readAsDataURL(proofFile);
-        });
+    const proofAttachments = [];
+    if (proofFiles.length > 0) {
         const firstJob = currentInvoiceJobIds.length > 0 ? jobs.find(j => j.id === currentInvoiceJobIds[0]) : null;
-        const uploadResult = await uploadDocumentFile(fileDataUrl, proofFile.name, firstJob ? firstJob.customerId : "", "", "payment-proof");
-        if (!uploadResult) {
-            showToast("❌ อัปโหลดหลักฐานการโอนเงินไม่สำเร็จ ยังไม่ได้ยืนยันการชำระ", "danger");
-            return;
+        for (const proofFile of proofFiles) {
+            const fileDataUrl = await readFileAsDataUrl(proofFile);
+            const uploadResult = await uploadDocumentFile(fileDataUrl, proofFile.name, firstJob ? firstJob.customerId : "", "", "payment-proof");
+            if (!uploadResult) {
+                showToast(`❌ อัปโหลดหลักฐานการโอนเงิน "${proofFile.name}" ไม่สำเร็จ ยังไม่ได้ยืนยันการชำระ`, "danger");
+                return;
+            }
+            proofAttachments.push({
+                name: proofFile.name,
+                url: uploadResult.fileUrl,
+                note: "หลักฐานการโอนเงิน",
+                uploadedAt: new Date().toISOString(),
+                uploadedBy: currentUser.id || null
+            });
         }
-        proofAttachment = {
-            name: proofFile.name,
-            url: uploadResult.fileUrl,
-            note: "หลักฐานการโอนเงิน",
-            uploadedAt: new Date().toISOString(),
-            uploadedBy: currentUser.id || null
-        };
     }
 
     if (currentInvoiceJobIds.length === 0) {
@@ -4910,9 +5020,9 @@ async function markJobPaidFromInvoice() {
                 jobs[idx].fee = Math.round(jobUpdates[jobId].feeTotal * 100) / 100;
                 jobs[idx].jobType = jobUpdates[jobId].typeSegments.map(s => `${s.serviceName} (${Math.round(s.price)})`).join(', ');
             }
-            if (proofAttachment) {
+            if (proofAttachments.length > 0) {
                 const existingAttachments = Array.isArray(jobs[idx].attachments) ? jobs[idx].attachments : [];
-                jobs[idx].attachments = existingAttachments.concat([proofAttachment]);
+                jobs[idx].attachments = existingAttachments.concat(proofAttachments);
             }
 
             // Sync status to cloud backend
@@ -5452,6 +5562,18 @@ function triggerCustomerFolderFileUpload(docType) {
 }
 
 // แนบไฟล์ 1 ไฟล์เข้าแฟ้มเอกสารนายจ้าง/ลูกค้า 1 ราย (upload ขึ้น Supabase Storage แล้วผูกลิงก์เข้าข้อมูลลูกค้าทันที)
+// เติมข้อมูลนายจ้างจากผลลัพธ์ AI OCR (บัตรประชาชนนายจ้าง / หนังสือรับรองบริษัท) — เติมเฉพาะฟิลด์ที่อ่านเจอจริงๆ
+function applyOcrDataToCustomer(c, docType, p) {
+    if (!p) return;
+    if (docType === 'cust-id-card') {
+        if (p.directorId) c.directorId = p.directorId;
+        if (p.coordinatorName && !c.coordinator) c.coordinator = p.coordinatorName;
+    } else if (docType === 'cust-cert') {
+        if (p.companyName) c.companyName = p.companyName;
+        if (p.taxId) c.taxId = p.taxId;
+    }
+}
+
 async function attachDocumentToCustomer(c, docType, fileContent) {
     const nameClean = (c.companyName || 'customer').replace(/\s+/g, '_');
     const currentList = getAttachments(c, docType);
@@ -5466,36 +5588,45 @@ async function attachDocumentToCustomer(c, docType, fileContent) {
     c.attachments[docType] = currentList;
     c.attachments[docType].push({ name: fileName, data: serverUrl || fileContent });
 
+    if (uploadResult && uploadResult.parsedData) {
+        applyOcrDataToCustomer(c, docType, uploadResult.parsedData);
+    }
+
     const saveRes = await callCloudAPI("saveCustomer", { customerData: c });
     if (!saveRes || saveRes.status === "error") throw new Error(saveRes && saveRes.message ? saveRes.message : "บันทึกไม่สำเร็จ");
     return uploadResult;
 }
 
-function handleCustomerFolderFileUpload(event) {
-    const file = event.target.files[0];
-    if (!file || !activeFolderCustomerId || !activeFolderCustomerDocType) return;
+// แนบไฟล์เข้าแฟ้มเอกสารนายจ้าง/ลูกค้า — แนบได้หลายไฟล์พร้อมกันในครั้งเดียว
+async function handleCustomerFolderFileUpload(event) {
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0 || !activeFolderCustomerId || !activeFolderCustomerDocType) return;
 
-    showToast("📤 กำลังอัปโหลดไฟล์...", "warning");
+    showToast(`📤 กำลังอัปโหลดไฟล์ ${files.length} ไฟล์...`, "warning");
 
-    const reader = new FileReader();
-    reader.onload = async function(e) {
-        const fileContent = e.target.result;
+    let failCount = 0;
+    let anyAiRead = false;
+    for (const file of files) {
         const idx = customers.findIndex(x => x.id === activeFolderCustomerId);
-        if (idx !== -1) {
-            const c = customers[idx];
-            try {
-                await attachDocumentToCustomer(c, activeFolderCustomerDocType, fileContent);
-                saveData();
-                showToast("✅ อัปโหลดไฟล์และอัปเดตแฟ้มเอกสารสำเร็จ!", "success");
-            } catch (err) {
-                console.error("attachDocumentToCustomer failed:", err);
-                showToast("❌ " + (err.message || "อัปโหลดไฟล์ไม่สำเร็จ"), "danger");
-            }
-            openCustomerFolderModal(activeFolderCustomerId);
-            renderCustomers();
+        if (idx === -1) break;
+        const c = customers[idx];
+        try {
+            const fileContent = await readFileAsDataUrl(file);
+            const uploadResult = await attachDocumentToCustomer(c, activeFolderCustomerDocType, fileContent);
+            if (uploadResult && uploadResult.parsedData) anyAiRead = true;
+        } catch (err) {
+            console.error("attachDocumentToCustomer failed:", err);
+            failCount++;
         }
-    };
-    reader.readAsDataURL(file);
+    }
+
+    if (anyAiRead) showToast("✨ AI อ่านข้อมูลจากเอกสารและอัปเดตข้อมูลนายจ้างให้อัตโนมัติแล้ว กรุณาตรวจสอบความถูกต้องอีกครั้ง", "success");
+    if (failCount > 0) showToast(`❌ อัปโหลดไม่สำเร็จ ${failCount} จาก ${files.length} ไฟล์`, "danger");
+    else showToast("✅ อัปโหลดไฟล์และอัปเดตแฟ้มเอกสารสำเร็จ!", "success");
+
+    saveData();
+    openCustomerFolderModal(activeFolderCustomerId);
+    renderCustomers();
 }
 
 function deleteCustomerFolderFileIndex(docType, index) {
@@ -5726,7 +5857,7 @@ function renderMonthlyDetails() {
             custUl.innerHTML = matchingCustomers.map(c => `
                 <li style="font-size:13px; padding: 6px 10px; background-color: #ffffff; border-radius: var(--radius-sm); border: 1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
                     <span>🏢 <strong>${c.companyName}</strong> (${c.businessType})</span>
-                    <span style="font-size:11.5px; color:var(--text-muted);">${c.createdAt}</span>
+                    <span style="font-size:11.5px; color:var(--text-muted);">${formatDateOnly(c.createdAt)}</span>
                 </li>
             `).join('');
         }
@@ -5743,7 +5874,7 @@ function renderMonthlyDetails() {
                     <li style="font-size:13px; padding: 6px 10px; background-color: #ffffff; border-radius: var(--radius-sm); border: 1px solid #e2e8f0; display:flex; flex-direction:column; gap:4px;">
                         <div style="display:flex; justify-content:space-between;">
                             <strong>👤 ${w.firstName} ${w.lastName} (${w.nationality})</strong>
-                            <span style="font-size:11.5px; color:var(--text-muted);">${w.createdAt}</span>
+                            <span style="font-size:11.5px; color:var(--text-muted);">${formatDateOnly(w.createdAt)}</span>
                         </div>
                         <div style="font-size:11.5px; color:var(--text-muted);">
                             นายจ้าง: ${empName}
@@ -6479,6 +6610,8 @@ function triggerFolderFileUpload(docType) {
 // เติมข้อมูลคนงานจากผลลัพธ์ AI OCR — ใช้ร่วมกันทั้งอัปโหลดทีละไฟล์ และนำเข้าหลายไฟล์พร้อมกัน (bulk import)
 function applyOcrDataToWorker(w, docType, p) {
     if (!p) return;
+    const gender = mapGeminiGender(p.gender);
+    const title = mapGeminiTitle(p.title);
 
     if (docType === 'worker-wp-doc') {
         if (p.permitNo) w.permitNo = p.permitNo;
@@ -6489,11 +6622,8 @@ function applyOcrDataToWorker(w, docType, p) {
         if (p.dob) w.dob = parseDateInput(p.dob) || w.dob;
         if (p.nationality) w.nationality = p.nationality;
         if (p.refNo) w.refNo = p.refNo;
-        if (p.gender) {
-            const g = p.gender.toLowerCase();
-            if (g.includes("female") || g.includes("หญิง")) w.gender = "Female";
-            else if (g.includes("male") || g.includes("ชาย")) w.gender = "Male";
-        }
+        if (gender) w.gender = gender;
+        if (title) w.title = title;
         if (p.position) w.position = p.position;
         if (p.workplace) w.workplace = p.workplace;
 
@@ -6503,18 +6633,32 @@ function applyOcrDataToWorker(w, docType, p) {
             w.firstName = `${w.firstName} ${w.lastName}`.trim();
             w.lastName = '';
         }
-    }
-    if (docType === 'worker-passport') {
+    } else if (docType === 'worker-passport') {
         if (p.passportNo) w.passportNo = p.passportNo;
         if (p.passportPob) w.passportPob = p.passportPob;
         if (p.passportAuth) w.passportAuth = p.passportAuth;
         if (p.passportIssue) w.passportIssue = parseDateInput(p.passportIssue) || w.passportIssue;
         if (p.passportExpiry) w.passportExpiry = parseDateInput(p.passportExpiry) || w.passportExpiry;
         if (p.dob) w.dob = parseDateInput(p.dob) || w.dob;
-        if (p.gender) {
-            const g = p.gender.toLowerCase();
-            if (g.includes("female") || g.includes("หญิง")) w.gender = "Female";
-            else if (g.includes("male") || g.includes("ชาย")) w.gender = "Male";
+        if (gender) w.gender = gender;
+        if (title) w.title = title;
+    } else if (docType === 'worker-pink-card') {
+        if (p.pinkCardNo) w.pinkCardNo = p.pinkCardNo;
+        if (p.thaiName) w.thaiName = p.thaiName;
+        if (p.insuranceNo) w.insuranceNo = p.insuranceNo;
+        if (p.dob) w.dob = parseDateInput(p.dob) || w.dob;
+        if (gender) w.gender = gender;
+        if (title) w.title = title;
+    } else if (docType === 'worker-myanmar-id') {
+        if (p.firstName) w.firstName = p.firstName;
+        if (p.lastName) w.lastName = p.lastName;
+        if (p.dob) w.dob = parseDateInput(p.dob) || w.dob;
+        if (p.nationality) w.nationality = p.nationality;
+        if (gender) w.gender = gender;
+        if (title) w.title = title;
+        if (w.nationality === 'Myanmar' && w.lastName) {
+            w.firstName = `${w.firstName} ${w.lastName}`.trim();
+            w.lastName = '';
         }
     }
 }
@@ -6559,44 +6703,51 @@ async function attachDocumentToWorker(w, docType, fileContent) {
     return uploadResult;
 }
 
-// Handle folder file upload (Appends file to the array)
-function handleFolderFileUpload(event) {
-    const file = event.target.files[0];
-    if (!file || !activeFolderWorkerId || !activeFolderDocType) return;
+function readFileAsDataUrl(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = e => resolve(e.target.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
 
-    showToast("📤 กำลังอัปโหลดไฟล์...", "warning");
+// Handle folder file upload (Appends file(s) to the array) — แนบได้หลายไฟล์พร้อมกันในครั้งเดียว
+async function handleFolderFileUpload(event) {
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0 || !activeFolderWorkerId || !activeFolderDocType) return;
 
-    const reader = new FileReader();
-    reader.onload = async function(e) {
-        const fileContent = e.target.result;
+    showToast(`📤 กำลังอัปโหลดไฟล์ ${files.length} ไฟล์...`, "warning");
+
+    let anyAiRead = false;
+    let failCount = 0;
+    for (const file of files) {
         const workerIdx = workers.findIndex(w => w.id === activeFolderWorkerId);
-        if (workerIdx !== -1) {
-            const w = workers[workerIdx];
-            const wasPending = w.status === 'pending_register';
-            try {
-                const uploadResult = await attachDocumentToWorker(w, activeFolderDocType, fileContent);
-
-                if (uploadResult && uploadResult.parsedData) {
-                    showToast("✨ AI อ่านข้อมูลจากเอกสารสำเร็จ กำลังอัปเดตข้อมูลคนงาน", "success");
-                }
-                if (wasPending && w.status === 'active') {
-                    showToast(`🎉 อัปโหลดใบอนุญาตทำงานและใบเสร็จแล้ว! เปลี่ยนสถานะคุณ ${w.firstName} เป็น ปกติ (Active) อัตโนมัติ`, "success");
-                }
-
-                saveData();
-                showToast("✅ อัปโหลดไฟล์และอัปเดตแฟ้มคนงานต่างด้าวสำเร็จ!", "success");
-            } catch (err) {
-                console.error("attachDocumentToWorker failed:", err);
-                showToast("❌ " + (err.message || "อัปโหลดไฟล์ไม่สำเร็จ"), "danger");
+        if (workerIdx === -1) break;
+        const w = workers[workerIdx];
+        const wasPending = w.status === 'pending_register';
+        try {
+            const fileContent = await readFileAsDataUrl(file);
+            const uploadResult = await attachDocumentToWorker(w, activeFolderDocType, fileContent);
+            if (uploadResult && uploadResult.parsedData) anyAiRead = true;
+            if (wasPending && w.status === 'active') {
+                showToast(`🎉 อัปโหลดใบอนุญาตทำงานและใบเสร็จแล้ว! เปลี่ยนสถานะคุณ ${w.firstName} เป็น ปกติ (Active) อัตโนมัติ`, "success");
             }
-
-            // Refresh folder modal and worker lists/dashboard
-            openWorkerFolderModal(activeFolderWorkerId);
-            renderWorkers();
-            renderDashboard();
+        } catch (err) {
+            console.error("attachDocumentToWorker failed:", err);
+            failCount++;
         }
-    };
-    reader.readAsDataURL(file);
+    }
+
+    if (anyAiRead) showToast("✨ AI อ่านข้อมูลจากเอกสารสำเร็จ กำลังอัปเดตข้อมูลคนงาน", "success");
+    if (failCount > 0) showToast(`❌ อัปโหลดไม่สำเร็จ ${failCount} จาก ${files.length} ไฟล์`, "danger");
+    else showToast("✅ อัปโหลดไฟล์และอัปเดตแฟ้มคนงานต่างด้าวสำเร็จ!", "success");
+
+    saveData();
+    // Refresh folder modal and worker lists/dashboard
+    openWorkerFolderModal(activeFolderWorkerId);
+    renderWorkers();
+    renderDashboard();
 }
 
 // ==================== BULK IMPORT: นำเข้าเอกสารหลายไฟล์พร้อมกัน ====================
