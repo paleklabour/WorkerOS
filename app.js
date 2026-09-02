@@ -2140,18 +2140,24 @@ function dragLeaveHandler(e) {
     e.currentTarget.classList.remove("dragover");
 }
 
-function dropDocHandler(e, docType) {
+async function dropDocHandler(e, docType) {
     e.preventDefault();
     e.currentTarget.classList.remove("dragover");
 
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-        Array.from(e.dataTransfer.files).forEach(file => processUploadedFile(file, docType));
+        // ประมวลผลทีละไฟล์ตามลำดับ (ไม่ยิงพร้อมกัน) เพื่อให้ไฟล์สุดท้ายที่แนบเป็นตัวเติมข้อมูลลงฟอร์มเสมอ
+        // (กันปัญหาแนบหลายไฟล์พร้อมกันแล้ว AI อ่านเสร็จไม่พร้อมกัน ทำให้ไฟล์ที่เสร็จช้ากว่าทับข้อมูลแบบสุ่ม)
+        for (const file of Array.from(e.dataTransfer.files)) {
+            await processUploadedFile(file, docType);
+        }
     }
 }
 
-function fileSelectHandler(e, docType) {
+async function fileSelectHandler(e, docType) {
     if (e.target.files && e.target.files.length > 0) {
-        Array.from(e.target.files).forEach(file => processUploadedFile(file, docType));
+        for (const file of Array.from(e.target.files)) {
+            await processUploadedFile(file, docType);
+        }
     }
 }
 
@@ -2314,43 +2320,46 @@ function applyGeminiDataToWorkerForm(docType, parsedData) {
 function processUploadedFile(file, docType) {
     const statusEl = document.getElementById(`status-${docType}`);
     const uploadBox = document.getElementById(`drop-${docType}`);
-    
-    if (!statusEl) return;
+
+    if (!statusEl) return Promise.resolve();
 
     statusEl.innerHTML = `<span class="ai-processing">📎 กำลังแนบไฟล์...</span>`;
-    
-    const reader = new FileReader();
-    reader.onload = async function(e) {
-        const fileContent = e.target.result;
 
-        const editId = document.getElementById("worker-edit-id").value;
-        const employerId = document.getElementById("worker-employer-id").value;
-        const firstName = document.getElementById("worker-first-name").value.trim() || "worker";
-        const nameClean = firstName.replace(/\s+/g, '_');
-        const existingList = tempWorkerAttachments[docType] || [];
-        const suffix = existingList.length > 0 ? `_${existingList.length + 1}` : "";
-        const fileName = `${nameClean}_${docType}${suffix}`;
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+            const fileContent = e.target.result;
 
-        const uploadResult = await uploadDocumentFile(fileContent, fileName, employerId, editId, docType);
-        const storedUrl = uploadResult ? uploadResult.fileUrl : null;
-        const serverUrl = storedUrl || await uploadFileToServer(fileContent, fileName);
-        // เก็บสะสมทุกไฟล์ที่เคยแนบไว้ (เช่น เอกสารต่ออายุรายปี) ไม่ลบของเก่าทิ้งเมื่อแนบไฟล์ใหม่
-        const updatedList = [...(tempWorkerAttachments[docType] || []), { name: fileName, data: serverUrl || fileContent }];
-        tempWorkerAttachments[docType] = updatedList;
+            const editId = document.getElementById("worker-edit-id").value;
+            const employerId = document.getElementById("worker-employer-id").value;
+            const firstName = document.getElementById("worker-first-name").value.trim() || "worker";
+            const nameClean = firstName.replace(/\s+/g, '_');
+            const existingList = tempWorkerAttachments[docType] || [];
+            const suffix = existingList.length > 0 ? `_${existingList.length + 1}` : "";
+            const fileName = `${nameClean}_${docType}${suffix}`;
 
-        if (uploadResult && uploadResult.parsedData) {
-            applyGeminiDataToWorkerForm(docType, uploadResult.parsedData);
-            showToast("✨ AI อ่านข้อมูลจากเอกสารและกรอกฟอร์มให้อัตโนมัติแล้ว กรุณาตรวจสอบความถูกต้องอีกครั้ง", "success");
-        }
+            const uploadResult = await uploadDocumentFile(fileContent, fileName, employerId, editId, docType);
+            const storedUrl = uploadResult ? uploadResult.fileUrl : null;
+            const serverUrl = storedUrl || await uploadFileToServer(fileContent, fileName);
+            // เก็บสะสมทุกไฟล์ที่เคยแนบไว้ (เช่น เอกสารต่ออายุรายปี) ไม่ลบของเก่าทิ้งเมื่อแนบไฟล์ใหม่
+            const updatedList = [...(tempWorkerAttachments[docType] || []), { name: fileName, data: serverUrl || fileContent }];
+            tempWorkerAttachments[docType] = updatedList;
 
-        if (uploadResult) {
-            renderWorkerAttachmentStatus(docType);
-        } else {
-            statusEl.innerHTML = `<span class="ai-error">❌ อัปโหลดไม่สำเร็จ (ไฟล์ถูกเก็บไว้ในเครื่องชั่วคราว)</span>` + renderAttachmentChipsHtml(updatedList, idx => `removeStagedWorkerAttachment('${docType}', ${idx})`);
-            uploadBox.classList.add("success-upload");
-        }
-    };
-    reader.readAsDataURL(file);
+            if (uploadResult && uploadResult.parsedData) {
+                applyGeminiDataToWorkerForm(docType, uploadResult.parsedData);
+                showToast("✨ AI อ่านข้อมูลจากเอกสารและกรอกฟอร์มให้อัตโนมัติแล้ว กรุณาตรวจสอบความถูกต้องอีกครั้ง", "success");
+            }
+
+            if (uploadResult) {
+                renderWorkerAttachmentStatus(docType);
+            } else {
+                statusEl.innerHTML = `<span class="ai-error">❌ อัปโหลดไม่สำเร็จ (ไฟล์ถูกเก็บไว้ในเครื่องชั่วคราว)</span>` + renderAttachmentChipsHtml(updatedList, idx => `removeStagedWorkerAttachment('${docType}', ${idx})`);
+                uploadBox.classList.add("success-upload");
+            }
+            resolve();
+        };
+        reader.readAsDataURL(file);
+    });
 }
 
 function renderWorkerAttachmentStatus(docType) {
