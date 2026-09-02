@@ -1428,6 +1428,7 @@ function renderBillingTab() {
         const cust = customers.find(c => c.id === j.customerId);
         const work = workers.find(w => w.id === j.workerId);
         const custName = cust ? cust.companyName : "ไม่พบนายจ้าง";
+        const custIdLines = buildEmployerIdLinesHtml(cust);
         const workName = work ? `${work.firstName} ${work.lastName} (${work.nationality})` : "ไม่พบข้อมูลคนงาน";
         const cleanJobType = (j.jobType || "").replace(/\s*\(\d+\)/g, "");
 
@@ -1455,7 +1456,7 @@ function renderBillingTab() {
             <tr>
                 <td><strong>${getJobDisplayNo(j)}</strong></td>
                 <td><span class="badge badge-gold">${cleanJobType}</span></td>
-                <td>${custName}</td>
+                <td>${custName}${custIdLines}</td>
                 <td>${workName}</td>
                 <td><strong>${j.fee.toLocaleString()} บาท</strong></td>
                 <td><span class="badge ${statusClass}">${j.status}</span></td>
@@ -2316,6 +2317,22 @@ function applyGeminiDataToWorkerForm(docType, parsedData) {
     }
 }
 
+// คืนนามสกุลไฟล์จาก data URL (เช่น "data:image/jpeg;base64,..." -> ".jpg")
+// จำเป็นเพราะชื่อไฟล์ที่อัปโหลดขึ้น Storage ถูกสร้างขึ้นใหม่ (ไม่ใช้ชื่อไฟล์เดิม) — ถ้าไม่มีนามสกุลติดไปด้วย
+// renderDriveThumbnail() จะดูไม่ออกว่าเป็นไฟล์รูปภาพ เลยแสดงไอคอนเปล่าแทน preview รูปจริง
+function extFromDataUrl(dataUrl) {
+    const match = (dataUrl || '').match(/^data:([^;]+);/);
+    if (!match) return '';
+    const mimeType = match[1].toLowerCase();
+    const MIME_EXT_MAP = {
+        'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif',
+        'image/webp': 'webp', 'image/bmp': 'bmp', 'application/pdf': 'pdf'
+    };
+    if (MIME_EXT_MAP[mimeType]) return '.' + MIME_EXT_MAP[mimeType];
+    const subtype = mimeType.split('/')[1];
+    return subtype ? '.' + subtype.replace(/[^a-z0-9]/g, '') : '';
+}
+
 // แนบไฟล์เอกสารคนงาน แล้วอัปโหลดขึ้น Supabase Storage (ไม่มีการอ่านข้อมูลด้วย AI ปลอมๆ อีกต่อไป — ใช้ Gemini จริงเท่านั้น)
 function processUploadedFile(file, docType) {
     const statusEl = document.getElementById(`status-${docType}`);
@@ -2336,7 +2353,7 @@ function processUploadedFile(file, docType) {
             const nameClean = firstName.replace(/\s+/g, '_');
             const existingList = tempWorkerAttachments[docType] || [];
             const suffix = existingList.length > 0 ? `_${existingList.length + 1}` : "";
-            const fileName = `${nameClean}_${docType}${suffix}`;
+            const fileName = `${nameClean}_${docType}${suffix}${extFromDataUrl(fileContent)}`;
 
             const uploadResult = await uploadDocumentFile(fileContent, fileName, employerId, editId, docType);
             const storedUrl = uploadResult ? uploadResult.fileUrl : null;
@@ -3186,6 +3203,15 @@ function getJobDisplayNo(job) {
     return `${dateStr}-${numPart}`;
 }
 
+// สร้าง HTML บรรทัดย่อยแสดงเลขนิติบุคคล/เลขบุคคลธรรมดาของนายจ้าง ต่อจากชื่อบริษัท (ใช้ร่วมกันทุกจุดที่แสดงนายจ้างในระบบแจ้งงาน)
+function buildEmployerIdLinesHtml(cust) {
+    if (!cust) return '';
+    let html = '';
+    if (cust.taxId) html += `<br><small class="text-muted">เลขบริษัท: ${cust.taxId}</small>`;
+    if (cust.directorId) html += `<br><small class="text-muted">เลขบุคคลธรรมดา: ${cust.directorId}</small>`;
+    return html;
+}
+
 function renderJobs() {
     const query = document.getElementById("search-job").value.toLowerCase();
     const typeFilter = document.getElementById("filter-job-type").value;
@@ -3242,6 +3268,7 @@ function renderJobs() {
         const cust = customers.find(c => c.id === j.customerId);
         const work = workers.find(w => w.id === j.workerId);
         const custName = cust ? cust.companyName : "ไม่พบนายจ้าง";
+        const custIdLines = buildEmployerIdLinesHtml(cust);
         const workName = work ? `${work.firstName} ${work.lastName} (${work.nationality})` : "ไม่พบข้อมูลคนงาน";
         const jobAgent = j.agentId ? agents.find(a => a.id === j.agentId) : null;
         const agentLine = jobAgent ? `<br><span style="font-size:11px; color:var(--text-muted);">👤 Agent: ${jobAgent.name}</span>` : '';
@@ -3312,7 +3339,7 @@ function renderJobs() {
             <tr>
                 <td><strong>${getJobDisplayNo(j)}</strong>${batchBadge}</td>
                 <td><span class="badge badge-gold">${cleanJobType}</span>${siblingPills}</td>
-                <td>${custName}${agentLine}</td>
+                <td>${custName}${custIdLines}${agentLine}</td>
                 <td>${workName}</td>
                 <td>${work && work.email ? work.email : '<span class="text-muted">-</span>'}</td>
                 <td><span class="badge ${statusClass}">${displayStatus}</span><br>${paymentBadge}</td>
@@ -5781,7 +5808,7 @@ async function attachDocumentToCustomer(c, docType, fileContent) {
     const nameClean = (c.companyName || 'customer').replace(/\s+/g, '_');
     const currentList = getAttachments(c, docType);
     const suffix = currentList.length > 0 ? `_${currentList.length + 1}` : "";
-    const fileName = `${nameClean}_${docType}${suffix}`;
+    const fileName = `${nameClean}_${docType}${suffix}${extFromDataUrl(fileContent)}`;
 
     const uploadResult = await uploadDocumentFile(fileContent, fileName, c.id, "", docType);
     const storedUrl = uploadResult ? uploadResult.fileUrl : null;
@@ -6874,7 +6901,7 @@ async function attachDocumentToWorker(w, docType, fileContent) {
     const nameClean = `${w.firstName}_${w.lastName || ''}`.replace(/\s+/g, '_');
     const currentList = getAttachments(w, docType);
     const suffix = currentList.length > 0 ? `_${currentList.length + 1}` : "";
-    const fileName = `${nameClean}_${docType}${suffix}`;
+    const fileName = `${nameClean}_${docType}${suffix}${extFromDataUrl(fileContent)}`;
 
     const uploadResult = await uploadDocumentFile(fileContent, fileName, w.employerId, w.id, docType);
     const storedUrl = uploadResult ? uploadResult.fileUrl : null;
@@ -7470,6 +7497,7 @@ function renderJobsKanban(filtered) {
             const cust = customers.find(c => c.id === j.customerId);
             const work = workers.find(w => w.id === j.workerId);
             const custName = cust ? cust.companyName : "ไม่พบนายจ้าง";
+            const custIdTitle = cust ? [cust.taxId ? `เลขบริษัท: ${cust.taxId}` : '', cust.directorId ? `เลขบุคคลธรรมดา: ${cust.directorId}` : ''].filter(Boolean).join(' | ') : '';
             const workName = work ? `${work.firstName} ${work.lastName} (${work.nationality})` : "ไม่พบคนงาน";
             const jobAgent = j.agentId ? agents.find(a => a.id === j.agentId) : null;
 
@@ -7531,7 +7559,7 @@ function renderJobsKanban(filtered) {
                         <span class="badge badge-sm ${badgeClass}" style="font-size: 10px; padding: 1px 6px;">${cleanJobType}</span>
                     </div>
                     <div style="font-weight: 600; font-size: 12.5px; color: #1e293b; line-height: 1.4;">👤 ${workName}</div>
-                    <div style="font-size: 11.5px; color: #64748b;">🏢 ${custName}</div>
+                    <div style="font-size: 11.5px; color: #64748b;" ${custIdTitle ? `title="${custIdTitle}"` : ''}>🏢 ${custName}</div>
                     ${jobAgent ? `<div style="font-size: 11px; color: #64748b;">👤 Agent: ${jobAgent.name}</div>` : ''}
                     ${batchTag}
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; padding-top: 8px; border-top: 1px solid #f1f5f9;">
