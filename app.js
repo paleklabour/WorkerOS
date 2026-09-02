@@ -660,10 +660,127 @@ async function initApp() {
         // Initial View
         switchView('dashboard');
         setupFormPermissions();
+        setupAllSearchSuggestions();
     } catch (e) {
         console.error("Error initializing app: ", e);
         logout(); // force logout to clear corrupted state
     }
+}
+
+// ==================== SEARCH SUGGESTIONS / AUTO-SUGGEST (ใช้ร่วมกันทุกช่องค้นหาในระบบ) ====================
+// ผูก dropdown แนะนำคำค้นหาให้ input ค้นหา 1 ช่อง — ไม่แก้ตรรกะกรองตารางเดิมเลย แค่ช่วยเลือกคำค้นหาได้เร็วขึ้น
+// getItems: () => คืน array รายการที่จะแนะนำ (เรียกใหม่ทุกครั้งที่พิมพ์ เพื่อให้เห็นข้อมูลล่าสุดเสมอ)
+// getLabel/getSub: item -> ข้อความหลัก/รองที่โชว์ในรายการแนะนำ — ค่าที่คลิกแล้วเติมลงช่องค้นหาคือ getLabel เสมอ
+// renderFn: ฟังก์ชัน render ตารางเดิมของหน้านั้น (เรียกซ้ำหลังเลือกคำแนะนำ เพื่อกรองตารางทันที)
+const _searchSuggestRegistered = new Set();
+function registerSearchSuggest(inputId, getItems, getLabel, getSub, renderFn) {
+    if (_searchSuggestRegistered.has(inputId)) return; // กัน event listener ซ้อนถ้า initApp() ถูกเรียกมากกว่า 1 ครั้ง (logout แล้ว login ใหม่)
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    const box = input.closest('.search-box');
+    if (!box) return;
+    _searchSuggestRegistered.add(inputId);
+
+    let dropdown = document.getElementById(`${inputId}-suggest`);
+    if (!dropdown) {
+        dropdown = document.createElement('div');
+        dropdown.className = 'search-suggest-dropdown hidden';
+        dropdown.id = `${inputId}-suggest`;
+        box.appendChild(dropdown);
+    }
+
+    function hide() {
+        dropdown.classList.add('hidden');
+        dropdown.innerHTML = '';
+    }
+
+    function showSuggestions() {
+        const query = input.value.trim().toLowerCase();
+        if (!query) { hide(); return; }
+
+        const items = getItems() || [];
+        const matches = items.filter(item => {
+            const label = (getLabel(item) || '').toLowerCase();
+            const sub = (getSub(item) || '').toLowerCase();
+            return label.includes(query) || sub.includes(query);
+        }).slice(0, 8);
+
+        if (matches.length === 0) { hide(); return; }
+
+        dropdown.innerHTML = matches.map((item) => {
+            const label = getLabel(item) || '';
+            const sub = getSub(item) || '';
+            return `
+                <div class="search-suggest-item">
+                    <span class="search-suggest-label">${label}</span>
+                    ${sub ? `<span class="search-suggest-sub">${sub}</span>` : ''}
+                </div>
+            `;
+        }).join('');
+        dropdown.classList.remove('hidden');
+
+        Array.from(dropdown.children).forEach((el, idx) => {
+            el.addEventListener('mousedown', (e) => {
+                e.preventDefault(); // กันไม่ให้ input blur ก่อนที่ click จะทำงาน
+                input.value = getLabel(matches[idx]) || '';
+                hide();
+                renderFn();
+                input.focus();
+            });
+        });
+    }
+
+    input.addEventListener('input', showSuggestions);
+    input.addEventListener('focus', showSuggestions);
+    input.addEventListener('blur', () => setTimeout(hide, 150));
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') hide();
+    });
+}
+
+// รวบรวมใบงาน (ใช้ทั้งหน้า "ระบบแจ้งงาน" และแท็บ "ออกบิล/รับเงิน") เป็นรายการแนะนำที่มี label/sub
+// ตรงกับสิ่งที่ renderJobs()/renderBillingTab() ใช้กรองจริง (ชื่อคนงาน หรือชื่อนายจ้างถ้าไม่พบคนงาน)
+function buildJobSuggestItems() {
+    return jobs.map(j => {
+        const work = workers.find(w => w.id === j.workerId);
+        const cust = customers.find(c => c.id === j.customerId);
+        const label = work ? `${work.firstName} ${work.lastName || ''}`.trim() : (cust ? cust.companyName : '');
+        return { label, sub: cust ? cust.companyName : '' };
+    }).filter(x => x.label);
+}
+
+// ตั้งค่า auto-suggest ให้ครบทุกช่องค้นหาในระบบ — เรียกครั้งเดียวตอน initApp()
+function setupAllSearchSuggestions() {
+    registerSearchSuggest('search-customer', () => customers,
+        c => c.companyName, c => c.taxId, renderCustomers);
+
+    registerSearchSuggest('search-worker', () => workers,
+        w => `${w.firstName || ''} ${w.lastName || ''}`.trim(), w => w.workerUid || w.passportNo, renderWorkers);
+
+    registerSearchSuggest('search-job', buildJobSuggestItems,
+        x => x.label, x => x.sub, renderJobs);
+
+    registerSearchSuggest('search-agent', () => agents, a => a.name, () => '', renderAgentsList);
+
+    registerSearchSuggest('search-billing', buildJobSuggestItems,
+        x => x.label, x => x.sub, renderBillingTab);
+
+    registerSearchSuggest('search-expense', () => expenses, e => e.description, e => e.category, renderExpenses);
+
+    registerSearchSuggest('search-bank', () => banks, b => b.bankName, b => b.accountName, renderBanks);
+
+    registerSearchSuggest('search-user', () => users, u => u.name, u => u.email, renderUsers);
+
+    registerSearchSuggest('search-renewal', () => workers,
+        w => `${w.firstName || ''} ${w.lastName || ''}`.trim(), w => w.workerUid, renderRenewalGroups);
+
+    registerSearchSuggest('search-dashboard-employer-alerts', () => customers,
+        c => c.companyName, c => c.taxId, renderEmployerAlerts);
+
+    registerSearchSuggest('search-dashboard-missing-docs', () => workers.filter(isWorkerMissingDocs),
+        w => `${w.firstName || ''} ${w.lastName || ''}`.trim(),
+        w => { const emp = customers.find(c => c.id === w.employerId); return emp ? emp.companyName : ''; },
+        renderMissingDocsOverview);
 }
 
 function getRoleLabel(role) {
@@ -871,7 +988,7 @@ function switchView(viewName) {
     if (viewName === 'customers') titleEl.innerText = "ฐานข้อมูลนายจ้าง / ลูกค้าผู้ว่าจ้าง";
     if (viewName === 'workers') titleEl.innerText = "ฐานข้อมูลคนงานต่างด้าว";
     if (viewName === 'jobs') titleEl.innerText = "ระบบจัดการแจ้งงานและออกบิล";
-    if (viewName === 'renewals') titleEl.innerText = "ข้อมูลคนงานต่ออายุ (จัดกลุ่มตามวันหมดอายุใบอนุญาต)";
+    if (viewName === 'renewals') titleEl.innerText = "ข้อมูลคนงานต่ออายุ/ทำเล่ม (จัดกลุ่มตามวันหมดอายุใบอนุญาต)";
     if (viewName === 'agents') titleEl.innerText = "จัดการ Agent (ผู้ส่งงาน / ผู้แนะนำลูกค้า)";
     if (viewName === 'expenses') titleEl.innerText = "การเงิน, รายจ่าย และบัญชีธนาคาร";
     if (viewName === 'users') titleEl.innerText = "จัดการบัญชีผู้ใช้งานระบบ";
@@ -910,7 +1027,20 @@ function renderRenewalGroups() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const relevant = workers.filter(w => w.status !== 'archived' && w.status !== 'deleted' && w.permitExpiry);
+    const searchInput = document.getElementById("search-renewal");
+    const query = searchInput ? searchInput.value.trim().toLowerCase() : "";
+
+    const relevant = workers.filter(w => w.status !== 'archived' && w.status !== 'deleted' && w.permitExpiry).filter(w => {
+        if (!query) return true;
+        const emp = customers.find(c => c.id === w.employerId);
+        const empName = emp ? (emp.companyName || "").toLowerCase() : "";
+        return (w.firstName || "").toLowerCase().includes(query) ||
+            (w.lastName || "").toLowerCase().includes(query) ||
+            (w.workerUid || "").toLowerCase().includes(query) ||
+            (w.permitNo || "").toLowerCase().includes(query) ||
+            (w.nationality || "").toLowerCase().includes(query) ||
+            empName.includes(query);
+    });
 
     const byDateKey = {};
     relevant.forEach(w => {
@@ -945,15 +1075,32 @@ function renderRenewalGroups() {
         return `<span class="badge badge-success">ปกติ (${daysDiff} วัน)</span>`;
     }
 
+    function hasBook(w) {
+        return !!(w.passportNo && w.passportNo.trim());
+    }
+
+    function bookBadgeOf(w) {
+        return hasBook(w)
+            ? `<span class="badge badge-success">มีเล่ม (${w.passportNo})</span>`
+            : `<span class="badge badge-warning">ยังไม่มีเล่ม</span>`;
+    }
+
     function buildGroupPanel(title, list) {
         const expiredCount = list.filter(w => { const d = daysLeftOf(w); return d !== null && d < 0; }).length;
         const warningCount = list.filter(w => { const d = daysLeftOf(w); return d !== null && d >= 0 && d <= 60; }).length;
+        const noBookCount = list.filter(w => !hasBook(w)).length;
 
-        const rows = list.map(w => {
+        const sortedList = [...list].sort((a, b) => {
+            const empA = customers.find(c => c.id === a.employerId);
+            const empB = customers.find(c => c.id === b.employerId);
+            return (empA ? empA.companyName : '').localeCompare(empB ? empB.companyName : '', 'th');
+        });
+
+        const rows = sortedList.map(w => {
             const emp = customers.find(c => c.id === w.employerId);
             const daysDiff = daysLeftOf(w);
             return `
-                <tr>
+                <tr class="clickable-row" onclick="openWorkerModal('${w.id}')" title="คลิกเพื่อดูรายละเอียดคนงาน">
                     <td>${w.workerUid || '-'}</td>
                     <td>${w.firstName || ''} ${w.lastName || ''}</td>
                     <td>${w.nationality || '-'}</td>
@@ -961,6 +1108,7 @@ function renderRenewalGroups() {
                     <td>${w.permitNo || '-'}</td>
                     <td>${w.permitExpiry || '-'}</td>
                     <td>${statusBadgeOf(daysDiff)}</td>
+                    <td>${bookBadgeOf(w)}</td>
                 </tr>
             `;
         }).join('');
@@ -970,7 +1118,7 @@ function renderRenewalGroups() {
                 <div class="panel-header">
                     <h3 style="margin:0;">${title}</h3>
                     <span style="font-size: 12.5px; color: #64748b;">
-                        ทั้งหมด ${list.length} คน • ⚠️ ใกล้หมดอายุ ${warningCount} • ❌ หมดอายุแล้ว ${expiredCount}
+                        ทั้งหมด ${list.length} คน • ⚠️ ใกล้หมดอายุ ${warningCount} • ❌ หมดอายุแล้ว ${expiredCount} • 📕 ยังไม่มีเล่ม ${noBookCount}
                     </span>
                 </div>
                 <div class="panel-content" style="padding: 0; overflow-x: auto;">
@@ -978,10 +1126,10 @@ function renderRenewalGroups() {
                         <thead>
                             <tr>
                                 <th>เลขคนงาน</th><th>ชื่อ-นามสกุล</th><th>สัญชาติ</th><th>นายจ้าง</th>
-                                <th>เลขใบอนุญาต</th><th>วันหมดอายุ</th><th>สถานะ</th>
+                                <th>เลขใบอนุญาต</th><th>วันหมดอายุ</th><th>สถานะ</th><th>เล่ม (พาสปอร์ต)</th>
                             </tr>
                         </thead>
-                        <tbody>${rows || `<tr><td colspan="7" style="text-align:center; padding: 16px;">ไม่มีข้อมูล</td></tr>`}</tbody>
+                        <tbody>${rows || `<tr><td colspan="8" style="text-align:center; padding: 16px;">ไม่มีข้อมูล</td></tr>`}</tbody>
                     </table>
                 </div>
             </div>
@@ -1245,10 +1393,17 @@ function switchFinancePageTab(tabName) {
 function renderBillingTab() {
     const searchInput = document.getElementById("search-billing");
     const query = searchInput ? searchInput.value.toLowerCase() : "";
+    const statusFilterEl = document.getElementById("filter-billing-payment-status");
+    const statusFilter = statusFilterEl ? statusFilterEl.value : "pending";
     const tbody = document.getElementById("billing-list-tbody");
     if (!tbody) return;
 
-    const pending = jobs.filter(j => (j.paymentStatus || 'ยังไม่ออกบิล') !== 'ชำระเงินแล้ว').filter(j => {
+    const filtered = jobs.filter(j => {
+        const paymentStatus = j.paymentStatus || 'ยังไม่ออกบิล';
+        if (statusFilter === 'pending') return paymentStatus !== 'ชำระเงินแล้ว';
+        if (statusFilter === 'paid') return paymentStatus === 'ชำระเงินแล้ว';
+        return true; // 'all'
+    }).filter(j => {
         if (!query) return true;
         const cust = customers.find(c => c.id === j.customerId);
         const work = workers.find(w => w.id === j.workerId);
@@ -1257,18 +1412,19 @@ function renderBillingTab() {
         return (j.id || "").toLowerCase().includes(query) || custName.includes(query) || workName.includes(query);
     });
 
-    if (pending.length === 0) {
+    if (filtered.length === 0) {
+        const emptyMsg = statusFilter === 'pending' ? "✅ ไม่มีรายการที่ค้างรับชำระ" : "❌ ไม่พบรายการ";
         tbody.innerHTML = `
             <tr>
                 <td colspan="8" class="text-muted" style="text-align: center; padding: 40px;">
-                    ✅ ไม่มีรายการที่ค้างรับชำระ
+                    ${emptyMsg}
                 </td>
             </tr>
         `;
         return;
     }
 
-    tbody.innerHTML = pending.map(j => {
+    tbody.innerHTML = filtered.map(j => {
         const cust = customers.find(c => c.id === j.customerId);
         const work = workers.find(w => w.id === j.workerId);
         const custName = cust ? cust.companyName : "ไม่พบนายจ้าง";
@@ -1281,7 +1437,7 @@ function renderBillingTab() {
         else if (j.status === 'ปิดงานแล้ว') statusClass = 'badge-success';
 
         const paymentStatus = j.paymentStatus || 'ยังไม่ออกบิล';
-        const isClosedUnpaid = j.status === 'ปิดงานแล้ว';
+        const isClosedUnpaid = j.status === 'ปิดงานแล้ว' && paymentStatus !== 'ชำระเงินแล้ว';
         let paymentBadge = `<span class="badge badge-warning" style="font-size: 10px; padding: 2px 6px;">⏳ ยังไม่ออกบิล</span>`;
         if (isClosedUnpaid && paymentStatus === 'ยังไม่ออกบิล') {
             paymentBadge = `<span class="badge badge-danger" style="font-size: 10px; padding: 2px 6px;">⚠️ ยังไม่ออกบิล/ยังไม่ชำระ</span>`;
@@ -1289,7 +1445,11 @@ function renderBillingTab() {
             paymentBadge = `<span class="badge badge-danger" style="font-size: 10px; padding: 2px 6px;">⚠️ ออกบิลแล้ว รอชำระ</span>`;
         } else if (paymentStatus === 'ออกบิลแล้ว') {
             paymentBadge = `<span class="badge" style="font-size: 10px; padding: 2px 6px; background-color: #3b82f6; color: white;">🧾 ออกบิลแล้ว</span>`;
+        } else if (paymentStatus === 'ชำระเงินแล้ว') {
+            paymentBadge = `<span class="badge badge-success" style="font-size: 10px; padding: 2px 6px;">✅ ชำระเงินแล้ว${j.paymentMethod ? ` (${j.paymentMethod})` : ''}</span>`;
         }
+
+        const billBtnLabel = paymentStatus === 'ชำระเงินแล้ว' ? '🧾 ดู/พิมพ์บิล' : '🧾 ออกบิล/รับเงิน';
 
         return `
             <tr>
@@ -1302,7 +1462,7 @@ function renderBillingTab() {
                 <td>${paymentBadge}</td>
                 <td class="actions-col">
                     <button class="btn btn-sm btn-gold" onclick="openInvoiceModal('${j.id}')" style="white-space: nowrap;">
-                        🧾 ออกบิล/รับเงิน
+                        ${billBtnLabel}
                     </button>
                 </td>
             </tr>
@@ -1380,8 +1540,11 @@ function renderEmployerAlerts() {
     const tbody = document.getElementById("dashboard-employer-alerts-tbody");
     if (!tbody) return;
 
+    const searchInput = document.getElementById("search-dashboard-employer-alerts");
+    const query = searchInput ? searchInput.value.trim().toLowerCase() : "";
+
     // Filter employers who have document warnings/expires
-    const rows = customers.map(c => {
+    const rows = customers.filter(c => !query || (c.companyName || "").toLowerCase().includes(query)).map(c => {
         const empWorkers = workers.filter(w => w.employerId === c.id && w.status !== 'archived');
         
         let expiredCount = 0;
@@ -1419,10 +1582,11 @@ function renderEmployerAlerts() {
     document.getElementById("alert-employer-count-badge").innerText = `${rows.length} บริษัท`;
 
     if (rows.length === 0) {
+        const emptyMsg = query ? "❌ ไม่พบนายจ้างตามคำค้นหา" : "✅ เอกสารคนงานทุกบริษัทอยู่ในสถานะปกติเรียบร้อยดี";
         tbody.innerHTML = `
             <tr>
                 <td colspan="4" class="text-muted" style="text-align: center; padding: 20px;">
-                    ✅ เอกสารคนงานทุกบริษัทอยู่ในสถานะปกติเรียบร้อยดี
+                    ${emptyMsg}
                 </td>
             </tr>
         `;
@@ -1817,7 +1981,11 @@ function renderWorkers() {
                     </small>
                     ` : '<small class="text-muted">หมดอายุ: -</small>'}
                 </td>
-                <td>${empName}</td>
+                <td>
+                    <div>${empName}</div>
+                    ${emp && emp.taxId ? `<small class="text-muted">เลขบริษัท: ${emp.taxId}</small><br>` : ''}
+                    ${emp && emp.directorId ? `<small class="text-muted">เลขบุคคลธรรมดา: ${emp.directorId}</small>` : ''}
+                </td>
                 <td>${statusBadge}</td>
                 <td>${attachHtml}</td>
                 <td class="actions-col">
@@ -2637,7 +2805,7 @@ function formatDateOnly(dateStr) {
 }
 
 function parseDateInput(val) {
-    if (!val) return '';
+    if (!val) return null;
     const parts = val.split('/');
     if (parts.length === 3) {
         const day = parts[0].padStart(2, '0');
@@ -5458,6 +5626,38 @@ const CUSTOMER_DOC_TYPES = [
     { key: "cust-other", label: "📎 เอกสารอื่นๆ" }
 ];
 
+const WORKER_FOLDER_DOC_TYPES = [
+    { key: "worker-wp-doc", label: "📄 ใบอนุญาตทำงาน (Work Permit)", type: "ใบอนุญาตทำงาน" },
+    { key: "worker-passport", label: "✈️ หนังสือเดินทาง (Passport / CI)", type: "พาสปอร์ต" },
+    { key: "worker-myanmar-id", label: "🏡 บัตรประชาชน/ทะเบียนบ้านพม่า", type: "ทะเบียนบ้านพม่า" },
+    { key: "worker-pink-card", label: "🌸 บัตรชมพู (Pink Card)", type: "บัตรชมพู" },
+    { key: "worker-receipt", label: "🧾 ใบเสร็จรับเงิน (Receipt)", type: "ใบเสร็จ" },
+    { key: "worker-medical", label: "🩺 ใบรับรองแพทย์ (Medical Certificate)", type: "ใบรับรองแพทย์" },
+    { key: "worker-application", label: "📝 ใบคำขอ (Application Form)", type: "ใบคำขอ" },
+    { key: "worker-other", label: "📎 เอกสารอื่นๆ", type: "เอกสารอื่นๆ" }
+];
+
+// วาดไฟล์ตามคำค้นหาในช่อง "ค้นหาชื่อไฟล์ในแฟ้มนี้" (ถ้ามี) — เรียกซ้ำได้ทุกครั้งที่พิมพ์ โดยไม่ต้องเปิด modal ใหม่
+function renderCustomerFolderTiles() {
+    const c = customers.find(item => item.id === activeFolderCustomerId);
+    if (!c) return;
+
+    const searchInput = document.getElementById("search-customer-folder");
+    const query = searchInput ? searchInput.value.trim().toLowerCase() : "";
+
+    const tiles = [];
+    CUSTOMER_DOC_TYPES.forEach(docInfo => {
+        getAttachments(c, docInfo.key).forEach((fItem, fIdx) => {
+            if (query && !(fItem.name || '').toLowerCase().includes(query)) return;
+            tiles.push(renderCustomerDriveTile(docInfo, fItem, fIdx, c.companyName));
+        });
+        if (!query) tiles.push(renderDriveAddTile(docInfo.label, `triggerCustomerFolderFileUpload('${docInfo.key}')`));
+    });
+
+    document.getElementById("customer-folder-files-list").innerHTML = tiles.join('') ||
+        `<p class="text-muted" style="grid-column:1/-1; text-align:center; padding:20px;">❌ ไม่พบไฟล์ตามคำค้นหา</p>`;
+}
+
 function openCustomerFolderModal(customerId) {
     activeFolderCustomerId = customerId;
     const c = customers.find(item => item.id === customerId);
@@ -5465,28 +5665,22 @@ function openCustomerFolderModal(customerId) {
 
     document.getElementById("customer-folder-name").innerText = c.companyName || "ไม่ระบุชื่อบริษัท";
     document.getElementById("customer-folder-meta").innerText = `เลขผู้เสียภาษี: ${c.taxId || '-'}`;
+    const searchInput = document.getElementById("search-customer-folder");
+    if (searchInput) searchInput.value = '';
 
-    const tiles = [];
-    CUSTOMER_DOC_TYPES.forEach(docInfo => {
-        getAttachments(c, docInfo.key).forEach((fItem, fIdx) => {
-            tiles.push(renderCustomerDriveTile(docInfo, fItem, fIdx, c.companyName));
-        });
-        tiles.push(renderDriveAddTile(docInfo.label, `triggerCustomerFolderFileUpload('${docInfo.key}')`));
-    });
-
-    document.getElementById("customer-folder-files-list").innerHTML = tiles.join('');
+    renderCustomerFolderTiles();
     document.getElementById("customer-folder-modal").classList.remove("hidden");
 }
 
 // ==================== GOOGLE-DRIVE-STYLE FOLDER GRID (shared by customer/worker folder modals) ====================
+// สไตล์ตามแฟ้มเอกสารของ Google Drive: รูปภาพโชว์ thumbnail จริง ส่วนไฟล์อื่น (PDF ฯลฯ) โชว์แค่ไอคอนนิ่งๆ
+// ไม่ฝัง viewer ของเอกสารจริงในกรอบเล็ก เพราะตัวอ่านเอกสารในเบราว์เซอร์มีแถบเลื่อนของตัวเองติดมาด้วยเสมอ
+// ควบคุมให้หายขาดไม่ได้ 100% — คลิกที่ไฟล์เพื่อเปิดดูฉบับเต็มในแท็บใหม่ได้ตามปกติ ที่นั่นเลื่อนดูได้จริง
 function renderDriveThumbnail(fileData) {
     if (!fileData) return `<div class="drive-tile-thumb">📄</div>`;
     const isImage = fileData.startsWith('data:image/') || /\.(jpe?g|png|gif|webp|bmp)(\?|#|$)/i.test(fileData);
     if (isImage) {
         return `<div class="drive-tile-thumb"><img src="${fileData}" alt="" loading="lazy"></div>`;
-    }
-    if (fileData.startsWith('http') || fileData.startsWith('data:application/pdf')) {
-        return `<div class="drive-tile-thumb"><iframe src="${fileData}" loading="lazy"></iframe></div>`;
     }
     return `<div class="drive-tile-thumb">📄</div>`;
 }
@@ -5512,7 +5706,7 @@ function renderCustomerDriveTile(docInfo, fileItem, idx, entityName) {
                 <input type="text" class="drive-tile-name" value="${fileItem.name}" title="${fileItem.name}" onchange="renameCustomerFolderFileIndex('${docInfo.key}', ${idx}, this.value)">
             </div>
             <div class="drive-tile-actions">
-                <button type="button" class="drive-tile-action-btn" onclick="downloadAttachment('${safeName}', '${docInfo.key}', '${data}')" title="ดาวน์โหลด">📥</button>
+                <button type="button" class="drive-tile-action-btn" onclick="downloadAttachment('${safeName}', '${data}')" title="ดาวน์โหลด">📥</button>
                 <button type="button" class="drive-tile-action-btn" onclick="shareAttachment('${safeName}', '${safeEntityName}', '${data}')" title="แชร์ลิงก์">🔗</button>
                 <button type="button" class="drive-tile-action-btn danger" onclick="deleteCustomerFolderFileIndex('${docInfo.key}', ${idx})" title="ลบไฟล์">🗑️</button>
             </div>
@@ -5712,7 +5906,7 @@ function filterWorkersByEmployer(employerId) {
     renderWorkers();
 }
 
-function downloadAttachment(fileName, docType, dataUrl = null) {
+function downloadAttachment(fileName, dataUrl = null) {
     if (!dataUrl) {
         showToast("❌ ไม่พบไฟล์เอกสารนี้ในระบบ (อาจอัปโหลดไม่สำเร็จ)", "danger");
         return;
@@ -6519,6 +6713,28 @@ function getAttachments(w, key) {
 }
 
 // ==================== WORKER DOCUMENTS FOLDER SYSTEM ====================
+// วาดไฟล์ตามคำค้นหาในช่อง "ค้นหาชื่อไฟล์ในแฟ้มนี้" (ถ้ามี) — เรียกซ้ำได้ทุกครั้งที่พิมพ์ โดยไม่ต้องเปิด modal ใหม่
+function renderWorkerFolderTiles() {
+    const w = workers.find(item => item.id === activeFolderWorkerId);
+    if (!w) return;
+
+    const searchInput = document.getElementById("search-worker-folder");
+    const query = searchInput ? searchInput.value.trim().toLowerCase() : "";
+    const entityName = `${w.firstName} ${w.lastName || ''}`;
+
+    const tiles = [];
+    WORKER_FOLDER_DOC_TYPES.forEach(file => {
+        getAttachments(w, file.key).forEach((fItem, fIdx) => {
+            if (query && !(fItem.name || '').toLowerCase().includes(query)) return;
+            tiles.push(renderWorkerDriveTile(file, fItem, fIdx, entityName));
+        });
+        if (!query) tiles.push(renderDriveAddTile(file.label, `triggerFolderFileUpload('${file.key}')`));
+    });
+
+    document.getElementById("worker-folder-files-list").innerHTML = tiles.join('') ||
+        `<p class="text-muted" style="grid-column:1/-1; text-align:center; padding:20px;">❌ ไม่พบไฟล์ตามคำค้นหา</p>`;
+}
+
 function openWorkerFolderModal(workerId) {
     activeFolderWorkerId = workerId;
     const w = workers.find(item => item.id === workerId);
@@ -6528,33 +6744,14 @@ function openWorkerFolderModal(workerId) {
     const emp = customers.find(c => c.id === w.employerId);
     const empName = emp ? emp.companyName : "ไม่ระบุนายจ้าง";
     document.getElementById("worker-folder-meta").innerText = `สัญชาติ: ${w.nationality} | นายจ้าง: ${empName}`;
-    
+
     const avatarUrl = w.photo ? w.photo : 'data:image/svg+xml;utf8,<svg xmlns="http:' + '/' + '/www.w3.org/2000/svg" viewBox="0 0 24 24" width="48" height="48" fill="%2394a3b8"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4.42 0-8 3.58-8 8v1h16v-1c0-4.42-3.58-8-8-8z"/></svg>';
     document.getElementById("worker-folder-avatar").src = avatarUrl;
 
-    const nameClean = `${w.firstName}_${w.lastName || ''}`.replace(/\s+/g, '_');
-    
-    const files = [
-        { key: "worker-wp-doc", label: "📄 ใบอนุญาตทำงาน (Work Permit)", defaultName: `${nameClean}_WorkPermit.pdf`, type: "ใบอนุญาตทำงาน" },
-        { key: "worker-passport", label: "✈️ หนังสือเดินทาง (Passport / CI)", defaultName: `${nameClean}_Passport.pdf`, type: "พาสปอร์ต" },
-        { key: "worker-myanmar-id", label: "🏡 บัตรประชาชน/ทะเบียนบ้านพม่า", defaultName: `${nameClean}_MyanmarID.pdf`, type: "ทะเบียนบ้านพม่า" },
-        { key: "worker-pink-card", label: "🌸 บัตรชมพู (Pink Card)", defaultName: `${nameClean}_PinkCard.pdf`, type: "บัตรชมพู" },
-        { key: "worker-receipt", label: "🧾 ใบเสร็จรับเงิน (Receipt)", defaultName: `${nameClean}_Receipt.pdf`, type: "ใบเสร็จ" },
-        { key: "worker-medical", label: "🩺 ใบรับรองแพทย์ (Medical Certificate)", defaultName: `${nameClean}_Medical.pdf`, type: "ใบรับรองแพทย์" },
-        { key: "worker-application", label: "📝 ใบคำขอ (Application Form)", defaultName: `${nameClean}_Application.pdf`, type: "ใบคำขอ" },
-        { key: "worker-other", label: "📎 เอกสารอื่นๆ", defaultName: `${nameClean}_Other.pdf`, type: "เอกสารอื่นๆ" }
-    ];
+    const searchInput = document.getElementById("search-worker-folder");
+    if (searchInput) searchInput.value = '';
 
-    const entityName = `${w.firstName} ${w.lastName || ''}`;
-    const tiles = [];
-    files.forEach(file => {
-        getAttachments(w, file.key).forEach((fItem, fIdx) => {
-            tiles.push(renderWorkerDriveTile(file, fItem, fIdx, entityName));
-        });
-        tiles.push(renderDriveAddTile(file.label, `triggerFolderFileUpload('${file.key}')`));
-    });
-
-    document.getElementById("worker-folder-files-list").innerHTML = tiles.join('');
+    renderWorkerFolderTiles();
     document.getElementById("btn-copy-worker-folder").setAttribute("onclick", `copyWorkerFolderLink('${w.id}')`);
     document.getElementById("worker-folder-modal").classList.remove("hidden");
 }
@@ -6571,7 +6768,7 @@ function renderWorkerDriveTile(file, fileItem, idx, entityName) {
                 <input type="text" class="drive-tile-name" value="${fileItem.name}" title="${fileItem.name}" onchange="renameFolderFileIndex('${file.key}', ${idx}, this.value)">
             </div>
             <div class="drive-tile-actions">
-                <button type="button" class="drive-tile-action-btn" onclick="downloadAttachment('${safeName}', '${file.type}', '${data}')" title="ดาวน์โหลด">📥</button>
+                <button type="button" class="drive-tile-action-btn" onclick="downloadAttachment('${safeName}', '${data}')" title="ดาวน์โหลด">📥</button>
                 <button type="button" class="drive-tile-action-btn" onclick="shareAttachment('${safeName}', '${safeEntityName}', '${data}')" title="แชร์ลิงก์">🔗</button>
                 <button type="button" class="drive-tile-action-btn danger" onclick="deleteFolderFileIndex('${file.key}', ${idx})" title="ลบไฟล์">🗑️</button>
             </div>
@@ -7130,27 +7327,38 @@ function renderMissingDocsOverview() {
     if (!tbody) return;
 
     const missingWorkers = workers.filter(w => isWorkerMissingDocs(w));
-    
-    // Update badge count
-    const badge = document.getElementById("missing-docs-count-badge");
-    if (badge) badge.innerText = `${missingWorkers.length} คน`;
-    
-    // Update dashboard stats card
+
+    // อัปเดตการ์ด KPI ด้านบนด้วยยอดจริงทั้งหมดเสมอ ไม่ผูกกับตัวกรองค้นหาของตารางด้านล่าง
     const cardNum = document.getElementById("stat-missing-docs");
     if (cardNum) cardNum.innerText = missingWorkers.length;
 
-    if (missingWorkers.length === 0) {
+    const searchInput = document.getElementById("search-dashboard-missing-docs");
+    const query = searchInput ? searchInput.value.trim().toLowerCase() : "";
+    const filteredWorkers = missingWorkers.filter(w => {
+        if (!query) return true;
+        const emp = customers.find(c => c.id === w.employerId);
+        const empName = emp ? (emp.companyName || "").toLowerCase() : "";
+        return (w.firstName || "").toLowerCase().includes(query) ||
+            (w.lastName || "").toLowerCase().includes(query) ||
+            empName.includes(query);
+    });
+
+    const badge = document.getElementById("missing-docs-count-badge");
+    if (badge) badge.innerText = `${filteredWorkers.length} คน`;
+
+    if (filteredWorkers.length === 0) {
+        const emptyMsg = query ? "❌ ไม่พบคนงานตามคำค้นหา" : "✅ คนงานทุกคนมีเอกสารแนบในระบบครบถ้วนแล้ว!";
         tbody.innerHTML = `
             <tr>
                 <td colspan="6" class="text-muted" style="text-align: center; padding: 20px;">
-                    ✅ คนงานทุกคนมีเอกสารแนบในระบบครบถ้วนแล้ว!
+                    ${emptyMsg}
                 </td>
             </tr>
         `;
         return;
     }
 
-    tbody.innerHTML = missingWorkers.map(w => {
+    tbody.innerHTML = filteredWorkers.map(w => {
         const emp = customers.find(c => c.id === w.employerId);
         const empName = emp ? emp.companyName : "ไม่ระบุนายจ้าง";
 

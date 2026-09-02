@@ -90,9 +90,9 @@
             <!-- Sidebar Navigation -->
             <aside class="sidebar">
                 <div class="sidebar-brand">
-                    <div class="brand-logo">AG</div>
+                    <div class="brand-logo">NKT</div>
                     <div class="brand-text">
-                        <h3>Antigravity</h3>
+                        <h3>NKT Service</h3>
                         <span>Worker System</span>
                     </div>
                 </div>
@@ -135,7 +135,7 @@
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="20">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                         </svg>
-                        <span>ข้อมูลคนงานต่ออายุ</span>
+                        <span>ข้อมูลคนงานต่ออายุ/ทำเล่ม</span>
                     </a>
                     <a href="#" class="menu-item" id="menu-expenses" onclick="switchView('expenses')">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="20">
@@ -266,6 +266,14 @@
                                         <h3>⚠️ แจ้งเตือนวันหมดอายุเอกสารแยกรายนายจ้าง (Passport < 180 วัน / WP < 60 วัน)</h3>
                                         <span class="badge badge-danger" id="alert-employer-count-badge">0 บริษัท</span>
                                     </div>
+                                    <div style="padding: 10px 14px 0;">
+                                        <div class="search-box" style="max-width: 100%;">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                            </svg>
+                                            <input type="text" id="search-dashboard-employer-alerts" placeholder="ค้นหาชื่อนายจ้าง..." oninput="renderEmployerAlerts()">
+                                        </div>
+                                    </div>
                                     <div class="panel-content" style="padding: 0; overflow-x: auto;">
                                         <table class="data-table" style="box-shadow: none; border: none; border-radius: 0;">
                                             <thead>
@@ -311,6 +319,14 @@
                                     <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center;">
                                         <h3>⚠️ รายชื่อคนงานต่างด้าวที่ยังไม่ได้แนบเอกสาร (ป้องกันการตกหล่น)</h3>
                                         <span class="badge" style="background-color:#f97316; color:white; font-weight: 600;" id="missing-docs-count-badge">0 คน</span>
+                                    </div>
+                                    <div style="padding: 10px 14px 0;">
+                                        <div class="search-box" style="max-width: 100%;">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                            </svg>
+                                            <input type="text" id="search-dashboard-missing-docs" placeholder="ค้นหาชื่อคนงาน, นายจ้าง..." oninput="renderMissingDocsOverview()">
+                                        </div>
                                     </div>
                                     <div class="panel-content" style="padding: 0; overflow-x: auto;">
                                         <table class="data-table" style="box-shadow: none; border: none; border-radius: 0;">
@@ -625,6 +641,8 @@
                                         <option value="ออกใบรับรองแพทย์">ออกใบรับรองแพทย์</option>
                                         <option value="ซื้อประกัน">ซื้อประกัน</option>
                                         <option value="ทำบัตร ผู้ไม่มีสัญชาติไทย">ทำบัตร ผู้ไม่มีสัญชาติไทย</option>
+                                        <option value="แจ้งเข้าประกันสังคม">แจ้งเข้าประกันสังคม</option>
+                                        <option value="แจ้งที่พัก TM.30">แจ้งที่พัก TM.30</option>
                                         <option value="อื่นๆ">อื่นๆ</option>
                                     </select>
                                     <select id="filter-job-status" onchange="renderJobs()">
@@ -735,8 +753,16 @@
                     <div id="view-renewals" class="content-section hidden">
                         <p class="text-muted" style="font-size: 12.5px; margin-bottom: 16px;">
                             จัดกลุ่มคนงานที่ยังทำงานอยู่ตาม "วันหมดอายุใบอนุญาตทำงาน" ที่ตรงกันเป๊ะโดยอัตโนมัติ (ตั้งชื่อกลุ่มตามวันที่นั้น)
-                            — คนงานที่วันหมดอายุไม่ตรงกับใครเลยจะถูกจัดไว้ในกลุ่ม MOU
+                            — คนงานที่วันหมดอายุไม่ตรงกับใครเลยจะถูกจัดไว้ในกลุ่ม MOU — เรียงข้อมูลในแต่ละกลุ่มตามชื่อนายจ้าง
                         </p>
+                        <div class="table-actions">
+                            <div class="search-box">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                                <input type="text" id="search-renewal" placeholder="ค้นหาชื่อคนงาน, นายจ้าง, เลขคนงาน..." oninput="renderRenewalGroups()">
+                            </div>
+                        </div>
                         <div id="renewal-groups-container">
                             <!-- Dynamic renewal groups -->
                         </div>
@@ -1013,6 +1039,11 @@
                                     </svg>
                                     <input type="text" id="search-billing" placeholder="ค้นหาใบสั่งงาน, นายจ้าง, คนงาน..." oninput="renderBillingTab()">
                                 </div>
+                                <select id="filter-billing-payment-status" onchange="renderBillingTab()" style="padding: 8px 14px; border-radius: var(--radius-sm); border: 1px solid #cbd5e1; outline: none; font-size: 13.5px;">
+                                    <option value="pending" selected>ค้างชำระ (ยังไม่จ่าย)</option>
+                                    <option value="paid">ชำระแล้ว</option>
+                                    <option value="all">ทั้งหมด</option>
+                                </select>
                                 <div class="action-buttons-group" style="display: flex; gap: 10px;">
                                     <button class="btn btn-outline" id="btn-combine-bills" onclick="openCombineBillsModal()" style="border-color: var(--gold-primary); color: var(--gold-primary);">
                                         <span>🧾 รวมบิลนายจ้าง (Combine Invoice)</span>
@@ -1023,7 +1054,7 @@
                                 </div>
                             </div>
                             <p class="section-desc" style="margin: -8px 0 15px;">
-                                รายการงานที่ผ่านระบบแจ้งงานทั้งหมดที่ยังไม่ได้รับชำระเงิน (ไม่ว่าจะออกบิลไปแล้วหรือยังไม่ออก) — รายการจะหายไปจากตารางนี้เมื่อลูกค้าชำระเงินเรียบร้อยแล้ว
+                                รายการงานที่ผ่านระบบแจ้งงานทั้งหมด (รวมงานที่ปิดไปแล้ว) — เลือก "ค้างชำระ" เพื่อดูเฉพาะที่ยังไม่ได้รับเงิน หรือ "ชำระแล้ว"/"ทั้งหมด" เพื่อดูประวัติย้อนหลัง
                             </p>
                             <div class="table-container">
                                 <table class="data-table" id="billing-table">
@@ -1949,11 +1980,10 @@
                         </div>
 
                         <div class="form-group">
-                            <label for="job-worker-id">คนงานต่างด้าวที่เกี่ยวข้อง (เลือกได้หลายคน — กด Ctrl/Cmd ค้างไว้เพื่อเลือกหลายคน) <span class="required">*</span></label>
+                            <label for="job-worker-id">คนงานต่างด้าวที่เกี่ยวข้อง <span class="required">*</span></label>
                             <select id="job-worker-id" onchange="onJobWorkerChange()" multiple size="4" required>
                                 <!-- Dynamic -->
                             </select>
-                            <small class="text-muted" style="display:block; margin-top:4px;">เลือกหลายคน = แจ้งงานประเภทเดียวกันให้ทุกคนพร้อมกัน โดยแตกเป็นคนละใบงาน ผูกชุดเดียวกันไว้ (ตัวอย่างต้นแบบ — ตรวจสอบผลลัพธ์ก่อนใช้งานจริงจำนวนมาก)</small>
                         </div>
 
                         <div class="form-row">
@@ -2056,6 +2086,24 @@
                                 <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
                                     <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
                                         <input type="checkbox" name="job-type-checkbox" value="ทำบัตร ผู้ไม่มีสัญชาติไทย" onchange="toggleJobTypePriceInput(this)" style="width: 16px; height: 16px;"> ทำบัตรผู้ไม่มีสัญชาติฯ
+                                    </label>
+                                    <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                                        <input type="number" name="job-type-price" placeholder="ราคา" min="0" disabled style="width: 75px; padding: 4px 6px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: right; margin: 0; outline: none;">
+                                        <span style="font-size: 11px; color: var(--text-muted);">บ.</span>
+                                    </div>
+                                </div>
+                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
+                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
+                                        <input type="checkbox" name="job-type-checkbox" value="แจ้งเข้าประกันสังคม" onchange="toggleJobTypePriceInput(this)" style="width: 16px; height: 16px;"> แจ้งเข้าประกันสังคม
+                                    </label>
+                                    <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                                        <input type="number" name="job-type-price" placeholder="ราคา" min="0" disabled style="width: 75px; padding: 4px 6px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: right; margin: 0; outline: none;">
+                                        <span style="font-size: 11px; color: var(--text-muted);">บ.</span>
+                                    </div>
+                                </div>
+                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
+                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
+                                        <input type="checkbox" name="job-type-checkbox" value="แจ้งที่พัก TM.30" onchange="toggleJobTypePriceInput(this)" style="width: 16px; height: 16px;"> แจ้งที่พัก TM.30
                                     </label>
                                     <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
                                         <input type="number" name="job-type-price" placeholder="ราคา" min="0" disabled style="width: 75px; padding: 4px 6px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: right; margin: 0; outline: none;">
@@ -2385,11 +2433,18 @@
                     <h3>📁 แฟ้มเอกสารของนายจ้าง / ลูกค้าผู้ว่าจ้าง</h3>
                     <button class="close-btn" onclick="closeCustomerFolderModal()">&times;</button>
                 </div>
-                <div class="modal-body" style="padding-top: 10px; max-height: 70vh; overflow-y: auto;">
+                <div class="modal-body" style="padding-top: 10px;">
                     <input type="file" id="customer-folder-upload-input" accept="image/*,application/pdf" multiple style="display:none;" onchange="handleCustomerFolderFileUpload(event)">
                     <div style="margin-bottom: 20px; background-color: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0;">
                         <h4 id="customer-folder-name" style="margin: 0 0 4px 0; color: var(--navy-dark); font-size: 16px; font-weight: 600;"></h4>
                         <p id="customer-folder-meta" style="margin: 0; font-size: 12.5px; color: var(--text-muted);"></p>
+                    </div>
+
+                    <div class="search-box" style="max-width: 100%; margin-bottom: 14px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        <input type="text" id="search-customer-folder" placeholder="ค้นหาชื่อไฟล์ในแฟ้มนี้..." oninput="renderCustomerFolderTiles()">
                     </div>
 
                     <div class="drive-grid" id="customer-folder-files-list">
@@ -2410,7 +2465,7 @@
                     <h3 id="worker-folder-title">📁 แฟ้มเอกสารของคนงานต่างด้าว</h3>
                     <button class="close-btn" onclick="closeWorkerFolderModal()">&times;</button>
                 </div>
-                <div class="modal-body" style="padding-top: 10px; max-height: 70vh; overflow-y: auto;">
+                <div class="modal-body" style="padding-top: 10px;">
                     <input type="file" id="folder-upload-input" accept="image/*,application/pdf" multiple style="display:none;" onchange="handleFolderFileUpload(event)">
                     <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px; background-color: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0;">
                         <div style="width: 50px; height: 50px; border-radius: 50%; overflow: hidden; background-color: #e2e8f0; border: 1px solid #cbd5e1; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
@@ -2420,6 +2475,13 @@
                             <h4 id="worker-folder-name" style="margin: 0 0 4px 0; color: var(--navy-dark); font-size: 16px; font-weight: 600;"></h4>
                             <p id="worker-folder-meta" style="margin: 0; font-size: 12.5px; color: var(--text-muted);"></p>
                         </div>
+                    </div>
+
+                    <div class="search-box" style="max-width: 100%; margin-bottom: 14px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        <input type="text" id="search-worker-folder" placeholder="ค้นหาชื่อไฟล์ในแฟ้มนี้..." oninput="renderWorkerFolderTiles()">
                     </div>
 
                     <div class="drive-grid" id="worker-folder-files-list">
