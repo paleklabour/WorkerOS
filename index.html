@@ -336,7 +336,11 @@
                                                     <th>ชื่อคนงานต่างด้าว</th>
                                                     <th>สัญชาติ</th>
                                                     <th>นายจ้าง / บริษัท</th>
-                                                    <th>เอกสารที่ขาดหายไป</th>
+                                                    <th style="text-align: center; white-space: nowrap;">WP</th>
+                                                    <th style="text-align: center; white-space: nowrap;">พาสปอร์ต/CI</th>
+                                                    <th style="text-align: center; white-space: nowrap;">บัตร/ทะเบียนบ้านพม่า</th>
+                                                    <th style="text-align: center; white-space: nowrap;">ใบรับรองแพทย์</th>
+                                                    <th style="text-align: center; white-space: nowrap;">ประกัน</th>
                                                     <th style="text-align: center; width: 160px;">จัดการ</th>
                                                 </tr>
                                             </thead>
@@ -1948,6 +1952,24 @@
                                     <span class="upload-hint">ลากวางไฟล์ หรือคลิกอัปโหลด (แนบเพิ่มได้หลายไฟล์)</span>
                                     <div class="ocr-status" id="status-worker-other"></div>
                                 </div>
+
+                                <!-- Doc 7: Health Certificate -->
+                                <div class="upload-box" id="drop-worker-medical" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropDocHandler(event, 'worker-medical')">
+                                    <input type="file" id="file-worker-medical" class="file-input" multiple onchange="fileSelectHandler(event, 'worker-medical')">
+                                    <div class="upload-icon">🩺</div>
+                                    <span class="doc-title">ใบรับรองแพทย์</span>
+                                    <span class="upload-hint">ลากวางไฟล์ หรือคลิกอัปโหลด (แนบเพิ่มได้หลายไฟล์)</span>
+                                    <div class="ocr-status" id="status-worker-medical"></div>
+                                </div>
+
+                                <!-- Doc 8: Insurance -->
+                                <div class="upload-box" id="drop-worker-insurance-doc" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropDocHandler(event, 'worker-insurance-doc')">
+                                    <input type="file" id="file-worker-insurance-doc" class="file-input" multiple onchange="fileSelectHandler(event, 'worker-insurance-doc')">
+                                    <div class="upload-icon">🛡️</div>
+                                    <span class="doc-title">ประกัน (เอกชน/รัฐ/ประกันสังคม)</span>
+                                    <span class="upload-hint">ลากวางไฟล์ หรือคลิกอัปโหลด (แนบเพิ่มได้หลายไฟล์)</span>
+                                    <div class="ocr-status" id="status-worker-insurance-doc"></div>
+                                </div>
                             </div>
                         </div>
 
@@ -2135,6 +2157,37 @@
                                 <option value="รอเอกสารเพิ่มเติม">รอเอกสารเพิ่มเติม (Waiting for Docs)</option>
                             </select>
                             <small class="text-muted" style="display:block; margin-top:4px;">การปิดงาน (แนบเอกสาร) ทำได้จากปุ่ม "📎 ปิดงาน" ที่ใบงานในหน้ารายการ/Kanban เท่านั้น</small>
+                        </div>
+
+                        <div id="job-appointment-section" style="display:none;">
+                            <div class="form-group">
+                                <label>ใบนัดหมาย (แนบไฟล์แล้ว AI จะอ่านวันที่/เวลา/เลขที่นัดหมาย/สถานที่ให้อัตโนมัติ)</label>
+                                <div class="upload-box" id="drop-job-appointment" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropJobAppointmentFile(event)">
+                                    <input type="file" id="file-job-appointment" class="file-input" onchange="jobAppointmentFileSelected(event)">
+                                    <div class="upload-icon">📅</div>
+                                    <span class="doc-title">ใบนัดหมาย</span>
+                                    <span class="upload-hint">ลากวางไฟล์ หรือคลิกเพื่ออัปโหลด (แนบได้ 1 ไฟล์ต่อใบงาน แนบใหม่จะแทนที่ไฟล์เดิม)</span>
+                                    <div class="ocr-status" id="status-job-appointment"></div>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group col-4">
+                                    <label for="job-appointment-date">วันที่นัดหมาย</label>
+                                    <input type="text" id="job-appointment-date" placeholder="วัน/เดือน/ปี ค.ศ. (เช่น 23/03/2026)">
+                                </div>
+                                <div class="form-group col-4">
+                                    <label for="job-appointment-time">เวลานัดหมาย</label>
+                                    <input type="text" id="job-appointment-time" placeholder="เช่น 09:00">
+                                </div>
+                                <div class="form-group col-4">
+                                    <label for="job-appointment-no">เลขที่นัดหมาย</label>
+                                    <input type="text" id="job-appointment-no" placeholder="เช่น 4-PTN001032600071">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="job-appointment-location">สถานที่นัดหมาย</label>
+                                <input type="text" id="job-appointment-location" placeholder="ชื่อศูนย์/หน่วยบริการ + สถานที่">
+                            </div>
                         </div>
 
                         <div class="form-group">
@@ -2572,6 +2625,14 @@
         window.SUPABASE_ANON_KEY = "sb_publishable_QXr8rEnSqOhAZzc_pO_Egw_h-ZYb0nn";
     </script>
     <script src="supabase-client.js"></script>
+
+    <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
+         ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
+    <script type="module">
+        import * as pdfjsLib from "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/6.3.289/pdf.min.mjs";
+        pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/6.3.289/pdf.worker.min.mjs";
+        window.pdfjsLib = pdfjsLib;
+    </script>
 
     <!-- Application Script -->
     <script src="app.js"></script>

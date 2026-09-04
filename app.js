@@ -2165,6 +2165,60 @@ async function fileSelectHandler(e, docType) {
 let tempWorkerAttachments = {};
 let tempCustomerAttachments = {}; // ไฟล์แนบของนายจ้างที่ยังไม่ได้อัปโหลด รอจนกว่าจะบันทึกลูกค้า/นายจ้างสำเร็จก่อน (มี id + โฟลเดอร์ Drive จริง)
 let tempExpenseAttachment = null; // สลิป/ใบเสร็จของรายจ่ายที่กำลังกรอกอยู่ — { name, data(url) } หรือ null
+let tempJobAppointmentDocUrl = null; // ไฟล์ใบนัดหมายของใบงานที่กำลังแก้ไขอยู่ (ช่องเดียว แนบใหม่แทนที่ของเดิม) — string url หรือ null
+
+// อัปโหลดไฟล์ใบนัดหมาย (ช่องเดียวต่อใบงาน) ให้ AI อ่านวันที่/เวลา/เลขที่นัดหมาย/สถานที่มากรอกฟอร์มให้อัตโนมัติ
+function dropJobAppointmentFile(e) {
+    e.preventDefault();
+    e.currentTarget.classList.remove("dragover");
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        processJobAppointmentFile(e.dataTransfer.files[0]);
+    }
+}
+
+function jobAppointmentFileSelected(e) {
+    if (e.target.files && e.target.files.length > 0) {
+        processJobAppointmentFile(e.target.files[0]);
+    }
+}
+
+function processJobAppointmentFile(file) {
+    const statusEl = document.getElementById("status-job-appointment");
+    if (!statusEl) return;
+    statusEl.innerHTML = `<span class="ai-processing">📎 กำลังแนบไฟล์...</span>`;
+
+    const reader = new FileReader();
+    reader.onload = async function (e) {
+        const fileContent = e.target.result;
+        const editId = document.getElementById("job-edit-id").value;
+        const customerId = document.getElementById("job-customer-id").value;
+        const workerIds = getSelectedJobWorkerIds();
+        const fileName = `job-appointment_${editId || Date.now()}${extFromDataUrl(fileContent)}`;
+
+        const uploadResult = await uploadDocumentFile(fileContent, fileName, customerId, workerIds[0] || "", "job-appointment");
+        if (!uploadResult) {
+            statusEl.innerHTML = `<span class="ai-error">❌ อัปโหลดไม่สำเร็จ กรุณาลองใหม่</span>`;
+            return;
+        }
+
+        tempJobAppointmentDocUrl = uploadResult.fileUrl;
+        statusEl.innerHTML = `<span class="ai-success">✅ แนบไฟล์ "${file.name}" แล้ว</span>`;
+
+        if (uploadResult.parsedData) {
+            const setVal = (id, val) => {
+                if (val === undefined || val === null || val === "") return;
+                const el = document.getElementById(id);
+                if (el) el.value = val;
+            };
+            setVal("job-appointment-date", uploadResult.parsedData.appointmentDate);
+            setVal("job-appointment-time", uploadResult.parsedData.appointmentTime);
+            setVal("job-appointment-no", uploadResult.parsedData.appointmentNo);
+            setVal("job-appointment-location", uploadResult.parsedData.appointmentLocation);
+            showToast("✨ AI อ่านข้อมูลใบนัดหมายและกรอกฟอร์มให้อัตโนมัติแล้ว กรุณาตรวจสอบความถูกต้องอีกครั้ง", "success");
+        }
+    };
+    reader.readAsDataURL(file);
+}
 
 function dropCustomerDocHandler(e, docType) {
     e.preventDefault();
@@ -2920,7 +2974,7 @@ function openWorkerModal(id = null) {
         });
 
         // Display existing attachments status visually in the modal (พร้อมปุ่มลบไฟล์ที่แนบผิดออกทีละไฟล์)
-        ['worker-wp-doc', 'worker-passport', 'worker-myanmar-id', 'worker-pink-card', 'worker-receipt', 'worker-other'].forEach(key => {
+        ['worker-wp-doc', 'worker-passport', 'worker-myanmar-id', 'worker-pink-card', 'worker-receipt', 'worker-other', 'worker-medical', 'worker-insurance-doc'].forEach(key => {
             renderWorkerAttachmentStatus(key);
         });
 
@@ -3504,6 +3558,13 @@ function openJobModal(id = null) {
 
     const statusSelect = document.getElementById("job-status");
 
+    // ใบนัดหมาย: แนบได้เฉพาะตอนแก้ไขใบงานที่มีอยู่แล้ว (ตอนแจ้งงานใหม่อาจแตกเป็นหลายใบงาน
+    // ต่อคนงาน/ประเภทงาน ยังไม่มีใบงานเดี่ยวให้ผูกไฟล์ใบนัดหมายด้วย)
+    tempJobAppointmentDocUrl = null;
+    document.getElementById("file-job-appointment").value = "";
+    document.getElementById("status-job-appointment").innerHTML = "";
+    document.getElementById("job-appointment-section").style.display = id ? "" : "none";
+
     if (id) {
         modalTitle.innerText = "แก้ไขข้อมูลขั้นตอนและรายละเอียดงาน";
         editIdInput.value = id;
@@ -3546,6 +3607,15 @@ function openJobModal(id = null) {
         }
 
         document.getElementById("job-notes").value = j.notes || '';
+
+        // ใบนัดหมาย: เติมค่าที่เคยแนบ/AI อ่านไว้แล้ว (ถ้ามี)
+        document.getElementById("job-appointment-date").value = j.appointmentDate || '';
+        document.getElementById("job-appointment-time").value = j.appointmentTime || '';
+        document.getElementById("job-appointment-no").value = j.appointmentNo || '';
+        document.getElementById("job-appointment-location").value = j.appointmentLocation || '';
+        if (j.appointmentDocUrl) {
+            document.getElementById("status-job-appointment").innerHTML = `<span class="ai-success">✅ แนบไฟล์ใบนัดหมายไว้แล้ว — <a href="${j.appointmentDocUrl}" target="_blank" rel="noopener">เปิดดูไฟล์</a></span>`;
+        }
 
         // ผู้เปิดงาน: แสดงอย่างเดียว แก้ไม่ได้ (ล็อกจาก user ที่เปิดงานครั้งแรก)
         if (j.openedBy) {
@@ -3800,7 +3870,12 @@ async function saveJob(e) {
             batchId: originalJob ? (originalJob.batchId || null) : null,
             createdAt: originalJob ? (originalJob.createdAt || originalJob.updatedAt) : updatedAt,
             orderNo: originalJob ? (originalJob.orderNo || null) : null,
-            customerId, workerId, jobType: jobTypeLabel, fee: totalFee, status, notes, updatedAt, agentId
+            customerId, workerId, jobType: jobTypeLabel, fee: totalFee, status, notes, updatedAt, agentId,
+            appointmentDate: parseDateInput(document.getElementById("job-appointment-date").value.trim()),
+            appointmentTime: document.getElementById("job-appointment-time").value.trim() || null,
+            appointmentNo: document.getElementById("job-appointment-no").value.trim() || null,
+            appointmentLocation: document.getElementById("job-appointment-location").value.trim() || null,
+            appointmentDocUrl: tempJobAppointmentDocUrl || (originalJob ? (originalJob.appointmentDocUrl || null) : null)
         };
         showToast("💾 กำลังบันทึกการแก้ไขใบสั่งงานเข้าคลาวด์...", "warning");
         const jobSaveRes = await callCloudAPI("saveJob", { jobData: jobData });
@@ -5669,6 +5744,7 @@ const WORKER_FOLDER_DOC_TYPES = [
     { key: "worker-pink-card", label: "🌸 บัตรชมพู (Pink Card)", type: "บัตรชมพู" },
     { key: "worker-receipt", label: "🧾 ใบเสร็จรับเงิน (Receipt)", type: "ใบเสร็จ" },
     { key: "worker-medical", label: "🩺 ใบรับรองแพทย์ (Medical Certificate)", type: "ใบรับรองแพทย์" },
+    { key: "worker-insurance-doc", label: "🛡️ ประกัน (เอกชน/รัฐ/ประกันสังคม)", type: "ประกัน" },
     { key: "worker-application", label: "📝 ใบคำขอ (Application Form)", type: "ใบคำขอ" },
     { key: "worker-other", label: "📎 เอกสารอื่นๆ", type: "เอกสารอื่นๆ" }
 ];
@@ -5690,8 +5766,10 @@ function renderCustomerFolderTiles() {
         if (!query) tiles.push(renderDriveAddTile(docInfo.label, `triggerCustomerFolderFileUpload('${docInfo.key}')`));
     });
 
-    document.getElementById("customer-folder-files-list").innerHTML = tiles.join('') ||
+    const customerFolderListEl = document.getElementById("customer-folder-files-list");
+    customerFolderListEl.innerHTML = tiles.join('') ||
         `<p class="text-muted" style="grid-column:1/-1; text-align:center; padding:20px;">❌ ไม่พบไฟล์ตามคำค้นหา</p>`;
+    hydratePdfThumbnails(customerFolderListEl);
 }
 
 function openCustomerFolderModal(customerId) {
@@ -5709,16 +5787,70 @@ function openCustomerFolderModal(customerId) {
 }
 
 // ==================== GOOGLE-DRIVE-STYLE FOLDER GRID (shared by customer/worker folder modals) ====================
-// สไตล์ตามแฟ้มเอกสารของ Google Drive: รูปภาพโชว์ thumbnail จริง ส่วนไฟล์อื่น (PDF ฯลฯ) โชว์แค่ไอคอนนิ่งๆ
-// ไม่ฝัง viewer ของเอกสารจริงในกรอบเล็ก เพราะตัวอ่านเอกสารในเบราว์เซอร์มีแถบเลื่อนของตัวเองติดมาด้วยเสมอ
-// ควบคุมให้หายขาดไม่ได้ 100% — คลิกที่ไฟล์เพื่อเปิดดูฉบับเต็มในแท็บใหม่ได้ตามปกติ ที่นั่นเลื่อนดูได้จริง
+// สไตล์ตามแฟ้มเอกสารของ Google Drive: รูปภาพและ PDF โชว์ thumbnail จริง (หน้าแรกของ PDF เรนเดอร์ด้วย pdf.js)
+// เป็นแค่ "ภาพนิ่ง" ของหน้าแรกเท่านั้น — ไม่ได้ฝัง viewer ของเอกสารจริงในกรอบเล็ก เพราะตัวอ่านเอกสารในเบราว์เซอร์
+// มีแถบเลื่อนของตัวเองติดมาด้วยเสมอ ควบคุมให้หายขาดไม่ได้ 100% — คลิกที่ไฟล์เพื่อเปิดดูฉบับเต็มในแท็บใหม่ได้ตามปกติ ที่นั่นเลื่อนดูได้จริง
 function renderDriveThumbnail(fileData) {
     if (!fileData) return `<div class="drive-tile-thumb">📄</div>`;
-    const isImage = fileData.startsWith('data:image/') || /\.(jpe?g|png|gif|webp|bmp)(\?|#|$)/i.test(fileData);
-    if (isImage) {
-        return `<div class="drive-tile-thumb"><img src="${fileData}" alt="" loading="lazy"></div>`;
+    const isDefinitelyPdf = fileData.startsWith('data:application/pdf') || /\.pdf(\?|#|$)/i.test(fileData);
+    if (isDefinitelyPdf) {
+        // เรนเดอร์ภาพย่อหน้าแรกจริงแบบ async ทีหลัง (ดู hydratePdfThumbnails) — ใส่ไอคอนไว้ก่อนระหว่างรอ
+        return `<div class="drive-tile-thumb" data-pdf-thumb="${fileData}">📄</div>`;
     }
-    return `<div class="drive-tile-thumb">📄</div>`;
+    // ไฟล์เก่าบางไฟล์ (อัปโหลดก่อนแก้บั๊กชื่อไฟล์ไม่มีนามสกุล) เดาชนิดจากนามสกุลไม่ได้ล่วงหน้า ทั้งที่อาจเป็นรูปหรือ PDF จริงก็ได้ —
+    // Supabase Storage คืน Content-Type ถูกต้องเสมอไม่ว่าชื่อไฟล์จะมีนามสกุลหรือไม่ จึงลองโหลดเป็นรูปก่อนเสมอ
+    // ถ้าโหลดไม่สำเร็จ (เพราะจริงๆ เป็น PDF) ค่อยลองเรนเดอร์เป็นภาพย่อ PDF แทนก่อนจะ fallback เป็นไอคอนจริงๆ
+    return `<div class="drive-tile-thumb" data-fallback-url="${fileData}"><img src="${fileData}" alt="" loading="lazy" onerror="tryPdfThumbFallback(this)"></div>`;
+}
+
+// แคชภาพย่อหน้าแรกของ PDF ที่เรนเดอร์แล้ว (key = url) กันเรนเดอร์ซ้ำทุกครั้งที่เปิดแฟ้ม/พิมพ์ค้นหาในช่องเดิม
+const pdfThumbCache = new Map();
+
+async function renderPdfPageThumbnail(url) {
+    if (pdfThumbCache.has(url)) return pdfThumbCache.get(url);
+    if (!window.pdfjsLib) return null;
+    let result = null;
+    try {
+        const pdf = await pdfjsLib.getDocument({ url }).promise;
+        const page = await pdf.getPage(1);
+        const baseViewport = page.getViewport({ scale: 1 });
+        const scale = 160 / baseViewport.width; // ย่อให้พอดีกับกรอบ thumbnail (~160px)
+        const viewport = page.getViewport({ scale });
+        const canvas = document.createElement("canvas");
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+        result = canvas.toDataURL("image/jpeg", 0.8);
+    } catch (e) {
+        console.warn("renderPdfPageThumbnail failed:", url, e);
+    }
+    pdfThumbCache.set(url, result);
+    return result;
+}
+
+// เรนเดอร์ภาพย่อ PDF ให้ช่อง thumbnail เดียวที่ระบุ (element ต้องมี data-pdf-thumb เป็น url ของไฟล์)
+async function hydrateSinglePdfThumb(el) {
+    const url = el.getAttribute('data-pdf-thumb');
+    if (!url) return;
+    const dataUrl = await renderPdfPageThumbnail(url);
+    if (dataUrl) el.innerHTML = `<img src="${dataUrl}" alt="" loading="lazy">`;
+    // เรนเดอร์ไม่สำเร็จ (ไฟล์เสีย/ไม่ใช่ PDF จริง) ปล่อยไอคอน 📄 เดิมไว้เป็น fallback
+}
+
+// หาช่อง PDF ที่ยังไม่เรนเดอร์ภาพย่อทั้งหมดในคอนเทนเนอร์ที่ระบุ แล้วเรนเดอร์ให้ทีละช่อง (async, ไม่บล็อกการวาดตารางไฟล์หลัก)
+function hydratePdfThumbnails(containerEl) {
+    if (!containerEl) return;
+    containerEl.querySelectorAll('[data-pdf-thumb]').forEach(hydrateSinglePdfThumb);
+}
+
+// <img> โหลดไม่สำเร็จ (ไฟล์เก่าที่นามสกุลหายไปแต่จริงๆ เป็น PDF) — ลองเรนเดอร์เป็นภาพย่อ PDF แทนก่อน fallback เป็นไอคอน
+function tryPdfThumbFallback(imgEl) {
+    const container = imgEl.closest('.drive-tile-thumb');
+    if (!container) return;
+    const url = container.getAttribute('data-fallback-url') || '';
+    container.innerHTML = '📄';
+    container.setAttribute('data-pdf-thumb', url);
+    hydrateSinglePdfThumb(container);
 }
 
 function renderDriveAddTile(label, triggerCall) {
@@ -6767,8 +6899,10 @@ function renderWorkerFolderTiles() {
         if (!query) tiles.push(renderDriveAddTile(file.label, `triggerFolderFileUpload('${file.key}')`));
     });
 
-    document.getElementById("worker-folder-files-list").innerHTML = tiles.join('') ||
+    const workerFolderListEl = document.getElementById("worker-folder-files-list");
+    workerFolderListEl.innerHTML = tiles.join('') ||
         `<p class="text-muted" style="grid-column:1/-1; text-align:center; padding:20px;">❌ ไม่พบไฟล์ตามคำค้นหา</p>`;
+    hydratePdfThumbnails(workerFolderListEl);
 }
 
 function openWorkerFolderModal(workerId) {
@@ -6993,6 +7127,7 @@ const WORKER_DOC_TYPES = [
     { key: "worker-pink-card", label: "บัตรชมพู", keywords: ["pink card", "pinkcard", "บัตรชมพู", "ชมพู"] },
     { key: "worker-receipt", label: "ใบเสร็จรับเงิน", keywords: ["receipt", "ใบเสร็จ"] },
     { key: "worker-medical", label: "ใบรับรองแพทย์", keywords: ["medical", "แพทย์", "รับรองแพทย์"] },
+    { key: "worker-insurance-doc", label: "ประกัน", keywords: ["insurance", "ประกัน"] },
     { key: "worker-application", label: "ใบคำขอ", keywords: ["application", "คำขอ", "บต.46", "บต46"] }
 ];
 
@@ -7353,9 +7488,18 @@ async function revokeWorkerShareLink(workerId) {
     showToast("🚫 ยกเลิกลิงก์แชร์เรียบร้อยแล้ว", "success");
 }
 
+// เอกสารที่ถือว่าคนงานแต่ละคนควรมีครบ ใช้ทั้งเช็ค isWorkerMissingDocs และแสดงรายการที่ขาดในหน้า Dashboard
+const REQUIRED_WORKER_DOCS = [
+    { type: 'worker-wp-doc', label: 'ใบอนุญาตทำงาน (WP)' },
+    { type: 'worker-passport', label: 'พาสปอร์ต/CI' },
+    { type: 'worker-myanmar-id', label: 'บัตรประชาชน/ทะเบียนบ้านพม่า' },
+    { type: 'worker-medical', label: 'ใบรับรองแพทย์' },
+    { type: 'worker-insurance-doc', label: 'ประกัน' },
+];
+
 function isWorkerMissingDocs(w) {
     if (w.status === 'archived') return false;
-    return getAttachments(w, 'worker-wp-doc').length === 0 || getAttachments(w, 'worker-passport').length === 0;
+    return REQUIRED_WORKER_DOCS.some(doc => getAttachments(w, doc.type).length === 0);
 }
 
 function renderMissingDocsOverview() {
@@ -7386,7 +7530,7 @@ function renderMissingDocsOverview() {
         const emptyMsg = query ? "❌ ไม่พบคนงานตามคำค้นหา" : "✅ คนงานทุกคนมีเอกสารแนบในระบบครบถ้วนแล้ว!";
         tbody.innerHTML = `
             <tr>
-                <td colspan="6" class="text-muted" style="text-align: center; padding: 20px;">
+                <td colspan="10" class="text-muted" style="text-align: center; padding: 20px;">
                     ${emptyMsg}
                 </td>
             </tr>
@@ -7398,15 +7542,13 @@ function renderMissingDocsOverview() {
         const emp = customers.find(c => c.id === w.employerId);
         const empName = emp ? emp.companyName : "ไม่ระบุนายจ้าง";
 
-        const missingList = [];
-        if (getAttachments(w, 'worker-wp-doc').length === 0) missingList.push("ใบอนุญาตทำงาน (WP)");
-        if (getAttachments(w, 'worker-passport').length === 0) missingList.push("พาสปอร์ต/CI");
-
-        const missingLabels = missingList.map(item => `
-            <span class="badge" style="background-color: rgba(249, 115, 22, 0.1); color: #f97316; border: 1px solid rgba(249, 115, 22, 0.2); white-space: nowrap; margin-right: 4px;">
-                ❌ ขาด ${item}
-            </span>
-        `).join('');
+        // ช่องติ๊กเอกสารที่ขาด — ✅ มีแล้ว / ❌ ยังไม่มี ต่อเอกสารแต่ละประเภท ดูครบทุกอย่างในแถวเดียว
+        const docCells = REQUIRED_WORKER_DOCS.map(doc => {
+            const has = getAttachments(w, doc.type).length > 0;
+            return has
+                ? `<td style="text-align: center; color: #16a34a;" title="${doc.label}: มีแล้ว">✅</td>`
+                : `<td style="text-align: center; color: #dc2626;" title="${doc.label}: ขาด">❌</td>`;
+        }).join('');
 
         const avatarUrl = w.photo ? w.photo : 'data:image/svg+xml;utf8,<svg xmlns="http:' + '/' + '/www.w3.org/2000/svg" viewBox="0 0 24 24" width="32" height="32" fill="%2394a3b8"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4.42 0-8 3.58-8 8v1h16v-1c0-4.42-3.58-8-8-8z"/></svg>';
 
@@ -7420,7 +7562,7 @@ function renderMissingDocsOverview() {
                 <td><strong>${w.title ? w.title + ' ' : ''}${w.firstName} ${w.lastName || ''}</strong></td>
                 <td><span class="badge badge-gold">${w.nationality}</span></td>
                 <td>${empName}</td>
-                <td>${missingLabels}</td>
+                ${docCells}
                 <td style="text-align: center;">
                     <button class="btn btn-sm btn-gold" onclick="openWorkerFolderModal('${w.id}')" style="font-size: 11.5px; padding: 5px 12px; white-space: nowrap;">
                         📂 เปิดแฟ้มอัปเอกสาร

@@ -18,6 +18,7 @@ const ALLOWED_DOC_TYPES = [
   "worker-passport", "worker-wp-doc", "worker-visa", "worker-myanmar-id", "worker-pink-card",
   "cust-id-card", "cust-cert",
   "expense-slip",
+  "job-appointment",
 ];
 const CUSTOMER_DOC_TYPES = ["cust-id-card", "cust-cert"];
 
@@ -61,8 +62,25 @@ function buildCustomerDocPrompt(docType: string): string {
     `}`;
 }
 
+function buildAppointmentPrompt(): string {
+  return `You are a professional assistant. Parse this "ใบนัดหมาย / Appointment Form" issued by the Thai Department of ` +
+    `Employment (กรมการจัดหางาน) / e-WorkPermit system for a migrant worker's appointment (e.g. at a Mobile Work Permit ` +
+    `Unit, a CI/passport service center, or an immigration office). Only fill fields you can actually read from the ` +
+    `document — leave a field out entirely (do not guess or invent values) if it is not clearly present. ` +
+    `Output ONLY a valid JSON object matching this schema, without markdown wrapping, json declaration, or backticks:\n` +
+    `{\n` +
+    `  "appointmentDate": "Appointment date (วันที่นัดหมาย), converted to DD/MM/YYYY format (Gregorian/ค.ศ., not Buddhist year)",\n` +
+    `  "appointmentTime": "Appointment time (เวลานัดหมาย), e.g. 09:00",\n` +
+    `  "appointmentNo": "Appointment number (เลขที่นัดหมาย / Appointment No.), e.g. 4-PTN001032600071",\n` +
+    `  "appointmentLocation": "Service center/unit name and address (ชื่อศูนย์/หน่วยบริการ + สถานที่), combined as one line",\n` +
+    `  "requestNo": "Request number (เลขที่คำขอ / Request No.) if found",\n` +
+    `  "serviceType": "Service type (ประเภทบริการ / Service type) if found, in Thai"\n` +
+    `}`;
+}
+
 function buildPrompt(docType: string): string {
   if (docType === "expense-slip") return buildExpenseSlipPrompt();
+  if (docType === "job-appointment") return buildAppointmentPrompt();
   if (CUSTOMER_DOC_TYPES.includes(docType)) return buildCustomerDocPrompt(docType);
   return `You are a professional assistant. Parse this migrant worker document (${docType}) and extract the relevant fields. ` +
     `Convert all dates to DD/MM/YYYY format. Only fill fields you can actually read from the document — ` +

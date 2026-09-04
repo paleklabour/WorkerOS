@@ -52,7 +52,10 @@
         orderNo: "order_no", batchId: "batch_id", updatedAt: "updated_at",
         openedBy: "opened_by", agentId: "agent_id",
         paymentStatus: "payment_status", paymentMethod: "payment_method",
-        attachments: "attachments", closedAt: "closed_at", closedBy: "closed_by"
+        attachments: "attachments", closedAt: "closed_at", closedBy: "closed_by",
+        appointmentDate: "appointment_date", appointmentTime: "appointment_time",
+        appointmentNo: "appointment_no", appointmentLocation: "appointment_location",
+        appointmentDocUrl: "appointment_doc_url"
     };
     const AGENT_MAP = { id: "id", name: "name", createdAt: "created_at" };
     const EXPENSE_MAP = {
@@ -213,7 +216,7 @@
         const fileUrl = pub.publicUrl;
 
         let parsedData = null;
-        if (docType && ["worker-passport", "worker-wp-doc", "worker-visa", "worker-myanmar-id", "worker-pink-card", "cust-id-card", "cust-cert", "expense-slip"].includes(docType)) {
+        if (docType && ["worker-passport", "worker-wp-doc", "worker-visa", "worker-myanmar-id", "worker-pink-card", "cust-id-card", "cust-cert", "expense-slip", "job-appointment"].includes(docType)) {
             try {
                 const headers = await getAuthHeaders();
                 const ocrRes = await fetch(`${FUNCTIONS_BASE}/ocr-document`, {
