@@ -1309,6 +1309,19 @@ h1, h2, h3, h4, h5, h6 {
     background-color: rgba(16, 185, 129, 0.02);
 }
 
+/* ครอบเฉพาะโซนไอคอน/คำอธิบายด้านบน (ไม่ครอบทั้งกล่อง) เพื่อไม่ให้ input[type=file] แบบล่องหนบัง
+   คลิกไฟล์ที่แนบไปแล้ว/ปุ่มลบไฟล์ใน .ocr-status ด้านล่าง ซึ่งเดิม .file-input (position:absolute; 100%x100%)
+   ครอบทับทั้ง .upload-box ทำให้คลิกอะไรในกล่องก็โดน input ดักไว้หมด กดดู/ลบไฟล์ที่แนบไม่ได้เลย */
+.upload-box-trigger {
+    position: relative;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
 .file-input {
     position: absolute;
     top: 0;

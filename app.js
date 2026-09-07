@@ -2252,17 +2252,48 @@ function processCustomerDocFile(file, docType) {
     reader.readAsDataURL(file);
 }
 
-// สร้าง HTML รายการไฟล์ที่แนบไว้ (ยังไม่ได้อัปโหลด/บันทึก) พร้อมปุ่ม × ลบไฟล์ที่แนบผิดออกทีละไฟล์
-function renderAttachmentChipsHtml(fileList, buildRemoveCall) {
+// สร้าง HTML รายการไฟล์ที่แนบไว้ (ยังไม่ได้อัปโหลด/บันทึก) พร้อมปุ่มดูตัวอย่างไฟล์ และปุ่ม × ลบไฟล์ที่แนบผิดออกทีละไฟล์
+function renderAttachmentChipsHtml(fileList, buildRemoveCall, buildPreviewCall) {
     if (!fileList || fileList.length === 0) return '';
     return `<div style="display:flex; flex-direction:column; gap:4px; text-align:left; margin-top:4px;">` +
         fileList.map((f, idx) => `
             <div style="display:flex; align-items:center; justify-content:space-between; gap:6px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:4px; padding:3px 6px; font-size:11px;">
-                <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#166534;" title="${f.name}">✅ ${f.name}</span>
+                <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#166534; ${buildPreviewCall ? 'cursor:pointer; text-decoration:underline dotted;' : ''}"
+                      title="${buildPreviewCall ? `คลิกเพื่อดูตัวอย่างไฟล์: ${f.name}` : f.name}"
+                      ${buildPreviewCall ? `onclick="${buildPreviewCall(idx)}"` : ''}>✅ ${f.name}</span>
                 <button type="button" onclick="${buildRemoveCall(idx)}" title="ลบไฟล์นี้ออก" style="background:none; border:none; color:#dc2626; cursor:pointer; font-weight:700; font-size:14px; line-height:1; flex-shrink:0; padding:0 2px;">×</button>
             </div>
         `).join('') +
     `</div>`;
+}
+
+// เปิดไฟล์ที่แนบไว้ (ยังไม่ได้บันทึกจริง อาจเป็น data URL ในเครื่อง หรือ URL ที่อัปโหลดขึ้นคลาวด์แล้ว) ในแท็บใหม่เพื่อดูตัวอย่างก่อนกดบันทึก
+// เปิดแท็บเปล่าไว้ก่อนแบบ sync (กัน popup blocker) แล้วค่อยเซ็ต location ทีหลังหลัง fetch/แปลงเป็น blob เสร็จ
+async function previewAttachmentData(dataOrUrl) {
+    if (!dataOrUrl) return;
+    const win = window.open('', '_blank');
+    if (typeof dataOrUrl === 'string' && dataOrUrl.startsWith('data:')) {
+        try {
+            const res = await fetch(dataOrUrl);
+            const blob = await res.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            if (win) win.location.href = blobUrl;
+            return;
+        } catch (err) {
+            // แปลงเป็น blob ไม่สำเร็จ — ลองเปิด data URL ตรงๆ แทน
+        }
+    }
+    if (win) win.location.href = dataOrUrl;
+}
+
+function previewStagedWorkerAttachment(docType, index) {
+    const list = tempWorkerAttachments[docType] || [];
+    if (list[index]) previewAttachmentData(list[index].data);
+}
+
+function previewStagedCustomerAttachment(docType, index) {
+    const list = tempCustomerAttachments[docType] || [];
+    if (list[index]) previewAttachmentData(list[index].data);
 }
 
 function renderCustomerAttachmentStatus(docType) {
@@ -2270,7 +2301,7 @@ function renderCustomerAttachmentStatus(docType) {
     const uploadBox = document.getElementById(`drop-${docType}`);
     if (!statusEl) return;
     const list = tempCustomerAttachments[docType] || [];
-    statusEl.innerHTML = renderAttachmentChipsHtml(list, idx => `removeStagedCustomerAttachment('${docType}', ${idx})`);
+    statusEl.innerHTML = renderAttachmentChipsHtml(list, idx => `removeStagedCustomerAttachment('${docType}', ${idx})`, idx => `previewStagedCustomerAttachment('${docType}', ${idx})`);
     if (uploadBox) uploadBox.classList.toggle('success-upload', list.length > 0);
 }
 
@@ -2304,6 +2335,19 @@ function mapGeminiTitle(rawTitle) {
     return null;
 }
 
+// สูตรเชื่อมโยงคำนำหน้านามกับเพศ — ใช้เติมเพศให้อัตโนมัติตอนแนบไฟล์เอกสาร กรณี AI อ่านคำนำหน้าได้แต่ไม่ได้อ่านเพศแยกมาให้ (หรืออ่านเพศไม่ออก)
+const TITLE_TO_GENDER = {
+    "นาย": "Male",
+    "เด็กชาย": "Male",
+    "นาง": "Female",
+    "นางสาว": "Female",
+    "เด็กหญิง": "Female"
+};
+
+function deriveGenderFromTitle(mappedTitle) {
+    return TITLE_TO_GENDER[mappedTitle] || null;
+}
+
 // เติมข้อมูลลงฟอร์มคนงานจากผลลัพธ์ AI (Gemini) เท่านั้น — เติมเฉพาะฟิลด์ที่ AI อ่านเจอจริงๆ
 // ไม่มีการเดา/สุ่มข้อมูลใดๆ ถ้า AI อ่านฟิลด์ไหนไม่เจอ ฟิลด์นั้นจะถูกข้ามไปเฉยๆ
 function applyGeminiGenderToWorkerForm(rawGender) {
@@ -2315,7 +2359,16 @@ function applyGeminiGenderToWorkerForm(rawGender) {
 function applyGeminiTitleToWorkerForm(rawTitle) {
     const mapped = mapGeminiTitle(rawTitle);
     const titleSelect = document.getElementById("worker-title");
-    if (mapped && titleSelect) titleSelect.value = mapped;
+    if (mapped && titleSelect) {
+        titleSelect.value = mapped;
+
+        // เชื่อมโยงคำนำหน้านามกับเพศ: ถ้ายังไม่มีการเติมเพศไว้ (AI ไม่ได้อ่านเพศแยกมาให้ หรืออ่านไม่ออก) ให้เติมเพศให้อัตโนมัติตามคำนำหน้า
+        const genderSelect = document.getElementById("worker-gender");
+        const derivedGender = deriveGenderFromTitle(mapped);
+        if (genderSelect && !genderSelect.value && derivedGender) {
+            genderSelect.value = derivedGender;
+        }
+    }
 }
 
 function applyGeminiDataToWorkerForm(docType, parsedData) {
@@ -2424,7 +2477,7 @@ function processUploadedFile(file, docType) {
             if (uploadResult) {
                 renderWorkerAttachmentStatus(docType);
             } else {
-                statusEl.innerHTML = `<span class="ai-error">❌ อัปโหลดไม่สำเร็จ (ไฟล์ถูกเก็บไว้ในเครื่องชั่วคราว)</span>` + renderAttachmentChipsHtml(updatedList, idx => `removeStagedWorkerAttachment('${docType}', ${idx})`);
+                statusEl.innerHTML = `<span class="ai-error">❌ อัปโหลดไม่สำเร็จ (ไฟล์ถูกเก็บไว้ในเครื่องชั่วคราว)</span>` + renderAttachmentChipsHtml(updatedList, idx => `removeStagedWorkerAttachment('${docType}', ${idx})`, idx => `previewStagedWorkerAttachment('${docType}', ${idx})`);
                 uploadBox.classList.add("success-upload");
             }
             resolve();
@@ -2438,7 +2491,7 @@ function renderWorkerAttachmentStatus(docType) {
     const uploadBox = document.getElementById(`drop-${docType}`);
     if (!statusEl) return;
     const list = tempWorkerAttachments[docType] || [];
-    statusEl.innerHTML = renderAttachmentChipsHtml(list, idx => `removeStagedWorkerAttachment('${docType}', ${idx})`);
+    statusEl.innerHTML = renderAttachmentChipsHtml(list, idx => `removeStagedWorkerAttachment('${docType}', ${idx})`, idx => `previewStagedWorkerAttachment('${docType}', ${idx})`);
     if (uploadBox) uploadBox.classList.toggle('success-upload', list.length > 0);
 }
 
@@ -3307,7 +3360,7 @@ function renderJobs() {
     if (filtered.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="8" class="text-muted" style="text-align: center; padding: 40px;">
+                <td colspan="9" class="text-muted" style="text-align: center; padding: 40px;">
                     ❌ ไม่พบข้อมูลการสั่งงานตามตัวกรอง
                 </td>
             </tr>
@@ -3403,6 +3456,10 @@ function renderJobs() {
                         <button type="button" class="action-icon-btn" onclick="handleJobOrderNoButton('${j.id}')" title="${j.orderNo ? 'แก้ไข Order No.' : 'บันทึก Order No.'}">${j.orderNo ? '✏️' : '💾'}</button>
                     </div>
                 </td>
+                <td>
+                    <span style="font-size:12.5px;">${getUserNameById(j.openedBy)}</span>
+                    ${j.closedBy ? `<br><span style="font-size:11px; color:var(--text-muted);">🔒 ปิดโดย: ${getUserNameById(j.closedBy)}</span>` : ''}
+                </td>
                 <td class="actions-col">
                     <div class="actions-cell">
                         ${closeBtn}
@@ -3473,19 +3530,6 @@ async function saveJobOrderNo(jobId) {
     showToast(`💾 บันทึก Order No. ของ ${getJobDisplayNo(jobData)} สำเร็จ`, "success");
 }
 
-function toggleJobTypePriceInput(cb) {
-    const wrapper = cb.closest('div');
-    const priceInput = wrapper.querySelector("input[name='job-type-price']");
-    if (priceInput) {
-        priceInput.disabled = !cb.checked;
-        if (!cb.checked) {
-            priceInput.value = "";
-        } else if (!priceInput.value) {
-            priceInput.value = "";
-        }
-    }
-}
-
 function parseJobTypeItems(jobTypeStr, defaultFee) {
     if (!jobTypeStr) return [];
     
@@ -3548,12 +3592,6 @@ function openJobModal(id = null) {
     const checkBoxes = document.querySelectorAll("input[name='job-type-checkbox']");
     checkBoxes.forEach(cb => {
         cb.checked = false;
-        const wrapper = cb.closest('div');
-        const priceInput = wrapper.querySelector("input[name='job-type-price']");
-        if (priceInput) {
-            priceInput.value = "";
-            priceInput.disabled = true;
-        }
     });
 
     const statusSelect = document.getElementById("job-status");
@@ -3575,19 +3613,13 @@ function openJobModal(id = null) {
         // Trigger worker dropdown generation (จะเซ็ต Agent ให้ตามนายจ้างที่เลือกไปในตัวด้วย)
         onJobCustomerChange(j.workerId);
 
-        // Populate checkboxes and prices
+        // Populate checkboxes (ราคาไม่ได้กรอกที่ฟอร์มนี้แล้ว — ไปกำหนด/แก้ที่หน้าบัญชีและการเงินแทน)
         if (j.jobType) {
             const parsedItems = parseJobTypeItems(j.jobType, j.fee);
             checkBoxes.forEach(cb => {
                 const matchedItem = parsedItems.find(item => item.name === cb.value);
                 if (matchedItem) {
                     cb.checked = true;
-                    const wrapper = cb.closest('div');
-                    const priceInput = wrapper.querySelector("input[name='job-type-price']");
-                    if (priceInput) {
-                        priceInput.value = matchedItem.price;
-                        priceInput.disabled = false;
-                    }
                 }
             });
         }
@@ -3732,12 +3764,6 @@ function refreshJobTypeLocks() {
             wrapper.style.background = '#fef2f2';
             wrapper.style.flexWrap = 'wrap';
 
-            const priceInput = wrapper.querySelector("input[name='job-type-price']");
-            if (priceInput) {
-                priceInput.disabled = true;
-                priceInput.value = "";
-            }
-
             const note = document.createElement('div');
             note.className = 'job-type-lock-note';
             note.style.cssText = 'width:100%; font-size:10.5px; color:#b91c1c; margin-top:2px; line-height:1.4;';
@@ -3840,29 +3866,26 @@ async function saveJob(e) {
         return;
     }
 
-    let totalFee = 0;
+    // ไม่กรอกราคาที่ฟอร์มนี้แล้ว — ราคาค่าบริการไปกำหนด/แก้ไขได้ที่หน้า "บัญชีและการเงิน" แทน
     const selectedItems = [];
     checkBoxes.forEach(cb => {
-        const wrapper = cb.closest('div');
-        const priceInput = wrapper.querySelector("input[name='job-type-price']");
-        const price = priceInput && priceInput.value ? parseFloat(priceInput.value) : 0;
-        totalFee += price;
-        selectedItems.push({ name: cb.value, price });
+        selectedItems.push({ name: cb.value });
     });
 
-    const jobTypeLabel = selectedItems.map(it => `${it.name} (${it.price})`).join(", ");
+    const jobTypeLabel = selectedItems.map(it => it.name).join(", ");
     const status = document.getElementById("job-status").value;
     const notes = document.getElementById("job-notes").value;
     const updatedAt = new Date().toISOString().split('T')[0];
 
-    if (!customerId || !jobTypeLabel || isNaN(totalFee)) {
-        alert("กรุณากรอกข้อมูลสั่งงานและเลือกประเภทงานพร้อมระบุราคาอย่างน้อย 1 รายการ");
+    if (!customerId || !jobTypeLabel) {
+        alert("กรุณากรอกข้อมูลสั่งงานและเลือกประเภทงานที่แจ้งอย่างน้อย 1 รายการ");
         return;
     }
 
     if (editId) {
         // Edit mode: save as a single job (คงค่า batchId, createdAt, สถานะการเงิน/ปิดงาน/ผู้เปิดงานเดิมไว้เสมอ
         // เพื่อไม่ให้ "เลขที่แจ้งงาน" ซึ่งอิงวันที่เปิดงานครั้งแรกเปลี่ยนไปตอนแก้ไข)
+        // ราคา (fee) คงค่าเดิมไว้เสมอ — แก้ราคาได้ที่หน้าบัญชีและการเงินเท่านั้น ไม่ใช่จากฟอร์มนี้
         const originalJob = jobs.find(item => item.id === editId);
         const workerId = workerIds[0];
         const jobData = {
@@ -3870,7 +3893,7 @@ async function saveJob(e) {
             batchId: originalJob ? (originalJob.batchId || null) : null,
             createdAt: originalJob ? (originalJob.createdAt || originalJob.updatedAt) : updatedAt,
             orderNo: originalJob ? (originalJob.orderNo || null) : null,
-            customerId, workerId, jobType: jobTypeLabel, fee: totalFee, status, notes, updatedAt, agentId,
+            customerId, workerId, jobType: jobTypeLabel, fee: originalJob ? originalJob.fee : 0, status, notes, updatedAt, agentId,
             appointmentDate: parseDateInput(document.getElementById("job-appointment-date").value.trim()),
             appointmentTime: document.getElementById("job-appointment-time").value.trim() || null,
             appointmentNo: document.getElementById("job-appointment-no").value.trim() || null,
@@ -3908,8 +3931,8 @@ async function saveJob(e) {
                     createdAt: updatedAt,
                     customerId,
                     workerId: wid,
-                    jobType: `${item.name} (${item.price})`,
-                    fee: item.price,
+                    jobType: item.name,
+                    fee: 0,
                     status: status,
                     notes: notes,
                     orderNo: null,
@@ -4905,6 +4928,8 @@ function openInvoiceModal(jobId) {
         const cust = customers.find(c => c.id === j.customerId);
         const work = workers.find(w => w.id === j.workerId);
 
+        updateInvoiceBillingNote(cust);
+
         // Fill Client Info
         document.getElementById("inv-cust-name").innerText = cust ? cust.companyName : "ไม่ระบุบริษัท/ลูกค้า";
         const branchHq = cust ? (cust.branches.find(b => b.name.includes("สำนักงานใหญ่")) || cust.branches[0]) : null;
@@ -4980,6 +5005,9 @@ function openInvoiceModal(jobId) {
         ];
         currentInvoiceJobIds = [];
 
+        // บิลอิสระไม่ได้ผูกกับนายจ้างรายใดรายหนึ่งแน่นอน (ชื่อที่เติมมาเป็นแค่ค่าเริ่มต้นให้แก้ไข) จึงไม่แสดง note วางบิล
+        updateInvoiceBillingNote(null);
+
         if (markPaidBtn) markPaidBtn.style.display = 'inline-block';
         if (saveEditsBtn) saveEditsBtn.style.display = 'none'; // บิลอิสระไม่ได้ผูกกับใบงานจริง ไม่มีอะไรให้บันทึกย้อนกลับ
     }
@@ -4992,6 +5020,19 @@ function openInvoiceModal(jobId) {
     renderInvoiceItemsTable();
 
     document.getElementById("invoice-modal").classList.remove("hidden");
+}
+
+// แสดง note วางบิลของนายจ้างรายนี้ (ถ้ามี) ให้เจ้าหน้าที่เห็นก่อนออกบิล — เป็น no-print จึงไม่ถูกพิมพ์ลงในใบแจ้งหนี้ที่ให้ลูกค้า
+function updateInvoiceBillingNote(cust) {
+    const noteWrap = document.getElementById("invoice-billing-note-wrap");
+    const noteText = document.getElementById("invoice-billing-note-text");
+    if (!noteWrap || !noteText) return;
+    if (cust && cust.billingNote) {
+        noteText.innerText = cust.billingNote;
+        noteWrap.classList.remove("hidden");
+    } else {
+        noteWrap.classList.add("hidden");
+    }
 }
 
 function closeInvoiceModal() {
@@ -6977,8 +7018,9 @@ function triggerFolderFileUpload(docType) {
 // เติมข้อมูลคนงานจากผลลัพธ์ AI OCR — ใช้ร่วมกันทั้งอัปโหลดทีละไฟล์ และนำเข้าหลายไฟล์พร้อมกัน (bulk import)
 function applyOcrDataToWorker(w, docType, p) {
     if (!p) return;
-    const gender = mapGeminiGender(p.gender);
     const title = mapGeminiTitle(p.title);
+    // เชื่อมโยงคำนำหน้านามกับเพศ: ถ้า AI ไม่ได้อ่านเพศแยกมาให้ (หรืออ่านไม่ออก) ใช้คำนำหน้าที่อ่านได้มาเดาเพศแทน
+    const gender = mapGeminiGender(p.gender) || deriveGenderFromTitle(title);
 
     if (docType === 'worker-wp-doc') {
         if (p.permitNo) w.permitNo = p.permitNo;
@@ -7633,6 +7675,11 @@ function renderJobsKanban(filtered) {
 
     filtered.forEach(j => {
         const displayStatus = j.status;
+
+        // จบครบแล้วจริงๆ (ปิดงาน + ลูกค้าชำระเงินครบแล้ว) ไม่ต้องค้างโชว์บนบอร์ด Kanban อีกต่อไป —
+        // ดูย้อนหลังได้ที่หน้ารายการ (ตาราง) หรือแท็บ "ออกบิล/รับเงิน" > ตัวกรอง "ชำระแล้ว"/"ทั้งหมด" แทน
+        if (displayStatus === 'ปิดงานแล้ว' && j.paymentStatus === 'ชำระเงินแล้ว') return;
+
         const container = containers[displayStatus] || containers["รอดำเนินการ"];
         if (container) {
             counts[displayStatus]++;
@@ -7703,6 +7750,7 @@ function renderJobsKanban(filtered) {
                     <div style="font-weight: 600; font-size: 12.5px; color: #1e293b; line-height: 1.4;">👤 ${workName}</div>
                     <div style="font-size: 11.5px; color: #64748b;" ${custIdTitle ? `title="${custIdTitle}"` : ''}>🏢 ${custName}</div>
                     ${jobAgent ? `<div style="font-size: 11px; color: #64748b;">👤 Agent: ${jobAgent.name}</div>` : ''}
+                    <div style="font-size: 10.5px; color: #94a3b8;">📝 เปิดงานโดย: ${getUserNameById(j.openedBy)}${j.closedBy ? ` • 🔒 ปิดโดย: ${getUserNameById(j.closedBy)}` : ''}</div>
                     ${batchTag}
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; padding-top: 8px; border-top: 1px solid #f1f5f9;">
                         <div style="font-size: 12px; font-weight: 700; color: #0f172a;">💰 ${j.fee.toLocaleString()} บ.</div>

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="th">
 <head>
     <meta charset="UTF-8">
@@ -689,6 +689,7 @@
                                         <th>อีเมลคนงาน</th>
                                         <th>สถานะดำเนินการ</th>
                                         <th>Order No.</th>
+                                        <th>เปิดงานโดย</th>
                                         <th class="actions-col">จัดการ</th>
                                     </tr>
                                 </thead>
@@ -734,7 +735,7 @@
                                 <!-- Column: Closed (ปิดงานแล้ว — เข้าได้เฉพาะผ่านปุ่ม "ปิดงาน" ที่แนบเอกสาร ลากเข้ามาตรงๆ ไม่ได้) -->
                                 <div class="kanban-column" style="flex: 1; min-width: 250px; background: #f8fafc; border-radius: var(--radius-md); border: 1px solid #e2e8f0; display: flex; flex-direction: column; height: fit-content; max-height: 650px;">
                                     <div class="kanban-column-header" style="padding: 12px; border-bottom: 2px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f1f5f9; border-top-left-radius: var(--radius-md); border-top-right-radius: var(--radius-md);">
-                                        <h4 style="font-weight: 600; font-size: 13px; color: #475569; margin: 0;" title="เข้าคอลัมน์นี้ได้เฉพาะผ่านปุ่ม 📎 ปิดงาน (ต้องแนบเอกสารก่อน)">🔒 ปิดงานแล้ว</h4>
+                                        <h4 style="font-weight: 600; font-size: 13px; color: #475569; margin: 0;" title="เข้าคอลัมน์นี้ได้เฉพาะผ่านปุ่ม 📎 ปิดงาน (ต้องแนบเอกสารก่อน) — งานที่ปิดแล้วและลูกค้าชำระเงินครบแล้วจะถูกซ่อนออกจากคอลัมน์นี้อัตโนมัติ (ดูย้อนหลังได้ที่หน้ารายการหรือแท็บออกบิล/รับเงิน)">🔒 ปิดงานแล้ว</h4>
                                         <div style="display: flex; gap: 4px; align-items: center;">
                                             <span class="badge badge-danger" id="count-kanban-completed-unbilled" style="font-size: 10px; padding: 2px 6px; display: none;" title="ปิดงานแล้วแต่ยังไม่ได้รับชำระเงิน (ไม่ว่าจะออกบิลไปแล้วหรือยัง) — หายไปเมื่อลูกค้าชำระครบแล้ว">⚠️ 0 ยังไม่ได้ชำระ</span>
                                             <span class="badge badge-success" id="count-kanban-completed" style="font-size: 11px; padding: 2px 8px;">0</span>
@@ -1321,10 +1322,12 @@
                         <div class="form-group">
                             <label>แนบสลิป/ใบเสร็จ (ถ้ามี — AI จะอ่านและกรอกข้อมูลด้านล่างให้อัตโนมัติ)</label>
                             <div class="upload-box highlight-box" id="drop-expense-slip" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropExpenseSlipHandler(event)" style="padding: 14px;">
-                                <input type="file" id="file-expense-slip" class="file-input" accept="image/*,application/pdf" onchange="expenseSlipFileSelectHandler(event)">
+                                <div class="upload-box-trigger">
+                                    <input type="file" id="file-expense-slip" class="file-input" accept="image/*,application/pdf" onchange="expenseSlipFileSelectHandler(event)">
                                 <div class="upload-icon">🧾</div>
                                 <span class="doc-title">สลิปโอนเงิน / ใบเสร็จ</span>
                                 <span class="upload-hint">ลากไฟล์วางที่นี่ หรือคลิกเพื่ออัปโหลด</span>
+                                </div>
                                 <div class="ocr-status" id="status-expense-slip"></div>
                             </div>
                             <div id="expense-slip-attached" class="hidden" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; padding: 8px 12px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); font-size: 12.5px;">
@@ -1496,64 +1499,78 @@
                             <div class="doc-upload-grid">
                                 <!-- Doc 1: ID Card -->
                                 <div class="upload-box" id="drop-cust-id-card" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropCustomerDocHandler(event, 'cust-id-card')">
-                                    <input type="file" id="file-cust-id-card" class="file-input" multiple onchange="customerFileSelectHandler(event, 'cust-id-card')">
+                                    <div class="upload-box-trigger">
+                                        <input type="file" id="file-cust-id-card" class="file-input" multiple onchange="customerFileSelectHandler(event, 'cust-id-card')">
                                     <div class="upload-icon">🪪</div>
                                     <span class="doc-title">บัตรประชาชนนายจ้าง</span>
                                     <span class="upload-hint">ลากไฟล์วางที่นี่ หรือคลิกเพื่ออัปโหลด (แนบเพิ่มได้หลายไฟล์)</span>
+                                    </div>
                                     <div class="ocr-status" id="status-cust-id-card"></div>
                                 </div>
 
                                 <!-- Doc 2: Company Certificate -->
                                 <div class="upload-box highlight-box" id="drop-cust-cert" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropCustomerDocHandler(event, 'cust-cert')">
-                                    <input type="file" id="file-cust-cert" class="file-input" multiple onchange="customerFileSelectHandler(event, 'cust-cert')">
+                                    <div class="upload-box-trigger">
+                                        <input type="file" id="file-cust-cert" class="file-input" multiple onchange="customerFileSelectHandler(event, 'cust-cert')">
                                     <div class="upload-icon">📜</div>
                                     <span class="doc-title">หนังสือรับรองบริษัท</span>
                                     <span class="upload-hint">ลากไฟล์วางที่นี่ หรือคลิกเพื่ออัปโหลด (แนบเพิ่มได้หลายไฟล์)</span>
+                                    </div>
                                     <div class="ocr-status" id="status-cust-cert"></div>
                                 </div>
 
                                 <!-- Doc 3: Company House Reg -->
                                 <div class="upload-box" id="drop-cust-house" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropCustomerDocHandler(event, 'cust-house')">
-                                    <input type="file" id="file-cust-house" class="file-input" multiple onchange="customerFileSelectHandler(event, 'cust-house')">
+                                    <div class="upload-box-trigger">
+                                        <input type="file" id="file-cust-house" class="file-input" multiple onchange="customerFileSelectHandler(event, 'cust-house')">
                                     <div class="upload-icon">🏠</div>
                                     <span class="doc-title">ทะเบียนบ้านบริษัท</span>
                                     <span class="upload-hint">ลากไฟล์วางที่นี่ หรือคลิกเพื่ออัปโหลด (แนบเพิ่มได้หลายไฟล์)</span>
+                                    </div>
                                     <div class="ocr-status" id="status-cust-house"></div>
                                 </div>
 
                                 <!-- Doc 4: Employer House Reg -->
                                 <div class="upload-box" id="drop-employer-house" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropCustomerDocHandler(event, 'employer-house')">
-                                    <input type="file" id="file-employer-house" class="file-input" multiple onchange="customerFileSelectHandler(event, 'employer-house')">
+                                    <div class="upload-box-trigger">
+                                        <input type="file" id="file-employer-house" class="file-input" multiple onchange="customerFileSelectHandler(event, 'employer-house')">
                                     <div class="upload-icon">🏡</div>
                                     <span class="doc-title">ทะเบียนบ้านนายจ้าง</span>
                                     <span class="upload-hint">ลากไฟล์วางที่นี่ หรือคลิกเพื่ออัปโหลด (แนบเพิ่มได้หลายไฟล์)</span>
+                                    </div>
                                     <div class="ocr-status" id="status-employer-house"></div>
                                 </div>
 
                                 <!-- Doc 5: Business Photos -->
                                 <div class="upload-box" id="drop-cust-photos" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropCustomerDocHandler(event, 'cust-photos')">
-                                    <input type="file" id="file-cust-photos" class="file-input" multiple onchange="customerFileSelectHandler(event, 'cust-photos')">
+                                    <div class="upload-box-trigger">
+                                        <input type="file" id="file-cust-photos" class="file-input" multiple onchange="customerFileSelectHandler(event, 'cust-photos')">
                                     <div class="upload-icon">📸</div>
                                     <span class="doc-title">รูปถ่ายกิจการ</span>
                                     <span class="upload-hint">ลากไฟล์วางที่นี่ หรือคลิกเพื่ออัปโหลด (แนบเพิ่มได้หลายไฟล์)</span>
+                                    </div>
                                     <div class="ocr-status" id="status-cust-photos"></div>
                                 </div>
 
                                 <!-- Doc 6: Commercial Reg -->
                                 <div class="upload-box" id="drop-cust-commerce" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropCustomerDocHandler(event, 'cust-commerce')">
-                                    <input type="file" id="file-cust-commerce" class="file-input" multiple onchange="customerFileSelectHandler(event, 'cust-commerce')">
+                                    <div class="upload-box-trigger">
+                                        <input type="file" id="file-cust-commerce" class="file-input" multiple onchange="customerFileSelectHandler(event, 'cust-commerce')">
                                     <div class="upload-icon">💼</div>
                                     <span class="doc-title">ทะเบียนพาณิชย์ (ถ้ามี)</span>
                                     <span class="upload-hint">ลากไฟล์วางที่นี่ หรือคลิกเพื่ออัปโหลด (แนบเพิ่มได้หลายไฟล์)</span>
+                                    </div>
                                     <div class="ocr-status" id="status-cust-commerce"></div>
                                 </div>
 
                                 <!-- Doc 7: Other -->
                                 <div class="upload-box" id="drop-cust-other" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropCustomerDocHandler(event, 'cust-other')">
-                                    <input type="file" id="file-cust-other" class="file-input" multiple onchange="customerFileSelectHandler(event, 'cust-other')">
+                                    <div class="upload-box-trigger">
+                                        <input type="file" id="file-cust-other" class="file-input" multiple onchange="customerFileSelectHandler(event, 'cust-other')">
                                     <div class="upload-icon">📎</div>
                                     <span class="doc-title">เอกสารอื่นๆ</span>
                                     <span class="upload-hint">ลากไฟล์วางที่นี่ หรือคลิกเพื่ออัปโหลด (แนบเพิ่มได้หลายไฟล์)</span>
+                                    </div>
                                     <div class="ocr-status" id="status-cust-other"></div>
                                 </div>
                             </div>
@@ -1901,73 +1918,89 @@
                             <div class="doc-upload-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
                                 <!-- Doc 1: WP / Personal -->
                                 <div class="upload-box highlight-box" id="drop-worker-wp-doc" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropDocHandler(event, 'worker-wp-doc')">
-                                    <input type="file" id="file-worker-wp-doc" class="file-input" multiple onchange="fileSelectHandler(event, 'worker-wp-doc')">
+                                    <div class="upload-box-trigger">
+                                        <input type="file" id="file-worker-wp-doc" class="file-input" multiple onchange="fileSelectHandler(event, 'worker-wp-doc')">
                                     <div class="upload-icon">🪪</div>
                                     <span class="doc-title">เอกสารใบอนุญาตทำงาน (1.1)</span>
                                     <span class="upload-hint">ลากไฟล์วางที่นี่ หรือคลิกเพื่ออัปโหลด (แนบเพิ่มได้หลายไฟล์)</span>
+                                    </div>
                                     <div class="ocr-status" id="status-worker-wp-doc"></div>
                                 </div>
 
                                 <!-- Doc 2: Passport -->
                                 <div class="upload-box highlight-box" id="drop-worker-passport" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropDocHandler(event, 'worker-passport')">
-                                    <input type="file" id="file-worker-passport" class="file-input" multiple onchange="fileSelectHandler(event, 'worker-passport')">
+                                    <div class="upload-box-trigger">
+                                        <input type="file" id="file-worker-passport" class="file-input" multiple onchange="fileSelectHandler(event, 'worker-passport')">
                                     <div class="upload-icon">✈️</div>
                                     <span class="doc-title">พาสปอร์ต / CI (1.2)</span>
                                     <span class="upload-hint">ลากไฟล์วางที่นี่ หรือคลิกเพื่ออัปโหลด (แนบเพิ่มได้หลายไฟล์)</span>
+                                    </div>
                                     <div class="ocr-status" id="status-worker-passport"></div>
                                 </div>
 
                                 <!-- Doc 3: Myanmar Card / House Reg -->
                                 <div class="upload-box" id="drop-worker-myanmar-id" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropDocHandler(event, 'worker-myanmar-id')">
-                                    <input type="file" id="file-worker-myanmar-id" class="file-input" multiple onchange="fileSelectHandler(event, 'worker-myanmar-id')">
+                                    <div class="upload-box-trigger">
+                                        <input type="file" id="file-worker-myanmar-id" class="file-input" multiple onchange="fileSelectHandler(event, 'worker-myanmar-id')">
                                     <div class="upload-icon">🏡</div>
                                     <span class="doc-title">บัตรประชาชน/ทะเบียนบ้านพม่า</span>
                                     <span class="upload-hint">ลากวางไฟล์ หรือคลิกอัปโหลด (แนบเพิ่มได้หลายไฟล์)</span>
+                                    </div>
                                     <div class="ocr-status" id="status-worker-myanmar-id"></div>
                                 </div>
 
                                 <!-- Doc 4: Pink Card -->
                                 <div class="upload-box" id="drop-worker-pink-card" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropDocHandler(event, 'worker-pink-card')">
-                                    <input type="file" id="file-worker-pink-card" class="file-input" multiple onchange="fileSelectHandler(event, 'worker-pink-card')">
+                                    <div class="upload-box-trigger">
+                                        <input type="file" id="file-worker-pink-card" class="file-input" multiple onchange="fileSelectHandler(event, 'worker-pink-card')">
                                     <div class="upload-icon">🌸</div>
                                     <span class="doc-title">บัตรชมพู (Pink Card)</span>
                                     <span class="upload-hint">ลากวางไฟล์ หรือคลิกอัปโหลด (แนบเพิ่มได้หลายไฟล์)</span>
+                                    </div>
                                     <div class="ocr-status" id="status-worker-pink-card"></div>
                                 </div>
 
                                 <!-- Doc 5: Receipt -->
                                 <div class="upload-box" id="drop-worker-receipt" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropDocHandler(event, 'worker-receipt')">
-                                    <input type="file" id="file-worker-receipt" class="file-input" multiple onchange="fileSelectHandler(event, 'worker-receipt')">
+                                    <div class="upload-box-trigger">
+                                        <input type="file" id="file-worker-receipt" class="file-input" multiple onchange="fileSelectHandler(event, 'worker-receipt')">
                                     <div class="upload-icon">🧾</div>
                                     <span class="doc-title">ใบเสร็จ (Receipt)</span>
                                     <span class="upload-hint">ลากวางไฟล์ หรือคลิกอัปโหลด (แนบเพิ่มได้หลายไฟล์)</span>
+                                    </div>
                                     <div class="ocr-status" id="status-worker-receipt"></div>
                                 </div>
 
                                 <!-- Doc 6: Other -->
                                 <div class="upload-box" id="drop-worker-other" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropDocHandler(event, 'worker-other')">
-                                    <input type="file" id="file-worker-other" class="file-input" multiple onchange="fileSelectHandler(event, 'worker-other')">
+                                    <div class="upload-box-trigger">
+                                        <input type="file" id="file-worker-other" class="file-input" multiple onchange="fileSelectHandler(event, 'worker-other')">
                                     <div class="upload-icon">📎</div>
                                     <span class="doc-title">เอกสารอื่นๆ</span>
                                     <span class="upload-hint">ลากวางไฟล์ หรือคลิกอัปโหลด (แนบเพิ่มได้หลายไฟล์)</span>
+                                    </div>
                                     <div class="ocr-status" id="status-worker-other"></div>
                                 </div>
 
                                 <!-- Doc 7: Health Certificate -->
                                 <div class="upload-box" id="drop-worker-medical" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropDocHandler(event, 'worker-medical')">
-                                    <input type="file" id="file-worker-medical" class="file-input" multiple onchange="fileSelectHandler(event, 'worker-medical')">
+                                    <div class="upload-box-trigger">
+                                        <input type="file" id="file-worker-medical" class="file-input" multiple onchange="fileSelectHandler(event, 'worker-medical')">
                                     <div class="upload-icon">🩺</div>
                                     <span class="doc-title">ใบรับรองแพทย์</span>
                                     <span class="upload-hint">ลากวางไฟล์ หรือคลิกอัปโหลด (แนบเพิ่มได้หลายไฟล์)</span>
+                                    </div>
                                     <div class="ocr-status" id="status-worker-medical"></div>
                                 </div>
 
                                 <!-- Doc 8: Insurance -->
                                 <div class="upload-box" id="drop-worker-insurance-doc" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropDocHandler(event, 'worker-insurance-doc')">
-                                    <input type="file" id="file-worker-insurance-doc" class="file-input" multiple onchange="fileSelectHandler(event, 'worker-insurance-doc')">
+                                    <div class="upload-box-trigger">
+                                        <input type="file" id="file-worker-insurance-doc" class="file-input" multiple onchange="fileSelectHandler(event, 'worker-insurance-doc')">
                                     <div class="upload-icon">🛡️</div>
                                     <span class="doc-title">ประกัน (เอกชน/รัฐ/ประกันสังคม)</span>
                                     <span class="upload-hint">ลากวางไฟล์ หรือคลิกอัปโหลด (แนบเพิ่มได้หลายไฟล์)</span>
+                                    </div>
                                     <div class="ocr-status" id="status-worker-insurance-doc"></div>
                                 </div>
                             </div>
@@ -2023,123 +2056,72 @@
 
                         <div class="form-group" style="margin-bottom: 15px;">
                             <label style="font-weight: 600; font-size: 13px; color: var(--navy-dark); margin-bottom: 8px; display: block;">ประเภทงานที่แจ้ง (เลือกได้หลายรายการ) <span class="required">*</span></label>
+                            <small class="text-muted" style="display:block; margin-bottom: 8px;">กำหนดราคาค่าบริการภายหลังได้ที่หน้า "บัญชีและการเงิน" &rarr; แท็บ "ออกบิล / รับเงิน"</small>
                             <div id="job-type-checkboxes-container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: var(--radius-sm); padding: 12px;">
-                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
+                                <div style="display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
                                     <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
-                                        <input type="checkbox" name="job-type-checkbox" value="ขึ้นทะเบียนแรงงานต่างด้าว" onchange="toggleJobTypePriceInput(this)" style="width: 16px; height: 16px;"> ขึ้นทะเบียนแรงงานฯ
+                                        <input type="checkbox" name="job-type-checkbox" value="ขึ้นทะเบียนแรงงานต่างด้าว" style="width: 16px; height: 16px;"> ขึ้นทะเบียนแรงงานฯ
                                     </label>
-                                    <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
-                                        <input type="number" name="job-type-price" placeholder="ราคา" min="0" disabled style="width: 75px; padding: 4px 6px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: right; margin: 0; outline: none;">
-                                        <span style="font-size: 11px; color: var(--text-muted);">บ.</span>
-                                    </div>
                                 </div>
-                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
+                                <div style="display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
                                     <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
-                                        <input type="checkbox" name="job-type-checkbox" value="ต่อเล่ม CI/Passport" onchange="toggleJobTypePriceInput(this)" style="width: 16px; height: 16px;"> ต่อเล่ม CI/Passport
+                                        <input type="checkbox" name="job-type-checkbox" value="ต่อเล่ม CI/Passport" style="width: 16px; height: 16px;"> ต่อเล่ม CI/Passport
                                     </label>
-                                    <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
-                                        <input type="number" name="job-type-price" placeholder="ราคา" min="0" disabled style="width: 75px; padding: 4px 6px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: right; margin: 0; outline: none;">
-                                        <span style="font-size: 11px; color: var(--text-muted);">บ.</span>
-                                    </div>
                                 </div>
-                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
+                                <div style="display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
                                     <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
-                                        <input type="checkbox" name="job-type-checkbox" value="ตี VISA" onchange="toggleJobTypePriceInput(this)" style="width: 16px; height: 16px;"> ตี VISA
+                                        <input type="checkbox" name="job-type-checkbox" value="ตี VISA" style="width: 16px; height: 16px;"> ตี VISA
                                     </label>
-                                    <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
-                                        <input type="number" name="job-type-price" placeholder="ราคา" min="0" disabled style="width: 75px; padding: 4px 6px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: right; margin: 0; outline: none;">
-                                        <span style="font-size: 11px; color: var(--text-muted);">บ.</span>
-                                    </div>
                                 </div>
-                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
+                                <div style="display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
                                     <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
-                                        <input type="checkbox" name="job-type-checkbox" value="ย้ายตรา" onchange="toggleJobTypePriceInput(this)" style="width: 16px; height: 16px;"> ย้ายตรา
+                                        <input type="checkbox" name="job-type-checkbox" value="ย้ายตรา" style="width: 16px; height: 16px;"> ย้ายตรา
                                     </label>
-                                    <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
-                                        <input type="number" name="job-type-price" placeholder="ราคา" min="0" disabled style="width: 75px; padding: 4px 6px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: right; margin: 0; outline: none;">
-                                        <span style="font-size: 11px; color: var(--text-muted);">บ.</span>
-                                    </div>
                                 </div>
-                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
+                                <div style="display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
                                     <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
-                                        <input type="checkbox" name="job-type-checkbox" value="แจ้งเข้าคนงานต่างด้าว" onchange="toggleJobTypePriceInput(this)" style="width: 16px; height: 16px;"> แจ้งเข้าคนงานฯ
+                                        <input type="checkbox" name="job-type-checkbox" value="แจ้งเข้าคนงานต่างด้าว" style="width: 16px; height: 16px;"> แจ้งเข้าคนงานฯ
                                     </label>
-                                    <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
-                                        <input type="number" name="job-type-price" placeholder="ราคา" min="0" disabled style="width: 75px; padding: 4px 6px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: right; margin: 0; outline: none;">
-                                        <span style="font-size: 11px; color: var(--text-muted);">บ.</span>
-                                    </div>
                                 </div>
-                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
+                                <div style="display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
                                     <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
-                                        <input type="checkbox" name="job-type-checkbox" value="แจ้งออกคนงานต่างด้าว" onchange="toggleJobTypePriceInput(this)" style="width: 16px; height: 16px;"> แจ้งออกคนงานฯ
+                                        <input type="checkbox" name="job-type-checkbox" value="แจ้งออกคนงานต่างด้าว" style="width: 16px; height: 16px;"> แจ้งออกคนงานฯ
                                     </label>
-                                    <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
-                                        <input type="number" name="job-type-price" placeholder="ราคา" min="0" disabled style="width: 75px; padding: 4px 6px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: right; margin: 0; outline: none;">
-                                        <span style="font-size: 11px; color: var(--text-muted);">บ.</span>
-                                    </div>
                                 </div>
-                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
+                                <div style="display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
                                     <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
-                                        <input type="checkbox" name="job-type-checkbox" value="เปลี่ยน/แก้ไข ใบอนุญาตทำงาน" onchange="toggleJobTypePriceInput(this)" style="width: 16px; height: 16px;"> เปลี่ยน/แก้ ใบอนุญาตฯ
+                                        <input type="checkbox" name="job-type-checkbox" value="เปลี่ยน/แก้ไข ใบอนุญาตทำงาน" style="width: 16px; height: 16px;"> เปลี่ยน/แก้ ใบอนุญาตฯ
                                     </label>
-                                    <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
-                                        <input type="number" name="job-type-price" placeholder="ราคา" min="0" disabled style="width: 75px; padding: 4px 6px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: right; margin: 0; outline: none;">
-                                        <span style="font-size: 11px; color: var(--text-muted);">บ.</span>
-                                    </div>
                                 </div>
-                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
+                                <div style="display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
                                     <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
-                                        <input type="checkbox" name="job-type-checkbox" value="ออกใบรับรองแพทย์" onchange="toggleJobTypePriceInput(this)" style="width: 16px; height: 16px;"> ออกใบรับรองแพทย์
+                                        <input type="checkbox" name="job-type-checkbox" value="ออกใบรับรองแพทย์" style="width: 16px; height: 16px;"> ออกใบรับรองแพทย์
                                     </label>
-                                    <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
-                                        <input type="number" name="job-type-price" placeholder="ราคา" min="0" disabled style="width: 75px; padding: 4px 6px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: right; margin: 0; outline: none;">
-                                        <span style="font-size: 11px; color: var(--text-muted);">บ.</span>
-                                    </div>
                                 </div>
-                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
+                                <div style="display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
                                     <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
-                                        <input type="checkbox" name="job-type-checkbox" value="ซื้อประกัน" onchange="toggleJobTypePriceInput(this)" style="width: 16px; height: 16px;"> ซื้อประกัน
+                                        <input type="checkbox" name="job-type-checkbox" value="ซื้อประกัน" style="width: 16px; height: 16px;"> ซื้อประกัน
                                     </label>
-                                    <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
-                                        <input type="number" name="job-type-price" placeholder="ราคา" min="0" disabled style="width: 75px; padding: 4px 6px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: right; margin: 0; outline: none;">
-                                        <span style="font-size: 11px; color: var(--text-muted);">บ.</span>
-                                    </div>
                                 </div>
-                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
+                                <div style="display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
                                     <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
-                                        <input type="checkbox" name="job-type-checkbox" value="ทำบัตร ผู้ไม่มีสัญชาติไทย" onchange="toggleJobTypePriceInput(this)" style="width: 16px; height: 16px;"> ทำบัตรผู้ไม่มีสัญชาติฯ
+                                        <input type="checkbox" name="job-type-checkbox" value="ทำบัตร ผู้ไม่มีสัญชาติไทย" style="width: 16px; height: 16px;"> ทำบัตรผู้ไม่มีสัญชาติฯ
                                     </label>
-                                    <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
-                                        <input type="number" name="job-type-price" placeholder="ราคา" min="0" disabled style="width: 75px; padding: 4px 6px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: right; margin: 0; outline: none;">
-                                        <span style="font-size: 11px; color: var(--text-muted);">บ.</span>
-                                    </div>
                                 </div>
-                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
+                                <div style="display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
                                     <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
-                                        <input type="checkbox" name="job-type-checkbox" value="แจ้งเข้าประกันสังคม" onchange="toggleJobTypePriceInput(this)" style="width: 16px; height: 16px;"> แจ้งเข้าประกันสังคม
+                                        <input type="checkbox" name="job-type-checkbox" value="แจ้งเข้าประกันสังคม" style="width: 16px; height: 16px;"> แจ้งเข้าประกันสังคม
                                     </label>
-                                    <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
-                                        <input type="number" name="job-type-price" placeholder="ราคา" min="0" disabled style="width: 75px; padding: 4px 6px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: right; margin: 0; outline: none;">
-                                        <span style="font-size: 11px; color: var(--text-muted);">บ.</span>
-                                    </div>
                                 </div>
-                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
+                                <div style="display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
                                     <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
-                                        <input type="checkbox" name="job-type-checkbox" value="แจ้งที่พัก TM.30" onchange="toggleJobTypePriceInput(this)" style="width: 16px; height: 16px;"> แจ้งที่พัก TM.30
+                                        <input type="checkbox" name="job-type-checkbox" value="แจ้งที่พัก TM.30" style="width: 16px; height: 16px;"> แจ้งที่พัก TM.30
                                     </label>
-                                    <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
-                                        <input type="number" name="job-type-price" placeholder="ราคา" min="0" disabled style="width: 75px; padding: 4px 6px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: right; margin: 0; outline: none;">
-                                        <span style="font-size: 11px; color: var(--text-muted);">บ.</span>
-                                    </div>
                                 </div>
-                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm); grid-column: span 2;">
+                                <div style="display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm); grid-column: span 2;">
                                     <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
-                                        <input type="checkbox" name="job-type-checkbox" value="อื่นๆ" onchange="toggleJobTypePriceInput(this)" style="width: 16px; height: 16px;"> อื่นๆ
+                                        <input type="checkbox" name="job-type-checkbox" value="อื่นๆ" style="width: 16px; height: 16px;"> อื่นๆ
                                     </label>
-                                    <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
-                                        <input type="number" name="job-type-price" placeholder="ราคา" min="0" disabled style="width: 75px; padding: 4px 6px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: right; margin: 0; outline: none;">
-                                        <span style="font-size: 11px; color: var(--text-muted);">บ.</span>
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -2163,10 +2145,12 @@
                             <div class="form-group">
                                 <label>ใบนัดหมาย (แนบไฟล์แล้ว AI จะอ่านวันที่/เวลา/เลขที่นัดหมาย/สถานที่ให้อัตโนมัติ)</label>
                                 <div class="upload-box" id="drop-job-appointment" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropJobAppointmentFile(event)">
-                                    <input type="file" id="file-job-appointment" class="file-input" onchange="jobAppointmentFileSelected(event)">
+                                    <div class="upload-box-trigger">
+                                        <input type="file" id="file-job-appointment" class="file-input" onchange="jobAppointmentFileSelected(event)">
                                     <div class="upload-icon">📅</div>
                                     <span class="doc-title">ใบนัดหมาย</span>
                                     <span class="upload-hint">ลากวางไฟล์ หรือคลิกเพื่ออัปโหลด (แนบได้ 1 ไฟล์ต่อใบงาน แนบใหม่จะแทนที่ไฟล์เดิม)</span>
+                                    </div>
                                     <div class="ocr-status" id="status-job-appointment"></div>
                                 </div>
                             </div>
@@ -2316,6 +2300,14 @@
                         <button class="btn btn-gold" onclick="window.print()" style="margin-top: 20px;">
                             🖨️ พิมพ์ใบวางบิล (Print)
                         </button>
+                    </div>
+
+                    <!-- Note สำหรับวางบิล: แสดงให้เจ้าหน้าที่เห็นก่อนออกบิลเท่านั้น ไม่ถูกพิมพ์ลงในใบแจ้งหนี้ที่ให้ลูกค้า -->
+                    <div class="no-print hidden" id="invoice-billing-note-wrap" style="margin-bottom: 15px;">
+                        <div style="background-color: #fffbeb; border: 1px solid #fde68a; border-radius: var(--radius-sm); padding: 12px 14px; font-size: 13px; color: #92400e;">
+                            <strong>📌 Note วางบิลของนายจ้างรายนี้:</strong>
+                            <p id="invoice-billing-note-text" style="margin: 6px 0 0; white-space: pre-line; line-height: 1.5;"></p>
+                        </div>
                     </div>
 
                     <!-- Print Layout Sheet -->
