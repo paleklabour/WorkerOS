@@ -245,22 +245,11 @@ h1, h2, h3, h4, h5, h6 {
     margin-bottom: 28px;
 }
 
-.logo-gold {
-    width: 52px;
-    height: 52px;
-    background: linear-gradient(135deg, var(--gold-primary) 0%, #3b82f6 100%);
-    border-radius: var(--radius-md);
+.login-logo {
+    display: block;
+    height: 224px;
+    width: auto;
     margin: 0 auto 16px auto;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #ffffff;
-    box-shadow: 0 4px 6px rgba(30, 58, 138, 0.15);
-}
-
-.logo-gold svg {
-    width: 26px;
-    height: 26px;
 }
 
 .login-header h2 {
@@ -386,25 +375,22 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .sidebar-brand {
-    padding: 24px;
+    padding: 20px 24px;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 12px;
+    gap: 4px;
     border-bottom: 1px solid #f1f5f9;
 }
 
-.brand-logo {
-    width: 34px;
-    height: 34px;
-    background: linear-gradient(135deg, var(--gold-primary) 0%, #3b82f6 100%);
-    border-radius: var(--radius-sm);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #ffffff;
-    font-weight: 700;
-    font-size: 15px;
-    box-shadow: 0 2px 4px rgba(30, 58, 138, 0.1);
+.brand-logo-img {
+    height: 165px;
+    width: auto;
+    display: block;
+}
+
+.sidebar-brand .brand-text {
+    text-align: center;
 }
 
 .brand-text h3 {

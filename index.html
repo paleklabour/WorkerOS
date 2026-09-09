@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="ระบบบริหารจัดการข้อมูลคนงานต่างด้าวและลูกค้าผู้ว่าจ้าง พร้อมระบบแจ้งเตือนเอกสารหมดอายุ">
     <title>ระบบบริหารจัดการคนงานต่างด้าว (Migrant Worker Management System)</title>
+    <link rel="icon" type="image/png" href="assets/logo.png">
     <!-- Google Fonts: Inter & Prompt (Thai) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -21,12 +22,7 @@
             <div class="login-container">
                 <div class="login-card">
                     <div class="login-header">
-                        <div class="logo-gold">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
-                        </div>
+                        <img src="assets/logo.png" alt="NKT Service" class="login-logo">
                         <h2>เข้าสู่ระบบ</h2>
                         <p class="subtitle">ระบบจัดการคนงานต่างด้าวและลูกค้าผู้ว่าจ้าง</p>
                     </div>
@@ -56,11 +52,7 @@
             <div class="login-container">
                 <div class="login-card">
                     <div class="login-header">
-                        <div class="logo-gold">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
-                            </svg>
-                        </div>
+                        <img src="assets/logo.png" alt="NKT Service" class="login-logo">
                         <h2>ตั้งรหัสผ่านใหม่</h2>
                         <p class="subtitle">กรุณาตั้งรหัสผ่านใหม่เพื่อเข้าใช้งานระบบ</p>
                     </div>
@@ -90,9 +82,8 @@
             <!-- Sidebar Navigation -->
             <aside class="sidebar">
                 <div class="sidebar-brand">
-                    <div class="brand-logo">NKT</div>
+                    <img src="assets/logo.png" alt="NKT Service" class="brand-logo-img">
                     <div class="brand-text">
-                        <h3>NKT Service</h3>
                         <span>Worker System</span>
                     </div>
                 </div>
@@ -798,6 +789,7 @@
                                 <thead>
                                     <tr>
                                         <th>ชื่อ Agent</th>
+                                        <th style="width: 140px;">เบอร์โทร</th>
                                         <th style="text-align: center; width: 160px;">นายจ้างที่แนะนำ</th>
                                         <th style="text-align: center; width: 140px;">งานที่ส่ง</th>
                                         <th class="actions-col">จัดการ</th>
@@ -1298,6 +1290,10 @@
                         <div class="form-group">
                             <label for="agent-name">ชื่อ Agent <span class="required">*</span></label>
                             <input type="text" id="agent-name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="agent-phone">เบอร์โทร</label>
+                            <input type="tel" id="agent-phone">
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-outline" onclick="closeAgentModal()">ยกเลิก</button>
@@ -2353,7 +2349,7 @@
                                     <th style="white-space: nowrap;">รายการคำขอแจ้งงานต่างด้าว (Services Description)</th>
                                     <th style="width: 80px; text-align: center;">จำนวน</th>
                                     <th style="width: 130px; text-align: right; white-space: nowrap;">ราคาต่อหน่วย (บาท)</th>
-                                    <th style="width: 130px; text-align: right;">จำนวนเงิน (บาท)</th>
+                                    <th style="width: 130px; text-align: right; white-space: nowrap;">จำนวนเงิน (บาท)</th>
                                 </tr>
                             </thead>
                             <tbody id="invoice-items-tbody">

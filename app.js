@@ -3997,7 +3997,7 @@ function renderAgentsList() {
     const filtered = query ? agents.filter(a => (a.name || "").toLowerCase().includes(query)) : agents;
 
     if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" class="text-muted" style="text-align:center; padding:20px;">❌ ${query ? 'ไม่พบ Agent ตามคำค้นหา' : 'ยังไม่มี Agent ในระบบ (กดเพิ่ม Agent ใหม่ด้านบน)'}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" class="text-muted" style="text-align:center; padding:20px;">❌ ${query ? 'ไม่พบ Agent ตามคำค้นหา' : 'ยังไม่มี Agent ในระบบ (กดเพิ่ม Agent ใหม่ด้านบน)'}</td></tr>`;
         return;
     }
 
@@ -4007,6 +4007,7 @@ function renderAgentsList() {
         return `
         <tr>
             <td><strong>${a.name}</strong></td>
+            <td>${a.phone || '-'}</td>
             <td style="text-align:center;">${referredCount} ราย</td>
             <td style="text-align:center;">${jobCount} งาน</td>
             <td class="actions-col">
@@ -4047,7 +4048,10 @@ function openAgentModal(id = null) {
 
     if (id) {
         const a = agents.find(item => item.id === id);
-        if (a) document.getElementById("agent-name").value = a.name;
+        if (a) {
+            document.getElementById("agent-name").value = a.name;
+            document.getElementById("agent-phone").value = a.phone || "";
+        }
     }
 
     document.getElementById("agent-modal").classList.remove("hidden");
@@ -4061,12 +4065,13 @@ async function saveAgentForm(e) {
     e.preventDefault();
     const editId = document.getElementById("agent-edit-id").value;
     const name = document.getElementById("agent-name").value.trim();
+    const phone = document.getElementById("agent-phone").value.trim();
     if (!name) {
         alert("กรุณากรอกชื่อ Agent");
         return;
     }
 
-    const agentData = { id: editId || ('agent-' + Date.now().toString().slice(-8)), name };
+    const agentData = { id: editId || ('agent-' + Date.now().toString().slice(-8)), name, phone };
     showToast("💾 กำลังบันทึก Agent...", "warning");
     const res = await callCloudAPI("saveAgent", { agentData });
     if (!res || res.status === "error") {
@@ -5013,8 +5018,11 @@ function openInvoiceModal(jobId) {
     }
 
     // Populate bank account dropdown selection list
+    // ตั้ง "เงินสด" เป็นค่าเริ่มต้นเสมอ — ถ้าไม่ตั้ง .value ชัดเจน เบราว์เซอร์จะเลือก option แรก (บัญชีธนาคาร)
+    // โดยอัตโนมัติ ทำให้ช่องแนบสลิปโผล่มาบังคับแนบไฟล์ทั้งที่ยังไม่ได้เลือกช่องทางโอนเงินเลย
     selectBank.innerHTML = banks.map(b => `<option value="${b.id}">${b.bankName} - ${b.accountName}</option>`).join('') +
         '<option value="cash">💵 รับชำระเป็นเงินสด (Cash Payment)</option>';
+    selectBank.value = 'cash';
 
     // Render invoice items and calculate totals
     renderInvoiceItemsTable();
@@ -5589,9 +5597,12 @@ function generateCombinedInvoice() {
     currentInvoiceJobIds = selectedJobIds;
 
     // Open invoice sheet
+    // ตั้ง "เงินสด" เป็นค่าเริ่มต้นเสมอ — ถ้าไม่ตั้ง .value ชัดเจน เบราว์เซอร์จะเลือก option แรก (บัญชีธนาคาร)
+    // โดยอัตโนมัติ ทำให้ช่องแนบสลิปโผล่มาบังคับแนบไฟล์ทั้งที่ยังไม่ได้เลือกช่องทางโอนเงินเลย
     const selectBank = document.getElementById("invoice-bank-select");
     selectBank.innerHTML = banks.map(b => `<option value="${b.id}">${b.bankName} - ${b.accountName}</option>`).join('') +
         '<option value="cash">💵 รับชำระเป็นเงินสด (Cash Payment)</option>';
+    selectBank.value = 'cash';
 
     renderInvoiceItemsTable();
 

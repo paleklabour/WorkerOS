@@ -57,7 +57,7 @@
         appointmentNo: "appointment_no", appointmentLocation: "appointment_location",
         appointmentDocUrl: "appointment_doc_url"
     };
-    const AGENT_MAP = { id: "id", name: "name", createdAt: "created_at" };
+    const AGENT_MAP = { id: "id", name: "name", phone: "phone", createdAt: "created_at" };
     const EXPENSE_MAP = {
         id: "id", expenseDate: "expense_date", category: "category", amount: "amount",
         description: "description", paymentMethod: "payment_method", attachment: "attachment",
