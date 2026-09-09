@@ -30,7 +30,7 @@
         coordinator: "coordinator", phone: "phone", createdAt: "created_at",
         branches: "branches", drive_folder_id: "drive_folder_id", directorId: "director_id",
         attachments: "attachments", shareToken: "share_token", referredByAgentId: "referred_by_agent_id",
-        billingNote: "billing_note", deliveryAddress: "delivery_address"
+        billingNote: "billing_note", deliveryAddress: "delivery_address", requirePrepayment: "require_prepayment"
     };
     const WORKER_MAP = {
         id: "id", employerId: "employer_id", title: "title", nationality: "nationality",

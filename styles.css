@@ -247,7 +247,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .login-logo {
     display: block;
-    height: 224px;
+    height: 160px;
     width: auto;
     margin: 0 auto 16px auto;
 }
@@ -384,7 +384,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .brand-logo-img {
-    height: 165px;
+    height: 94px;
     width: auto;
     display: block;
 }

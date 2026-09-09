@@ -151,6 +151,16 @@ function isJobStatusOpen(status) {
     return JOB_OPEN_STATUSES.includes(status);
 }
 
+// ลูกค้าบางรายตั้งไว้ (customers.requirePrepayment) ว่าต้องออกบิล+รับชำระก่อน ถึงจะเริ่ม
+// "กำลังดำเนินการ" ได้ — คืนข้อความบล็อกถ้าเข้าเงื่อนไขต้องห้าม ไม่งั้นคืน null (ผ่าน)
+function jobPrepaymentBlockReason(customerId, targetStatus, currentPaymentStatus) {
+    if (targetStatus !== 'กำลังดำเนินการ') return null;
+    const cust = customers.find(c => c.id === customerId);
+    if (!cust || !cust.requirePrepayment) return null;
+    if (currentPaymentStatus === 'ชำระเงินแล้ว') return null;
+    return `❌ ย้ายเข้า "กำลังดำเนินการ" ไม่ได้: นายจ้าง "${cust.companyName}" ตั้งไว้ว่าต้องออกบิลและรับชำระเงินก่อนเริ่มดำเนินการ`;
+}
+
 // ตัดราคาที่ต่อท้ายในชื่อประเภทงาน เช่น "แจ้งเข้าคนงานต่างด้าว (2500)" -> "แจ้งเข้าคนงานต่างด้าว"
 function getCleanJobTypeName(jobTypeStr) {
     return (jobTypeStr || "").replace(/\s*\(\d+\)/g, "").trim();
@@ -1714,8 +1724,11 @@ function renderCustomers() {
         const activeWorkersCount = workers.filter(w => w.employerId === c.id && w.status !== 'archived' && w.status !== 'deleted').length;
         const totalWorkersCount = workers.filter(w => w.employerId === c.id && w.status !== 'deleted').length;
         
-        const statusLabel = c.status === 'deleted' ? 
-            ' <span class="badge" style="background-color: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); font-size: 10px; padding: 2px 6px; margin-left: 4px;">ลบแล้ว/เก็บถาวร</span>' : 
+        const statusLabel = c.status === 'deleted' ?
+            ' <span class="badge" style="background-color: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); font-size: 10px; padding: 2px 6px; margin-left: 4px;">ลบแล้ว/เก็บถาวร</span>' :
+            '';
+        const prepaymentLabel = c.requirePrepayment ?
+            ' <span class="badge" style="background-color: #fffbeb; color: #92400e; border: 1px solid #fde68a; font-size: 10px; padding: 2px 6px; margin-left: 4px;" title="ต้องออกบิลและรับชำระก่อนย้ายใบงานเข้ากำลังดำเนินการ">💰 ต้องชำระก่อนดำเนินการ</span>' :
             '';
         
         const attachHtml = `
@@ -1734,7 +1747,7 @@ function renderCustomers() {
         return `
             <tr>
                 <td><strong>${c.taxId}</strong></td>
-                <td><strong>${c.companyName}${statusLabel}</strong></td>
+                <td><strong>${c.companyName}${statusLabel}${prepaymentLabel}</strong></td>
                 <td><span class="badge badge-gold">${c.businessType}</span></td>
                 <td>${hqAddress}</td>
                 <td>
@@ -2534,6 +2547,7 @@ function openCustomerModal(id = null) {
         document.getElementById("cust-coordinator").value = c.coordinator;
         document.getElementById("cust-phone").value = c.phone;
         document.getElementById("cust-billing-note").value = c.billingNote || "";
+        document.getElementById("cust-require-prepayment").checked = !!c.requirePrepayment;
         refreshCustomerAgentDropdown(c.referredByAgentId);
 
         customerBranches = JSON.parse(JSON.stringify(c.branches)); // Clone
@@ -2704,6 +2718,7 @@ async function saveCustomer(e) {
     const phone = document.getElementById("cust-phone").value;
     const referredByAgentId = document.getElementById("cust-referred-by-agent").value || null;
     const billingNote = document.getElementById("cust-billing-note").value.trim();
+    const requirePrepayment = document.getElementById("cust-require-prepayment").checked;
     const deliverySameAsMain = document.getElementById("cust-delivery-same-as-main").checked;
     const deliveryAddress = deliverySameAsMain
         ? { sameAsMain: true }
@@ -2746,7 +2761,7 @@ async function saveCustomer(e) {
             const oldDriveId = customers[idx].drive_folder_id || "";
             const oldAttachments = JSON.parse(JSON.stringify(customers[idx].attachments || {}));
             customerData = {
-                id: editId, taxId, companyName, directorId, businessType, coordinator, phone, referredByAgentId, billingNote, deliveryAddress, branches: customerBranches, createdAt: oldCreatedAt, drive_folder_id: oldDriveId, attachments: oldAttachments
+                id: editId, taxId, companyName, directorId, businessType, coordinator, phone, referredByAgentId, billingNote, requirePrepayment, deliveryAddress, branches: customerBranches, createdAt: oldCreatedAt, drive_folder_id: oldDriveId, attachments: oldAttachments
             };
         }
     } else {
@@ -2754,7 +2769,7 @@ async function saveCustomer(e) {
         const newId = 'cust-' + Date.now();
         const createdAt = new Date().toISOString().split('T')[0];
         customerData = {
-            id: newId, taxId, companyName, directorId, businessType, coordinator, phone, referredByAgentId, billingNote, deliveryAddress, branches: customerBranches, createdAt, drive_folder_id: "", attachments: {}
+            id: newId, taxId, companyName, directorId, businessType, coordinator, phone, referredByAgentId, billingNote, requirePrepayment, deliveryAddress, branches: customerBranches, createdAt, drive_folder_id: "", attachments: {}
         };
     }
 
@@ -3879,6 +3894,15 @@ async function saveJob(e) {
 
     if (!customerId || !jobTypeLabel) {
         alert("กรุณากรอกข้อมูลสั่งงานและเลือกประเภทงานที่แจ้งอย่างน้อย 1 รายการ");
+        return;
+    }
+
+    // ลูกค้าที่ตั้ง "ต้องชำระก่อนดำเนินการ" ไว้ — ใบงานเดิม (edit) เช็คสถานะการเงินจริง,
+    // ใบงานใหม่ (add) ยังไม่เคยออกบิล/รับชำระแน่นอนจึงบล็อกเสมอถ้าเลือกสถานะนี้ตั้งแต่แรก
+    const existingJobForGate = editId ? jobs.find(item => item.id === editId) : null;
+    const gateBlockReason = jobPrepaymentBlockReason(customerId, status, existingJobForGate ? existingJobForGate.paymentStatus : null);
+    if (gateBlockReason) {
+        alert(gateBlockReason + "\n\nกรุณาเปิดงานด้วยสถานะ \"รอดำเนินการ\" ไปก่อน แล้วไปออกบิล/รับชำระที่หน้าบัญชีและการเงิน ก่อนย้ายเข้ากำลังดำเนินการ");
         return;
     }
 
@@ -7817,6 +7841,15 @@ async function onKanbanDrop(e, targetStatus) {
         // "ปิดงานแล้ว" เข้าได้เฉพาะผ่านปุ่ม 📎 ปิดงาน (ต้องแนบเอกสารก่อน) ลากเข้าคอลัมน์นี้ตรงๆ ไม่ได้
         if (targetStatus === 'ปิดงานแล้ว') {
             showToast("📎 ปิดงานต้องแนบเอกสารก่อน — กดปุ่ม \"ปิดงาน\" ที่ใบงานแทนการลาก", "warning");
+            renderJobs();
+            return;
+        }
+
+        // ลูกค้าที่ตั้ง "ต้องชำระก่อนดำเนินการ" ไว้ — บล็อกการลากเข้า "กำลังดำเนินการ"
+        // จนกว่าใบงานนี้จะออกบิล+รับชำระแล้วจริง
+        const gateBlockReason = jobPrepaymentBlockReason(job.customerId, targetStatus, job.paymentStatus);
+        if (gateBlockReason) {
+            showToast(gateBlockReason, "danger");
             renderJobs();
             return;
         }
