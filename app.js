@@ -1111,11 +1111,18 @@ function renderRenewalGroups() {
             const daysDiff = daysLeftOf(w);
             return `
                 <tr class="clickable-row" onclick="openWorkerModal('${w.id}')" title="คลิกเพื่อดูรายละเอียดคนงาน">
-                    <td>${w.workerUid || '-'}</td>
-                    <td>${w.firstName || ''} ${w.lastName || ''}</td>
+                    <td>
+                        <div><strong>${w.refNo || '-'}</strong></div>
+                        <small class="text-muted">เลขประจำตัวคนต่างด้าว: ${w.workerUid || '-'}</small><br>
+                        <small class="text-muted">เลขที่ใบอนุญาตทำงาน: ${w.permitNo || '-'}</small>
+                    </td>
+                    <td>
+                        <div>${w.firstName || ''} ${w.lastName || ''}</div>
+                        ${w.thaiName ? `<div><small class="text-muted">ชื่อไทย (บัตรชมพู): ${w.thaiName}</small></div>` : ''}
+                        <small class="text-muted">เพศ: ${w.gender || '-'}</small>
+                    </td>
                     <td>${w.nationality || '-'}</td>
                     <td>${emp ? emp.companyName : '-'}</td>
-                    <td>${w.permitNo || '-'}</td>
                     <td>${w.permitExpiry || '-'}</td>
                     <td>${statusBadgeOf(daysDiff)}</td>
                     <td>${bookBadgeOf(w)}</td>
@@ -1136,10 +1143,10 @@ function renderRenewalGroups() {
                         <thead>
                             <tr>
                                 <th>เลขคนงาน</th><th>ชื่อ-นามสกุล</th><th>สัญชาติ</th><th>นายจ้าง</th>
-                                <th>เลขใบอนุญาต</th><th>วันหมดอายุ</th><th>สถานะ</th><th>เล่ม (พาสปอร์ต)</th>
+                                <th>วันหมดอายุ</th><th>สถานะ</th><th>เล่ม (พาสปอร์ต)</th>
                             </tr>
                         </thead>
-                        <tbody>${rows || `<tr><td colspan="8" style="text-align:center; padding: 16px;">ไม่มีข้อมูล</td></tr>`}</tbody>
+                        <tbody>${rows || `<tr><td colspan="7" style="text-align:center; padding: 16px;">ไม่มีข้อมูล</td></tr>`}</tbody>
                     </table>
                 </div>
             </div>
@@ -1148,7 +1155,7 @@ function renderRenewalGroups() {
 
     let html = '';
     batchGroups.forEach(g => {
-        html += buildGroupPanel(`กลุ่ม ${g.date.toLocaleDateString('th-TH')}`, g.workers);
+        html += buildGroupPanel(`มติ ครม. ต่ออายุ (ใบอนุญาตหมดอายุ ${g.date.toLocaleDateString('th-TH')})`, g.workers);
     });
     if (mouWorkers.length > 0) {
         html += buildGroupPanel('กลุ่ม MOU', mouWorkers);
@@ -1467,7 +1474,7 @@ function renderBillingTab() {
                 <td><strong>${getJobDisplayNo(j)}</strong></td>
                 <td><span class="badge badge-gold">${cleanJobType}</span></td>
                 <td>${custName}${custIdLines}</td>
-                <td>${workName}</td>
+                <td>${workName}${work && work.workerUid ? `<br><small class="text-muted">เลขประจำตัว: ${work.workerUid}</small>` : ''}</td>
                 <td><strong>${j.fee.toLocaleString()} บาท</strong></td>
                 <td><span class="badge ${statusClass}">${j.status}</span></td>
                 <td>${paymentBadge}</td>
@@ -1900,7 +1907,7 @@ function renderWorkers() {
     if (filtered.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="9" class="text-muted" style="text-align: center; padding: 40px;">
+                <td colspan="8" class="text-muted" style="text-align: center; padding: 40px;">
                     ❌ ไม่พบข้อมูลคนงานต่างด้าวตามตัวกรอง
                 </td>
             </tr>
@@ -1965,7 +1972,9 @@ function renderWorkers() {
         return `
             <tr>
                 <td>
-                    <div><strong>${w.workerUid || '-'}</strong></div>
+                    <div><strong>${w.refNo || '-'}</strong></div>
+                    <small class="text-muted">เลขประจำตัวคนต่างด้าว: ${w.workerUid || '-'}</small><br>
+                    <small class="text-muted">เลขที่ใบอนุญาตทำงาน: ${w.permitNo || '-'}</small>
                 </td>
                 <td>
                     <div style="display: flex; align-items: center; gap: 10px;">
@@ -1974,6 +1983,8 @@ function renderWorkers() {
                         </div>
                         <div>
                             <strong>${w.title ? w.title + ' ' : ''}${w.firstName || '-'} ${w.lastName || ''}</strong>
+                            ${w.thaiName ? `<div><small class="text-muted">ชื่อไทย (บัตรชมพู): ${w.thaiName}</small></div>` : ''}
+                            <div><small class="text-muted">เพศ: ${w.gender || '-'}</small></div>
                             ${(w.fatherName || w.motherName) ? `<div style="font-size:10px; color:var(--text-muted); margin-top:2px;">พ่อ: ${w.fatherName || '-'} / แม่: ${w.motherName || '-'}</div>` : ''}
                         </div>
                     </div>
@@ -1983,15 +1994,7 @@ function renderWorkers() {
                     <div>เล่ม: ${w.passportNo || '-'}</div>
                     ${pExpDate ? `
                     <small class="${pDiff < 0 ? 'text-danger' : (pDiff <= 180 ? 'text-warning' : 'text-muted')}">
-                        หมดอายุ: ${pExpDate.toLocaleDateString('th-TH')} (${pDiff < 0 ? 'หมดอายุแล้ว' : `อีก ${pDiff} วัน`})
-                    </small>
-                    ` : '<small class="text-muted">หมดอายุ: -</small>'}
-                </td>
-                <td>
-                    <div>เลขที่: ${w.permitNo || '-'}</div>
-                    ${wpExpDate ? `
-                    <small class="${wpDiff < 0 ? 'text-danger' : (wpDiff <= 60 ? 'text-warning' : 'text-muted')}">
-                        หมดอายุ: ${wpExpDate.toLocaleDateString('th-TH')} (${wpDiff < 0 ? 'หมดอายุแล้ว' : `อีก ${wpDiff} วัน`})
+                        หมดอายุ: ${pExpDate.toLocaleDateString('th-TH')}
                     </small>
                     ` : '<small class="text-muted">หมดอายุ: -</small>'}
                 </td>
@@ -2247,22 +2250,71 @@ function customerFileSelectHandler(e, docType) {
     }
 }
 
-// เก็บไฟล์แนบของนายจ้างไว้ในหน่วยความจำก่อน (ยังไม่อัปโหลดขึ้น Drive ทันที) เพราะตอนนี้ลูกค้า/นายจ้าง
-// อาจยังไม่มี id หรือโฟลเดอร์ Drive จริง (กรณีเพิ่มนายจ้างใหม่) — ไฟล์จะถูกอัปโหลดจริงหลังกด "บันทึกข้อมูล"
-// สำเร็จแล้วเท่านั้น เพื่อให้ไฟล์ไปอยู่ในโฟลเดอร์ของนายจ้างรายนั้นถูกต้อง ไม่มีการอ่านข้อมูลด้วย AI ใดๆ
+// เติมฟอร์ม "เพิ่ม/แก้ไขข้อมูลนายจ้าง" จากผลลัพธ์ AI OCR (คู่กับ applyOcrDataToCustomer ที่ใช้ฝั่งแฟ้มเอกสาร/object)
+function applyGeminiDataToCustomerForm(docType, parsedData) {
+    if (!parsedData) return;
+    const setVal = (id, val) => {
+        if (val === undefined || val === null || val === "") return;
+        const el = document.getElementById(id);
+        if (el) el.value = val;
+    };
+
+    if (docType === 'cust-id-card') {
+        setVal("cust-director-id", parsedData.directorId);
+        const coordInput = document.getElementById("cust-coordinator");
+        if (parsedData.coordinatorName && coordInput && !coordInput.value) coordInput.value = parsedData.coordinatorName;
+    } else if (docType === 'cust-cert' || docType === 'cust-commerce') {
+        setVal("cust-company-name", parsedData.companyName);
+        setVal("cust-tax-id", parsedData.taxId);
+    } else if (docType === 'cust-house') {
+        const nameInput = document.getElementById("cust-company-name");
+        if (parsedData.companyName && nameInput && !nameInput.value) nameInput.value = parsedData.companyName;
+    }
+}
+
+// แนบไฟล์เอกสารนายจ้างแล้วอัปโหลดขึ้น Supabase Storage ทันที (เหมือนฟอร์มคนงาน — ใช้ Gemini จริงอ่านข้อมูลให้)
+// นายจ้างใหม่ที่ยังไม่มี id ก็อัปโหลดได้ตามปกติ (uploadDocumentFile รองรับ customerId ว่างอยู่แล้ว เหมือน workerId
+// ว่างของฟอร์มคนงาน) จึงไม่ต้องรอให้กด "บันทึกข้อมูล" ก่อนเหมือนเดิม — ผู้ใช้เห็นผล AI เติมฟอร์มได้ก่อนบันทึกจริง
 // แนบได้หลายไฟล์ต่อประเภทเอกสาร (สะสมไว้ทั้งหมด) และลบไฟล์ที่แนบผิดออกได้ก่อนกดบันทึก
 function processCustomerDocFile(file, docType) {
     const statusEl = document.getElementById(`status-${docType}`);
-    if (!statusEl) return;
+    const uploadBox = document.getElementById(`drop-${docType}`);
+    if (!statusEl) return Promise.resolve();
 
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        const fileContent = e.target.result;
-        const updatedList = [...(tempCustomerAttachments[docType] || []), { name: file.name, data: fileContent }];
-        tempCustomerAttachments[docType] = updatedList;
-        renderCustomerAttachmentStatus(docType);
-    };
-    reader.readAsDataURL(file);
+    statusEl.innerHTML = `<span class="ai-processing">📎 กำลังแนบไฟล์...</span>`;
+
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+            const fileContent = e.target.result;
+
+            const editId = document.getElementById("customer-edit-id").value;
+            const nameClean = (document.getElementById("cust-company-name").value.trim() || "customer").replace(/\s+/g, '_');
+            const existingList = tempCustomerAttachments[docType] || [];
+            const suffix = existingList.length > 0 ? `_${existingList.length + 1}` : "";
+            const fileName = `${nameClean}_${docType}${suffix}${extFromDataUrl(fileContent)}`;
+
+            const uploadResult = await uploadDocumentFile(fileContent, fileName, editId, "", docType);
+            const storedUrl = uploadResult ? uploadResult.fileUrl : null;
+            const serverUrl = storedUrl || await uploadFileToServer(fileContent, fileName);
+            const updatedList = [...(tempCustomerAttachments[docType] || []), { name: fileName, data: serverUrl || fileContent }];
+            tempCustomerAttachments[docType] = updatedList;
+
+            if (uploadResult && uploadResult.parsedData) {
+                applyGeminiDataToCustomerForm(docType, uploadResult.parsedData);
+                showToast("✨ AI อ่านข้อมูลจากเอกสารและกรอกฟอร์มให้อัตโนมัติแล้ว กรุณาตรวจสอบความถูกต้องอีกครั้ง", "success");
+            }
+
+            if (uploadResult) {
+                renderCustomerAttachmentStatus(docType);
+            } else {
+                statusEl.innerHTML = `<span class="ai-error">❌ อัปโหลดไม่สำเร็จ (ไฟล์ถูกเก็บไว้ในเครื่องชั่วคราว)</span>` + renderAttachmentChipsHtml(updatedList, idx => `removeStagedCustomerAttachment('${docType}', ${idx})`, idx => `previewStagedCustomerAttachment('${docType}', ${idx})`);
+                if (uploadBox) uploadBox.classList.add("success-upload");
+            }
+            resolve();
+        };
+        reader.readAsDataURL(file);
+    });
 }
 
 // สร้าง HTML รายการไฟล์ที่แนบไว้ (ยังไม่ได้อัปโหลด/บันทึก) พร้อมปุ่มดูตัวอย่างไฟล์ และปุ่ม × ลบไฟล์ที่แนบผิดออกทีละไฟล์
@@ -2434,6 +2486,8 @@ function applyGeminiDataToWorkerForm(docType, parsedData) {
         applyNationality();
         applyGeminiGenderToWorkerForm(parsedData.gender);
         applyGeminiTitleToWorkerForm(parsedData.title);
+    } else if (docType === 'worker-insurance-doc') {
+        setVal("worker-insurance-no", parsedData.insuranceNo);
     }
 }
 
@@ -2800,47 +2854,22 @@ async function saveCustomer(e) {
         showToast("เพิ่มข้อมูลนายจ้าง/ลูกค้าคนใหม่สำเร็จ", "success");
     }
 
-    // อัปโหลดไฟล์แนบที่ค้างไว้ (ถ้ามี) ตอนนี้ลูกค้ามี id จริงแล้ว — แนบเพิ่มได้หลายไฟล์ต่อประเภทเอกสาร
-    // (รวมเข้ากับไฟล์เดิมที่มีอยู่แล้ว ไม่เขียนทับ เผื่อกรณีแก้ไขลูกค้าที่มีเอกสารเดิมอยู่ก่อนแล้ว)
+    // ไฟล์แนบถูกอัปโหลดขึ้น Storage ไปแล้วตั้งแต่ตอนเลือกไฟล์ (ดู processCustomerDocFile) — เหลือแค่ผูก
+    // reference เข้ากับข้อมูลลูกค้าที่บันทึกสำเร็จแล้ว (รวมกับไฟล์เดิมที่มีอยู่แล้ว ไม่เขียนทับ)
     const stagedDocTypes = Object.keys(tempCustomerAttachments);
     if (stagedDocTypes.length > 0) {
-        const totalStagedFiles = stagedDocTypes.reduce((sum, dt) => sum + (tempCustomerAttachments[dt] || []).length, 0);
-        showToast(`📎 กำลังอัปโหลดไฟล์แนบ ${totalStagedFiles} ไฟล์...`, "warning");
         customerData.attachments = customerData.attachments || {};
         for (const docType of stagedDocTypes) {
             const stagedFiles = tempCustomerAttachments[docType] || [];
-            const statusEl = document.getElementById(`status-${docType}`);
-            const uploadedEntries = [];
-            let anyFailed = false;
-            for (const staged of stagedFiles) {
-                try {
-                    const uploadResult = await uploadDocumentFile(staged.data, staged.name, customerData.id, "", docType);
-                    if (uploadResult && uploadResult.fileUrl) {
-                        uploadedEntries.push({ name: staged.name, data: uploadResult.fileUrl });
-                    } else {
-                        anyFailed = true;
-                    }
-                } catch (err) {
-                    anyFailed = true;
-                }
-            }
-            if (uploadedEntries.length > 0) {
-                const existing = getAttachments(customerData, docType);
-                customerData.attachments[docType] = existing.concat(uploadedEntries);
-            }
-            if (statusEl) {
-                statusEl.innerHTML = anyFailed
-                    ? `<span class="ai-error">❌ อัปโหลดไม่สำเร็จบางไฟล์</span>`
-                    : `<span class="ai-success">✅ อัปโหลดสำเร็จ (${uploadedEntries.length} ไฟล์)</span>`;
-            }
+            const existing = getAttachments(customerData, docType);
+            customerData.attachments[docType] = existing.concat(stagedFiles);
         }
         tempCustomerAttachments = {};
 
-        // บันทึกซ้ำอีกครั้งเพื่อผูกลิงก์ไฟล์ที่เพิ่งอัปโหลดเข้ากับข้อมูลลูกค้า
-        // (ตอน save ครั้งแรกด้านบนยังไม่มีไฟล์ เพราะต้องรอ id ลูกค้าให้พร้อมก่อนถึงจะอัปโหลดได้)
+        // บันทึกซ้ำอีกครั้งเพื่อผูกลิงก์ไฟล์ (และฟิลด์ที่ AI เติมให้ระหว่างแนบไฟล์) เข้ากับข้อมูลลูกค้า
         const attachRes = await callCloudAPI("saveCustomer", { customerData });
         if (!attachRes || attachRes.status === "error") {
-            showToast("⚠️ อัปโหลดไฟล์สำเร็จแต่บันทึกลิงก์เข้าข้อมูลลูกค้าไม่สำเร็จ กรุณาลองแนบใหม่จากหน้าแฟ้มเอกสาร", "danger");
+            showToast("⚠️ บันทึกลิงก์ไฟล์แนบเข้าข้อมูลลูกค้าไม่สำเร็จ กรุณาลองแนบใหม่จากหน้าแฟ้มเอกสาร", "danger");
         }
     }
 
@@ -3457,15 +3486,19 @@ function renderJobs() {
             }).join('')}</div>`
             : '';
 
+        const rowClickAttrs = work
+            ? `class="clickable-row" onclick="openWorkerFolderModal('${work.id}')" title="คลิกเพื่อดูข้อมูลคนงาน / แนบเอกสารเพิ่มเติม"`
+            : '';
+
         return `
-            <tr>
+            <tr ${rowClickAttrs}>
                 <td><strong>${getJobDisplayNo(j)}</strong>${batchBadge}</td>
                 <td><span class="badge badge-gold">${cleanJobType}</span>${siblingPills}</td>
                 <td>${custName}${custIdLines}${agentLine}</td>
                 <td>${workName}</td>
                 <td>${work && work.email ? work.email : '<span class="text-muted">-</span>'}</td>
                 <td><span class="badge ${statusClass}">${displayStatus}</span><br>${paymentBadge}</td>
-                <td>
+                <td onclick="event.stopPropagation()">
                     <div style="display:flex; gap:4px; align-items:center;">
                         <input type="text" id="job-order-no-${j.id}" value="${j.orderNo || ''}" placeholder="Order No." ${j.orderNo ? 'disabled' : ''} style="width:140px; padding:4px 6px; font-size:12px; border:1px solid #cbd5e1; border-radius:4px;">
                         <button type="button" class="action-icon-btn" onclick="handleJobOrderNoButton('${j.id}')" title="${j.orderNo ? 'แก้ไข Order No.' : 'บันทึก Order No.'}">${j.orderNo ? '✏️' : '💾'}</button>
@@ -3475,7 +3508,7 @@ function renderJobs() {
                     <span style="font-size:12.5px;">${getUserNameById(j.openedBy)}</span>
                     ${j.closedBy ? `<br><span style="font-size:11px; color:var(--text-muted);">🔒 ปิดโดย: ${getUserNameById(j.closedBy)}</span>` : ''}
                 </td>
-                <td class="actions-col">
+                <td class="actions-col" onclick="event.stopPropagation()">
                     <div class="actions-cell">
                         ${closeBtn}
                         ${editBtn}
@@ -3627,6 +3660,9 @@ function openJobModal(id = null) {
 
         // Trigger worker dropdown generation (จะเซ็ต Agent ให้ตามนายจ้างที่เลือกไปในตัวด้วย)
         onJobCustomerChange(j.workerId);
+        // เปิดกว้างแก้ Agent เองต่อใบงานได้แล้ว (ไม่ล็อกตามนายจ้างอีกต่อไป) — คืนค่า Agent ที่บันทึกไว้ของใบงานนี้
+        // กลับมาทับค่า default จากนายจ้างที่ onJobCustomerChange() เพิ่งตั้งไปก่อนหน้านี้ ป้องกันข้อมูลเดิมหาย
+        document.getElementById("job-agent-id").value = j.agentId || "";
 
         // Populate checkboxes (ราคาไม่ได้กรอกที่ฟอร์มนี้แล้ว — ไปกำหนด/แก้ที่หน้าบัญชีและการเงินแทน)
         if (j.jobType) {
@@ -3678,8 +3714,13 @@ function openJobModal(id = null) {
         modalTitle.innerText = "แจ้งสั่งงานใหม่ / ขั้นตอนดำเนินการ";
         editIdInput.value = "";
 
-        // Reset worker select (multi-select — ไม่มี placeholder option ที่เลือกได้)
-        document.getElementById("job-worker-id").innerHTML = '';
+        // Reset worker picker (ค้นหา + เลือกหลายคน)
+        jobModalWorkers = [];
+        jobWorkerSelectedIds = new Set();
+        document.getElementById("job-worker-search").value = "";
+        syncJobWorkerHiddenSelect();
+        renderJobWorkerChecklist();
+        renderJobWorkerChips();
         statusGroup.style.display = '';
         closedBanner.style.display = 'none';
         statusSelect.value = "รอดำเนินการ";
@@ -3703,29 +3744,107 @@ function closeJobModal() {
     document.getElementById("job-modal").classList.add("hidden");
 }
 
-function onJobCustomerChange(selectedWorkerId = null) {
+// ==================== JOB WORKER PICKER (ค้นหา + เลือกคนงานหลายคน) ====================
+// ช่อง <select id="job-worker-id"> ยังมีอยู่แต่ถูกซ่อนไว้ (class="hidden") — ใช้เป็นแหล่งเก็บค่าที่เลือกจริง
+// เท่านั้น เพื่อให้ getSelectedJobWorkerIds()/saveJob()/refreshJobTypeLocks() ที่มีอยู่แล้วทำงานได้เหมือนเดิม
+// โดยไม่ต้องแก้ตรรกะพวกนั้น ส่วน UI ที่ผู้ใช้เห็นจริงคือ checklist + ช่องค้นหาด้านล่างนี้
+// (required validation ของ browser ใช้กับ select ที่ซ่อนไม่ได้ — saveJob() เช็คเองแล้วที่ workerIds.length === 0)
+let jobModalWorkers = [];
+let jobWorkerSelectedIds = new Set();
+
+function onJobCustomerChange(preselectedWorkerIds = null) {
     const custId = document.getElementById("job-customer-id").value;
-    const workerSelect = document.getElementById("job-worker-id");
 
     // Agent ผู้ส่งงาน: ล็อกตาม Agent ผู้แนะนำของนายจ้างที่เลือกเสมอ (ตั้งค่าได้ที่หน้าข้อมูลนายจ้างเท่านั้น)
     const cust = customers.find(c => c.id === custId);
     document.getElementById("job-agent-id").value = (cust && cust.referredByAgentId) || "";
 
     // Filter workers under this customer
-    const custWorkers = workers.filter(w => w.employerId === custId);
-    
-    if (custWorkers.length === 0) {
-        workerSelect.innerHTML = '<option value="" disabled>--- ไม่พบข้อมูลคนงานต่างด้าวของลูกค้านี้ ---</option>';
-        refreshJobTypeLocks();
+    jobModalWorkers = workers.filter(w => w.employerId === custId);
+
+    const pre = Array.isArray(preselectedWorkerIds) ? preselectedWorkerIds : (preselectedWorkerIds ? [preselectedWorkerIds] : []);
+    jobWorkerSelectedIds = new Set(pre.filter(id => jobModalWorkers.some(w => w.id === id)));
+
+    const searchInput = document.getElementById("job-worker-search");
+    if (searchInput) searchInput.value = "";
+
+    syncJobWorkerHiddenSelect();
+    renderJobWorkerChecklist();
+    renderJobWorkerChips();
+    refreshJobTypeLocks();
+}
+
+// อัปเดต <select id="job-worker-id"> (ซ่อนอยู่) ให้ตรงกับ jobWorkerSelectedIds เสมอ
+function syncJobWorkerHiddenSelect() {
+    const workerSelect = document.getElementById("job-worker-id");
+    workerSelect.innerHTML = jobModalWorkers.map(w =>
+        `<option value="${w.id}" ${jobWorkerSelectedIds.has(w.id) ? 'selected' : ''}>${w.firstName} ${w.lastName} (${w.nationality})</option>`
+    ).join('');
+}
+
+// วาดรายชื่อคนงานที่ติ๊กเลือกไว้แล้วเป็น chip ลบออกได้ทีละคน (เห็นตลอดแม้เลื่อน/ค้นหาจนคนที่เลือกไว้หลุดจอ)
+function renderJobWorkerChips() {
+    const chipsEl = document.getElementById("job-worker-chips");
+    if (!chipsEl) return;
+    if (jobWorkerSelectedIds.size === 0) {
+        chipsEl.style.display = 'none';
+        chipsEl.innerHTML = '';
+        return;
+    }
+    chipsEl.style.display = 'flex';
+    chipsEl.innerHTML = Array.from(jobWorkerSelectedIds).map(id => {
+        const w = jobModalWorkers.find(x => x.id === id);
+        const label = w ? `${w.firstName} ${w.lastName}` : id;
+        return `<span class="job-worker-chip">${label}<button type="button" onclick="toggleJobWorkerSelection('${id}', false)">&times;</button></span>`;
+    }).join('');
+}
+
+// วาด checklist คนงานของนายจ้างที่เลือก กรองด้วยชื่อ หรือเลขประจำตัวคนงาน 13 หลัก (ช่วยกรณีนายจ้างมีลูกจ้างจำนวนมาก/ชื่อซ้ำ)
+function renderJobWorkerChecklist() {
+    const listEl = document.getElementById("job-worker-checklist");
+    if (!listEl) return;
+
+    if (jobModalWorkers.length === 0) {
+        listEl.innerHTML = '<div class="job-worker-empty">--- กรุณาเลือกนายจ้างก่อน หรือไม่พบข้อมูลคนงานต่างด้าวของลูกค้านี้ ---</div>';
         return;
     }
 
-    workerSelect.innerHTML = custWorkers.map(w => `<option value="${w.id}">${w.firstName} ${w.lastName} (${w.nationality})</option>`).join('');
+    const q = (document.getElementById("job-worker-search").value || '').trim().toLowerCase();
+    const filtered = jobModalWorkers.filter(w => {
+        if (!q) return true;
+        const name = `${w.firstName} ${w.lastName}`.toLowerCase();
+        const uid = (w.workerUid || '').toLowerCase();
+        return name.includes(q) || uid.includes(q);
+    });
 
-    if (selectedWorkerId) {
-        workerSelect.value = selectedWorkerId;
+    if (filtered.length === 0) {
+        listEl.innerHTML = '<div class="job-worker-empty">--- ไม่พบคนงานที่ตรงกับคำค้นหา ---</div>';
+        return;
     }
-    refreshJobTypeLocks();
+
+    listEl.innerHTML = filtered.map(w => `
+        <label class="job-worker-row">
+            <input type="checkbox" ${jobWorkerSelectedIds.has(w.id) ? 'checked' : ''} onchange="toggleJobWorkerSelection('${w.id}', this.checked)">
+            <span class="job-worker-row-name">${w.firstName} ${w.lastName}</span>
+            <span class="job-worker-row-uid">${w.workerUid ? `เลขประจำตัว ${w.workerUid}` : 'ไม่มีเลขประจำตัว'}</span>
+            <span class="job-worker-row-nat">${w.nationality || ''}</span>
+        </label>
+    `).join('');
+}
+
+// เรียกจากช่องค้นหา (oninput) — กรอง checklist โดยไม่แตะสถานะที่เลือกไว้
+function filterJobWorkerChecklist() {
+    renderJobWorkerChecklist();
+}
+
+// ติ๊ก/ยกเลิกคนงาน 1 คน — sync กลับไปที่ select ที่ซ่อนไว้แล้วรันตรรกะเดิม (ล็อกประเภทงาน/แจ้งเตือนงานซ้ำ)
+function toggleJobWorkerSelection(workerId, isChecked) {
+    if (isChecked) jobWorkerSelectedIds.add(workerId);
+    else jobWorkerSelectedIds.delete(workerId);
+    syncJobWorkerHiddenSelect();
+    renderJobWorkerChips();
+    renderJobWorkerChecklist();
+    onJobWorkerChange();
 }
 
 // คืนรายชื่อ workerId ที่ถูกเลือกไว้ในฟอร์มสั่งงาน (multi-select — เลือกได้หลายคนพร้อมกัน)
@@ -5468,13 +5587,14 @@ function onCombineCustomerChange() {
     listContainer.innerHTML = unpaidJobs.map(j => {
         const work = workers.find(w => w.id === j.workerId);
         const workName = work ? `${work.firstName} ${work.lastName} (${work.nationality})` : "ไม่ระบุคนงานต่างด้าว";
-        
+        const workUidTag = work && work.workerUid ? ` [${work.workerUid}]` : '';
+
         return `
             <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px; border-bottom: 1px solid #f1f5f9; font-size: 13.5px; gap: 15px;">
                 <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: normal; margin: 0; width: 65%;">
                     <input type="checkbox" name="combine-job-checkbox" value="${j.id}" onchange="updateCombineTotalAmount()" style="width: 16px; height: 16px; cursor: pointer;">
                     <div>
-                        <strong>${j.jobType || "ไม่ระบุประเภทงาน"}</strong> - คนงาน: ${workName}
+                        <strong>${j.jobType || "ไม่ระบุประเภทงาน"}</strong> - คนงาน: ${workName}${workUidTag}
                     </div>
                 </label>
                 <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
@@ -5771,6 +5891,25 @@ async function uploadFileToServer(fileContent, fileName) {
     return null;
 }
 
+// ลบไฟล์จริงออกจาก Supabase Storage bucket "worker-documents" ตาม public URL ที่เก็บไว้ใน attachments
+// (เดิมตอนลบไฟล์จากแฟ้มเอกสาร ระบบลบแค่ reference ใน jsonb ไฟล์จริงยังค้างอยู่ใน Storage ตลอดไป — ไม่มี path
+// เก็บแยกไว้ต่างหาก จึงต้องแยกเอา path ออกจาก URL เอง) ทำแบบ fire-and-forget ไม่บล็อกการลบ reference หลัก
+// เพราะการลบไฟล์จริงพลาดไม่ควรทำให้ผู้ใช้ลบรายการออกจากแฟ้มไม่ได้
+async function deleteStorageFileByUrl(url) {
+    if (!window.supabaseAdapter || !url || typeof url !== 'string') return;
+    const marker = '/worker-documents/';
+    const idx = url.indexOf(marker);
+    if (idx === -1) return; // ไม่ใช่ URL จาก Storage bucket นี้ (เช่น data: URL ของโหมด local fallback)
+
+    const path = decodeURIComponent(url.slice(idx + marker.length).split('?')[0]);
+    try {
+        const { error } = await window.supabaseAdapter.client.storage.from('worker-documents').remove([path]);
+        if (error) console.warn("ลบไฟล์จริงใน Storage ไม่สำเร็จ:", path, error.message);
+    } catch (e) {
+        console.warn("ลบไฟล์จริงใน Storage ไม่สำเร็จ:", path, e);
+    }
+}
+
 // อัปโหลดไฟล์ขึ้น Supabase Storage (bucket worker-documents) แล้วเรียก Edge Function
 // "ocr-document" (Gemini) ให้อ่านข้อมูลจากเอกสารกลับมาด้วยถ้าเป็นประเภทเอกสารที่รองรับ
 async function uploadDocumentFile(fileDataUrl, fileName, customerId = "", workerId = "", docType = "") {
@@ -6006,9 +6145,11 @@ function applyOcrDataToCustomer(c, docType, p) {
     if (docType === 'cust-id-card') {
         if (p.directorId) c.directorId = p.directorId;
         if (p.coordinatorName && !c.coordinator) c.coordinator = p.coordinatorName;
-    } else if (docType === 'cust-cert') {
+    } else if (docType === 'cust-cert' || docType === 'cust-commerce') {
         if (p.companyName) c.companyName = p.companyName;
         if (p.taxId) c.taxId = p.taxId;
+    } else if (docType === 'cust-house') {
+        if (p.companyName && !c.companyName) c.companyName = p.companyName;
     }
 }
 
@@ -6067,15 +6208,47 @@ async function handleCustomerFolderFileUpload(event) {
     renderCustomers();
 }
 
+// ==================== CONFIRM-DELETE MODAL สำหรับไฟล์แนบ (ใช้ร่วมกันทั้งแฟ้มคนงาน/นายจ้าง) ====================
+// โชว์ชื่อไฟล์ + พรีวิว + ลิงก์เปิดดูก่อนลบจริง (แทนที่ confirm() เดิมที่บอกแค่ "แน่ใจไหม" ไม่รู้ว่าไฟล์ไหน)
+// เพราะตอนนี้กดลบแล้วไฟล์จริงใน Storage จะหายไปถาวร กู้คืนไม่ได้ (เดิมลบได้แค่ reference)
+let pendingAttachmentDelete = null; // { kind: 'worker'|'customer', docType, index }
+
+function openConfirmDeleteAttachmentModal(kind, docType, index, fileItem) {
+    pendingAttachmentDelete = { kind, docType, index };
+    document.getElementById('confirm-delete-attachment-filename').innerText = (fileItem && fileItem.name) || 'ไฟล์ไม่มีชื่อ';
+    document.getElementById('confirm-delete-attachment-viewlink').href = (fileItem && fileItem.data) || '#';
+    document.getElementById('confirm-delete-attachment-thumb').innerHTML = renderDriveThumbnail(fileItem && fileItem.data);
+    hydratePdfThumbnails(document.getElementById('confirm-delete-attachment-modal'));
+    document.getElementById('confirm-delete-attachment-modal').classList.remove('hidden');
+}
+
+function closeConfirmDeleteAttachmentModal() {
+    pendingAttachmentDelete = null;
+    document.getElementById('confirm-delete-attachment-modal').classList.add('hidden');
+}
+
+async function confirmPendingAttachmentDelete() {
+    if (!pendingAttachmentDelete) return;
+    const { kind, docType, index } = pendingAttachmentDelete;
+    closeConfirmDeleteAttachmentModal();
+    if (kind === 'worker') await performDeleteWorkerFolderFile(docType, index);
+    else await performDeleteCustomerFolderFile(docType, index);
+}
+
+// เรียกตอนกดปุ่ม 🗑️ ในการ์ดไฟล์ — แค่เปิด modal ให้ดูว่ากำลังจะลบไฟล์ไหน ยังไม่ลบจริง (ดู performDeleteCustomerFolderFile)
 function deleteCustomerFolderFileIndex(docType, index) {
     if (!activeFolderCustomerId) return;
-    if (!confirm("คุณแน่ใจหรือไม่ที่จะลบไฟล์นี้ออกจากแฟ้มเอกสารลูกค้า?")) return;
+    const c = customers.find(x => x.id === activeFolderCustomerId);
+    const list = c ? getAttachments(c, docType) : [];
+    openConfirmDeleteAttachmentModal('customer', docType, index, list[index]);
+}
 
+function performDeleteCustomerFolderFile(docType, index) {
     const idx = customers.findIndex(x => x.id === activeFolderCustomerId);
     if (idx === -1) return;
     const c = customers[idx];
     const list = getAttachments(c, docType);
-    list.splice(index, 1);
+    const removed = list.splice(index, 1)[0];
 
     c.attachments = c.attachments || {};
     if (list.length === 0) delete c.attachments[docType];
@@ -6087,6 +6260,7 @@ function deleteCustomerFolderFileIndex(docType, index) {
             return;
         }
         saveData();
+        if (removed) deleteStorageFileByUrl(removed.data);
         showToast("🗑️ ลบไฟล์ออกจากแฟ้มเอกสารเรียบร้อยแล้ว", "success");
         openCustomerFolderModal(activeFolderCustomerId);
         renderCustomers();
@@ -6315,7 +6489,7 @@ function renderMonthlyDetails() {
                             <span style="font-size:11.5px; color:var(--text-muted);">${formatDateOnly(w.createdAt)}</span>
                         </div>
                         <div style="font-size:11.5px; color:var(--text-muted);">
-                            นายจ้าง: ${empName}
+                            เลขประจำตัว: ${w.workerUid || '-'} | นายจ้าง: ${empName}
                         </div>
                     </li>
                 `;
@@ -6989,7 +7163,7 @@ function openWorkerFolderModal(workerId) {
     document.getElementById("worker-folder-name").innerText = `คุณ ${w.firstName} ${w.lastName || ''}`;
     const emp = customers.find(c => c.id === w.employerId);
     const empName = emp ? emp.companyName : "ไม่ระบุนายจ้าง";
-    document.getElementById("worker-folder-meta").innerText = `สัญชาติ: ${w.nationality} | นายจ้าง: ${empName}`;
+    document.getElementById("worker-folder-meta").innerText = `เลขประจำตัว: ${w.workerUid || '-'} | สัญชาติ: ${w.nationality} | นายจ้าง: ${empName}`;
 
     const avatarUrl = w.photo ? w.photo : 'data:image/svg+xml;utf8,<svg xmlns="http:' + '/' + '/www.w3.org/2000/svg" viewBox="0 0 24 24" width="48" height="48" fill="%2394a3b8"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4.42 0-8 3.58-8 8v1h16v-1c0-4.42-3.58-8-8-8z"/></svg>';
     document.getElementById("worker-folder-avatar").src = avatarUrl;
@@ -7104,6 +7278,8 @@ function applyOcrDataToWorker(w, docType, p) {
             w.firstName = `${w.firstName} ${w.lastName}`.trim();
             w.lastName = '';
         }
+    } else if (docType === 'worker-insurance-doc') {
+        if (p.insuranceNo) w.insuranceNo = p.insuranceNo;
     }
 }
 
@@ -7490,16 +7666,20 @@ async function renameFolderFileIndex(docType, index, newName) {
     }
 }
 
-// Delete specific file index inside folder modal
-async function deleteFolderFileIndex(docType, index) {
+// เรียกตอนกดปุ่ม 🗑️ ในการ์ดไฟล์ — แค่เปิด modal ให้ดูว่ากำลังจะลบไฟล์ไหน ยังไม่ลบจริง (ดู performDeleteWorkerFolderFile)
+function deleteFolderFileIndex(docType, index) {
     if (!activeFolderWorkerId) return;
-    if (!confirm("คุณแน่ใจหรือไม่ที่จะลบไฟล์นี้ออกจากแฟ้มประวัติคนงาน?")) return;
+    const w = workers.find(item => item.id === activeFolderWorkerId);
+    const list = w ? getAttachments(w, docType) : [];
+    openConfirmDeleteAttachmentModal('worker', docType, index, list[index]);
+}
 
+async function performDeleteWorkerFolderFile(docType, index) {
     const workerIdx = workers.findIndex(w => w.id === activeFolderWorkerId);
     if (workerIdx !== -1) {
         const w = workers[workerIdx];
         const list = getAttachments(w, docType);
-        list.splice(index, 1);
+        const removed = list.splice(index, 1)[0];
 
         w.attachments = w.attachments || {};
         if (list.length === 0) {
@@ -7515,6 +7695,7 @@ async function deleteFolderFileIndex(docType, index) {
             return;
         }
         saveData();
+        if (removed) deleteStorageFileByUrl(removed.data);
         showToast("🗑️ ลบไฟล์ออกจากประวัติเรียบร้อยแล้ว", "success");
 
         openWorkerFolderModal(activeFolderWorkerId);
@@ -7636,7 +7817,10 @@ function renderMissingDocsOverview() {
                         <img src="${avatarUrl}" style="width: 100%; height: 100%; object-fit: cover;">
                     </div>
                 </td>
-                <td><strong>${w.title ? w.title + ' ' : ''}${w.firstName} ${w.lastName || ''}</strong></td>
+                <td>
+                    <div><strong>${w.title ? w.title + ' ' : ''}${w.firstName} ${w.lastName || ''}</strong></div>
+                    <small class="text-muted">เลขประจำตัว: ${w.workerUid || '-'}</small>
+                </td>
                 <td><span class="badge badge-gold">${w.nationality}</span></td>
                 <td>${empName}</td>
                 ${docCells}
@@ -7783,6 +7967,7 @@ function renderJobsKanban(filtered) {
                         <span class="badge badge-sm ${badgeClass}" style="font-size: 10px; padding: 1px 6px;">${cleanJobType}</span>
                     </div>
                     <div style="font-weight: 600; font-size: 12.5px; color: #1e293b; line-height: 1.4;">👤 ${workName}</div>
+                    ${work && work.workerUid ? `<div style="font-size: 10.5px; color: #94a3b8; margin-top:-4px;">เลขประจำตัว: ${work.workerUid}</div>` : ''}
                     <div style="font-size: 11.5px; color: #64748b;" ${custIdTitle ? `title="${custIdTitle}"` : ''}>🏢 ${custName}</div>
                     ${jobAgent ? `<div style="font-size: 11px; color: #64748b;">👤 Agent: ${jobAgent.name}</div>` : ''}
                     <div style="font-size: 10.5px; color: #94a3b8;">📝 เปิดงานโดย: ${getUserNameById(j.openedBy)}${j.closedBy ? ` • 🔒 ปิดโดย: ${getUserNameById(j.closedBy)}` : ''}</div>

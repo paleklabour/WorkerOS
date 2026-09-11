@@ -63,6 +63,29 @@ have two open jobs of the same type simultaneously (open = status in
 `รอดำเนินการ` / `กำลังดำเนินการ` / `รอเอกสารเพิ่มเติม`) — see
 `JOB_OPEN_STATUSES`/`findOpenJobConflict` in `app.js`.
 
+## AI autofill on document uploads (standing default)
+
+Every file-attachment point in the app (worker docs, customer docs, expense
+slips, job appointment docs, bulk import) should call the OCR-capable upload
+path (`uploadDocumentFile` in `app.js`, which hits the `ocr-document` Edge
+Function) **immediately on file select**, not deferred until after a parent
+record is saved — an empty `customerId`/`workerId` at that point is fine, the
+Storage path just falls back to a generic folder. Apply the parsed result to
+the live form inputs right away so the user can review/correct it before
+saving (see `applyGeminiDataToWorkerForm` / `applyGeminiDataToCustomerForm`),
+and to the record directly when attaching via a folder view where there's no
+live form to fill (see `applyOcrDataToWorker` / `applyOcrDataToCustomer`).
+
+When adding a new document type: add it to `ALLOWED_DOC_TYPES` in
+`supabase/functions/ocr-document/index.ts` with its own prompt/schema branch,
+*unless* the document genuinely has no structured fields worth extracting
+(e.g. a photo, or a generic "other" catch-all) — skip AI for those rather
+than forcing a schema, but still wire the upload itself through the same
+immediate-upload path for consistency. Don't leave a new doc type only
+reachable through the deferred/no-AI pattern "temporarily" — that's how the
+customer add-form and several worker/customer doc types drifted out of sync
+before (fixed 2026-09-11).
+
 ## Running locally
 
 ```powershell

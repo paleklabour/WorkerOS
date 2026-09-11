@@ -594,7 +594,6 @@
                                         <th>ชื่อ-นามสกุล</th>
                                         <th>สัญชาติ</th>
                                         <th>ข้อมูลพาสปอร์ต</th>
-                                        <th>ใบอนุญาตทำงาน</th>
                                         <th>นายจ้าง/ผู้ว่าจ้าง</th>
                                         <th>สถานะเอกสาร</th>
                                         <th>เอกสารแนบ</th>
@@ -694,7 +693,7 @@
                         <div id="jobs-kanban-container" class="kanban-board-wrapper hidden" style="margin-top: 10px; min-height: 500px;">
                             <div class="kanban-board" style="display: flex; gap: 16px; overflow-x: auto; padding-bottom: 16px;">
                                 <!-- Column: Waiting for Docs -->
-                                <div class="kanban-column" style="flex: 1; min-width: 250px; background: #f8fafc; border-radius: var(--radius-md); border: 1px solid #e2e8f0; display: flex; flex-direction: column; height: fit-content; max-height: 650px;">
+                                <div class="kanban-column" style="flex: 1; min-width: 250px; background: #f8fafc; border-radius: var(--radius-md); border: 1px solid #e2e8f0; display: flex; flex-direction: column; height: fit-content; max-height: calc(100vh - 260px);">
                                     <div class="kanban-column-header" style="padding: 12px; border-bottom: 2px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f1f5f9; border-top-left-radius: var(--radius-md); border-top-right-radius: var(--radius-md);">
                                         <h4 style="font-weight: 600; font-size: 13px; color: #475569; margin: 0;">📂 รอเอกสาร</h4>
                                         <span class="badge badge-danger" id="count-kanban-docs" style="font-size: 11px; padding: 2px 8px;">0</span>
@@ -704,7 +703,7 @@
                                 </div>
 
                                 <!-- Column: Pending -->
-                                <div class="kanban-column" style="flex: 1; min-width: 250px; background: #f8fafc; border-radius: var(--radius-md); border: 1px solid #e2e8f0; display: flex; flex-direction: column; height: fit-content; max-height: 650px;">
+                                <div class="kanban-column" style="flex: 1; min-width: 250px; background: #f8fafc; border-radius: var(--radius-md); border: 1px solid #e2e8f0; display: flex; flex-direction: column; height: fit-content; max-height: calc(100vh - 260px);">
                                     <div class="kanban-column-header" style="padding: 12px; border-bottom: 2px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f1f5f9; border-top-left-radius: var(--radius-md); border-top-right-radius: var(--radius-md);">
                                         <h4 style="font-weight: 600; font-size: 13px; color: #475569; margin: 0;">⏳ รอดำเนินการ</h4>
                                         <span class="badge badge-warning" id="count-kanban-pending" style="font-size: 11px; padding: 2px 8px;">0</span>
@@ -714,7 +713,7 @@
                                 </div>
 
                                 <!-- Column: In Progress -->
-                                <div class="kanban-column" style="flex: 1; min-width: 250px; background: #f8fafc; border-radius: var(--radius-md); border: 1px solid #e2e8f0; display: flex; flex-direction: column; height: fit-content; max-height: 650px;">
+                                <div class="kanban-column" style="flex: 1; min-width: 250px; background: #f8fafc; border-radius: var(--radius-md); border: 1px solid #e2e8f0; display: flex; flex-direction: column; height: fit-content; max-height: calc(100vh - 260px);">
                                     <div class="kanban-column-header" style="padding: 12px; border-bottom: 2px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f1f5f9; border-top-left-radius: var(--radius-md); border-top-right-radius: var(--radius-md);">
                                         <h4 style="font-weight: 600; font-size: 13px; color: #475569; margin: 0;">⚙️ กำลังดำเนินการ</h4>
                                         <span class="badge badge-gold" id="count-kanban-progress" style="font-size: 11px; padding: 2px 8px;">0</span>
@@ -724,7 +723,7 @@
                                 </div>
 
                                 <!-- Column: Closed (ปิดงานแล้ว — เข้าได้เฉพาะผ่านปุ่ม "ปิดงาน" ที่แนบเอกสาร ลากเข้ามาตรงๆ ไม่ได้) -->
-                                <div class="kanban-column" style="flex: 1; min-width: 250px; background: #f8fafc; border-radius: var(--radius-md); border: 1px solid #e2e8f0; display: flex; flex-direction: column; height: fit-content; max-height: 650px;">
+                                <div class="kanban-column" style="flex: 1; min-width: 250px; background: #f8fafc; border-radius: var(--radius-md); border: 1px solid #e2e8f0; display: flex; flex-direction: column; height: fit-content; max-height: calc(100vh - 260px);">
                                     <div class="kanban-column-header" style="padding: 12px; border-bottom: 2px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f1f5f9; border-top-left-radius: var(--radius-md); border-top-right-radius: var(--radius-md);">
                                         <h4 style="font-weight: 600; font-size: 13px; color: #475569; margin: 0;" title="เข้าคอลัมน์นี้ได้เฉพาะผ่านปุ่ม 📎 ปิดงาน (ต้องแนบเอกสารก่อน) — งานที่ปิดแล้วและลูกค้าชำระเงินครบแล้วจะถูกซ่อนออกจากคอลัมน์นี้อัตโนมัติ (ดูย้อนหลังได้ที่หน้ารายการหรือแท็บออกบิล/รับเงิน)">🔒 ปิดงานแล้ว</h4>
                                         <div style="display: flex; gap: 4px; align-items: center;">
@@ -2040,20 +2039,27 @@
                         </div>
 
                         <div class="form-group">
-                            <label for="job-worker-id">คนงานต่างด้าวที่เกี่ยวข้อง <span class="required">*</span></label>
-                            <select id="job-worker-id" onchange="onJobWorkerChange()" multiple size="4" required>
-                                <!-- Dynamic -->
+                            <label for="job-worker-search">คนงานต่างด้าวที่เกี่ยวข้อง <span class="required">*</span></label>
+                            <select id="job-worker-id" class="hidden" multiple>
+                                <!-- Dynamic — ซ่อนไว้ ใช้เก็บค่าที่เลือกจริงเท่านั้น (ต้องมี multiple ไว้ให้เลือกได้มากกว่า 1 ค่า) ควบคุมผ่านช่องค้นหา/รายชื่อด้านล่าง -->
                             </select>
+                            <div class="job-worker-picker">
+                                <div id="job-worker-chips" class="job-worker-chips" style="display:none;"></div>
+                                <input type="text" id="job-worker-search" class="job-worker-search-input"
+                                    placeholder="🔍 ค้นหาชื่อ หรือเลขประจำตัวคนงาน 13 หลัก..."
+                                    oninput="filterJobWorkerChecklist()" autocomplete="off">
+                                <div id="job-worker-checklist" class="job-worker-checklist"></div>
+                            </div>
                         </div>
 
                         <div class="form-row">
                             <div class="form-group">
-                                <label for="job-agent-id">Agent ผู้ส่งงาน (ล็อกตาม Agent ผู้แนะนำของนายจ้างที่เลือก)</label>
-                                <select id="job-agent-id" disabled style="background-color: #f1f5f9; color: var(--text-muted);">
+                                <label for="job-agent-id">Agent ผู้ส่งงาน (ค่าเริ่มต้นตาม Agent ผู้แนะนำของนายจ้างที่เลือก — แก้ไขได้)</label>
+                                <select id="job-agent-id">
                                     <option value="">--- ไม่ระบุ ---</option>
                                     <!-- Dynamic -->
                                 </select>
-                                <small class="text-muted" style="display:block; margin-top:4px;">แก้ไข Agent ผู้แนะนำได้ที่หน้า "ข้อมูลนายจ้าง/ลูกค้า" ของนายจ้างรายนี้เท่านั้น</small>
+                                <small class="text-muted" style="display:block; margin-top:4px;">เปลี่ยน Agent ของงานนี้ได้โดยตรง หรือแก้ Agent ผู้แนะนำเริ่มต้นของนายจ้างได้ที่หน้า "ข้อมูลนายจ้าง/ลูกค้า"</small>
                             </div>
                         </div>
 
@@ -2543,6 +2549,30 @@
                     <button type="button" class="btn btn-outline" style="flex:1; min-width:200px;" onclick="shareWorkerFolder(activeFolderWorkerId)">🔗 คัดลอกลิงก์แชร์ทั้งโฟลเดอร์ (ไม่ต้องล็อกอิน)</button>
                     <button type="button" class="btn btn-outline" style="flex:0 0 auto; color:#b91c1c; border-color:#fca5a5;" onclick="revokeWorkerShareLink(activeFolderWorkerId)">🚫 ยกเลิกลิงก์</button>
                     <button type="button" class="btn btn-gold" style="width:100%;" onclick="closeWorkerFolderModal()">ปิดหน้าต่าง</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== MODAL: CONFIRM DELETE ATTACHMENT (โชว์ไฟล์ก่อนลบจริงถาวร) ==================== -->
+        <div id="confirm-delete-attachment-modal" class="modal-backdrop hidden" style="z-index: 1070;">
+            <div class="modal-content" style="max-width: 440px;">
+                <div class="modal-header">
+                    <h3>⚠️ ยืนยันการลบไฟล์</h3>
+                    <button class="close-btn" onclick="closeConfirmDeleteAttachmentModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div style="display:flex; align-items:center; gap:14px; padding:12px; background:#fef2f2; border:1px solid #fecaca; border-radius: var(--radius-sm); margin-bottom:14px;">
+                        <div id="confirm-delete-attachment-thumb" style="flex-shrink:0;"></div>
+                        <div style="min-width:0; overflow:hidden;">
+                            <div id="confirm-delete-attachment-filename" style="font-weight:600; font-size:13.5px; word-break:break-all; color:var(--navy-dark);"></div>
+                            <a href="#" id="confirm-delete-attachment-viewlink" target="_blank" rel="noopener" style="font-size:12px;">🔍 เปิดดูไฟล์ก่อนลบ</a>
+                        </div>
+                    </div>
+                    <p style="font-size:13px; color:var(--text-muted); margin:0;">ไฟล์นี้จะถูกลบออกจากระบบอย่างถาวร ไม่สามารถกู้คืนได้</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline" onclick="closeConfirmDeleteAttachmentModal()">ยกเลิก</button>
+                    <button type="button" class="btn btn-danger" onclick="confirmPendingAttachmentDelete()">🗑️ ยืนยันลบไฟล์ถาวร</button>
                 </div>
             </div>
         </div>

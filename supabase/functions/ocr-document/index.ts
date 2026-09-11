@@ -15,12 +15,12 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 
 const ALLOWED_DOC_TYPES = [
-  "worker-passport", "worker-wp-doc", "worker-visa", "worker-myanmar-id", "worker-pink-card",
-  "cust-id-card", "cust-cert",
+  "worker-passport", "worker-wp-doc", "worker-visa", "worker-myanmar-id", "worker-pink-card", "worker-insurance-doc",
+  "cust-id-card", "cust-cert", "cust-house", "cust-commerce",
   "expense-slip",
   "job-appointment",
 ];
-const CUSTOMER_DOC_TYPES = ["cust-id-card", "cust-cert"];
+const CUSTOMER_DOC_TYPES = ["cust-id-card", "cust-cert", "cust-house", "cust-commerce"];
 
 const EXPENSE_CATEGORIES = [
   "ค่าเช่าสำนักงาน", "เงินเดือนพนักงาน", "ค่าน้ำ-ไฟ-อินเทอร์เน็ต",
@@ -49,7 +49,13 @@ function buildExpenseSlipPrompt(): string {
 }
 
 function buildCustomerDocPrompt(docType: string): string {
-  const docLabel = docType === "cust-id-card" ? "Thai national ID card of the employer/director" : "Thai company registration certificate (หนังสือรับรองบริษัท)";
+  const docLabels: Record<string, string> = {
+    "cust-id-card": "Thai national ID card of the employer/director",
+    "cust-cert": "Thai company registration certificate (หนังสือรับรองบริษัท)",
+    "cust-house": "Thai company house registration document (ทะเบียนบ้านบริษัท)",
+    "cust-commerce": "Thai commercial registration certificate (ทะเบียนพาณิชย์)",
+  };
+  const docLabel = docLabels[docType] || "Thai company/employer document";
   return `You are a professional assistant. Parse this ${docLabel} and extract the relevant fields. ` +
     `Convert dates to DD/MM/YYYY format. Only fill fields you can actually read from the document — ` +
     `leave a field out entirely (do not guess or invent values) if it is not clearly present. ` +
@@ -78,9 +84,23 @@ function buildAppointmentPrompt(): string {
     `}`;
 }
 
+function buildInsurancePrompt(): string {
+  return `You are a professional assistant. Parse this health/accident insurance policy document for a migrant worker ` +
+    `and extract the relevant fields. Convert dates to DD/MM/YYYY format. Only fill fields you can actually read from ` +
+    `the document — leave a field out entirely (do not guess or invent values) if it is not clearly present. ` +
+    `Output ONLY a valid JSON object matching this schema, without markdown wrapping, json declaration, or backticks:\n` +
+    `{\n` +
+    `  "insuranceNo": "Policy number / เลขกรมธรรม์ if found",\n` +
+    `  "provider": "Insurance company name (บริษัทประกัน) if found",\n` +
+    `  "coverageStart": "Coverage start date (วันที่คุ้มครองเริ่มต้น) in DD/MM/YYYY format if found",\n` +
+    `  "coverageEnd": "Coverage end date (วันที่คุ้มครองสิ้นสุด) in DD/MM/YYYY format if found"\n` +
+    `}`;
+}
+
 function buildPrompt(docType: string): string {
   if (docType === "expense-slip") return buildExpenseSlipPrompt();
   if (docType === "job-appointment") return buildAppointmentPrompt();
+  if (docType === "worker-insurance-doc") return buildInsurancePrompt();
   if (CUSTOMER_DOC_TYPES.includes(docType)) return buildCustomerDocPrompt(docType);
   return `You are a professional assistant. Parse this migrant worker document (${docType}) and extract the relevant fields. ` +
     `Convert all dates to DD/MM/YYYY format. Only fill fields you can actually read from the document — ` +
