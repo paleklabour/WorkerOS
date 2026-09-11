@@ -6983,6 +6983,24 @@ function quickCombineInvoice(customerId) {
 }
 
 // ==================== WORKER PHOTO PROCESSING & BACKGROUND REMOVAL ====================
+// ลบรูปถ่ายคนงานที่แนบไว้ (ปุ่ม × มุมขวาบนวงกลม — โผล่เฉพาะตอนมีรูปแล้ว) คืนกลับไปเป็นไอคอนเปล่า
+// และลบไฟล์จริงใน Storage ด้วย (ไม่ใช่แค่ล้าง preview) ต้องกด "บันทึกข้อมูล" อีกครั้งเพื่อให้ตัดออกจากคนงานจริง
+function removeWorkerPhoto(event) {
+    if (event) event.stopPropagation();
+    const preview = document.getElementById("worker-photo-preview");
+    const icon = document.getElementById("worker-photo-icon");
+    if (!preview || preview.classList.contains("hidden")) return;
+    if (!confirm("ต้องการลบรูปถ่ายคนงานนี้หรือไม่?")) return;
+
+    const oldUrl = preview.src;
+    preview.src = "";
+    preview.classList.add("hidden");
+    if (icon) icon.classList.remove("hidden");
+    document.getElementById("worker-photo-input").value = "";
+
+    deleteStorageFileByUrl(oldUrl);
+}
+
 function handleWorkerPhotoUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
