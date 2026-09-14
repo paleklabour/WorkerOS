@@ -550,6 +550,43 @@ h1, h2, h3, h4, h5, h6 {
     font-weight: 600;
 }
 
+/* ปุ่มแฮมเบอร์เกอร์เปิดเมนูข้าง — โชว์เฉพาะจอแคบ (มือถือ/iPad แนวตั้ง) ดู media query ด้านล่าง */
+.mobile-menu-btn {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-sm);
+    border: 1px solid #e2e8f0;
+    background-color: #ffffff;
+    color: var(--navy-dark);
+    cursor: pointer;
+    flex-shrink: 0;
+    margin-right: 12px;
+    transition: var(--transition);
+}
+
+.mobile-menu-btn:hover {
+    background-color: #f8fafc;
+    border-color: var(--gold-primary);
+    color: var(--gold-primary);
+}
+
+/* พื้นหลังมืดปิดทับเนื้อหาตอนลิ้นชักเมนูเปิดอยู่บนจอแคบ — แตะที่ไหนก็ได้เพื่อปิดเมนู */
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background-color: rgba(15, 23, 42, 0.45);
+    z-index: 998;
+}
+
+.sidebar-overlay.visible {
+    display: block;
+    animation: fadeIn 0.2s ease-out;
+}
+
 .top-bar-actions {
     display: flex;
     align-items: center;
@@ -1109,7 +1146,11 @@ h1, h2, h3, h4, h5, h6 {
     border-radius: var(--radius-md);
     border: 1px solid #e2e8f0;
     box-shadow: var(--shadow-sm);
-    overflow: hidden;
+    /* overflow-x: auto (ไม่ใช่ hidden) — จอแคบ/iPad ตารางคอลัมน์เยอะจะเลื่อนดูแนวนอนได้แทนที่จะถูกตัดขอบมองไม่เห็น
+       ส่วน overflow-y: hidden ไว้เผื่อคุมมุมโค้ง (border-radius) ของ container เหมือนเดิม */
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
 }
 
 .data-table {
@@ -1943,14 +1984,85 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 
-/* ==================== RESPONSIVE STYLING ==================== */
+/* ==================== RESPONSIVE STYLING ====================
+   เบรกพอยต์หลักที่ 1024px ครอบคลุมทั้งมือถือและ iPad แนวตั้ง (768-834px) —
+   ช่วงนี้เมนูข้างจะกลายเป็นลิ้นชักเลื่อนออกมาแทนที่จะแสดงค้างตลอด (ดู JS: toggleMobileSidebar)
+   เกิน 1024px (iPad แนวนอน/คอมพิวเตอร์) ใช้เลย์เอาต์เดสก์ท็อปปกติ พื้นที่กว้างพอไม่ต้องพับเมนู */
 @media (max-width: 1024px) {
     .dashboard-grid {
         grid-template-columns: 1fr;
     }
-    
+
     .stats-grid {
         grid-template-columns: repeat(2, 1fr);
+    }
+
+    .mobile-menu-btn {
+        display: inline-flex;
+    }
+
+    /* เมนูข้างกลายเป็นลิ้นชักลอยเลื่อนออกจากซ้าย แทนที่จะเบียดพื้นที่เนื้อหาตลอดเวลา */
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100vh;
+        width: 280px;
+        max-width: 85vw;
+        z-index: 999;
+        transform: translateX(-100%);
+        transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: var(--shadow-lg);
+        overflow-y: auto;
+    }
+
+    .sidebar.sidebar-open {
+        transform: translateX(0);
+    }
+
+    .sidebar-menu {
+        flex-direction: column;
+        overflow-x: visible;
+    }
+
+    .menu-item {
+        padding: 12px 16px;
+        white-space: normal;
+        min-height: 44px;
+    }
+
+    /* เนื้อหาหลักกว้างเต็มจอ (ไม่มีเมนูข้างเบียดพื้นที่แล้ว) */
+    .top-bar {
+        padding: 0 16px;
+    }
+
+    .content-body {
+        padding: 18px;
+    }
+
+    .doc-upload-grid.four-cols {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    /* ป้องกัน iOS Safari ซูมหน้าจอเข้าเองทุกครั้งที่แตะช่องกรอกข้อมูล (เกิดเมื่อ font-size ช่องกรอก < 16px) */
+    .form-group input,
+    .form-group select,
+    .form-group textarea,
+    .search-box input,
+    .filter-box select,
+    .job-worker-search-input {
+        font-size: 16px;
+    }
+
+    /* ปุ่มไอคอนจัดการในตาราง/การ์ด ขยายพื้นที่แตะให้กดง่ายขึ้นบนจอสัมผัส */
+    .action-icon-btn {
+        width: 38px;
+        height: 38px;
+    }
+
+    .close-btn {
+        width: 40px;
+        height: 40px;
     }
 }
 
@@ -1958,44 +2070,73 @@ h1, h2, h3, h4, h5, h6 {
     #main-layout {
         flex-direction: column;
     }
-    
-    .sidebar {
-        width: 100%;
-        height: auto;
-        border-right: none;
-        border-bottom: 1px solid rgba(212, 175, 55, 0.15);
-    }
-    
-    .sidebar-menu {
-        flex-direction: row;
-        overflow-x: auto;
-        padding: 10px;
-    }
-    
-    .menu-item {
-        padding: 8px 12px;
-        white-space: nowrap;
-    }
-    
+
     .stats-grid {
         grid-template-columns: 1fr;
     }
-    
+
     .form-row {
         flex-direction: column;
         gap: 0;
     }
-    
+
     .col-6, .col-4, .col-12 {
         width: 100%;
     }
-    
+
     .doc-upload-grid {
         grid-template-columns: 1fr 1fr;
     }
-    
+
     .doc-upload-grid.four-cols {
         grid-template-columns: 1fr 1fr;
+    }
+
+    .filter-box {
+        flex-wrap: wrap;
+    }
+
+    .filter-box select {
+        flex: 1 1 140px;
+    }
+
+    /* โมดัลฟอร์มกรอกข้อมูลเต็มจอบนมือถือ — กรอกง่ายกว่ากล่องเล็กลอยกลางจอ */
+    .modal-backdrop {
+        padding: 0;
+    }
+
+    .modal-content,
+    .modal-content.large {
+        max-width: 100%;
+        width: 100%;
+        height: 100%;
+        max-height: 100%;
+        border-radius: 0;
+    }
+
+    .modal-header,
+    .modal-footer {
+        padding: 16px 18px;
+    }
+
+    .modal-body {
+        padding: 18px;
+    }
+}
+
+/* จอมือถือขนาดเล็ก (เช่น iPhone SE ~375px) — บีบช่องว่างอีกนิดให้ไม่อึดอัด */
+@media (max-width: 480px) {
+    .doc-upload-grid,
+    .doc-upload-grid.four-cols {
+        grid-template-columns: 1fr;
+    }
+
+    .top-bar-actions {
+        gap: 10px;
+    }
+
+    .current-date {
+        display: none;
     }
 }
 

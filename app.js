@@ -1023,7 +1023,28 @@ function switchView(viewName) {
     } else if (viewName === 'users') {
         renderUsers();
     }
+
+    // บนจอมือถือ/แท็บเล็ต เมนูข้างเป็นลิ้นชักเลื่อนออกมา — เลือกเมนูแล้วปิดลิ้นชักให้อัตโนมัติ
+    closeMobileSidebar();
 }
+
+// ==================== เมนูข้างแบบลิ้นชักบนจอมือถือ/แท็บเล็ต (Responsive Sidebar Drawer) ====================
+// จอกว้าง (คอมพิวเตอร์/iPad แนวนอน) เมนูข้างจะแสดงค้างอยู่ตลอดตามปกติ (ดู styles.css)
+// จอแคบ (มือถือ/iPad แนวตั้ง, <=1024px) เมนูข้างจะซ่อนไว้แล้วเลื่อนออกมาเมื่อกดปุ่มแฮมเบอร์เกอร์
+function toggleMobileSidebar() {
+    document.querySelector(".sidebar")?.classList.toggle("sidebar-open");
+    document.getElementById("sidebar-overlay")?.classList.toggle("visible");
+}
+
+function closeMobileSidebar() {
+    document.querySelector(".sidebar")?.classList.remove("sidebar-open");
+    document.getElementById("sidebar-overlay")?.classList.remove("visible");
+}
+
+// ถ้าหมุนจอ/ปรับขนาดหน้าต่างจนกว้างเกินเบรกพอยต์แล้ว ให้ล้างสถานะลิ้นชักทิ้ง กันเมนูค้างเปิดตอนสลับกลับเป็นจอกว้าง
+window.addEventListener("resize", () => {
+    if (window.innerWidth > 1024) closeMobileSidebar();
+});
 
 // ==================== RENEWALS VIEW (ข้อมูลคนงานต่ออายุ) ====================
 // จัดกลุ่มคนงานอัตโนมัติตาม "วันหมดอายุใบอนุญาตทำงาน" ที่ตรงกันเป๊ะ ๆ:
