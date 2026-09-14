@@ -48,12 +48,18 @@ window.SUPABASE_ANON_KEY = "eyJ...";   // anon public key เท่านั้�
 ## สถานะปัจจุบัน (อัปเดตล่าสุด)
 - Migrations: apply แล้วทั้งหมด (`0001_init`, `20260817085752_grant_role_functions`)
 - Storage bucket `worker-documents`: สร้างแล้ว (public)
-- Edge Functions: `ocr-document`, `create-user`, `line-webhook` — deploy แล้วทั้ง 3 ตัว และสถานะ ACTIVE
+- Edge Functions ที่ deploy แล้วและสถานะ ACTIVE ทั้งหมด 6 ตัว: `ocr-document`, `create-user`, `delete-user`, `share-worker-docs`, `share-customer-docs` (มีซอร์สอยู่ใน `supabase/functions/`) และ `line-webhook` (ไม่มีซอร์สในนี้ ดึงมาด้วย `supabase functions download line-webhook` ก่อนแก้ไข — ดู CLAUDE.md)
+- Secrets ของ Edge Functions ยืนยันแล้ว (2026-09-14): `ADMIN_PIN`, `GEMINI_API_KEY` ตั้งค่าอยู่บน Supabase project จริง (เช็คด้วย `supabase secrets list`)
 - `index.html` ชี้ `window.SUPABASE_URL` / `window.SUPABASE_ANON_KEY` ไปที่โปรเจกต์จริง (`cagpzvrqtjkuabhqaqon`) แล้ว
 - Auth user แรก + แถวใน `profiles` (role `admin`, ชื่อ "Admin") ผูกกันเรียบร้อย — ล็อกอินได้แล้ว
 - ตาราง `customers`/`workers`/`jobs`/`banks`/`line_groups` ยังว่างโดยตั้งใจ (เลือกเริ่มข้อมูลใหม่ทั้งหมด ไม่ย้ายของเก่าจาก Google Sheets)
 - หน้าตั้งค่า/ทดสอบการเชื่อมต่อ Google Sheets แบบเดิม (`testGoogleSheetsConnection`, ปุ่มกรอก Web App URL) — โค้ดและ UI ที่อ้างอิงระบบเดิมถูกลบออกทั้งหมดแล้ว (ดู CLAUDE.md)
 
+## GitHub Pages (ยืนยันแล้ว — 2026-09-14)
+- Source: branch `supabase-migration`, path `/` (legacy build, ไม่ใช้ GitHub Actions)
+- ทุก push ขึ้น `origin/supabase-migration` จะ trigger build อัตโนมัติ ปกติเสร็จภายใน ~20 วินาที
+- URL: https://paleklabour.github.io/WorkerOS/
+- เช็คสถานะ build ล่าสุด: `gh api repos/paleklabour/WorkerOS/pages/builds/latest`
+
 ## สิ่งที่ยังไม่ได้ทำ (รอคำสั่งถัดไป)
-- ยังไม่ได้ยืนยันว่า GitHub Pages deploy จาก branch ไหนแน่ชัด (repo ตั้ง remote ไว้ที่ `origin/supabase-migration` แต่หน้าเว็บที่ deploy จริงดูเหมือนมีโค้ด Supabase อยู่แล้ว — ควรเช็คใน repo Settings → Pages ให้ชัวร์)
-- Secrets ของ Edge Functions (`GEMINI_API_KEY`, `ADMIN_PIN`) — ยังไม่ยืนยันว่าตั้งค่าจริงหรือยัง ควรเช็คใน Supabase Dashboard → Edge Functions → Secrets
+- (ว่าง — รายการที่เคยค้างไว้ทั้งหมดยืนยันแล้วเมื่อ 2026-09-14 ดูหัวข้อด้านบน)
