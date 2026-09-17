@@ -10,6 +10,7 @@ let banks = [];
 let users = [];
 let agents = [];
 let expenses = [];
+let freeInvoices = [];
 
 // Thai provinces selection constraint
 const PROVINCES = ["สงขลา", "ปัตตานี", "ยะลา", "พัทลุง"];
@@ -323,6 +324,7 @@ async function loadData() {
             users = res.users || [];
             agents = res.agents || [];
             expenses = res.expenses || [];
+            freeInvoices = res.freeInvoices || [];
 
             // Cache locally
             localStorage.setItem("mw_customers", JSON.stringify(customers));
@@ -332,6 +334,7 @@ async function loadData() {
             localStorage.setItem("mw_users", JSON.stringify(users));
             localStorage.setItem("mw_agents", JSON.stringify(agents));
             localStorage.setItem("mw_expenses", JSON.stringify(expenses));
+            localStorage.setItem("mw_free_invoices", JSON.stringify(freeInvoices));
 
             showToast("⚡ ดึงข้อมูลออนไลน์เรียบร้อยแล้ว", "success");
             return;
@@ -355,6 +358,8 @@ async function loadData() {
         agents = cachedAgents ? JSON.parse(cachedAgents) : [];
         const cachedExpenses = localStorage.getItem("mw_expenses");
         expenses = cachedExpenses ? JSON.parse(cachedExpenses) : [];
+        const cachedFreeInvoices = localStorage.getItem("mw_free_invoices");
+        freeInvoices = cachedFreeInvoices ? JSON.parse(cachedFreeInvoices) : [];
     } else {
         // Generate Mock Data for immediate usage & wow factor
         seedMockData();
@@ -368,6 +373,7 @@ function saveData() {
     localStorage.setItem("mw_banks", JSON.stringify(banks));
     localStorage.setItem("mw_agents", JSON.stringify(agents));
     localStorage.setItem("mw_expenses", JSON.stringify(expenses));
+    localStorage.setItem("mw_free_invoices", JSON.stringify(freeInvoices));
 }
 
 function seedMockData() {
@@ -671,6 +677,7 @@ async function initApp() {
         switchView('dashboard');
         setupFormPermissions();
         setupAllSearchSuggestions();
+        setupAllSearchSelects();
     } catch (e) {
         console.error("Error initializing app: ", e);
         logout(); // force logout to clear corrupted state
@@ -791,6 +798,141 @@ function setupAllSearchSuggestions() {
         w => `${w.firstName || ''} ${w.lastName || ''}`.trim(),
         w => { const emp = customers.find(c => c.id === w.employerId); return emp ? emp.companyName : ''; },
         renderMissingDocsOverview);
+}
+
+// ==================== SEARCH-SELECT (ค้นหาเพื่อ "เลือกข้อมูล 1 รายการ" จากระบบ — นายจ้าง, ลูกจ้าง, Agent ฯลฯ) ====================
+// กฎมาตรฐานของโปรเจกต์: ช่องไหนก็ตามที่ให้ผู้ใช้ "ค้นหาเพื่อเลือกข้อมูล 1 รายการที่มีอยู่จริงในระบบ" จากชุดข้อมูลที่อาจยาวขึ้น
+// เรื่อยๆ (นายจ้าง/ลูกค้า, ลูกจ้าง/คนงาน, Agent ฯลฯ) ต้องใช้ registerSearchSelect() นี้เสมอ แทนการให้พิมพ์ข้อความเองอิสระ
+// หรือ <select> ยาวๆ ที่ต้องเลื่อนหา — เป็น dropdown แนะนำขณะพิมพ์มาตรฐานเดียวกับ registerSearchSuggest() ด้านบน
+// (ใช้ CSS class เดียวกัน: .search-box / .search-suggest-dropdown) ต่างกันตรงที่ตัวนี้คืนค่าเป็น "รายการที่เลือกจริง"
+// (มี id) ให้ onSelect แทนแค่เติมข้อความแล้วกรองตารางเดิม — ดูรายละเอียดกฎเต็มใน CLAUDE.md หัวข้อ "Search-to-select fields"
+//
+// ไม่ใช้ pattern นี้กับ: (1) ตัวเลือกตายตัวจำนวนน้อย เช่น สถานะ/สัญชาติ/เพศ — ใช้ <select> ปกติต่อไป หรือ
+// (2) การเลือกได้หลายรายการพร้อมกันที่ต้องเห็นรายการที่เลือกไว้ค้างอยู่ตลอด — ใช้ checklist แบบ job-worker-picker แทน
+//
+// ถ้าช่องนั้นมี <select> เดิมอยู่แล้วที่โค้ดจุดอื่นยังอ่าน/เขียน .value อยู่ (เช่น validation, ผูก onchange เดิม) ให้
+// ซ่อน <select> นั้นไว้ (class="hidden") เป็น "แหล่งเก็บค่าจริง" ต่อไป แล้วผูก getValue/setValue เข้ากับมัน — ไม่ต้องแก้
+// โค้ดเดิมที่อ่าน/เขียนค่านั้นเลย (รูปแบบเดียวกับ <select id="job-worker-id"> ที่ซ่อนไว้หลัง job-worker-picker)
+const searchSelectConfigs = {};
+const _searchSelectRegistered = new Set();
+
+// config: { inputId, getValue, setValue, getPool, getId, getLabel, getSub, getBadge, emptyText, onSelect, onClear }
+function registerSearchSelect(key, config) {
+    searchSelectConfigs[key] = config;
+
+    const input = document.getElementById(config.inputId);
+    if (!input || _searchSelectRegistered.has(config.inputId)) return;
+    _searchSelectRegistered.add(config.inputId);
+
+    const box = input.closest('.search-box') || input.parentElement;
+    let dropdown = document.getElementById(`${config.inputId}-suggest`);
+    if (!dropdown) {
+        dropdown = document.createElement('div');
+        dropdown.className = 'search-suggest-dropdown hidden';
+        dropdown.id = `${config.inputId}-suggest`;
+        box.appendChild(dropdown);
+    }
+
+    function hide() {
+        dropdown.classList.add('hidden');
+        dropdown.innerHTML = '';
+    }
+
+    function showOptions() {
+        const cfg = searchSelectConfigs[key];
+        const query = input.value.trim().toLowerCase();
+        const pool = cfg.getPool() || [];
+        const matches = pool.filter(item => {
+            if (!query) return true;
+            const label = (cfg.getLabel(item) || '').toLowerCase();
+            const sub = (cfg.getSub ? (cfg.getSub(item) || '') : '').toLowerCase();
+            return label.includes(query) || sub.includes(query);
+        }).slice(0, 30);
+
+        if (matches.length === 0) {
+            dropdown.innerHTML = `<div class="search-suggest-item" style="cursor:default;"><span class="search-suggest-label" style="color:var(--text-muted); font-weight:normal;">--- ${cfg.emptyText || 'ไม่พบข้อมูลที่ตรงกับคำค้นหา'} ---</span></div>`;
+            dropdown.classList.remove('hidden');
+            return;
+        }
+
+        dropdown.innerHTML = matches.map((item) => {
+            const label = cfg.getLabel(item) || '';
+            const sub = cfg.getSub ? cfg.getSub(item) : '';
+            const badge = cfg.getBadge ? cfg.getBadge(item) : '';
+            const subLine = [sub, badge].filter(Boolean).join(' · ');
+            return `
+                <div class="search-suggest-item">
+                    <span class="search-suggest-label">${label}</span>
+                    ${subLine ? `<span class="search-suggest-sub">${subLine}</span>` : ''}
+                </div>
+            `;
+        }).join('');
+        dropdown.classList.remove('hidden');
+
+        Array.from(dropdown.children).forEach((el, idx) => {
+            el.addEventListener('mousedown', (e) => {
+                e.preventDefault(); // กันไม่ให้ input blur ก่อนที่ click จะทำงาน
+                selectSearchSelectItem(key, cfg.getId(matches[idx]));
+                hide();
+                input.focus();
+            });
+        });
+    }
+
+    input.addEventListener('input', () => {
+        // พิมพ์ทับชื่อที่เลือกไว้เดิม -> ถือว่ายังไม่ได้เลือกใหม่ จนกว่าจะคลิกเลือกจากรายการจริง
+        const cfg = searchSelectConfigs[key];
+        if (cfg.getValue()) {
+            cfg.setValue('');
+            if (cfg.onClear) cfg.onClear();
+        }
+        showOptions();
+    });
+    input.addEventListener('focus', showOptions);
+    input.addEventListener('blur', () => setTimeout(hide, 150));
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') hide();
+    });
+}
+
+// เลือกรายการโดยตรงด้วย id (ใช้ตอนคลิกเลือกจาก dropdown หรือเลือกให้อัตโนมัติจากโค้ด เช่น
+// เลือกลูกจ้างแล้วเติมนายจ้างของคนนั้นให้ทันที) — เซ็ตค่าจริง + ข้อความในช่อง + เรียก onSelect เสมอ
+function selectSearchSelectItem(key, id) {
+    const cfg = searchSelectConfigs[key];
+    if (!cfg) return;
+    const record = (cfg.getPool() || []).find(item => cfg.getId(item) === id);
+    if (!record) return;
+
+    cfg.setValue(id);
+    const input = document.getElementById(cfg.inputId);
+    if (input) input.value = cfg.getLabel(record) || '';
+    if (cfg.onSelect) cfg.onSelect(record);
+}
+
+// ล้างค่าที่เลือกไว้ + ข้อความในช่อง (ไม่เรียก onSelect)
+function clearSearchSelect(key) {
+    const cfg = searchSelectConfigs[key];
+    if (!cfg) return;
+    cfg.setValue('');
+    const input = document.getElementById(cfg.inputId);
+    if (input) input.value = '';
+    if (cfg.onClear) cfg.onClear();
+}
+
+// ตั้งค่าเริ่มต้นตอนเปิดโมดัล (ไม่เรียก onSelect/onClear — ใช้แค่ sync ค่าจริง + ข้อความที่แสดงในช่องให้ตรงกัน
+// เช่น ตอนเปิดฟอร์มแก้ไขที่มีค่าเดิมอยู่แล้ว โค้ดที่เรียกเองต่างหากจะจัดการผลข้างเคียง เช่น กรองรายชื่อลูกจ้างตามนายจ้าง)
+function presetSearchSelect(key, id) {
+    const cfg = searchSelectConfigs[key];
+    if (!cfg) return;
+    cfg.setValue(id || '');
+    const input = document.getElementById(cfg.inputId);
+    if (!input) return;
+    if (id) {
+        const record = (cfg.getPool() || []).find(item => cfg.getId(item) === id);
+        input.value = record ? (cfg.getLabel(record) || '') : '';
+    } else {
+        input.value = '';
+    }
 }
 
 function getRoleLabel(role) {
@@ -1426,8 +1568,23 @@ function switchFinancePageTab(tabName) {
     }
 }
 
+// badge สถานะการเงิน ใช้ร่วมกันทั้งบิลที่ผูกใบงานจริง (jobs) และบิลอิสระ (freeInvoices) ในตาราง "ออกบิล/รับเงิน"
+function buildFinancePaymentBadge(paymentStatus, paymentMethod, isClosedUnpaid) {
+    let badge = `<span class="badge badge-warning" style="font-size: 10px; padding: 2px 6px;">⏳ ยังไม่ออกบิล</span>`;
+    if (isClosedUnpaid && paymentStatus === 'ยังไม่ออกบิล') {
+        badge = `<span class="badge badge-danger" style="font-size: 10px; padding: 2px 6px;">⚠️ ยังไม่ออกบิล/ยังไม่ชำระ</span>`;
+    } else if (isClosedUnpaid && paymentStatus === 'ออกบิลแล้ว') {
+        badge = `<span class="badge badge-danger" style="font-size: 10px; padding: 2px 6px;">⚠️ ออกบิลแล้ว รอชำระ</span>`;
+    } else if (paymentStatus === 'ออกบิลแล้ว') {
+        badge = `<span class="badge" style="font-size: 10px; padding: 2px 6px; background-color: #3b82f6; color: white;">🧾 ออกบิลแล้ว</span>`;
+    } else if (paymentStatus === 'ชำระเงินแล้ว') {
+        badge = `<span class="badge badge-success" style="font-size: 10px; padding: 2px 6px;">✅ ชำระเงินแล้ว${paymentMethod ? ` (${paymentMethod})` : ''}</span>`;
+    }
+    return badge;
+}
+
 // รายการงานที่ผ่านระบบแจ้งงานที่ยังไม่ได้รับชำระเงิน — ย้ายมาจากหน้า "ระบบแจ้งงาน / ใบสั่งงาน"
-// มาไว้ที่นี่ทั้งหมด (ปุ่มออกบิล/รับเงินต่อรายการ + รวมบิลนายจ้าง + สร้างบิลอิสระ)
+// มาไว้ที่นี่ทั้งหมด (ปุ่มออกบิล/รับเงินต่อรายการ + รวมบิลนายจ้าง + สร้างบิลอิสระ) รวมกับบิลอิสระที่เคย "วางบิล" ไว้แล้ว (freeInvoices)
 function renderBillingTab() {
     const searchInput = document.getElementById("search-billing");
     const query = searchInput ? searchInput.value.toLowerCase() : "";
@@ -1436,7 +1593,7 @@ function renderBillingTab() {
     const tbody = document.getElementById("billing-list-tbody");
     if (!tbody) return;
 
-    const filtered = jobs.filter(j => {
+    const filteredJobs = jobs.filter(j => {
         const paymentStatus = j.paymentStatus || 'ยังไม่ออกบิล';
         if (statusFilter === 'pending') return paymentStatus !== 'ชำระเงินแล้ว';
         if (statusFilter === 'paid') return paymentStatus === 'ชำระเงินแล้ว';
@@ -1450,7 +1607,19 @@ function renderBillingTab() {
         return (j.id || "").toLowerCase().includes(query) || custName.includes(query) || workName.includes(query);
     });
 
-    if (filtered.length === 0) {
+    const filteredFreeInvoices = freeInvoices.filter(inv => {
+        const paymentStatus = inv.paymentStatus || 'ออกบิลแล้ว';
+        if (statusFilter === 'pending') return paymentStatus !== 'ชำระเงินแล้ว';
+        if (statusFilter === 'paid') return paymentStatus === 'ชำระเงินแล้ว';
+        return true; // 'all'
+    }).filter(inv => {
+        if (!query) return true;
+        const custName = (inv.customerName || '').toLowerCase();
+        const workName = (inv.workerName || '').toLowerCase();
+        return (inv.invoiceNo || inv.id || "").toLowerCase().includes(query) || custName.includes(query) || workName.includes(query);
+    });
+
+    if (filteredJobs.length === 0 && filteredFreeInvoices.length === 0) {
         const emptyMsg = statusFilter === 'pending' ? "✅ ไม่มีรายการที่ค้างรับชำระ" : "❌ ไม่พบรายการ";
         tbody.innerHTML = `
             <tr>
@@ -1462,7 +1631,31 @@ function renderBillingTab() {
         return;
     }
 
-    tbody.innerHTML = filtered.map(j => {
+    const freeInvoiceRowsHtml = filteredFreeInvoices.map(inv => {
+        const paymentStatus = inv.paymentStatus || 'ออกบิลแล้ว';
+        const paymentBadge = buildFinancePaymentBadge(paymentStatus, inv.paymentMethod, false);
+        const billBtnLabel = paymentStatus === 'ชำระเงินแล้ว' ? '🧾 ดู/พิมพ์บิล' : '🧾 ดู/รับเงิน';
+        const grandTotal = inv.grandTotal || 0;
+
+        return `
+            <tr>
+                <td><strong>${inv.invoiceNo || inv.id}</strong></td>
+                <td><span class="badge badge-gold">🧾 บิลอิสระ</span></td>
+                <td>${inv.customerName || '-'}</td>
+                <td>${inv.workerName || '-'}</td>
+                <td><strong>${grandTotal.toLocaleString()} บาท</strong></td>
+                <td><span class="text-muted">— ไม่ผูกใบงาน —</span></td>
+                <td>${paymentBadge}</td>
+                <td class="actions-col">
+                    <button class="btn btn-sm btn-gold" onclick="openFreeInvoiceModal('${inv.id}')" style="white-space: nowrap;">
+                        ${billBtnLabel}
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    const jobRowsHtml = filteredJobs.map(j => {
         const cust = customers.find(c => c.id === j.customerId);
         const work = workers.find(w => w.id === j.workerId);
         const custName = cust ? cust.companyName : "ไม่พบนายจ้าง";
@@ -1477,16 +1670,7 @@ function renderBillingTab() {
 
         const paymentStatus = j.paymentStatus || 'ยังไม่ออกบิล';
         const isClosedUnpaid = j.status === 'ปิดงานแล้ว' && paymentStatus !== 'ชำระเงินแล้ว';
-        let paymentBadge = `<span class="badge badge-warning" style="font-size: 10px; padding: 2px 6px;">⏳ ยังไม่ออกบิล</span>`;
-        if (isClosedUnpaid && paymentStatus === 'ยังไม่ออกบิล') {
-            paymentBadge = `<span class="badge badge-danger" style="font-size: 10px; padding: 2px 6px;">⚠️ ยังไม่ออกบิล/ยังไม่ชำระ</span>`;
-        } else if (isClosedUnpaid && paymentStatus === 'ออกบิลแล้ว') {
-            paymentBadge = `<span class="badge badge-danger" style="font-size: 10px; padding: 2px 6px;">⚠️ ออกบิลแล้ว รอชำระ</span>`;
-        } else if (paymentStatus === 'ออกบิลแล้ว') {
-            paymentBadge = `<span class="badge" style="font-size: 10px; padding: 2px 6px; background-color: #3b82f6; color: white;">🧾 ออกบิลแล้ว</span>`;
-        } else if (paymentStatus === 'ชำระเงินแล้ว') {
-            paymentBadge = `<span class="badge badge-success" style="font-size: 10px; padding: 2px 6px;">✅ ชำระเงินแล้ว${j.paymentMethod ? ` (${j.paymentMethod})` : ''}</span>`;
-        }
+        const paymentBadge = buildFinancePaymentBadge(paymentStatus, j.paymentMethod, isClosedUnpaid);
 
         const billBtnLabel = paymentStatus === 'ชำระเงินแล้ว' ? '🧾 ดู/พิมพ์บิล' : '🧾 ออกบิล/รับเงิน';
 
@@ -1507,6 +1691,9 @@ function renderBillingTab() {
             </tr>
         `;
     }).join('');
+
+    // บิลอิสระที่เพิ่งวางบิลไว้ขึ้นก่อน (ยังไม่ผ่านขั้นตอนใบงาน จึงเน้นให้เห็นชัด) ตามด้วยรายการที่ผูกใบงานจริง
+    tbody.innerHTML = freeInvoiceRowsHtml + jobRowsHtml;
 }
 
 function renderDashboardOverview() {
@@ -3097,6 +3284,10 @@ function openWorkerModal(id = null) {
         });
 
         document.getElementById("worker-employer-id").value = w.employerId;
+        // Sync ข้อความที่แสดงในช่องค้นหา (search-select) ให้ตรงกับนายจ้างที่บันทึกไว้เดิม
+        const employerForSearch = customers.find(c => c.id === w.employerId);
+        const employerSearchInput = document.getElementById("worker-employer-search");
+        if (employerSearchInput) employerSearchInput.value = employerForSearch ? employerForSearch.companyName : '';
         
         // Nationality logic
         const standardNationalities = ["Myanmar", "Cambodia", "Laos", "Vietnam"];
@@ -3678,6 +3869,10 @@ function openJobModal(id = null) {
 
         const j = jobs.find(item => item.id === id);
         custSelect.value = j.customerId;
+        // Sync ข้อความที่แสดงในช่องค้นหา (search-select) ให้ตรงกับนายจ้างที่บันทึกไว้เดิม
+        const custForSearch = customers.find(c => c.id === j.customerId);
+        const custSearchInput = document.getElementById("job-customer-search");
+        if (custSearchInput) custSearchInput.value = custForSearch ? custForSearch.companyName : '';
 
         // Trigger worker dropdown generation (จะเซ็ต Agent ให้ตามนายจ้างที่เลือกไปในตัวด้วย)
         onJobCustomerChange(j.workerId);
@@ -5052,6 +5247,9 @@ async function deleteBank(id) {
 let currentActiveJobForInvoice = null;
 let currentInvoiceItems = [];
 let currentInvoiceJobIds = [];
+let freeInvoiceCustomerId = null;
+let freeInvoiceWorkerId = null;
+let currentFreeInvoiceId = null; // ตั้งค่าเมื่อบิลอิสระที่เปิดอยู่นี้เคยถูก "วางบิล" บันทึกเป็นรายการจริงในระบบแล้ว
 
 function openInvoiceModal(jobId) {
     if (banks.length === 0) {
@@ -5067,6 +5265,7 @@ function openInvoiceModal(jobId) {
     const selectBank = document.getElementById("invoice-bank-select");
     const markPaidBtn = document.getElementById("btn-mark-paid");
     const saveEditsBtn = document.getElementById("btn-save-invoice-edits");
+    const issueFreeBtn = document.getElementById("btn-issue-free-invoice");
 
     // รีเซ็ตช่องกำหนดชำระ/หมายเหตุ ไม่ให้ค้างข้อความจากบิลใบก่อนหน้า
     const dueDateEl = document.getElementById("inv-due-date");
@@ -5142,10 +5341,20 @@ function openInvoiceModal(jobId) {
             if (saveEditsBtn) saveEditsBtn.style.display = 'inline-block';
         }
 
+        const freePickerWrap = document.getElementById("invoice-free-picker-wrap");
+        if (freePickerWrap) freePickerWrap.classList.add("hidden");
+        if (issueFreeBtn) issueFreeBtn.style.display = 'none';
+
     } else {
         // --- Free / Quick Invoice Mode ---
         const freeId = 'free-' + Date.now().toString().slice(-4);
-        
+        currentFreeInvoiceId = null; // บิลอิสระใหม่ทุกครั้งที่เปิดจากปุ่ม "สร้างบิลอิสระ" — ยังไม่เคย "วางบิล" บันทึกลงระบบ
+
+        const freePickerWrap = document.getElementById("invoice-free-picker-wrap");
+        if (freePickerWrap) freePickerWrap.classList.remove("hidden");
+        presetSearchSelect('free-invoice-customer', null);
+        presetSearchSelect('free-invoice-worker', null);
+
         if (customers.length > 0) {
             const cust = customers[0];
             document.getElementById("inv-cust-name").innerText = cust.companyName;
@@ -5179,6 +5388,7 @@ function openInvoiceModal(jobId) {
 
         if (markPaidBtn) markPaidBtn.style.display = 'inline-block';
         if (saveEditsBtn) saveEditsBtn.style.display = 'none'; // บิลอิสระไม่ได้ผูกกับใบงานจริง ไม่มีอะไรให้บันทึกย้อนกลับ
+        if (issueFreeBtn) issueFreeBtn.style.display = 'inline-block';
     }
 
     // Populate bank account dropdown selection list
@@ -5192,6 +5402,205 @@ function openInvoiceModal(jobId) {
     renderInvoiceItemsTable();
 
     document.getElementById("invoice-modal").classList.remove("hidden");
+}
+
+// ==================== FREE INVOICE PERSISTENCE (วางบิล/บันทึกบิลอิสระเป็นรายการจริงในระบบ) ====================
+// รวมข้อมูลจากฟอร์มบิลอิสระที่เปิดอยู่ในโมดัลตอนนี้เป็น payload สำหรับบันทึกลง Supabase (ใช้ทั้งตอน "วางบิล"
+// และ "ยืนยันรับชำระ" — ถ้ายังไม่เคยวางบิลมาก่อนจะได้ id ใหม่ ถ้าเคยวางบิลแล้วจะอัปเดตรายการเดิมด้วย currentFreeInvoiceId)
+function buildFreeInvoicePayload(paymentStatus) {
+    const worker = freeInvoiceWorkerId ? workers.find(w => w.id === freeInvoiceWorkerId) : null;
+    const selectBank = document.getElementById("invoice-bank-select");
+    const bankVal = selectBank ? selectBank.value : 'cash';
+    const bank = bankVal !== 'cash' ? banks.find(b => b.id === bankVal) : null;
+    const subtotal = currentInvoiceItems.reduce((sum, item) => sum + item.fee, 0);
+
+    return {
+        id: currentFreeInvoiceId || ('free-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)),
+        invoiceNo: document.getElementById("inv-no").innerText,
+        customerId: freeInvoiceCustomerId || null,
+        customerName: document.getElementById("inv-cust-name").innerText,
+        customerAddr: document.getElementById("inv-cust-addr").innerText,
+        customerTax: document.getElementById("inv-cust-tax").innerText,
+        workerId: freeInvoiceWorkerId || null,
+        workerName: worker ? `${worker.firstName} ${worker.lastName}`.trim() : null,
+        items: currentInvoiceItems,
+        subtotal: subtotal,
+        grandTotal: subtotal, // กิจการไม่ได้จด VAT จริง (ดู calculateInvoiceTotals)
+        bankId: bank ? bank.id : null,
+        paymentMethod: bank ? bank.bankName : 'เงินสด',
+        paymentStatus: paymentStatus,
+        dueDateText: document.getElementById("inv-due-date").innerText,
+        notes: document.getElementById("inv-notes").innerText,
+        createdBy: currentUser ? currentUser.id : null
+    };
+}
+
+// ปุ่ม "🧾 วางบิล" — บันทึกบิลอิสระที่กำลังดูอยู่เป็นรายการค้างชำระจริงในระบบ (โผล่ในตาราง "ออกบิล/รับเงิน")
+// กดซ้ำได้ (แก้ไขรายการ/ราคาแล้วกดวางบิลใหม่) จะอัปเดตรายการเดิมแทนที่จะสร้างซ้ำ เพราะจำ currentFreeInvoiceId ไว้แล้ว
+async function issueFreeInvoice() {
+    if (currentInvoiceJobIds.length > 0) return; // ใช้เฉพาะโหมดบิลอิสระเท่านั้น (บิลที่ผูกใบงานจริงออกบิลอัตโนมัติตอนเปิดโมดัลอยู่แล้ว)
+    if (currentInvoiceItems.length === 0) {
+        showToast("⚠️ ไม่มีรายการในบิล", "warning");
+        return;
+    }
+    currentInvoiceItems.forEach(item => syncInvoiceItemTextFields(item)); // sync ค่าล่าสุดจากช่องที่แก้ไขอิสระก่อนบันทึก
+
+    const existing = currentFreeInvoiceId ? freeInvoices.find(f => f.id === currentFreeInvoiceId) : null;
+    const payload = buildFreeInvoicePayload(existing ? existing.paymentStatus : 'ออกบิลแล้ว');
+
+    const res = await callCloudAPI("saveFreeInvoice", { invoiceData: payload });
+    if (!res) return;
+
+    currentFreeInvoiceId = payload.id;
+    const idx = freeInvoices.findIndex(f => f.id === payload.id);
+    if (idx === -1) freeInvoices.push(payload); else freeInvoices[idx] = payload;
+    saveData();
+    renderBillingTab();
+    showToast("🧾 วางบิลเรียบร้อยแล้ว — บันทึกเป็นรายการในระบบแล้ว", "success");
+}
+
+// เปิดดู/พิมพ์บิลอิสระที่เคย "วางบิล" ไว้แล้ว (บันทึกเป็นรายการจริงในระบบแล้ว) จากตารางออกบิล/รับเงิน
+function openFreeInvoiceModal(invoiceId) {
+    const inv = freeInvoices.find(f => f.id === invoiceId);
+    if (!inv) return;
+
+    if (banks.length === 0) {
+        alert("กรุณาเพิ่มข้อมูลบัญชีธนาคารอย่างน้อย 1 บัญชีก่อนออกบิลและเก็บเงิน");
+        switchView('expenses');
+        switchFinancePageTab('banks');
+        return;
+    }
+
+    setPrintPageSize("");
+
+    currentFreeInvoiceId = inv.id;
+    currentInvoiceJobIds = [];
+    currentInvoiceItems = JSON.parse(JSON.stringify(inv.items || []));
+
+    const freePickerWrap = document.getElementById("invoice-free-picker-wrap");
+    if (freePickerWrap) freePickerWrap.classList.remove("hidden");
+    presetSearchSelect('free-invoice-customer', inv.customerId || null);
+    presetSearchSelect('free-invoice-worker', inv.workerId || null);
+
+    document.getElementById("inv-cust-name").innerText = inv.customerName || '-';
+    document.getElementById("inv-cust-addr").innerText = inv.customerAddr || '-';
+    document.getElementById("inv-cust-tax").innerText = inv.customerTax || '-';
+    updateInvoiceBillingNote(inv.customerId ? customers.find(c => c.id === inv.customerId) : null);
+
+    document.getElementById("inv-no").innerText = inv.invoiceNo || `INV-${inv.id.toUpperCase()}`;
+    document.getElementById("inv-date").innerText = new Date(inv.createdAt || Date.now()).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+    document.getElementById("inv-due-date").innerText = inv.dueDateText || "ชำระทันทีเมื่อได้รับบิล";
+    document.getElementById("inv-notes").innerText = inv.notes || "-";
+
+    const selectBank = document.getElementById("invoice-bank-select");
+    selectBank.innerHTML = banks.map(b => `<option value="${b.id}">${b.bankName} - ${b.accountName}</option>`).join('') +
+        '<option value="cash">💵 รับชำระเป็นเงินสด (Cash Payment)</option>';
+    selectBank.value = inv.bankId || 'cash';
+
+    renderInvoiceItemsTable();
+
+    const saveEditsBtn = document.getElementById("btn-save-invoice-edits");
+    const issueFreeBtn = document.getElementById("btn-issue-free-invoice");
+    const markPaidBtn = document.getElementById("btn-mark-paid");
+    if (saveEditsBtn) saveEditsBtn.style.display = 'none'; // บิลอิสระไม่ได้ผูกกับใบงานจริง ไม่มีอะไรให้บันทึกย้อนกลับ
+    const alreadyPaid = inv.paymentStatus === 'ชำระเงินแล้ว';
+    if (issueFreeBtn) issueFreeBtn.style.display = alreadyPaid ? 'none' : 'inline-block';
+    if (markPaidBtn) markPaidBtn.style.display = alreadyPaid ? 'none' : 'inline-block';
+
+    document.getElementById("invoice-modal").classList.remove("hidden");
+}
+
+// ==================== FREE INVOICE EMPLOYER/WORKER PICKER (ใช้ registerSearchSelect มาตรฐานของโปรเจกต์) ====================
+// ลงทะเบียนครั้งเดียวตอน initApp() (ดู setupAllSearchSelects) — เปิดโมดัลแต่ละครั้งแค่ presetSearchSelect(key, null) รีเซ็ต
+function registerFreeInvoiceSearchSelects() {
+    registerSearchSelect('free-invoice-customer', {
+        inputId: 'invoice-free-cust-search',
+        getValue: () => freeInvoiceCustomerId,
+        setValue: (v) => { freeInvoiceCustomerId = v || null; },
+        getPool: () => customers,
+        getId: c => c.id,
+        getLabel: c => c.companyName,
+        getSub: c => c.taxId ? 'ภาษี ' + c.taxId : '',
+        emptyText: 'ไม่พบนายจ้างที่ตรงกับคำค้นหา',
+        onSelect: (cust) => onSelectFreeInvoiceCustomer(cust)
+    });
+
+    registerSearchSelect('free-invoice-worker', {
+        inputId: 'invoice-free-worker-search',
+        getValue: () => freeInvoiceWorkerId,
+        setValue: (v) => { freeInvoiceWorkerId = v || null; },
+        getPool: () => freeInvoiceCustomerId ? workers.filter(w => w.employerId === freeInvoiceCustomerId) : workers,
+        getId: w => w.id,
+        getLabel: w => `${w.firstName} ${w.lastName}`.trim(),
+        getSub: w => w.workerUid ? 'เลขประจำตัว ' + w.workerUid : '',
+        getBadge: w => w.nationality || '',
+        emptyText: freeInvoiceCustomerId ? 'ไม่พบลูกจ้างของนายจ้างรายนี้ที่ตรงกับคำค้นหา' : 'ไม่พบลูกจ้างที่ตรงกับคำค้นหา',
+        onSelect: (w) => onSelectFreeInvoiceWorker(w)
+    });
+}
+
+// เลือกนายจ้างจากระบบ -> เติมชื่อ/ที่อยู่/เลขภาษีลงในใบวางบิลอัตโนมัติ (ยังแก้ไขข้อความเองได้ต่อหลังจากนี้)
+function onSelectFreeInvoiceCustomer(cust) {
+    document.getElementById("inv-cust-name").innerText = cust.companyName;
+    const branchHq = cust.branches.find(b => b.name.includes("สำนักงานใหญ่")) || cust.branches[0];
+    const branchAddrStr = branchHq ?
+        `เลขที่ ${branchHq.houseNo} ม.${branchHq.moo} ต.${branchHq.subdistrict} อ.${branchHq.district} จ.${branchHq.province} ${branchHq.postalCode}` :
+        "ไม่ระบุที่อยู่";
+    document.getElementById("inv-cust-addr").innerText = branchAddrStr;
+    document.getElementById("inv-cust-tax").innerText = `เลขผู้เสียภาษี: ${cust.taxId}`;
+    updateInvoiceBillingNote(cust);
+
+    // ถ้าลูกจ้างที่เลือกไว้เดิมไม่ใช่ของนายจ้างรายนี้ ให้ล้างทิ้ง
+    if (freeInvoiceWorkerId) {
+        const w = workers.find(x => x.id === freeInvoiceWorkerId);
+        if (!w || w.employerId !== cust.id) clearSearchSelect('free-invoice-worker');
+    }
+}
+
+// เลือกลูกจ้างจากระบบ -> เติมรายละเอียดคนงานลงในรายการบิลรายการแรก และเติมนายจ้างของคนงานคนนี้ให้อัตโนมัติถ้ายังไม่ตรงกัน
+function onSelectFreeInvoiceWorker(w) {
+    // เติมรายละเอียดคนงานลงในรายการบิลรายการแรก (โหมดบิลอิสระมีรายการเดียวเสมอ) — ยังแก้ไขข้อความเองได้ต่อหลังจากนี้
+    if (currentInvoiceItems.length > 0) {
+        currentInvoiceItems[0].desc = `คนงานต่างด้าว: คุณ ${w.firstName} ${w.lastName} (สัญชาติ: ${w.nationality || '-'}, เลขคนงาน: ${w.workerUid || '-'})`;
+        renderInvoiceItemsTable();
+    }
+
+    // ถ้ายังไม่ได้เลือกนายจ้าง หรือเลือกไว้คนละรายกับนายจ้างของคนงานคนนี้ ให้เติมนายจ้างให้อัตโนมัติ
+    if (w.employerId && w.employerId !== freeInvoiceCustomerId) {
+        selectSearchSelectItem('free-invoice-customer', w.employerId);
+    }
+}
+
+// ตั้งค่า search-select ให้ครบทุกช่องแบบ "ค้นหาเพื่อเลือกข้อมูล 1 รายการ" ในระบบ — เรียกครั้งเดียวตอน initApp()
+// (ดูกฎเต็มใน CLAUDE.md หัวข้อ "Search-to-select fields")
+function setupAllSearchSelects() {
+    registerFreeInvoiceSearchSelects();
+
+    // นายจ้างในฟอร์ม "แจ้งสั่งงาน" — <select id="job-customer-id"> ซ่อนไว้เป็นแหล่งเก็บค่าจริงเหมือนเดิม
+    registerSearchSelect('job-customer', {
+        inputId: 'job-customer-search',
+        getValue: () => document.getElementById('job-customer-id').value,
+        setValue: (v) => { document.getElementById('job-customer-id').value = v || ''; },
+        getPool: () => customers,
+        getId: c => c.id,
+        getLabel: c => c.companyName,
+        getSub: c => c.taxId ? 'ภาษี ' + c.taxId : '',
+        emptyText: 'ไม่พบนายจ้างที่ตรงกับคำค้นหา',
+        onSelect: () => onJobCustomerChange() // ล็อก Agent + กรองรายชื่อลูกจ้างตามนายจ้างที่เลือก เหมือน onchange เดิม
+    });
+
+    // นายจ้างในฟอร์ม "เพิ่ม/แก้ไขคนงานต่างด้าว" — <select id="worker-employer-id"> ซ่อนไว้เป็นแหล่งเก็บค่าจริงเหมือนเดิม
+    registerSearchSelect('worker-employer', {
+        inputId: 'worker-employer-search',
+        getValue: () => document.getElementById('worker-employer-id').value,
+        setValue: (v) => { document.getElementById('worker-employer-id').value = v || ''; },
+        getPool: () => customers,
+        getId: c => c.id,
+        getLabel: c => c.companyName,
+        getSub: c => c.taxId ? 'ภาษี ' + c.taxId : '',
+        emptyText: 'ไม่พบนายจ้างที่ตรงกับคำค้นหา',
+        onSelect: (cust) => fillWorkerWorkplaceFromEmployer(cust.id) // เติม "สถานที่ทำงาน" อัตโนมัติ เหมือน onchange เดิม
+    });
 }
 
 // แสดง note วางบิลของนายจ้างรายนี้ (ถ้ามี) ให้เจ้าหน้าที่เห็นก่อนออกบิล — เป็น no-print จึงไม่ถูกพิมพ์ลงในใบแจ้งหนี้ที่ให้ลูกค้า
@@ -5211,6 +5620,7 @@ function closeInvoiceModal() {
     document.getElementById("invoice-modal").classList.add("hidden");
     currentInvoiceItems = [];
     currentInvoiceJobIds = [];
+    currentFreeInvoiceId = null;
     const proofInput = document.getElementById("invoice-payment-proof-input");
     if (proofInput) proofInput.value = '';
 }
@@ -5470,7 +5880,7 @@ async function markJobPaidFromInvoice() {
         const firstJob = currentInvoiceJobIds.length > 0 ? jobs.find(j => j.id === currentInvoiceJobIds[0]) : null;
         for (const proofFile of proofFiles) {
             const fileDataUrl = await readFileAsDataUrl(proofFile);
-            const uploadResult = await uploadDocumentFile(fileDataUrl, proofFile.name, firstJob ? firstJob.customerId : "", "", "payment-proof");
+            const uploadResult = await uploadDocumentFile(fileDataUrl, proofFile.name, firstJob ? firstJob.customerId : (freeInvoiceCustomerId || ""), "", "payment-proof");
             if (!uploadResult) {
                 showToast(`❌ อัปโหลดหลักฐานการโอนเงิน "${proofFile.name}" ไม่สำเร็จ ยังไม่ได้ยืนยันการชำระ`, "danger");
                 return;
@@ -5486,7 +5896,22 @@ async function markJobPaidFromInvoice() {
     }
 
     if (currentInvoiceJobIds.length === 0) {
-        // Free invoice handling
+        // Free invoice handling — บันทึก/อัปเดตเป็นรายการจริงในระบบเสมอ (ถ้ายังไม่เคย "วางบิล" มาก่อน จะวางบิลให้พร้อมกันในทีเดียว)
+        currentInvoiceItems.forEach(item => syncInvoiceItemTextFields(item));
+        const payload = buildFreeInvoicePayload('ชำระเงินแล้ว');
+        payload.paymentMethod = payMethodLabel;
+        payload.paymentProofUrl = proofAttachments.length > 0 ? proofAttachments.map(a => a.url).join(', ') : null;
+        payload.paidAt = new Date().toISOString();
+
+        const res = await callCloudAPI("saveFreeInvoice", { invoiceData: payload });
+        if (!res) return;
+
+        currentFreeInvoiceId = payload.id;
+        const idx = freeInvoices.findIndex(f => f.id === payload.id);
+        if (idx === -1) freeInvoices.push(payload); else freeInvoices[idx] = payload;
+        saveData();
+        renderBillingTab();
+
         showToast(`บันทึกชำระค่าบริการบิลอิสระเรียบร้อยแล้ว (${payMethodLabel})`, 'success');
         closeInvoiceModal();
         return;
@@ -5776,6 +6201,12 @@ function generateCombinedInvoice() {
     if (markPaidBtn) markPaidBtn.style.display = 'inline-block';
     const saveEditsBtn = document.getElementById("btn-save-invoice-edits");
     if (saveEditsBtn) saveEditsBtn.style.display = 'inline-block';
+
+    const freePickerWrap = document.getElementById("invoice-free-picker-wrap");
+    if (freePickerWrap) freePickerWrap.classList.add("hidden");
+    const issueFreeBtn = document.getElementById("btn-issue-free-invoice");
+    if (issueFreeBtn) issueFreeBtn.style.display = 'none';
+    currentFreeInvoiceId = null;
 
     // Close combine bills modal and open invoice sheet
     closeCombineBillsModal();

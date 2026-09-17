@@ -63,6 +63,14 @@
         description: "description", paymentMethod: "payment_method", attachment: "attachment",
         createdAt: "created_at"
     };
+    const FREE_INVOICE_MAP = {
+        id: "id", invoiceNo: "invoice_no", customerId: "customer_id", customerName: "customer_name",
+        customerAddr: "customer_addr", customerTax: "customer_tax", workerId: "worker_id",
+        workerName: "worker_name", items: "items", subtotal: "subtotal", grandTotal: "grand_total",
+        bankId: "bank_id", paymentMethod: "payment_method", paymentStatus: "payment_status",
+        paymentProofUrl: "payment_proof_url", dueDateText: "due_date_text", notes: "notes",
+        createdBy: "created_by", createdAt: "created_at", updatedAt: "updated_at", paidAt: "paid_at"
+    };
 
     function toRow(obj, map) {
         const row = {};
@@ -130,14 +138,15 @@
 
     // -------------------- getData --------------------
     async function handleGetData() {
-        const [customersRes, workersRes, jobsRes, banksRes, profilesRes, agentsRes, expensesRes] = await Promise.all([
+        const [customersRes, workersRes, jobsRes, banksRes, profilesRes, agentsRes, expensesRes, freeInvoicesRes] = await Promise.all([
             sb.from("customers").select("*"),
             sb.from("workers").select("*"),
             sb.from("jobs").select("*"),
             sb.from("banks").select("*"),
             sb.from("profiles").select("name, role, customer_id, id"),
             sb.from("agents").select("*"),
-            sb.from("expenses").select("*")
+            sb.from("expenses").select("*"),
+            sb.from("free_invoices").select("*")
         ]);
         // RLS กรองแถวให้อัตโนมัติตาม role/customer_id ของผู้ใช้ที่ล็อกอินอยู่แล้ว
         // (ไม่ต้อง filter ซ้ำฝั่ง client เหมือนโค้ด Code.gs เดิม)
@@ -159,6 +168,7 @@
             banks: toCamelList(banksRes.data, BANK_MAP),
             agents: agentsRes.error ? [] : toCamelList(agentsRes.data, AGENT_MAP),
             expenses: expensesRes.error ? [] : toCamelList(expensesRes.data, EXPENSE_MAP),
+            freeInvoices: freeInvoicesRes.error ? [] : toCamelList(freeInvoicesRes.data, FREE_INVOICE_MAP),
             users: profilesRes.error ? [] : (profilesRes.data || []).map((p) => ({
                 id: p.id, email: p.id, name: p.name, role: p.role, customer_id: p.customer_id
             }))
@@ -182,7 +192,7 @@
     // ลบสำเร็จ (ไม่ error) แต่แถวไม่ตรงกับ RLS/id ที่ให้มา ก็จะลบได้ 0 แถวโดยไม่ error เลย (ดูเหมือนสำเร็จ
     // ทั้งที่ไม่มีอะไรถูกลบจริง) — ขอ count กลับมาด้วยเสมอ แล้วถือว่า error ถ้าไม่มีแถวไหนถูกลบจริง
     async function deleteRecord(sheetName, id) {
-        const table = { Customers: "customers", Workers: "workers", Jobs: "jobs", Agents: "agents", Banks: "banks", Expenses: "expenses" }[sheetName];
+        const table = { Customers: "customers", Workers: "workers", Jobs: "jobs", Agents: "agents", Banks: "banks", Expenses: "expenses", FreeInvoices: "free_invoices" }[sheetName];
         if (!table) return { status: "error", message: "Unknown table: " + sheetName };
         const { error, count } = await sb.from(table).delete({ count: "exact" }).eq("id", id);
         if (error) return { status: "error", message: error.message };
@@ -284,6 +294,8 @@
                 return await upsertOne("banks", BANK_MAP, payload.bankData);
             case "saveExpense":
                 return await upsertOne("expenses", EXPENSE_MAP, payload.expenseData);
+            case "saveFreeInvoice":
+                return await upsertOne("free_invoices", FREE_INVOICE_MAP, payload.invoiceData);
             case "saveUser":
                 return await saveUser(payload.userData, payload.pin);
             case "updateUserProfile":

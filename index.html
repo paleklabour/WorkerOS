@@ -1741,11 +1741,19 @@
                             <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 12px; width: calc(100% - 160px);">
                                 <div class="form-row" style="margin-bottom: 0;">
                                     <div class="form-group col-12" style="margin-bottom: 0;">
-                                        <label for="worker-employer-id">นายจ้าง / บริษัทผู้ว่าจ้าง <span class="required">*</span></label>
-                                        <select id="worker-employer-id" required onchange="fillWorkerWorkplaceFromEmployer(this.value)">
+                                        <label for="worker-employer-search">นายจ้าง / บริษัทผู้ว่าจ้าง <span class="required">*</span></label>
+                                        <!-- <select> ซ่อนไว้เป็นแหล่งเก็บค่าจริง (โค้ดเดิมที่อ่าน/เขียน .value ยังทำงานได้โดยไม่ต้องแก้)
+                                             ส่วนที่ผู้ใช้เห็น/พิมพ์ค้นหาจริงคือช่องค้นหาด้านล่าง (search-select — ดู registerSearchSelect ใน app.js) -->
+                                        <select id="worker-employer-id" class="hidden">
                                             <option value="" disabled selected>--- เลือกนายจ้าง/บริษัท ---</option>
                                             <!-- Dynamic -->
                                         </select>
+                                        <div class="search-box" style="max-width: 100%;">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                            </svg>
+                                            <input type="text" id="worker-employer-search" placeholder="พิมพ์ชื่อบริษัท/นายจ้างเพื่อค้นหา..." autocomplete="off">
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="form-row" style="margin-bottom: 0; display: flex; gap: 15px;">
@@ -2040,11 +2048,19 @@
                         <input type="hidden" id="job-edit-id">
 
                         <div class="form-group">
-                            <label for="job-customer-id">นายจ้าง / ลูกค้าผู้สั่งงาน <span class="required">*</span></label>
-                            <select id="job-customer-id" onchange="onJobCustomerChange()" required>
+                            <label for="job-customer-search">นายจ้าง / ลูกค้าผู้สั่งงาน <span class="required">*</span></label>
+                            <!-- <select> ซ่อนไว้เป็นแหล่งเก็บค่าจริง (โค้ดเดิมที่อ่าน/เขียน .value ยังทำงานได้โดยไม่ต้องแก้)
+                                 ส่วนที่ผู้ใช้เห็น/พิมพ์ค้นหาจริงคือช่องค้นหาด้านล่าง (search-select — ดู registerSearchSelect ใน app.js) -->
+                            <select id="job-customer-id" class="hidden">
                                 <option value="" disabled selected>--- เลือกนายจ้าง ---</option>
                                 <!-- Dynamic -->
                             </select>
+                            <div class="search-box" style="max-width: 100%;">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                                <input type="text" id="job-customer-search" placeholder="พิมพ์ชื่อบริษัท/นายจ้างเพื่อค้นหา..." autocomplete="off">
+                            </div>
                         </div>
 
                         <div class="form-group">
@@ -2322,6 +2338,32 @@
                         </button>
                     </div>
 
+                    <!-- Free Invoice Employer/Worker Picker: แสดงเฉพาะโหมด "บิลอิสระ" — ค้นหาและเลือกนายจ้าง/ลูกจ้างจากข้อมูลจริงในระบบ
+                         แทนการพิมพ์ชื่อเองล้วน ๆ (ช่องแสดงผลบนใบวางบิลด้านล่างยังคงแก้ไขข้อความเองได้อิสระหลังเลือกเสมอ)
+                         ใช้ pattern "search-select" มาตรฐาน (ดู registerSearchSelect ใน app.js) — dropdown ผูกอัตโนมัติผ่าน JS ไม่ต้องเขียน markup ผลลัพธ์เอง -->
+                    <div class="no-print hidden" id="invoice-free-picker-wrap" style="margin-bottom: 15px;">
+                        <div class="form-row">
+                            <div class="form-group col-6" style="margin-bottom: 0;">
+                                <label style="font-weight: 600; color: var(--gold-primary);">🔍 ค้นหาเลือกนายจ้าง/ลูกค้าจากระบบ (ไม่บังคับ)</label>
+                                <div class="search-box" style="max-width: 100%;">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                    </svg>
+                                    <input type="text" id="invoice-free-cust-search" placeholder="พิมพ์ชื่อบริษัท/นายจ้างเพื่อค้นหา..." autocomplete="off">
+                                </div>
+                            </div>
+                            <div class="form-group col-6" style="margin-bottom: 0;">
+                                <label style="font-weight: 600; color: var(--gold-primary);">🔍 ค้นหาเลือกลูกจ้าง/คนงานจากระบบ (ไม่บังคับ)</label>
+                                <div class="search-box" style="max-width: 100%;">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                    </svg>
+                                    <input type="text" id="invoice-free-worker-search" placeholder="พิมพ์ชื่อ หรือเลขประจำตัวคนงาน 13 หลัก..." autocomplete="off">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Note สำหรับวางบิล: แสดงให้เจ้าหน้าที่เห็นก่อนออกบิลเท่านั้น ไม่ถูกพิมพ์ลงในใบแจ้งหนี้ที่ให้ลูกค้า -->
                     <div class="no-print hidden" id="invoice-billing-note-wrap" style="margin-bottom: 15px;">
                         <div style="background-color: #fffbeb; border: 1px solid #fde68a; border-radius: var(--radius-sm); padding: 12px 14px; font-size: 13px; color: #92400e;">
@@ -2440,6 +2482,9 @@
                         <button class="btn btn-outline" onclick="closeInvoiceModal()">ปิดหน้าต่าง</button>
                         <button class="btn btn-outline" id="btn-save-invoice-edits" onclick="saveInvoiceFeeEdits()" style="border-color: var(--gold-primary); color: var(--gold-primary);">
                             💾 บันทึกการแก้ไขราคาบิล
+                        </button>
+                        <button class="btn btn-outline" id="btn-issue-free-invoice" onclick="issueFreeInvoice()" style="display:none; border-color: var(--gold-primary); color: var(--gold-primary);">
+                            🧾 วางบิล
                         </button>
                         <button class="btn btn-gold" id="btn-mark-paid" onclick="markJobPaidFromInvoice()">
                             ✅ ยืนยันการรับชำระเงิน (Mark as Paid)

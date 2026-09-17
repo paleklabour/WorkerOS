@@ -86,6 +86,33 @@ reachable through the deferred/no-AI pattern "temporarily" — that's how the
 customer add-form and several worker/customer doc types drifted out of sync
 before (fixed 2026-09-11).
 
+## Search-to-select fields (standing rule)
+
+Any input where the user searches to pick **one existing record** (employer,
+worker, agent, etc.) from a set that can grow long must use the
+`registerSearchSelect()` combobox in `app.js` — a dropdown of matches that
+appears while typing (reuses the `.search-box` / `.search-suggest-dropdown`
+CSS already used by the plain-text search boxes' `registerSearchSuggest()`),
+never a free-text field or a long `<select>` you have to scroll. Register new
+instances inside `setupAllSearchSelects()` (called once from `initApp()`).
+
+If the field already has a real `<select>` that other code reads/writes
+`.value` on (validation, an existing `onchange`), keep that `<select>` as the
+hidden source of truth (`class="hidden"`, drop `required` — add/keep an
+explicit check in the save function instead, e.g. `saveJob`/`saveWorker`) and
+point `getValue`/`setValue` at it, so nothing else has to change. See
+`job-customer-id` / `worker-employer-id` for that pattern, and
+`invoice-free-cust-search` / `invoice-free-worker-search` (Quick Invoice) for
+one backed by a plain JS variable instead of a `<select>`.
+
+Don't use this pattern for:
+- A small fixed set of options (status, nationality, gender) — keep a plain
+  `<select>`.
+- Picking **multiple** records at once where the user needs to see everything
+  already picked while still browsing more — use the checklist pattern
+  instead (search input + always-visible checkbox list + removable chips),
+  see `job-worker-search`/`job-worker-checklist` (picking workers for a job).
+
 ## Running locally
 
 ```powershell
