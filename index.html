@@ -280,6 +280,7 @@
                                                     <th>ชื่อบริษัท / นายจ้าง</th>
                                                     <th>ใกล้หมดอายุ (⚠️)</th>
                                                     <th>หมดอายุแล้ว (❌)</th>
+                                                    <th>หนังสือรับรองบริษัท</th>
                                                     <th style="text-align: center; width: 140px;">จัดการ</th>
                                                 </tr>
                                             </thead>
@@ -1584,6 +1585,18 @@
                                     <span class="upload-hint">ลากไฟล์วางที่นี่ หรือคลิกเพื่ออัปโหลด (แนบเพิ่มได้หลายไฟล์)</span>
                                     </div>
                                     <div class="ocr-status" id="status-cust-other"></div>
+                                </div>
+                            </div>
+
+                            <!-- วันที่ออก/หมดอายุโดยประมาณของหนังสือรับรองบริษัท (เอกสารจริงไม่มีวันหมดอายุพิมพ์ไว้ ใช้กฎอายุ 6 เดือนเอง) -->
+                            <div class="form-row" style="margin-top: 14px;">
+                                <div class="form-group col-6">
+                                    <label for="cust-cert-issue-date">หนังสือรับรองบริษัทออกให้ ณ วันที่</label>
+                                    <input type="text" id="cust-cert-issue-date" placeholder="วัน/เดือน/ปี ค.ศ. (เช่น 15/03/2026)" onchange="updateCertExpiryDisplay()">
+                                </div>
+                                <div class="form-group col-6">
+                                    <label for="cust-cert-expiry-display">หมดอายุโดยประมาณ (ใช้ยื่นได้ไม่เกิน 6 เดือนจากวันที่ออก)</label>
+                                    <input type="text" id="cust-cert-expiry-display" readonly>
                                 </div>
                             </div>
                         </div>

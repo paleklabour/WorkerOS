@@ -56,16 +56,22 @@ function buildCustomerDocPrompt(docType: string): string {
     "cust-commerce": "Thai commercial registration certificate (ทะเบียนพาณิชย์)",
   };
   const docLabel = docLabels[docType] || "Thai company/employer document";
+  // หนังสือรับรองบริษัทไม่มีวันหมดอายุพิมพ์ไว้ มีแค่ "วันที่ออก" — ให้ OCR อ่านค่านี้แล้วฝั่ง client
+  // ไปคำนวณวันหมดอายุโดยประมาณเอง (ดู updateCertExpiryDisplay ใน app.js)
+  const fields = [
+    `"companyName": "Registered company name, only if this is a company certificate"`,
+    `"taxId": "13-digit tax ID / company registration number (เลขทะเบียนนิติบุคคล / เลขผู้เสียภาษี) if found"`,
+    `"directorId": "13-digit Thai national ID number (เลขบัตรประชาชน) if this is a national ID card"`,
+    `"coordinatorName": "Full name of the ID card holder / director, if found"`,
+  ];
+  if (docType === "cust-cert") {
+    fields.push(`"issueDate": "Date the certificate was issued (วันที่ออกหนังสือรับรอง / ออกให้ ณ วันที่), in DD/MM/YYYY format, if found"`);
+  }
   return `You are a professional assistant. Parse this ${docLabel} and extract the relevant fields. ` +
     `Convert dates to DD/MM/YYYY format. Only fill fields you can actually read from the document — ` +
     `leave a field out entirely (do not guess or invent values) if it is not clearly present. ` +
     `Output ONLY a valid JSON object matching this schema, without markdown wrapping, json declaration, or backticks:\n` +
-    `{\n` +
-    `  "companyName": "Registered company name, only if this is a company certificate",\n` +
-    `  "taxId": "13-digit tax ID / company registration number (เลขทะเบียนนิติบุคคล / เลขผู้เสียภาษี) if found",\n` +
-    `  "directorId": "13-digit Thai national ID number (เลขบัตรประชาชน) if this is a national ID card",\n` +
-    `  "coordinatorName": "Full name of the ID card holder / director, if found"\n` +
-    `}`;
+    `{\n  ${fields.join(",\n  ")}\n}`;
 }
 
 function buildAppointmentPrompt(): string {

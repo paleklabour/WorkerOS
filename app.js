@@ -1394,6 +1394,34 @@ function calculateDeadlines() {
         }
     });
 
+    // 3. Company Certificate Expiry Check (หนังสือรับรองบริษัท — อายุการใช้งานที่กำหนดเอง 6 เดือน, เตือนล่วงหน้า 30 วัน)
+    customers.forEach(c => {
+        const certExpDate = safeParseDate(c.certExpiry);
+        if (!certExpDate) return;
+        certExpDate.setHours(0,0,0,0);
+        const daysDiff = Math.ceil((certExpDate - today) / (1000 * 60 * 60 * 24));
+
+        if (daysDiff < 0) {
+            alerts.push({
+                type: 'danger',
+                title: `หนังสือรับรองบริษัทหมดอายุแล้ว (Expired)`,
+                message: `นายจ้าง: ${c.companyName} หมดอายุเมื่อ ${certExpDate.toLocaleDateString('th-TH')}`,
+                target: c,
+                empName: c.companyName,
+                daysLeft: daysDiff
+            });
+        } else if (daysDiff <= 30) {
+            alerts.push({
+                type: 'warning',
+                title: `หนังสือรับรองบริษัทใกล้หมดอายุ (ภายใน 30 วัน)`,
+                message: `นายจ้าง: ${c.companyName} จะหมดอายุในอีก ${daysDiff} วัน (${certExpDate.toLocaleDateString('th-TH')})`,
+                target: c,
+                empName: c.companyName,
+                daysLeft: daysDiff
+            });
+        }
+    });
+
     return alerts;
 }
 
@@ -1796,11 +1824,23 @@ function renderEmployerAlerts() {
             else if (isWarning) warningCount++;
         });
 
+        // หนังสือรับรองบริษัท: ไม่มีวันหมดอายุพิมพ์จริง ใช้ค่าที่คำนวณไว้ (cert_expiry = วันที่ออก + 6 เดือน)
+        let certStatus = null; // 'expired' | 'warning' | null
+        let certDaysDiff = null;
+        if (c.certExpiry) {
+            const exp = new Date(c.certExpiry);
+            certDaysDiff = Math.ceil((exp - today) / (1000 * 60 * 60 * 24));
+            if (certDaysDiff < 0) certStatus = 'expired';
+            else if (certDaysDiff <= 30) certStatus = 'warning';
+        }
+
         return {
             customer: c,
             expiredCount,
             warningCount,
-            totalAlerts: expiredCount + warningCount
+            certStatus,
+            certDaysDiff,
+            totalAlerts: expiredCount + warningCount + (certStatus ? 1 : 0)
         };
     }).filter(item => item.totalAlerts > 0)
       .sort((a, b) => b.totalAlerts - a.totalAlerts);
@@ -1811,7 +1851,7 @@ function renderEmployerAlerts() {
         const emptyMsg = query ? "❌ ไม่พบนายจ้างตามคำค้นหา" : "✅ เอกสารคนงานทุกบริษัทอยู่ในสถานะปกติเรียบร้อยดี";
         tbody.innerHTML = `
             <tr>
-                <td colspan="4" class="text-muted" style="text-align: center; padding: 20px;">
+                <td colspan="5" class="text-muted" style="text-align: center; padding: 20px;">
                     ${emptyMsg}
                 </td>
             </tr>
@@ -1824,18 +1864,31 @@ function renderEmployerAlerts() {
             `<span class="badge badge-danger" style="font-weight: 600;">⚠️ หมดอายุแล้ว ${r.expiredCount} คน</span>` : 
             `<span class="text-muted">ไม่มี</span>`;
             
-        const warningBadge = r.warningCount > 0 ? 
-            `<span class="badge badge-warning" style="font-weight: 600; color: var(--navy-medium); border-color: var(--navy-medium);">⏰ ใกล้หมดอายุ ${r.warningCount} คน</span>` : 
+        const warningBadge = r.warningCount > 0 ?
+            `<span class="badge badge-warning" style="font-weight: 600; color: var(--navy-medium); border-color: var(--navy-medium);">⏰ ใกล้หมดอายุ ${r.warningCount} คน</span>` :
             `<span class="text-muted">ไม่มี</span>`;
+
+        let certBadge = `<span class="text-muted">-</span>`;
+        if (r.certStatus === 'expired') {
+            certBadge = `<span class="badge badge-danger" style="font-weight: 600;">⚠️ หมดอายุแล้ว</span>`;
+        } else if (r.certStatus === 'warning') {
+            certBadge = `<span class="badge badge-warning" style="font-weight: 600; color: var(--navy-medium); border-color: var(--navy-medium);">⏰ เหลือ ${r.certDaysDiff} วัน</span>`;
+        } else if (r.customer.certExpiry) {
+            certBadge = `<span class="badge badge-success">ปกติ</span>`;
+        }
 
         return `
             <tr>
                 <td><strong>${r.customer.companyName}</strong></td>
                 <td>${warningBadge}</td>
                 <td>${expiredBadge}</td>
+                <td>${certBadge}</td>
                 <td style="text-align: center;">
                     <button class="btn btn-sm btn-gold" onclick="viewEmployerAlertedWorkers('${r.customer.id}')" style="font-size: 11.5px; padding: 4px 10px;">
                         🔎 ตรวจสอบรายชื่อ
+                    </button>
+                    <button class="btn btn-sm btn-outline" onclick="openCustomerModal('${r.customer.id}')" style="font-size: 11.5px; padding: 4px 10px; margin-top: 4px;">
+                        ✏️ แก้ไขนายจ้าง
                     </button>
                 </td>
             </tr>
@@ -2474,10 +2527,32 @@ function applyGeminiDataToCustomerForm(docType, parsedData) {
     } else if (docType === 'cust-cert' || docType === 'cust-commerce') {
         setVal("cust-company-name", parsedData.companyName);
         setVal("cust-tax-id", parsedData.taxId);
+        if (docType === 'cust-cert') {
+            setVal("cust-cert-issue-date", parsedData.issueDate);
+            updateCertExpiryDisplay();
+        }
     } else if (docType === 'cust-house') {
         const nameInput = document.getElementById("cust-company-name");
         if (parsedData.companyName && nameInput && !nameInput.value) nameInput.value = parsedData.companyName;
     }
+}
+
+// หนังสือรับรองบริษัทไม่มีวันหมดอายุพิมพ์ไว้จริง — ใช้กฎอายุการใช้งานเอง (ออกไม่เกิน 6 เดือนถึงใช้ยื่นได้)
+// คำนวณจากวันที่ออกที่ผู้ใช้กรอก/OCR อ่านมา แล้วแสดงผลอย่างเดียว ค่าจริงที่บันทึกลง DB คำนวณซ้ำอีกครั้งใน saveCustomer()
+function calcCertExpiry(issueDateStr) {
+    const d = safeParseDate(issueDateStr);
+    if (!d) return null;
+    const expiry = new Date(d);
+    expiry.setMonth(expiry.getMonth() + 6);
+    return expiry;
+}
+
+function updateCertExpiryDisplay() {
+    const issueVal = document.getElementById("cust-cert-issue-date").value.trim();
+    const displayEl = document.getElementById("cust-cert-expiry-display");
+    if (!displayEl) return;
+    const expiry = isValidDate(issueVal) ? calcCertExpiry(issueVal) : null;
+    displayEl.value = expiry ? expiry.toLocaleDateString('en-GB') : '';
 }
 
 // แนบไฟล์เอกสารนายจ้างแล้วอัปโหลดขึ้น Supabase Storage ทันที (เหมือนฟอร์มคนงาน — ใช้ Gemini จริงอ่านข้อมูลให้)
@@ -2811,6 +2886,8 @@ function openCustomerModal(id = null) {
         document.getElementById("cust-billing-note").value = c.billingNote || "";
         document.getElementById("cust-require-prepayment").checked = !!c.requirePrepayment;
         refreshCustomerAgentDropdown(c.referredByAgentId);
+        document.getElementById("cust-cert-issue-date").value = formatDateForInput(c.certIssueDate || '');
+        updateCertExpiryDisplay();
 
         customerBranches = JSON.parse(JSON.stringify(c.branches)); // Clone
         loadDeliveryAddressFields(c.deliveryAddress);
@@ -2818,6 +2895,7 @@ function openCustomerModal(id = null) {
         modalTitle.innerText = "เพิ่มลูกค้า / นายจ้างใหม่";
         editIdInput.value = "";
         refreshCustomerAgentDropdown();
+        updateCertExpiryDisplay();
 
         // Initialize with default empty branch
         customerBranches = [{
@@ -2981,6 +3059,15 @@ async function saveCustomer(e) {
     const referredByAgentId = document.getElementById("cust-referred-by-agent").value || null;
     const billingNote = document.getElementById("cust-billing-note").value.trim();
     const requirePrepayment = document.getElementById("cust-require-prepayment").checked;
+    const certIssueDateRaw = document.getElementById("cust-cert-issue-date").value.trim();
+    if (certIssueDateRaw && !isValidDate(certIssueDateRaw)) {
+        alert("รูปแบบวันที่ออกหนังสือรับรองบริษัทไม่ถูกต้อง กรุณากรอกเป็น วัน/เดือน/ปี ค.ศ. (เช่น 15/03/2026)");
+        return;
+    }
+    // หมดอายุไม่ได้พิมพ์อยู่ในเอกสารจริง คำนวณเองจากวันที่ออก + 6 เดือน ณ ตอนบันทึกเสมอ (ไม่เชื่อค่าที่โชว์ในฟอร์มเฉยๆ)
+    const certIssueDate = parseDateInput(certIssueDateRaw) || null;
+    const certExpiryDate = certIssueDateRaw ? calcCertExpiry(certIssueDateRaw) : null;
+    const certExpiry = certExpiryDate ? certExpiryDate.toISOString().split('T')[0] : null;
     const deliverySameAsMain = document.getElementById("cust-delivery-same-as-main").checked;
     const deliveryAddress = deliverySameAsMain
         ? { sameAsMain: true }
@@ -3023,7 +3110,7 @@ async function saveCustomer(e) {
             const oldDriveId = customers[idx].drive_folder_id || "";
             const oldAttachments = JSON.parse(JSON.stringify(customers[idx].attachments || {}));
             customerData = {
-                id: editId, taxId, companyName, directorId, businessType, coordinator, phone, referredByAgentId, billingNote, requirePrepayment, deliveryAddress, branches: customerBranches, createdAt: oldCreatedAt, drive_folder_id: oldDriveId, attachments: oldAttachments
+                id: editId, taxId, companyName, directorId, businessType, coordinator, phone, referredByAgentId, billingNote, requirePrepayment, certIssueDate, certExpiry, deliveryAddress, branches: customerBranches, createdAt: oldCreatedAt, drive_folder_id: oldDriveId, attachments: oldAttachments
             };
         }
     } else {
@@ -3031,7 +3118,7 @@ async function saveCustomer(e) {
         const newId = 'cust-' + Date.now();
         const createdAt = new Date().toISOString().split('T')[0];
         customerData = {
-            id: newId, taxId, companyName, directorId, businessType, coordinator, phone, referredByAgentId, billingNote, requirePrepayment, deliveryAddress, branches: customerBranches, createdAt, drive_folder_id: "", attachments: {}
+            id: newId, taxId, companyName, directorId, businessType, coordinator, phone, referredByAgentId, billingNote, requirePrepayment, certIssueDate, certExpiry, deliveryAddress, branches: customerBranches, createdAt, drive_folder_id: "", attachments: {}
         };
     }
 
@@ -6321,6 +6408,7 @@ document.addEventListener("DOMContentLoaded", () => {
     setupDateMask("worker-permit-expiry");
     setupDateMask("worker-passport-issue");
     setupDateMask("worker-passport-expiry");
+    setupDateMask("cust-cert-issue-date");
 });
 
 async function uploadFileToServer(fileContent, fileName) {
