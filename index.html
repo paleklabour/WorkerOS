@@ -2607,8 +2607,15 @@
                         <input type="text" id="search-worker-folder" placeholder="ค้นหาชื่อไฟล์ในแฟ้มนี้..." oninput="renderWorkerFolderTiles()">
                     </div>
 
-                    <div class="drive-grid" id="worker-folder-files-list">
+                    <div class="drive-grid" id="worker-folder-files-list" ondragover="onWorkerFileDragOver(event)" ondrop="onWorkerFileDropToCurrent(event)">
                         <!-- Dynamic files will be rendered here -->
+                    </div>
+
+                    <div id="worker-folder-expired-section" class="hidden" style="margin-top: 24px;">
+                        <h4 style="margin: 0 0 10px 0; color: var(--text-muted); font-size: 14px; font-weight: 600;">📁 ไฟล์ที่หมดอายุ (เอกสารเก่าที่ถูกแทนที่ แต่ยังเก็บไว้ในระบบ — ลากไฟล์มาวางที่นี่ได้)</h4>
+                        <div class="drive-grid" id="worker-folder-expired-files-list" ondragover="onWorkerFileDragOver(event)" ondrop="onWorkerFileDropToExpired(event)">
+                            <!-- Dynamic expired files will be rendered here -->
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer" style="display: flex; gap: 10px; flex-wrap: wrap;">

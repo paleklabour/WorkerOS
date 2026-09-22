@@ -2174,6 +2174,15 @@ h1, h2, h3, h4, h5, h6 {
     box-shadow: var(--shadow-sm);
 }
 
+.drive-tile-expired {
+    opacity: 0.7;
+    border-style: dashed;
+}
+
+.drive-tile-expired:hover {
+    opacity: 1;
+}
+
 .drive-tile-thumb-link {
     display: contents;
 }

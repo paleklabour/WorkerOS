@@ -1139,7 +1139,7 @@ function switchView(viewName) {
     if (viewName === 'dashboard') titleEl.innerText = "แดชบอร์ดระบบและการแจ้งเตือน";
     if (viewName === 'customers') titleEl.innerText = "ฐานข้อมูลนายจ้าง / ลูกค้าผู้ว่าจ้าง";
     if (viewName === 'workers') titleEl.innerText = "ฐานข้อมูลคนงานต่างด้าว";
-    if (viewName === 'jobs') titleEl.innerText = "ระบบจัดการแจ้งงานและออกบิล";
+    if (viewName === 'jobs') titleEl.innerText = "ระบบจัดการแจ้งงาน";
     if (viewName === 'renewals') titleEl.innerText = "ข้อมูลคนงานต่ออายุ/ทำเล่ม (จัดกลุ่มตามวันหมดอายุใบอนุญาต)";
     if (viewName === 'agents') titleEl.innerText = "จัดการ Agent (ผู้ส่งงาน / ผู้แนะนำลูกค้า)";
     if (viewName === 'expenses') titleEl.innerText = "การเงิน, รายจ่าย และบัญชีธนาคาร";
@@ -2808,15 +2808,17 @@ function processUploadedFile(file, docType) {
             const employerId = document.getElementById("worker-employer-id").value;
             const firstName = document.getElementById("worker-first-name").value.trim() || "worker";
             const nameClean = firstName.replace(/\s+/g, '_');
+            const workerUid = document.getElementById("worker-uid").value.trim();
+            const uidPrefix = workerUid ? `${workerUid}_` : "";
             const existingList = tempWorkerAttachments[docType] || [];
             const suffix = existingList.length > 0 ? `_${existingList.length + 1}` : "";
-            const fileName = `${nameClean}_${docType}${suffix}${extFromDataUrl(fileContent)}`;
+            const fileName = `${uidPrefix}${nameClean}_${docType}${suffix}${extFromDataUrl(fileContent)}`;
 
             const uploadResult = await uploadDocumentFile(fileContent, fileName, employerId, editId, docType);
             const storedUrl = uploadResult ? uploadResult.fileUrl : null;
             const serverUrl = storedUrl || await uploadFileToServer(fileContent, fileName);
             // เก็บสะสมทุกไฟล์ที่เคยแนบไว้ (เช่น เอกสารต่ออายุรายปี) ไม่ลบของเก่าทิ้งเมื่อแนบไฟล์ใหม่
-            const updatedList = [...(tempWorkerAttachments[docType] || []), { name: fileName, data: serverUrl || fileContent }];
+            const updatedList = [...(tempWorkerAttachments[docType] || []), { name: fileName, data: serverUrl || fileContent, expiryDate: extractDocExpiryDate(docType, uploadResult && uploadResult.parsedData) }];
             tempWorkerAttachments[docType] = updatedList;
 
             if (uploadResult && uploadResult.parsedData) {
@@ -3746,6 +3748,12 @@ function renderJobs() {
             paymentBadge = `<span class="badge badge-success" style="font-size: 10px; padding: 2px 6px;">✅ ชำระเงินแล้ว${j.paymentMethod ? ` (${j.paymentMethod})` : ''}</span>`;
         }
 
+        // นายจ้างบางรายตั้งไว้ว่าต้องออกบิล+รับชำระก่อนถึงจะเริ่ม "กำลังดำเนินการ" ได้ (customers.requirePrepayment)
+        // โชว์เตือนไว้ในตารางใบงานเลยเพื่อให้เจ้าหน้าที่เห็นล่วงหน้า ไม่ต้องเปิดไปเช็กที่หน้านายจ้างก่อน
+        const prepaymentBadge = (cust && cust.requirePrepayment && paymentStatus !== 'ชำระเงินแล้ว')
+            ? `<br><span class="badge" style="background-color: #fffbeb; color: #92400e; border: 1px solid #fde68a; font-size: 10px; padding: 2px 6px;" title="นายจ้าง &quot;${custName}&quot; ตั้งไว้ว่าต้องออกบิลและรับชำระเงินก่อนย้ายเข้ากำลังดำเนินการ">💰 ต้องออกบิลและรับชำระเงินก่อน</span>`
+            : '';
+
         // Action buttons
         let editBtn = '';
         let deleteBtn = '';
@@ -3796,7 +3804,7 @@ function renderJobs() {
                 <td>${custName}${custIdLines}${agentLine}</td>
                 <td>${workName}</td>
                 <td>${work && work.email ? work.email : '<span class="text-muted">-</span>'}</td>
-                <td><span class="badge ${statusClass}">${displayStatus}</span><br>${paymentBadge}</td>
+                <td><span class="badge ${statusClass}">${displayStatus}</span><br>${paymentBadge}${prepaymentBadge}</td>
                 <td onclick="event.stopPropagation()">
                     <div style="display:flex; gap:4px; align-items:center;">
                         <input type="text" id="job-order-no-${j.id}" value="${j.orderNo || ''}" placeholder="Order No." ${j.orderNo ? 'disabled' : ''} style="width:140px; padding:4px 6px; font-size:12px; border:1px solid #cbd5e1; border-radius:4px;">
@@ -7699,10 +7707,17 @@ function renderWorkerFolderTiles() {
     const entityName = `${w.firstName} ${w.lastName || ''}`;
 
     const tiles = [];
+    const expiredTiles = [];
     WORKER_FOLDER_DOC_TYPES.forEach(file => {
-        getAttachments(w, file.key).forEach((fItem, fIdx) => {
+        const list = getAttachments(w, file.key);
+        list.forEach((fItem, fIdx) => {
             if (query && !(fItem.name || '').toLowerCase().includes(query)) return;
-            tiles.push(renderWorkerDriveTile(file, fItem, fIdx, entityName));
+            // อ้างอิงวันหมดอายุจริงที่ AI อ่านได้ตอนแนบไฟล์ (fItem.expiryDate) เป็นหลัก — ถ้าไม่มี (เอกสารประเภท
+            // ที่ไม่มีวันหมดอายุพิมพ์อยู่ หรือไฟล์เก่าก่อนมีฟีเจอร์นี้) ค่อย fallback ไปใช้ลำดับอัปโหลดแทน
+            const isExpired = isWorkerDocFileExpired(fItem, fIdx, list, file.key);
+            const tile = renderWorkerDriveTile(file, fItem, fIdx, entityName, isExpired);
+            if (isExpired) expiredTiles.push(tile);
+            else tiles.push(tile);
         });
         if (!query) tiles.push(renderDriveAddTile(file.label, `triggerFolderFileUpload('${file.key}')`));
     });
@@ -7711,6 +7726,61 @@ function renderWorkerFolderTiles() {
     workerFolderListEl.innerHTML = tiles.join('') ||
         `<p class="text-muted" style="grid-column:1/-1; text-align:center; padding:20px;">❌ ไม่พบไฟล์ตามคำค้นหา</p>`;
     hydratePdfThumbnails(workerFolderListEl);
+
+    // โฟลเดอร์ "ไฟล์ที่หมดอายุ" โชว์ไว้ตลอดแม้ไม่มีไฟล์ (ไม่ซ่อน) เพื่อให้เป็นจุดลากไฟล์มาวางได้เสมอ เหมือนคอลัมน์ Kanban
+    const expiredSection = document.getElementById("worker-folder-expired-section");
+    const expiredListEl = document.getElementById("worker-folder-expired-files-list");
+    if (expiredSection && expiredListEl) {
+        expiredListEl.innerHTML = expiredTiles.join('') ||
+            `<p class="text-muted" style="grid-column:1/-1; text-align:center; padding:16px; font-size:12.5px;">ลากไฟล์จากด้านบนมาวางที่นี่เพื่อย้ายเป็น "หมดอายุ"</p>`;
+        hydratePdfThumbnails(expiredListEl);
+        expiredSection.classList.remove("hidden");
+    }
+}
+
+// ==================== ลากไฟล์ในแฟ้มคนงานย้ายเข้า/ออกโฟลเดอร์ "ไฟล์ที่หมดอายุ" (เหมือนลากการ์ดใน Kanban) ====================
+function onWorkerFileDragStart(e, docType, idx) {
+    e.dataTransfer.setData("text/plain", JSON.stringify({ docType, idx }));
+}
+
+function onWorkerFileDragOver(e) {
+    e.preventDefault();
+}
+
+async function onWorkerFileDropToExpired(e) {
+    e.preventDefault();
+    await moveWorkerFileExpiryState(e, true);
+}
+
+async function onWorkerFileDropToCurrent(e) {
+    e.preventDefault();
+    await moveWorkerFileExpiryState(e, false);
+}
+
+async function moveWorkerFileExpiryState(e, markExpired) {
+    const raw = e.dataTransfer.getData("text/plain");
+    if (!raw) return;
+    let payload;
+    try { payload = JSON.parse(raw); } catch (err) { return; }
+    const { docType, idx } = payload || {};
+    if (!docType || typeof idx !== 'number') return;
+
+    const w = workers.find(item => item.id === activeFolderWorkerId);
+    if (!w) return;
+    const list = getAttachments(w, docType);
+    const fItem = list[idx];
+    if (!fItem) return;
+
+    if (isWorkerDocFileExpired(fItem, idx, list, docType) === markExpired) return; // อยู่ตรงที่ลากมาวางอยู่แล้ว ไม่ต้องทำอะไร
+
+    fItem.manualExpired = markExpired; // เจ้าหน้าที่ตั้งเองแล้ว ใช้ทับตรรกะอัตโนมัติ (วันหมดอายุจริง/ลำดับอัปโหลด) ต่อจากนี้
+    renderWorkerFolderTiles();
+    showToast(markExpired ? "📁 ย้ายไฟล์ไปที่ \"ไฟล์ที่หมดอายุ\" แล้ว" : "📂 ย้ายไฟล์กลับมาที่เอกสารปัจจุบันแล้ว", "success");
+
+    const saveRes = await callCloudAPI("saveWorker", { workerData: w });
+    if (!saveRes || saveRes.status === "error") {
+        showToast("⚠️ ย้ายไฟล์สำเร็จในเครื่อง แต่บันทึกขึ้นคลาวด์ไม่สำเร็จ: " + (saveRes && saveRes.message ? saveRes.message : "unknown error"), "danger");
+    }
 }
 
 function openWorkerFolderModal(workerId) {
@@ -7734,15 +7804,15 @@ function openWorkerFolderModal(workerId) {
     document.getElementById("worker-folder-modal").classList.remove("hidden");
 }
 
-function renderWorkerDriveTile(file, fileItem, idx, entityName) {
+function renderWorkerDriveTile(file, fileItem, idx, entityName, isExpired = false) {
     const data = fileItem.data || '';
     const safeName = (fileItem.name || '').replace(/'/g, "\\'");
     const safeEntityName = (entityName || '').replace(/'/g, "\\'");
     return `
-        <div class="drive-tile">
-            <a class="drive-tile-thumb-link" href="${data}" target="_blank" rel="noopener">${renderDriveThumbnail(data)}</a>
+        <div class="drive-tile${isExpired ? ' drive-tile-expired' : ''}" draggable="true" ondragstart="onWorkerFileDragStart(event, '${file.key}', ${idx})">
+            <a class="drive-tile-thumb-link" href="${data}" target="_blank" rel="noopener" draggable="false">${renderDriveThumbnail(data)}</a>
             <div class="drive-tile-body">
-                <span class="drive-tile-category" title="${file.label}">${file.label}</span>
+                <span class="drive-tile-category" title="${file.label}">${file.label}${isExpired ? ' <span class="badge badge-danger" style="font-size:9px; vertical-align:middle;">หมดอายุ</span>' : ''}</span>
                 <input type="text" class="drive-tile-name" value="${fileItem.name}" title="${fileItem.name}" onchange="renameFolderFileIndex('${file.key}', ${idx}, this.value)">
             </div>
             <div class="drive-tile-actions">
@@ -7841,12 +7911,41 @@ function applyOcrDataToWorker(w, docType, p) {
     }
 }
 
+// วันหมดอายุจริงของเอกสาร (อ่านจากผล OCR ตอนแนบไฟล์) — มีแค่บางประเภทเอกสารที่มีวันหมดอายุพิมพ์อยู่จริง
+// ประเภทอื่น (บัตรชมพู/ทะเบียนบ้าน/ใบเสร็จ/ใบรับรองแพทย์/ประกัน/ใบคำขอ/อื่นๆ) คืน null เสมอ — ใช้ลำดับอัปโหลดตัดสินแทนตอนแสดงผล
+function extractDocExpiryDate(docType, parsedData) {
+    if (!parsedData) return null;
+    if (docType === 'worker-wp-doc') return parseDateInput(parsedData.permitExpiry) || null;
+    if (docType === 'worker-passport') return parseDateInput(parsedData.passportExpiry) || null;
+    return null;
+}
+
+// ไฟล์นี้ "หมดอายุ" หรือยัง — ถ้าเจ้าหน้าที่เคยลากย้ายไฟล์นี้ด้วยตัวเอง (fItem.manualExpired) ให้ยึดตามนั้นก่อนเสมอ
+// ไม่งั้นถ้ามีวันหมดอายุจริงที่บันทึกไว้ตอนแนบไฟล์ (fItem.expiryDate) ให้เทียบกับวันนี้ตรงๆ
+// ถ้าไม่มีทั้งคู่ (ไฟล์เก่าก่อนมีฟีเจอร์นี้ หรือเอกสารประเภทที่ไม่มีวันหมดอายุพิมพ์อยู่) ให้ตัดสินจากลำดับอัปโหลดแทน (ไฟล์ล่าสุดของประเภทนั้น = ปัจจุบัน)
+function isWorkerDocFileExpired(fItem, fIdx, list, docType) {
+    if (fItem && typeof fItem.manualExpired === 'boolean') return fItem.manualExpired;
+    if (fItem && fItem.expiryDate) {
+        const exp = safeParseDate(fItem.expiryDate);
+        if (exp) {
+            const todayStart = new Date();
+            todayStart.setHours(0, 0, 0, 0);
+            return exp < todayStart;
+        }
+    }
+    // ใบเสร็จรับเงินเป็นหลักฐานการจ่ายเงิน ไม่มีวันหมดอายุจริงและยังใช้อ้างอิงได้เสมอ ต่อให้มีหลายใบสะสมไว้
+    // (ไม่งั้นถ้าอัปโหลดซ้ำ/มีหลายใบจากคนละรอบต่ออายุ ใบเก่าจะโดนจัดเป็น "หมดอายุ" ไปเองตามลำดับอัปโหลดทั้งที่ไม่ควร)
+    if (docType === 'worker-receipt') return false;
+    return fIdx < list.length - 1;
+}
+
 // แนบไฟล์ 1 ไฟล์เข้าแฟ้มคนงาน 1 คน (upload + OCR + อัปเดตข้อมูล) — ใช้ร่วมกันทั้งอัปโหลดทีละไฟล์ และ bulk import
 async function attachDocumentToWorker(w, docType, fileContent) {
     const nameClean = `${w.firstName}_${w.lastName || ''}`.replace(/\s+/g, '_');
+    const uidPrefix = w.workerUid ? `${w.workerUid}_` : "";
     const currentList = getAttachments(w, docType);
     const suffix = currentList.length > 0 ? `_${currentList.length + 1}` : "";
-    const fileName = `${nameClean}_${docType}${suffix}${extFromDataUrl(fileContent)}`;
+    const fileName = `${uidPrefix}${nameClean}_${docType}${suffix}${extFromDataUrl(fileContent)}`;
 
     const uploadResult = await uploadDocumentFile(fileContent, fileName, w.employerId, w.id, docType);
     const storedUrl = uploadResult ? uploadResult.fileUrl : null;
@@ -7856,7 +7955,8 @@ async function attachDocumentToWorker(w, docType, fileContent) {
     w.attachments[docType] = currentList;
     w.attachments[docType].push({
         name: fileName,
-        data: serverUrl || fileContent
+        data: serverUrl || fileContent,
+        expiryDate: extractDocExpiryDate(docType, uploadResult && uploadResult.parsedData)
     });
 
     if (uploadResult && uploadResult.parsedData) {
@@ -8485,6 +8585,11 @@ function renderJobsKanban(filtered) {
                 paymentBadge = `<span class="badge badge-success" style="font-size: 10px; padding: 2px 6px;">✅ ชำระเงินแล้ว</span>`;
             }
 
+            // นายจ้างบางรายตั้งไว้ว่าต้องออกบิล+รับชำระก่อนถึงจะเริ่ม "กำลังดำเนินการ" ได้ (customers.requirePrepayment)
+            const prepaymentBadge = (cust && cust.requirePrepayment && paymentStatus !== 'ชำระเงินแล้ว')
+                ? `<div style="font-size: 10px;"><span class="badge" style="background-color: #fffbeb; color: #92400e; border: 1px solid #fde68a; font-size: 10px; padding: 2px 6px;" title="นายจ้าง &quot;${custName}&quot; ตั้งไว้ว่าต้องออกบิลและรับชำระเงินก่อนย้ายเข้ากำลังดำเนินการ">💰 ต้องออกบิลและรับชำระเงินก่อน</span></div>`
+                : '';
+
             let badgeClass = 'badge-gold';
             if (displayStatus === 'รอดำเนินการ') badgeClass = 'badge-warning';
             if (displayStatus === 'กำลังดำเนินการ') badgeClass = 'badge-gold';
@@ -8527,6 +8632,7 @@ function renderJobsKanban(filtered) {
                     <div style="font-weight: 600; font-size: 12.5px; color: #1e293b; line-height: 1.4;">👤 ${workName}</div>
                     ${work && work.workerUid ? `<div style="font-size: 10.5px; color: #94a3b8; margin-top:-4px;">เลขประจำตัว: ${work.workerUid}</div>` : ''}
                     <div style="font-size: 11.5px; color: #64748b;" ${custIdTitle ? `title="${custIdTitle}"` : ''}>🏢 ${custName}</div>
+                    ${prepaymentBadge}
                     ${jobAgent ? `<div style="font-size: 11px; color: #64748b;">👤 Agent: ${jobAgent.name}</div>` : ''}
                     <div style="font-size: 10.5px; color: #94a3b8;">📝 เปิดงานโดย: ${getUserNameById(j.openedBy)}${j.closedBy ? ` • 🔒 ปิดโดย: ${getUserNameById(j.closedBy)}` : ''}</div>
                     ${batchTag}
