@@ -522,9 +522,10 @@
                             <table class="data-table" id="customers-table">
                                 <thead>
                                     <tr>
-                                        <th>เลขบริษัท / ทะเบียน</th>
+                                        <th>เลขประจำตัว / เลขบริษัท</th>
                                         <th>ชื่อบริษัท / นายจ้าง</th>
                                         <th>ประเภทกิจการ</th>
+                                        <th>หนังสือรับรอง (วันหมดอายุ)</th>
                                         <th>ที่อยู่ (สาขาหลัก)</th>
                                         <th>ผู้ประสานงาน / เบอร์โทร</th>
                                         <th>แนะนำโดย (Agent)</th>
@@ -1790,6 +1791,15 @@
                                         </select>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+
+                        <div class="form-row hidden" id="worker-skip-notify-row">
+                            <div class="form-group col-12">
+                                <label style="display: flex; align-items: center; gap: 8px; font-weight: 600; cursor: pointer;">
+                                    <input type="checkbox" id="worker-skip-notify" style="width: 16px; height: 16px;">
+                                    ⚙️ (เฉพาะแอดมิน) เพิ่มเข้าระบบโดยไม่ต้องแจ้งเข้า — ให้ถือว่าคนงานอยู่ภายใต้นายจ้างนี้แล้วทันที ไม่ต้องขึ้น badge "รอแจ้งเข้า"
+                                </label>
                             </div>
                         </div>
 

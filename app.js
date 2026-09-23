@@ -1244,8 +1244,8 @@ function renderRenewalGroups() {
     function statusBadgeOf(daysDiff) {
         if (daysDiff === null) return '-';
         if (daysDiff < 0) return `<span class="badge badge-danger">หมดอายุแล้ว</span>`;
-        if (daysDiff <= 60) return `<span class="badge badge-warning">เหลือ ${daysDiff} วัน</span>`;
-        return `<span class="badge badge-success">ปกติ (${daysDiff} วัน)</span>`;
+        if (daysDiff <= 60) return `<span class="badge badge-warning">ใกล้หมดอายุ</span>`;
+        return `<span class="badge badge-success">ปกติ</span>`;
     }
 
     function hasBook(w) {
@@ -1357,7 +1357,7 @@ function calculateDeadlines() {
                 alerts.push({
                     type: 'warning',
                     title: `พาสปอร์ตใกล้หมดอายุ (ภายใน 180 วัน)`,
-                    message: `คนงาน: ${w.firstName} ${w.lastName} (${w.nationality}) จะหมดอายุในอีก ${daysDiff} วัน (${expPassDate.toLocaleDateString('th-TH')})`,
+                    message: `คนงาน: ${w.firstName} ${w.lastName} (${w.nationality}) จะหมดอายุวันที่ ${expPassDate.toLocaleDateString('th-TH')}`,
                     target: w,
                     empName: empName,
                     daysLeft: daysDiff
@@ -1385,7 +1385,7 @@ function calculateDeadlines() {
                 alerts.push({
                     type: 'warning',
                     title: `ใบอนุญาตทำงานใกล้หมดอายุ (ภายใน 60 วัน)`,
-                    message: `คนงาน: ${w.firstName} ${w.lastName} (${w.nationality}) จะหมดอายุในอีก ${daysDiff} วัน (${expPermitDate.toLocaleDateString('th-TH')})`,
+                    message: `คนงาน: ${w.firstName} ${w.lastName} (${w.nationality}) จะหมดอายุวันที่ ${expPermitDate.toLocaleDateString('th-TH')}`,
                     target: w,
                     empName: empName,
                     daysLeft: daysDiff
@@ -1414,7 +1414,7 @@ function calculateDeadlines() {
             alerts.push({
                 type: 'warning',
                 title: `หนังสือรับรองบริษัทใกล้หมดอายุ (ภายใน 30 วัน)`,
-                message: `นายจ้าง: ${c.companyName} จะหมดอายุในอีก ${daysDiff} วัน (${certExpDate.toLocaleDateString('th-TH')})`,
+                message: `นายจ้าง: ${c.companyName} จะหมดอายุวันที่ ${certExpDate.toLocaleDateString('th-TH')}`,
                 target: c,
                 empName: c.companyName,
                 daysLeft: daysDiff
@@ -1869,12 +1869,13 @@ function renderEmployerAlerts() {
             `<span class="text-muted">ไม่มี</span>`;
 
         let certBadge = `<span class="text-muted">-</span>`;
+        const certExpText = r.customer.certExpiry ? new Date(r.customer.certExpiry).toLocaleDateString('th-TH') : '';
         if (r.certStatus === 'expired') {
-            certBadge = `<span class="badge badge-danger" style="font-weight: 600;">⚠️ หมดอายุแล้ว</span>`;
+            certBadge = `<span class="badge badge-danger" style="font-weight: 600;">⚠️ ${certExpText}</span>`;
         } else if (r.certStatus === 'warning') {
-            certBadge = `<span class="badge badge-warning" style="font-weight: 600; color: var(--navy-medium); border-color: var(--navy-medium);">⏰ เหลือ ${r.certDaysDiff} วัน</span>`;
+            certBadge = `<span class="badge badge-warning" style="font-weight: 600; color: var(--navy-medium); border-color: var(--navy-medium);">⏰ ${certExpText}</span>`;
         } else if (r.customer.certExpiry) {
-            certBadge = `<span class="badge badge-success">ปกติ</span>`;
+            certBadge = `<span class="badge badge-success">${certExpText}</span>`;
         }
 
         return `
@@ -1953,7 +1954,7 @@ function renderCustomers() {
     if (filtered.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="9" class="text-muted" style="text-align: center; padding: 40px;">
+                <td colspan="10" class="text-muted" style="text-align: center; padding: 40px;">
                     ❌ ไม่พบข้อมูลลูกค้า/นายจ้างตามคำค้นหา
                 </td>
             </tr>
@@ -2012,11 +2013,32 @@ function renderCustomers() {
             ? `<span class="badge" style="background-color:#e0f2fe; color:#0369a1; font-weight:600;">🤝 ${referredAgent.name}</span>`
             : `<span class="text-muted" style="font-size:12px;">-</span>`;
 
+        // หนังสือรับรองนิติบุคคล: มีเฉพาะลูกค้าที่กรอกวันที่ออกหนังสือรับรองไว้ (cert_expiry = วันที่ออก + 6 เดือน)
+        let certCellHtml = `<span class="text-muted" style="font-size:12px;">-</span>`;
+        if (c.certExpiry) {
+            const certExpDate = new Date(c.certExpiry);
+            const certDaysDiff = Math.ceil((certExpDate.setHours(0,0,0,0) - new Date().setHours(0,0,0,0)) / (1000 * 60 * 60 * 24));
+            const certExpText = certExpDate.toLocaleDateString('th-TH');
+            if (certDaysDiff < 0) {
+                certCellHtml = `<span class="badge badge-danger" style="font-weight:600;" title="หมดอายุแล้ว">⚠️ ${certExpText}</span>`;
+            } else if (certDaysDiff <= 30) {
+                certCellHtml = `<span class="badge badge-warning" style="font-weight:600; color: var(--navy-medium); border-color: var(--navy-medium);" title="ใกล้หมดอายุ">⏰ ${certExpText}</span>`;
+            } else {
+                certCellHtml = `<span class="badge badge-success">${certExpText}</span>`;
+            }
+        }
+
+        const idPartsHtml = getEmployerIdParts(c).map((p, i) => i === 0
+            ? `<div><small class="text-muted">${p.label}</small></div><strong>${p.value}</strong>`
+            : `<div><small class="text-muted">${p.label}: ${p.value}</small></div>`
+        ).join('');
+
         return `
             <tr>
-                <td><strong>${c.taxId}</strong></td>
+                <td>${idPartsHtml}</td>
                 <td><strong>${c.companyName}${statusLabel}${prepaymentLabel}</strong></td>
                 <td><span class="badge badge-gold">${c.businessType}</span></td>
+                <td>${certCellHtml}</td>
                 <td>${hqAddress}</td>
                 <td>
                     <div>${c.coordinator}</div>
@@ -2182,6 +2204,11 @@ function renderWorkers() {
     tbody.innerHTML = paginated.map(w => {
         const emp = customers.find(c => c.id === w.employerId);
         const empName = emp ? emp.companyName : "ไม่ระบุนายจ้าง";
+        // ยังไม่เคยมีใบงานเลยสักใบ = ยังไม่เคยแจ้งงานให้คนงานคนนี้เลย (ไม่รวมคนที่กำลังรอขึ้นทะเบียนอยู่แล้ว เพราะขึ้นทะเบียนเสร็จก็ถือว่าเข้าระบบแล้วไม่ต้องแจ้งเข้าซ้ำ,
+        // และไม่รวมคนที่ admin ระบุไว้ว่าไม่ต้องแจ้งเข้า — ดู worker-skip-notify ในฟอร์มเพิ่ม/แก้ไขคนงาน)
+        const pendingNotifyBadge = (w.status !== 'pending_register' && !w.skipNotifyEntry && !jobs.some(j => j.workerId === w.id))
+            ? '<br><span class="badge badge-warning" style="font-size:10px; margin-top:2px;" title="ยังไม่เคยแจ้งงาน/แจ้งเข้าให้คนงานคนนี้เลย">⏳ รอแจ้งเข้า</span>'
+            : '';
 
         // Status badges logic
         const pExpDate = safeParseDate(w.passportExpiry);
@@ -2260,9 +2287,8 @@ function renderWorkers() {
                     ` : '<small class="text-muted">หมดอายุ: -</small>'}
                 </td>
                 <td>
-                    <div>${empName}</div>
-                    ${emp && emp.taxId ? `<small class="text-muted">เลขบริษัท: ${emp.taxId}</small><br>` : ''}
-                    ${emp && emp.directorId ? `<small class="text-muted">เลขบุคคลธรรมดา: ${emp.directorId}</small>` : ''}
+                    <div>${empName}${pendingNotifyBadge}</div>
+                    ${getEmployerIdParts(emp).map(p => `<small class="text-muted">${p.label}: ${p.value}</small><br>`).join('')}
                 </td>
                 <td>${statusBadge}</td>
                 <td>${attachHtml}</td>
@@ -3353,6 +3379,16 @@ function openWorkerModal(id = null) {
     // Reset nationality row
     document.getElementById("worker-nationality-other-row").classList.add("hidden");
 
+    // ช่อง "ไม่ต้องแจ้งเข้า" เห็นเฉพาะ admin
+    const skipNotifyRow = document.getElementById("worker-skip-notify-row");
+    const skipNotifyCheckbox = document.getElementById("worker-skip-notify");
+    if (currentUser.role === 'admin') {
+        skipNotifyRow.classList.remove("hidden");
+    } else {
+        skipNotifyRow.classList.add("hidden");
+    }
+    skipNotifyCheckbox.checked = false;
+
     if (id) {
         modalTitle.innerText = "แก้ไขข้อมูลคนงานต่างด้าว";
         editIdInput.value = id;
@@ -3428,6 +3464,7 @@ function openWorkerModal(id = null) {
         document.getElementById("worker-pink-card-no").value = w.pinkCardNo || '';
         document.getElementById("worker-thai-name").value = w.thaiName || '';
         document.getElementById("worker-insurance-no").value = w.insuranceNo || '';
+        skipNotifyCheckbox.checked = !!w.skipNotifyEntry;
     } else {
         modalTitle.innerText = "เพิ่มคนงานต่างด้าวใหม่";
         editIdInput.value = "";
@@ -3499,6 +3536,12 @@ async function saveWorker(e) {
     const thaiName = document.getElementById("worker-thai-name").value.trim();
     const insuranceNo = document.getElementById("worker-insurance-no").value.trim();
 
+    // ช่อง "ไม่ต้องแจ้งเข้า" เห็น/แก้ได้เฉพาะ admin — คนอื่นแก้ไม่ได้ ให้คงค่าเดิมของคนงานไว้ (ถ้ามี)
+    const existingWorker = editId ? workers.find(item => item.id === editId) : null;
+    const skipNotifyEntry = currentUser.role === 'admin'
+        ? document.getElementById("worker-skip-notify").checked
+        : !!(existingWorker && existingWorker.skipNotifyEntry);
+
     // Validate date formats (DD/MM/YYYY)
     if (dob && !isValidDate(dob)) {
         alert("วันเดือนปีเกิด ไม่ถูกต้อง (รูปแบบคือ วัน/เดือน/ปี ค.ศ. เช่น 15/08/1994)");
@@ -3546,7 +3589,8 @@ async function saveWorker(e) {
         workplace,
         email,
         refNo,
-        pinkCardNo, thaiName, insuranceNo
+        pinkCardNo, thaiName, insuranceNo,
+        skipNotifyEntry
     };
 
     const finalWorkerData = editId ? { ...workerData, createdAt: workers.find(item => item.id === editId).createdAt || new Date().toISOString().split('T')[0] } : { ...workerData, createdAt: new Date().toISOString().split('T')[0] };
@@ -3655,13 +3699,28 @@ function getJobDisplayNo(job) {
     return `${dateStr}-${numPart}`;
 }
 
-// สร้าง HTML บรรทัดย่อยแสดงเลขนิติบุคคล/เลขบุคคลธรรมดาของนายจ้าง ต่อจากชื่อบริษัท (ใช้ร่วมกันทุกจุดที่แสดงนายจ้างในระบบแจ้งงาน)
+// เลขประจำตัวของนายจ้าง/ลูกค้า — มีเลขกรรมการ (directorId) แปลว่าเป็นนิติบุคคล (โชว์เลขบริษัท + เลขกรรมการ)
+// ไม่มีเลขกรรมการแปลว่าเป็นบุคคลธรรมดา (taxId คือเลขประจำตัวของตัวเขาเอง โชว์แค่เลขเดียว)
+// ใช้ร่วมกันทุกจุดที่แสดงนายจ้าง/ลูกค้าในระบบ ให้ label ตรงกับประเภทลูกค้าเสมอ
+function getEmployerIdParts(cust) {
+    if (!cust) return [];
+    if (cust.directorId) {
+        const parts = [];
+        if (cust.taxId) parts.push({ label: 'เลขบริษัท', value: cust.taxId });
+        parts.push({ label: 'เลขกรรมการ', value: cust.directorId });
+        return parts;
+    }
+    return cust.taxId ? [{ label: 'เลขประจำตัว', value: cust.taxId }] : [];
+}
+
+// สร้าง HTML บรรทัดย่อยแสดงเลขประจำตัวของนายจ้าง ต่อจากชื่อบริษัท (ใช้ร่วมกันทุกจุดที่แสดงนายจ้างในระบบแจ้งงาน)
 function buildEmployerIdLinesHtml(cust) {
-    if (!cust) return '';
-    let html = '';
-    if (cust.taxId) html += `<br><small class="text-muted">เลขบริษัท: ${cust.taxId}</small>`;
-    if (cust.directorId) html += `<br><small class="text-muted">เลขบุคคลธรรมดา: ${cust.directorId}</small>`;
-    return html;
+    return getEmployerIdParts(cust).map(p => `<br><small class="text-muted">${p.label}: ${p.value}</small>`).join('');
+}
+
+// เวอร์ชันข้อความล้วน (ไม่มี HTML) สำหรับใช้เป็น title/tooltip
+function buildEmployerIdText(cust, separator = ' | ') {
+    return getEmployerIdParts(cust).map(p => `${p.label}: ${p.value}`).join(separator);
 }
 
 function renderJobs() {
@@ -8563,7 +8622,7 @@ function renderJobsKanban(filtered) {
             const cust = customers.find(c => c.id === j.customerId);
             const work = workers.find(w => w.id === j.workerId);
             const custName = cust ? cust.companyName : "ไม่พบนายจ้าง";
-            const custIdTitle = cust ? [cust.taxId ? `เลขบริษัท: ${cust.taxId}` : '', cust.directorId ? `เลขบุคคลธรรมดา: ${cust.directorId}` : ''].filter(Boolean).join(' | ') : '';
+            const custIdTitle = buildEmployerIdText(cust);
             const workName = work ? `${work.firstName} ${work.lastName} (${work.nationality})` : "ไม่พบคนงาน";
             const jobAgent = j.agentId ? agents.find(a => a.id === j.agentId) : null;
 
