@@ -366,6 +366,25 @@ async function loadData() {
     }
 }
 
+// ปุ่มรีเฟรชข้างกระดิ่ง (มุมขวาบน) — ดึงข้อมูลล่าสุดจาก Supabase แล้ววาดหน้าที่เปิดอยู่ใหม่ (ช่องค้นหา/ตัวกรองคงค่าเดิม)
+let _refreshingAppData = false;
+async function refreshAppData() {
+    if (_refreshingAppData) return;
+    _refreshingAppData = true;
+    const btn = document.getElementById("topbar-refresh-btn");
+    if (btn) btn.classList.add("spinning");
+    try {
+        await loadData();
+        const activeSection = document.querySelector(".content-section:not(.hidden)");
+        const viewName = activeSection ? activeSection.id.replace(/^view-/, '') : 'dashboard';
+        if (viewName !== 'dashboard') renderDashboard(); // อัปเดตตัวเลขแจ้งเตือนบนกระดิ่งด้วย แม้ไม่ได้อยู่หน้าแดชบอร์ด
+        switchView(viewName);
+    } finally {
+        _refreshingAppData = false;
+        if (btn) btn.classList.remove("spinning");
+    }
+}
+
 function saveData() {
     localStorage.setItem("mw_customers", JSON.stringify(customers));
     localStorage.setItem("mw_workers", JSON.stringify(workers));

@@ -593,6 +593,31 @@ h1, h2, h3, h4, h5, h6 {
     gap: 20px;
 }
 
+.topbar-refresh-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--navy-medium);
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.topbar-refresh-btn:hover {
+    background-color: rgba(23, 42, 69, 0.05);
+}
+
+.topbar-refresh-btn.spinning svg {
+    animation: topbar-refresh-spin 0.9s linear infinite;
+}
+
+@keyframes topbar-refresh-spin {
+    to { transform: rotate(360deg); }
+}
+
 .notification-bell {
     position: relative;
     cursor: pointer;
