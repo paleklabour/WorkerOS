@@ -2010,15 +2010,7 @@ function renderCustomers() {
             `;
         }
 
-        let editBtn = '';
-        if (currentUser.role !== 'staff') {
-            editBtn = `
-                <button class="action-icon-btn" onclick="openCustomerModal('${c.id}')" title="แก้ไขข้อมูล">
-                    ✏️
-                </button>
-            `;
-        }
-
+        // ไม่มีปุ่มดินสอ (แก้ไข) แล้ว — กดที่แถวเพื่อเปิดข้อมูล/แก้ไขนายจ้างแทน (เหมือนตารางคนงาน)
         const activeWorkersCount = workers.filter(w => w.employerId === c.id && w.status !== 'archived' && w.status !== 'deleted').length;
         const totalWorkersCount = workers.filter(w => w.employerId === c.id && w.status !== 'deleted').length;
         
@@ -2063,7 +2055,7 @@ function renderCustomers() {
         ).join('');
 
         return `
-            <tr>
+            <tr class="clickable-row" onclick="openCustomerModal('${c.id}')" title="คลิกเพื่อดูรายละเอียดนายจ้าง">
                 <td>${idPartsHtml}</td>
                 <td><strong>${c.companyName}${statusLabel}${prepaymentLabel}</strong></td>
                 <td><span class="badge badge-gold">${c.businessType}</span></td>
@@ -2075,14 +2067,13 @@ function renderCustomers() {
                 </td>
                 <td>${referredAgentHtml}</td>
                 <td>
-                    <span class="badge badge-gold" style="cursor: pointer;" onclick="filterWorkersByEmployer('${c.id}')" title="คลิกเพื่อสืบค้นรายชื่อคนงาน">
+                    <span class="badge badge-gold" style="cursor: pointer;" onclick="event.stopPropagation(); filterWorkersByEmployer('${c.id}')" title="คลิกเพื่อสืบค้นรายชื่อคนงาน">
                         👤 ${activeWorkersCount} คน (ทั้งหมด ${totalWorkersCount} คน)
                     </span>
                 </td>
-                <td>${attachHtml}</td>
-                <td class="actions-col">
+                <td onclick="event.stopPropagation()">${attachHtml}</td>
+                <td class="actions-col" onclick="event.stopPropagation()">
                     <div class="actions-cell">
-                        ${editBtn}
                         ${deleteBtn}
                     </div>
                 </td>
@@ -2285,15 +2276,7 @@ function renderWorkers() {
             `;
         }
 
-        let editBtn = '';
-        if (currentUser.role !== 'staff') {
-            editBtn = `
-                <button class="action-icon-btn" onclick="openWorkerModal('${w.id}')" title="แก้ไขข้อมูล">
-                    ✏️
-                </button>
-            `;
-        }
-
+        // ไม่มีปุ่มดินสอ (แก้ไข) แล้ว — กดที่แถวเพื่อเปิดข้อมูล/แก้ไขคนงานแทน
         const avatarUrl = w.photo ? w.photo : 'data:image/svg+xml;utf8,<svg xmlns="http:' + '/' + '/www.w3.org/2000/svg" viewBox="0 0 24 24" width="32" height="32" fill="%2394a3b8"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4.42 0-8 3.58-8 8v1h16v-1c0-4.42-3.58-8-8-8z"/></svg>';
 
         // คลิกทั้งแถวเพื่อเปิดดูข้อมูลคนงาน เหมือนตาราง "ข้อมูลคนงานต่ออายุ" (ปุ่มในแถวใช้ stopPropagation ไม่ให้เปิดซ้อน)
@@ -2333,7 +2316,6 @@ function renderWorkers() {
                 <td onclick="event.stopPropagation()">${attachHtml}</td>
                 <td class="actions-col" onclick="event.stopPropagation()">
                     <div class="actions-cell">
-                        ${editBtn}
                         ${deleteBtn}
                     </div>
                 </td>
