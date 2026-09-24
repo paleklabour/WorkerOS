@@ -604,6 +604,7 @@
                                         <th>ชื่อ-นามสกุล</th>
                                         <th>สัญชาติ</th>
                                         <th>ข้อมูลพาสปอร์ต</th>
+                                        <th>วันหมดอายุ</th>
                                         <th>นายจ้าง/ผู้ว่าจ้าง</th>
                                         <th>สถานะเอกสาร</th>
                                         <th>เอกสารแนบ</th>
@@ -2694,6 +2695,21 @@
 
                     <div id="bulk-import-summary" class="text-muted" style="font-size: 12.5px; margin-bottom: 8px; display:none;"></div>
 
+                    <!-- คนงานใหม่ที่ AI เจอจากเอกสารแต่ยังไม่มีในระบบ (ดู matchBulkRowsFromOcr / renderBulkNewWorkers ใน app.js) -->
+                    <div id="bulk-import-new-workers-wrap" class="bulk-new-workers-wrap hidden">
+                        <div class="bulk-new-workers-title">🆕 คนงานใหม่ที่จะสร้างให้ตอนกดนำเข้า — ตรวจ/แก้ข้อมูลที่ AI อ่านมาก่อน (ช่องขอบแดง = ต้องกรอก)</div>
+                        <div class="form-group" style="margin-bottom: 10px;">
+                            <label for="bulk-import-employer-search">นายจ้างของคนงานใหม่ทุกคนในรอบนี้ <span class="required">*</span></label>
+                            <div class="search-box" style="max-width: 100%;">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                                <input type="text" id="bulk-import-employer-search" placeholder="พิมพ์ชื่อบริษัท/นายจ้างเพื่อค้นหา..." autocomplete="off">
+                            </div>
+                        </div>
+                        <div id="bulk-import-new-workers"></div>
+                    </div>
+
                     <div class="table-container" style="box-shadow: none; border: 1px solid #e2e8f0;">
                         <table class="data-table" style="min-width: 100%; font-size: 12.5px;">
                             <thead>
@@ -2718,6 +2734,7 @@
                 </div>
                 <div class="modal-footer" style="display: flex; gap: 10px;">
                     <button type="button" class="btn btn-outline" style="flex:1;" onclick="closeBulkImportModal()">ยกเลิก</button>
+                    <button type="button" class="btn btn-outline" style="flex:1; border-color: var(--gold-primary); color: var(--gold-primary);" id="btn-bulk-ai-analyze" onclick="analyzeBulkImportWithAi()" title="ให้ AI อ่านทุกไฟล์ก่อน แล้วจับคู่คนงานเดิม/ประเภทเอกสารจากเนื้อหาในเอกสาร และรวมไฟล์ของคนที่ยังไม่มีในระบบเป็นคนงานใหม่">🤖 ให้ AI อ่านและจับคู่</button>
                     <button type="button" class="btn btn-gold" style="flex:1;" id="btn-run-bulk-import" onclick="runBulkImport()">📥 นำเข้าที่เลือกทั้งหมด</button>
                 </div>
             </div>

@@ -2104,6 +2104,17 @@ function changeWorkersPage(direction) {
     renderWorkers();
 }
 
+// 1 บรรทัดในคอลัมน์ "วันหมดอายุ" ของตารางคนงาน — สีตามเกณฑ์เดียวกับป้ายสถานะเอกสาร
+// (ใบอนุญาตทำงานเตือนก่อน 60 วัน / พาสปอร์ตเตือนก่อน 180 วัน)
+function renderWorkerExpiryLine(label, expDate, daysLeft, warnDays) {
+    if (!expDate || isNaN(expDate.getTime())) {
+        return `<div class="worker-expiry-line text-muted"><span>${label}:</span> -</div>`;
+    }
+    const cls = daysLeft < 0 ? 'text-danger' : (daysLeft <= warnDays ? 'text-warning' : 'text-muted');
+    const remain = daysLeft < 0 ? `หมดแล้ว ${Math.abs(daysLeft)} วัน` : (daysLeft === 0 ? 'หมดวันนี้' : `เหลือ ${daysLeft} วัน`);
+    return `<div class="worker-expiry-line ${cls}"><span>${label}:</span> <strong>${expDate.toLocaleDateString('th-TH')}</strong> <small>(${remain})</small></div>`;
+}
+
 function renderWorkers() {
     const searchVal = document.getElementById("search-worker").value.toLowerCase();
     const natFilter = document.getElementById("filter-worker-nationality").value;
@@ -2190,7 +2201,7 @@ function renderWorkers() {
     if (filtered.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="8" class="text-muted" style="text-align: center; padding: 40px;">
+                <td colspan="9" class="text-muted" style="text-align: center; padding: 40px;">
                     ❌ ไม่พบข้อมูลคนงานต่างด้าวตามตัวกรอง
                 </td>
             </tr>
@@ -2280,11 +2291,10 @@ function renderWorkers() {
                 <td><span class="badge badge-gold">${w.nationality || '-'}</span></td>
                 <td>
                     <div>เล่ม: ${w.passportNo || '-'}</div>
-                    ${pExpDate ? `
-                    <small class="${pDiff < 0 ? 'text-danger' : (pDiff <= 180 ? 'text-warning' : 'text-muted')}">
-                        หมดอายุ: ${pExpDate.toLocaleDateString('th-TH')}
-                    </small>
-                    ` : '<small class="text-muted">หมดอายุ: -</small>'}
+                </td>
+                <td class="worker-expiry-cell">
+                    ${renderWorkerExpiryLine('ใบอนุญาต', wpExpDate, wpDiff, 60)}
+                    ${renderWorkerExpiryLine('พาสปอร์ต', pExpDate, pDiff, 180)}
                 </td>
                 <td>
                     <div>${empName}${pendingNotifyBadge}</div>
@@ -5823,6 +5833,18 @@ function onSelectFreeInvoiceWorker(w) {
 function setupAllSearchSelects() {
     registerFreeInvoiceSearchSelects();
 
+    // นายจ้างของคนงานใหม่ที่ Bulk Import สร้างให้ (เลือก 1 รายต่อรอบ) — เก็บใน bulkImportEmployerId
+    registerSearchSelect('bulk-import-employer', {
+        inputId: 'bulk-import-employer-search',
+        getValue: () => bulkImportEmployerId,
+        setValue: (v) => { bulkImportEmployerId = v || null; },
+        getPool: () => customers,
+        getId: c => c.id,
+        getLabel: c => c.companyName,
+        getSub: c => c.taxId ? 'ภาษี ' + c.taxId : '',
+        emptyText: 'ไม่พบนายจ้างที่ตรงกับคำค้นหา'
+    });
+
     // นายจ้างในฟอร์ม "แจ้งสั่งงาน" — <select id="job-customer-id"> ซ่อนไว้เป็นแหล่งเก็บค่าจริงเหมือนเดิม
     registerSearchSelect('job-customer', {
         inputId: 'job-customer-search',
@@ -6713,12 +6735,12 @@ function getAiRejectedMessage(ocrError) {
 
 // อัปโหลดไฟล์ขึ้น Supabase Storage (bucket worker-documents) แล้วเรียก Edge Function
 // "ocr-document" (Gemini) ให้อ่านข้อมูลจากเอกสารกลับมาด้วยถ้าเป็นประเภทเอกสารที่รองรับ
-async function uploadDocumentFile(fileDataUrl, fileName, customerId = "", workerId = "", docType = "") {
+async function uploadDocumentFile(fileDataUrl, fileName, customerId = "", workerId = "", docType = "", options = {}) {
     if (!window.supabaseAdapter) return null; // ยังไม่ได้ตั้งค่า Supabase
 
     try {
         showToast("☁️ กำลังอัปโหลดไฟล์ขึ้น Supabase Storage...", "warning");
-        const resData = await window.supabaseAdapter.uploadFile(fileDataUrl, fileName, customerId, workerId, docType, currentUser);
+        const resData = await window.supabaseAdapter.uploadFile(fileDataUrl, fileName, customerId, workerId, docType, currentUser, options);
 
         if (resData && resData.status === 'success') {
             showToast("✅ บันทึกไฟล์สำเร็จ!", "success");
@@ -8231,14 +8253,14 @@ function isWorkerDocFileExpired(fItem, fIdx, list, docType) {
 }
 
 // แนบไฟล์ 1 ไฟล์เข้าแฟ้มคนงาน 1 คน (upload + OCR + อัปเดตข้อมูล) — ใช้ร่วมกันทั้งอัปโหลดทีละไฟล์ และ bulk import
-async function attachDocumentToWorker(w, docType, fileContent) {
+async function attachDocumentToWorker(w, docType, fileContent, preParsed = null) {
     const nameClean = `${w.firstName}_${w.lastName || ''}`.replace(/\s+/g, '_');
     const uidPrefix = w.workerUid ? `${w.workerUid}_` : "";
     const currentList = getAttachments(w, docType);
     const suffix = currentList.length > 0 ? `_${currentList.length + 1}` : "";
     const fileName = `${uidPrefix}${nameClean}_${docType}${suffix}${extFromDataUrl(fileContent)}`;
 
-    const uploadResult = await uploadDocumentFile(fileContent, fileName, w.employerId, w.id, docType);
+    const uploadResult = await uploadDocumentFile(fileContent, fileName, w.employerId, w.id, docType, preParsed ? { skipOcr: true } : {});
     if (uploadResult && uploadResult.aiRejected) throw createAiRejectedError(uploadResult.ocrError);
     const storedUrl = uploadResult ? uploadResult.fileUrl : null;
     const serverUrl = storedUrl || await uploadFileToServer(fileContent, fileName);
@@ -8248,11 +8270,11 @@ async function attachDocumentToWorker(w, docType, fileContent) {
     w.attachments[docType].push({
         name: fileName,
         data: serverUrl || fileContent,
-        expiryDate: extractDocExpiryDate(docType, uploadResult && uploadResult.parsedData)
+        expiryDate: extractDocExpiryDate(docType, preParsed || (uploadResult && uploadResult.parsedData))
     });
 
-    if (uploadResult && uploadResult.parsedData) {
-        applyOcrDataToWorker(w, docType, uploadResult.parsedData);
+    if (preParsed || (uploadResult && uploadResult.parsedData)) {
+        applyOcrDataToWorker(w, docType, preParsed || uploadResult.parsedData);
     }
 
     // Auto-transition from pending_register to active when both Work Permit and Receipt are uploaded
@@ -8380,6 +8402,97 @@ function matchDocTypeFromFilename(filename) {
 
 let bulkImportRows = [];
 
+// ==================== BULK IMPORT: ให้ AI อ่าน -> จับคู่คนงานเดิม / สร้างคนงานใหม่ ====================
+// ขั้น "🤖 ให้ AI อ่านและจับคู่" อ่านทุกไฟล์ก่อน (ยังไม่เก็บไฟล์) เก็บผลไว้ที่ row.parsedData แล้วใช้ผลเดิมตอนนำเข้า
+// (attachDocumentToWorker(..., preParsed)) — แต่ละไฟล์เรียก AI แค่ครั้งเดียว ไม่เปลืองโควตา
+// ไฟล์ที่ไม่ตรงกับคนงานเดิมจะถูกรวมกลุ่มเป็น "คนงานใหม่" (bulkNewWorkers) ให้ตรวจ/แก้ก่อนสร้างจริงตอนกดนำเข้า
+// row.workerId เป็นได้ทั้ง id คนงานเดิม หรือ "new:<id คนงานใหม่>"
+const BULK_NEW_WORKER_PREFIX = 'new:';
+let bulkNewWorkers = [];          // [{ id, keys: Set, data: {...ฟิลด์คนงานที่ AI เติมให้} }]
+let bulkImportEmployerId = null;  // นายจ้างของคนงานใหม่ทุกคนในรอบนี้ (เลือก 1 รายต่อรอบ)
+let bulkNewWorkerSeq = 0;
+
+// ข้อความจาก AI/ชื่อไฟล์ที่ใส่ลง innerHTML — กันอักขระ HTML ทำหน้าเว็บพัง
+function escapeHtml(v) {
+    return String(v == null ? '' : v).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+}
+
+function normalizeIdForMatch(v) {
+    return String(v || '').replace(/[^0-9A-Za-z]/g, '').toUpperCase();
+}
+
+function normalizeNameForMatch(first, last) {
+    return `${first || ''} ${last || ''}`.replace(/\s+/g, ' ').trim().toUpperCase();
+}
+
+// คีย์ที่ใช้จับคู่ไฟล์เข้าคนงาน — ใช้เฉพาะเลขที่เป็นของเอกสารประเภทนั้นจริง ๆ เท่านั้น
+// (เช่น เลข 13 หลักบนบัตรชมพูไม่ใช่เลขประจำตัวคนต่างด้าวบนใบอนุญาตทำงาน จึงไม่เอามาเทียบกันเด็ดขาด)
+// เอกสารต่างประเภทของคนเดียวกันเชื่อมกันผ่าน ชื่อ+วันเกิด
+function getOcrMatchKeys(docType, p) {
+    const keys = [];
+    const add = (prefix, v) => { const n = normalizeIdForMatch(v); if (n.length >= 5) keys.push(prefix + n); };
+    if (docType === 'worker-wp-doc') {
+        add('uid:', p.uid);
+        add('permit:', p.permitNo);
+        add('ref:', p.refNo);
+    } else if (docType === 'worker-passport' || docType === 'worker-visa') {
+        add('passport:', p.passportNo);
+    } else if (docType === 'worker-pink-card') {
+        add('pink:', p.pinkCardNo);
+    } else if (docType === 'worker-insurance-doc') {
+        add('ins:', p.insuranceNo);
+    }
+    const dob = parseDateInput(p.dob);
+    const name = normalizeNameForMatch(p.firstName, p.lastName);
+    if (name && dob) keys.push(`nd:${name}|${dob}`);
+    if (p.thaiName && dob) keys.push(`td:${String(p.thaiName).replace(/\s+/g, '')}|${dob}`);
+    return keys;
+}
+
+function getWorkerMatchKeys(w) {
+    const keys = [];
+    const add = (prefix, v) => { const n = normalizeIdForMatch(v); if (n.length >= 5) keys.push(prefix + n); };
+    add('uid:', w.workerUid);
+    add('permit:', w.permitNo);
+    add('ref:', w.refNo);
+    add('passport:', w.passportNo);
+    add('pink:', w.pinkCardNo);
+    add('ins:', w.insuranceNo);
+    const name = normalizeNameForMatch(w.firstName, w.lastName);
+    if (name && w.dob) keys.push(`nd:${name}|${w.dob}`);
+    if (w.thaiName && w.dob) keys.push(`td:${String(w.thaiName).replace(/\s+/g, '')}|${w.dob}`);
+    return keys;
+}
+
+function describeMatchKey(key) {
+    const prefix = key.split(':')[0];
+    return { uid: 'เลขประจำตัว 13 หลัก', permit: 'เลขใบอนุญาต', ref: 'เลขอ้างอิง', passport: 'เลขพาสปอร์ต',
+        pink: 'เลขบัตรชมพู', ins: 'เลขประกัน', nd: 'ชื่อ+วันเกิด', td: 'ชื่อไทย+วันเกิด' }[prefix] || 'ข้อมูลเอกสาร';
+}
+
+function isBulkNewWorkerId(workerId) {
+    return typeof workerId === 'string' && workerId.startsWith(BULK_NEW_WORKER_PREFIX);
+}
+
+function findBulkNewWorker(workerId) {
+    return bulkNewWorkers.find(c => BULK_NEW_WORKER_PREFIX + c.id === workerId);
+}
+
+// ช่องที่ต้องมีก่อนสร้างคนงาน — ตรงกับที่ saveWorker บังคับ (นายจ้างเลือกรวมทั้งรอบ)
+function getBulkNewWorkerMissingFields(c) {
+    const missing = [];
+    if (!c.data.title) missing.push('title');
+    if (!c.data.firstName) missing.push('firstName');
+    if (!c.data.nationality) missing.push('nationality');
+    if (!c.data.dob) missing.push('dob');
+    return missing;
+}
+
+// ลบคนงานใหม่ที่ไม่มีไฟล์ไหนชี้ถึงแล้ว (เช่น ผู้ใช้เปลี่ยนไฟล์ไปแนบคนงานเดิมหมด)
+function pruneBulkNewWorkers() {
+    bulkNewWorkers = bulkNewWorkers.filter(c => bulkImportRows.some(r => r.workerId === BULK_NEW_WORKER_PREFIX + c.id));
+}
+
 // ผล AI ของไฟล์ที่นำเข้าสำเร็จ: filled = AI เติมข้อมูลแล้ว / none = ประเภทเอกสารนี้ไม่ใช้ AI
 // (AI อ่านไม่สำเร็จ = ไม่บันทึกไฟล์ ไปตกที่ catch ใน runBulkImport แทน ตั้ง aiStatus เป็น busy/failed ที่นั่น)
 function getBulkImportAiStatus(uploadResult) {
@@ -8389,6 +8502,8 @@ function getBulkImportAiStatus(uploadResult) {
 
 function openBulkImportModal() {
     bulkImportRows = [];
+    bulkNewWorkers = [];
+    presetSearchSelect('bulk-import-employer', null);
     const fileInput = document.getElementById('bulk-import-file-input');
     if (fileInput) fileInput.value = '';
     const progressEl = document.getElementById('bulk-import-progress');
@@ -8485,7 +8600,11 @@ function renderBulkImportTable() {
 
     tbody.innerHTML = bulkImportRows.map((row, idx) => {
         let statusBadge;
-        if (row.status === 'failed' && row.aiStatus === 'busy') statusBadge = '<span class="badge badge-warning" style="font-size:10px;" title="Gemini มีผู้ใช้งานมาก ไฟล์นี้ยังไม่ได้บันทึก — กด นำเข้า อีกครั้งในอีกสักครู่">⚠️ ยังไม่บันทึก • AI ไม่ว่าง</span>';
+        if (row.status === 'pending' && row.ocrStatus === 'busy') statusBadge = '<span class="badge badge-warning" style="font-size:10px;" title="Gemini ไม่ว่างหรือโควตาหมด — กด ให้ AI อ่าน อีกครั้งทีหลัง หรือเลือกคนงาน/ประเภทเอง">⚠️ AI ไม่ว่าง</span>';
+        else if (row.status === 'pending' && row.ocrStatus === 'failed') statusBadge = '<span class="badge badge-warning" style="font-size:10px;" title="AI อ่านเอกสารนี้ไม่ได้ — เลือกคนงาน/ประเภทเอง">⚠️ AI อ่านไม่ได้</span>';
+        else if (row.status === 'pending' && isBulkNewWorkerId(row.workerId)) statusBadge = '<span class="badge badge-gold" style="font-size:10px;" title="ไม่พบคนงานนี้ในระบบ จะสร้างคนงานใหม่ตอนกดนำเข้า">🆕 คนงานใหม่</span>';
+        else if (row.status === 'pending' && row.matchNote) statusBadge = `<span class="badge badge-success" style="font-size:10px;" title="AI อ่านเอกสารแล้วจับคู่กับคนงานเดิมด้วย${row.matchNote}">🤖 ตรง${row.matchNote}</span>`;
+        else if (row.status === 'failed' && row.aiStatus === 'busy') statusBadge = '<span class="badge badge-warning" style="font-size:10px;" title="Gemini มีผู้ใช้งานมาก ไฟล์นี้ยังไม่ได้บันทึก — กด นำเข้า อีกครั้งในอีกสักครู่">⚠️ ยังไม่บันทึก • AI ไม่ว่าง</span>';
         else if (row.status === 'failed' && row.aiStatus === 'failed') statusBadge = '<span class="badge badge-warning" style="font-size:10px;" title="AI อ่านเอกสารไม่ได้ ไฟล์นี้ยังไม่ได้บันทึก — ตรวจไฟล์แล้วลองใหม่">⚠️ ยังไม่บันทึก • AI อ่านไม่ได้</span>';
         else if (row.status === 'success' && row.aiStatus === 'manual') statusBadge = `<button type="button" class="btn btn-sm btn-outline" style="font-size:10.5px; padding:2px 8px; white-space:nowrap;" onclick="openManualEntryForm('worker', '${row.workerId}', '${row.docType}')" title="ไฟล์เข้าระบบแล้ว (ไม่ผ่าน AI) — กดเพื่อเปิดฟอร์มคนงานไปกรอกข้อมูล">✍️ กรอกข้อมูล</button>`;
         else if (row.status === 'success' && row.aiStatus === 'filled') statusBadge = '<span class="badge badge-success" style="font-size:10px;">✅ นำเข้าแล้ว • AI เติมข้อมูลแล้ว</span>';
@@ -8504,6 +8623,7 @@ function renderBulkImportTable() {
                 <td>
                     <select style="font-size:12px; max-width:200px;" onchange="updateBulkImportWorker(${idx}, this.value)">
                         <option value="">--- เลือกคนงาน ---</option>
+                        ${bulkNewWorkers.map((c, cIdx) => { const v = BULK_NEW_WORKER_PREFIX + c.id; return `<option value="${v}" ${row.workerId === v ? 'selected' : ''}>🆕 คนงานใหม่ #${cIdx + 1}: ${escapeHtml(`${c.data.firstName || '(ไม่มีชื่อ)'} ${c.data.lastName || ''}`.trim())}</option>`; }).join('')}
                         ${workers.map(w => `<option value="${w.id}" ${row.workerId === w.id ? 'selected' : ''}>${w.firstName} ${w.lastName || ''} (${w.workerUid || 'ไม่มีเลข'})</option>`).join('')}
                     </select>
                 </td>
@@ -8522,15 +8642,222 @@ function renderBulkImportTable() {
     const matchedCount = bulkImportRows.filter(r => r.workerId && r.docType).length;
     if (summary) {
         summary.style.display = 'block';
-        summary.innerHTML = `พบ ${bulkImportRows.length} ไฟล์ — จับคู่ได้อัตโนมัติ ${matchedCount} ไฟล์ (เหลืออีก ${bulkImportRows.length - matchedCount} ไฟล์ที่ต้องเลือกเอง)`;
+        summary.innerHTML = `พบ ${bulkImportRows.length} ไฟล์ — จับคู่แล้ว ${matchedCount} ไฟล์ (เหลืออีก ${bulkImportRows.length - matchedCount} ไฟล์ที่ต้องเลือกเอง)` +
+            (bulkNewWorkers.length > 0 ? ` • จะสร้างคนงานใหม่ ${bulkNewWorkers.length} คน` : '');
     }
+    renderBulkNewWorkers();
 }
 
 function updateBulkImportWorker(idx, workerId) {
     if (!bulkImportRows[idx]) return;
     bulkImportRows[idx].workerId = workerId || null;
+    bulkImportRows[idx].workerManual = true; // ผู้ใช้เลือกเอง — จับคู่ AI รอบถัดไปจะไม่เขียนทับ
     bulkImportRows[idx].selected = !!(bulkImportRows[idx].workerId && bulkImportRows[idx].docType);
+    pruneBulkNewWorkers();
     renderBulkImportTable();
+}
+
+// ==================== ขั้น "🤖 ให้ AI อ่านและจับคู่" ====================
+async function analyzeBulkImportWithAi() {
+    const rowsToRead = bulkImportRows.filter(r => r.status !== 'success' && !r.parsedData);
+    if (rowsToRead.length === 0) {
+        showToast("ไม่มีไฟล์ที่ต้องให้ AI อ่าน (อ่านไปครบแล้ว)", "warning");
+        return;
+    }
+
+    const btn = document.getElementById('btn-bulk-ai-analyze');
+    const importBtn = document.getElementById('btn-run-bulk-import');
+    btn.disabled = true;
+    importBtn.disabled = true;
+    const progressEl = document.getElementById('bulk-import-progress');
+    progressEl.classList.remove('hidden');
+
+    let readCount = 0;
+    let consecutiveBusy = 0;
+    let stoppedEarly = false;
+    for (let i = 0; i < rowsToRead.length; i++) {
+        const row = rowsToRead[i];
+        progressEl.innerText = `🤖 AI กำลังอ่าน ${i + 1}/${rowsToRead.length}: ${row.fileName}...`;
+        try {
+            const dataUrl = await readFileAsDataUrl(row.file);
+            const ocr = await window.supabaseAdapter.ocrDocument(dataUrl, 'worker-auto');
+            if (ocr.parsedData) {
+                row.parsedData = ocr.parsedData;
+                row.ocrStatus = 'read';
+                consecutiveBusy = 0;
+                readCount++;
+                // ประเภทเอกสาร: ถ้ายังไม่รู้ (ชื่อไฟล์ไม่บอก) ใช้ที่ AI จำแนกให้
+                const aiType = ocr.parsedData.documentType;
+                if (!row.docType && WORKER_DOC_TYPES.some(dt => dt.key === aiType)) row.docType = aiType;
+            } else {
+                row.ocrStatus = ocr.ocrError === 'busy' ? 'busy' : 'failed';
+                consecutiveBusy = row.ocrStatus === 'busy' ? consecutiveBusy + 1 : 0;
+            }
+        } catch (err) {
+            console.error('Bulk AI read failed for', row.fileName, err);
+            row.ocrStatus = 'failed';
+        }
+        renderBulkImportTable();
+        // Gemini ไม่ว่าง/โควตาหมดติดกัน 2 ไฟล์ = ไฟล์ที่เหลือก็น่าจะไม่ผ่าน หยุดก่อนไม่ให้รอนานเปล่า ๆ
+        if (consecutiveBusy >= 2) {
+            stoppedEarly = i < rowsToRead.length - 1;
+            break;
+        }
+    }
+
+    matchBulkRowsFromOcr();
+    btn.disabled = false;
+    importBtn.disabled = false;
+
+    const notRead = bulkImportRows.filter(r => r.status !== 'success' && !r.parsedData).length;
+    progressEl.innerText = `🤖 AI อ่านแล้ว ${readCount} ไฟล์` +
+        (bulkNewWorkers.length > 0 ? ` • พบคนงานใหม่ ${bulkNewWorkers.length} คน (ตรวจข้อมูลด้านบนก่อนกดนำเข้า)` : '') +
+        (notRead > 0 ? ` • ⚠️ ยังอ่านไม่ได้ ${notRead} ไฟล์${stoppedEarly ? ' (หยุดก่อนเพราะ AI ไม่ว่าง/โควตาหมด)' : ''} — กดให้ AI อ่านอีกครั้งทีหลัง หรือเลือกคนงาน/ประเภทเอง` : '');
+}
+
+// จับคู่ไฟล์ที่ AI อ่านแล้ว: ตรงกับคนงานเดิม -> แนบคนนั้น / ไม่ตรง -> รวมกลุ่มเป็นคนงานใหม่ (ไฟล์ของคนเดียวกันอยู่กลุ่มเดียวกัน)
+function matchBulkRowsFromOcr() {
+    const workerKeyIndex = new Map();
+    workers.forEach(w => getWorkerMatchKeys(w).forEach(k => { if (!workerKeyIndex.has(k)) workerKeyIndex.set(k, w.id); }));
+
+    bulkImportRows.forEach(row => {
+        if (row.status === 'success' || !row.parsedData || row.workerManual) return;
+        // ชื่อไฟล์มีเลข 13 หลักตรงกับคนงานเดิมอยู่แล้ว (มั่นใจสูง) — คงไว้ ไม่ให้ AI ย้ายไปเป็นคนงานใหม่
+        if (row.workerId && !isBulkNewWorkerId(row.workerId) && row.confidence === 'high') return;
+        const keys = getOcrMatchKeys(row.docType, row.parsedData);
+
+        // 1) คนงานที่มีอยู่แล้วในระบบ — เลขเอกสารก่อน แล้วค่อย ชื่อ+วันเกิด (ลำดับตาม getOcrMatchKeys)
+        const hitKey = keys.find(k => workerKeyIndex.has(k));
+        if (hitKey) {
+            row.workerId = workerKeyIndex.get(hitKey);
+            row.matchNote = describeMatchKey(hitKey);
+            row.selected = !!row.docType;
+            return;
+        }
+
+        // 2) คนงานใหม่ที่เจอแล้วในรอบนี้ (มีคีย์ร่วมกัน) หรือสร้างกลุ่มใหม่
+        row.matchNote = null;
+        let cand = bulkNewWorkers.find(c => keys.some(k => c.keys.has(k)));
+        if (!cand) {
+            cand = { id: String(++bulkNewWorkerSeq), keys: new Set(), data: { title: '', firstName: '', lastName: '', nationality: '', dob: '', status: 'pending_register' } };
+            bulkNewWorkers.push(cand);
+        }
+        if (row.workerId !== BULK_NEW_WORKER_PREFIX + cand.id) {
+            keys.forEach(k => cand.keys.add(k));
+            // เติมข้อมูลจากเอกสารนี้ลงคนงานใหม่ — เติมเฉพาะช่องที่ยังว่าง ไม่ทับที่ผู้ใช้แก้ไว้หรือที่เอกสารก่อนหน้าเติมแล้ว
+            const filled = {};
+            applyOcrDataToWorker(filled, row.docType, row.parsedData);
+            // applyOcrDataToWorker เติมชื่อ/สัญชาติเฉพาะจากใบอนุญาตทำงาน/บัตรพม่า — คนงานใหม่ที่มีแค่บัตรชมพู/พาสปอร์ต
+            // ก็ต้องมีชื่อ ใช้ชื่อจากเอกสารใดก็ได้เป็นค่าตั้งต้น (ช่องที่ยังว่างเท่านั้น)
+            const p = row.parsedData;
+            if (!filled.firstName && p.firstName) { filled.firstName = p.firstName; filled.lastName = p.lastName || ''; }
+            if (!filled.nationality && p.nationality) filled.nationality = p.nationality;
+            if (filled.nationality === 'Myanmar' && filled.lastName) { filled.firstName = `${filled.firstName} ${filled.lastName}`.trim(); filled.lastName = ''; }
+            Object.entries(filled).forEach(([k, v]) => { if (v && !cand.data[k]) cand.data[k] = v; });
+            row.workerId = BULK_NEW_WORKER_PREFIX + cand.id;
+        }
+        row.selected = !!row.docType;
+    });
+
+    pruneBulkNewWorkers();
+    renderBulkImportTable();
+}
+
+// การ์ด "คนงานใหม่ที่จะสร้าง" ด้านบนตาราง — แก้ข้อมูลที่ AI อ่านมาได้ก่อนสร้างจริง
+function renderBulkNewWorkers() {
+    const wrap = document.getElementById('bulk-import-new-workers-wrap');
+    const list = document.getElementById('bulk-import-new-workers');
+    if (!wrap || !list) return;
+    wrap.classList.toggle('hidden', bulkNewWorkers.length === 0);
+    if (bulkNewWorkers.length === 0) { list.innerHTML = ''; return; }
+
+    const titleOpts = ['', 'นาย', 'นาง', 'นางสาว', 'เด็กชาย', 'เด็กหญิง'];
+    const natOpts = [['', '-- สัญชาติ --'], ['Myanmar', 'เมียนมา'], ['Cambodia', 'กัมพูชา'], ['Laos', 'ลาว'], ['Vietnam', 'เวียดนาม']];
+    list.innerHTML = bulkNewWorkers.map((c, cIdx) => {
+        const missing = getBulkNewWorkerMissingFields(c);
+        const bad = f => missing.includes(f) ? ' bulk-new-worker-missing' : '';
+        const fileCount = bulkImportRows.filter(r => r.workerId === BULK_NEW_WORKER_PREFIX + c.id).length;
+        const d = c.data;
+        return `
+            <div class="bulk-new-worker-card">
+                <div class="bulk-new-worker-head">
+                    <strong>🆕 คนงานใหม่ #${cIdx + 1}</strong>
+                    <span class="text-muted">${fileCount} ไฟล์${d.workerUid ? ` • เลข 13 หลัก ${escapeHtml(d.workerUid)}` : ''}${d.permitNo ? ` • ใบอนุญาต ${escapeHtml(d.permitNo)}` : ''}</span>
+                    <button type="button" class="btn btn-sm btn-outline bulk-new-worker-discard" onclick="discardBulkNewWorker('${c.id}')" title="ไม่สร้างคนงานนี้ — ไฟล์ของคนนี้จะกลับไปให้เลือกคนงานเอง">ไม่สร้าง</button>
+                </div>
+                <div class="bulk-new-worker-fields">
+                    <select class="${bad('title')}" onchange="updateBulkNewWorkerField('${c.id}', 'title', this.value)">
+                        ${titleOpts.map(t => `<option value="${t}" ${d.title === t ? 'selected' : ''}>${t || '-- คำนำหน้า --'}</option>`).join('')}
+                    </select>
+                    <input type="text" class="${bad('firstName')}" placeholder="ชื่อ *" value="${escapeHtml(d.firstName || '')}" onchange="updateBulkNewWorkerField('${c.id}', 'firstName', this.value)">
+                    <input type="text" placeholder="นามสกุล" value="${escapeHtml(d.lastName || '')}" onchange="updateBulkNewWorkerField('${c.id}', 'lastName', this.value)">
+                    <select class="${bad('nationality')}" onchange="updateBulkNewWorkerField('${c.id}', 'nationality', this.value)">
+                        ${natOpts.map(([v, l]) => `<option value="${v}" ${d.nationality === v ? 'selected' : ''}>${l}</option>`).join('')}
+                    </select>
+                    <input type="text" class="${bad('dob')}" placeholder="วันเกิด วว/ดด/ปปปป *" value="${d.dob ? formatDateForInput(d.dob) : ''}" onchange="updateBulkNewWorkerField('${c.id}', 'dob', this.value)">
+                    <input type="text" placeholder="เลขประจำตัว 13 หลัก" value="${escapeHtml(d.workerUid || '')}" onchange="updateBulkNewWorkerField('${c.id}', 'workerUid', this.value)">
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function updateBulkNewWorkerField(candId, field, value) {
+    const c = bulkNewWorkers.find(x => x.id === candId);
+    if (!c) return;
+    value = String(value || '').trim();
+    if (field === 'dob') {
+        if (value && !isValidDate(value)) {
+            showToast("⚠️ วันเกิดไม่ถูกต้อง (รูปแบบ วัน/เดือน/ปี ค.ศ. เช่น 15/08/1994)", "warning");
+            renderBulkNewWorkers();
+            return;
+        }
+        value = value ? parseDateInput(value) : '';
+    }
+    c.data[field] = value;
+    renderBulkImportTable(); // ชื่อใน dropdown เลือกคนงานเปลี่ยนตาม
+}
+
+function discardBulkNewWorker(candId) {
+    bulkImportRows.forEach(r => {
+        if (r.workerId === BULK_NEW_WORKER_PREFIX + candId) {
+            r.workerId = null;
+            r.selected = false;
+            r.workerManual = true; // ไม่ให้จับคู่อัตโนมัติกลับเข้ากลุ่มเดิมอีก
+        }
+    });
+    bulkNewWorkers = bulkNewWorkers.filter(c => c.id !== candId);
+    renderBulkImportTable();
+}
+
+// สร้างคนงานใหม่ที่ไฟล์ในรอบนี้ชี้ถึง (ก่อนแนบไฟล์) — คืน Map id ชั่วคราว -> id คนงานจริง
+async function createBulkNewWorkers(candIds, progressEl) {
+    const created = new Map();
+    for (let i = 0; i < candIds.length; i++) {
+        const c = findBulkNewWorker(BULK_NEW_WORKER_PREFIX + candIds[i]);
+        if (!c) continue;
+        progressEl.innerText = `👤 กำลังสร้างคนงานใหม่ ${i + 1}/${candIds.length}: ${c.data.firstName}...`;
+
+        // กันสร้างซ้ำ: มีคนงานเลข 13 หลักนี้อยู่แล้ว (เช่น เพิ่มจากที่อื่นระหว่างรอ) ให้แนบคนเดิมแทน
+        const uid = normalizeIdForMatch(c.data.workerUid);
+        const existing = uid ? workers.find(w => normalizeIdForMatch(w.workerUid) === uid) : null;
+        if (existing) { created.set(c.id, existing.id); continue; }
+
+        const workerData = {
+            ...c.data,
+            id: `work-${Date.now()}${i}`,
+            employerId: bulkImportEmployerId,
+            attachments: {},
+            status: 'pending_register', // เปลี่ยนเป็น active เองเมื่อมีใบอนุญาตทำงาน + ใบเสร็จ (ดู attachDocumentToWorker)
+            skipNotifyEntry: false,
+            createdAt: new Date().toISOString().split('T')[0]
+        };
+        const res = await callCloudAPI("saveWorker", { workerData });
+        if (!res || res.status === "error") continue; // ไฟล์ของคนนี้จะขึ้นล้มเหลวในตาราง
+        workers.push(workerData);
+        created.set(c.id, workerData.id);
+    }
+    return created;
 }
 
 function updateBulkImportDocType(idx, docType) {
@@ -8542,6 +8869,7 @@ function updateBulkImportDocType(idx, docType) {
 
 function removeBulkImportRow(idx) {
     bulkImportRows.splice(idx, 1);
+    pruneBulkNewWorkers();
     renderBulkImportTable();
 }
 
@@ -8562,10 +8890,41 @@ async function runBulkImport() {
         return;
     }
 
+    // คนงานใหม่ที่ไฟล์ในรอบนี้ชี้ถึง — ต้องมีนายจ้างและข้อมูลที่จำเป็นครบก่อน ไม่งั้นไม่สร้าง
+    const newCandIds = [...new Set(rowsToImport.filter(r => isBulkNewWorkerId(r.workerId)).map(r => r.workerId.slice(BULK_NEW_WORKER_PREFIX.length)))];
+    if (newCandIds.length > 0) {
+        if (!bulkImportEmployerId) {
+            alert('กรุณาเลือก "นายจ้างของคนงานใหม่" ก่อน (ช่องด้านบนรายการคนงานใหม่)');
+            document.getElementById('bulk-import-employer-search').focus();
+            return;
+        }
+        const incomplete = newCandIds.map(id => bulkNewWorkers.findIndex(c => c.id === id))
+            .filter(i => i !== -1 && getBulkNewWorkerMissingFields(bulkNewWorkers[i]).length > 0);
+        if (incomplete.length > 0) {
+            alert(`กรุณากรอกข้อมูลที่จำเป็น (คำนำหน้า ชื่อ สัญชาติ วันเกิด) ของคนงานใหม่ #${incomplete.map(i => i + 1).join(', #')} ให้ครบก่อน (ช่องที่ขอบแดง)`);
+            return;
+        }
+    }
+
     const btn = document.getElementById('btn-run-bulk-import');
     btn.disabled = true;
+    const aiBtn = document.getElementById('btn-bulk-ai-analyze');
+    if (aiBtn) aiBtn.disabled = true;
     const progressEl = document.getElementById('bulk-import-progress');
     progressEl.classList.remove('hidden');
+
+    // สร้างคนงานใหม่ก่อน แล้วชี้ไฟล์ของคนนั้นไปที่ id จริง
+    let createdWorkerCount = 0;
+    if (newCandIds.length > 0) {
+        const created = await createBulkNewWorkers(newCandIds, progressEl);
+        createdWorkerCount = created.size;
+        rowsToImport.forEach(r => {
+            if (!isBulkNewWorkerId(r.workerId)) return;
+            const realId = created.get(r.workerId.slice(BULK_NEW_WORKER_PREFIX.length));
+            if (realId) r.workerId = realId;
+        });
+        bulkNewWorkers = bulkNewWorkers.filter(c => !created.has(c.id));
+    }
 
     let successCount = 0;
     let failCount = 0;
@@ -8584,11 +8943,12 @@ async function runBulkImport() {
             });
 
             const w = workers.find(item => item.id === row.workerId);
-            if (!w) throw new Error('ไม่พบคนงานที่จับคู่ไว้');
+            if (!w) throw new Error(isBulkNewWorkerId(row.workerId) ? 'สร้างคนงานใหม่ไม่สำเร็จ' : 'ไม่พบคนงานที่จับคู่ไว้');
 
-            const uploadResult = await attachDocumentToWorker(w, row.docType, fileContent);
+            // อ่านด้วย AI ไปแล้วในขั้น "ให้ AI อ่านและจับคู่" -> ใช้ผลเดิม ไม่เรียก AI ซ้ำ
+            const uploadResult = await attachDocumentToWorker(w, row.docType, fileContent, row.parsedData || null);
             row.status = 'success';
-            row.aiStatus = getBulkImportAiStatus(uploadResult);
+            row.aiStatus = row.parsedData ? 'filled' : getBulkImportAiStatus(uploadResult);
             successCount++;
         } catch (err) {
             console.error('Bulk import failed for', row.fileName, err);
@@ -8601,8 +8961,11 @@ async function runBulkImport() {
 
     endAiRejectedBatch();
     btn.disabled = false;
+    if (aiBtn) aiBtn.disabled = false;
+    renderBulkImportTable();
     const aiMissedCount = rowsToImport.filter(r => r.status === 'failed' && (r.aiStatus === 'busy' || r.aiStatus === 'failed')).length;
     progressEl.innerText = `✅ เสร็จสิ้น: สำเร็จ ${successCount} รายการ${failCount > 0 ? `, ล้มเหลว ${failCount} รายการ (ดูสถานะรายไฟล์ในตาราง)` : ''}` +
+        (createdWorkerCount > 0 ? ` • สร้างคนงานใหม่ ${createdWorkerCount} คน` : '') +
         (aiMissedCount > 0 ? ` — ⚠️ ${aiMissedCount} ไฟล์ AI อ่านไม่สำเร็จ จึงยังไม่ได้บันทึก (แถวสีเหลือง) กด "นำเข้าที่เลือกทั้งหมด" อีกครั้งเพื่อลองใหม่เฉพาะไฟล์เหล่านี้` : '');
 
     saveData();

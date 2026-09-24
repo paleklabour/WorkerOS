@@ -23,7 +23,20 @@ const ALLOWED_DOC_TYPES = [
   "cust-id-card", "cust-cert", "cust-house", "cust-commerce",
   "expense-slip",
   "job-appointment",
+  "worker-auto", // Bulk Import: ยังไม่รู้ประเภทเอกสาร ให้ AI จำแนกประเภทเอง + อ่านข้อมูลคนงานในคราวเดียว
 ];
+
+// ประเภทเอกสารคนงานที่ "worker-auto" ให้ AI เลือกตอบ — key ต้องตรงกับ WORKER_DOC_TYPES ใน app.js
+const WORKER_AUTO_DOC_TYPES: Record<string, string> = {
+  "worker-wp-doc": "Thai work permit card/document or e-WorkPermit (ใบอนุญาตทำงาน)",
+  "worker-passport": "passport or CI (Certificate of Identity)",
+  "worker-myanmar-id": "Myanmar national ID card or household registration",
+  "worker-pink-card": "Thai pink card for non-Thai persons (บัตรชมพู / บัตรประจำตัวคนซึ่งไม่มีสัญชาติไทย)",
+  "worker-receipt": "payment receipt (ใบเสร็จรับเงิน)",
+  "worker-medical": "medical certificate (ใบรับรองแพทย์)",
+  "worker-insurance-doc": "health/accident insurance policy",
+  "worker-application": "application form (ใบคำขอ / บต.46)",
+};
 const CUSTOMER_DOC_TYPES = ["cust-id-card", "cust-cert", "cust-house", "cust-commerce"];
 
 const EXPENSE_CATEGORIES = [
@@ -112,7 +125,13 @@ function buildPrompt(docType: string): string {
   if (docType === "job-appointment") return buildAppointmentPrompt();
   if (docType === "worker-insurance-doc") return buildInsurancePrompt();
   if (CUSTOMER_DOC_TYPES.includes(docType)) return buildCustomerDocPrompt(docType);
-  return `You are a professional assistant. Parse this migrant worker document (${docType}) and extract the relevant fields. ` +
+  const classify = docType === "worker-auto"
+    ? `First identify which kind of document this is and put the matching key in "documentType", choosing ONLY from: ` +
+      `${JSON.stringify(WORKER_AUTO_DOC_TYPES)} (or "other" if none fit). Then extract the fields below that apply to that kind of document. ` +
+      `Each identifier belongs only to its own document kind: never copy a pink card number into "uid", and only fill "uid" ` +
+      `from a work permit's 13-digit worker ID (เลขประจำตัวคนต่างด้าว). `
+    : "";
+  return `You are a professional assistant. ${classify}Parse this migrant worker document (${docType}) and extract the relevant fields. ` +
     `Convert all dates to DD/MM/YYYY format. Only fill fields you can actually read from the document — ` +
     `leave a field out entirely (do not guess or invent values) if it is not clearly present in the image/PDF. ` +
     `IMPORTANT naming rule: Myanmar (Burmese) names do NOT have a family surname — the full printed name is a single ` +
@@ -121,6 +140,7 @@ function buildPrompt(docType: string): string {
     `actually use a family surname (e.g. Lao, Cambodian names may still be a single name too — when in doubt, do not split). ` +
     `Output ONLY a valid JSON object matching this schema, without markdown wrapping, json declaration, or backticks:\n` +
     `{\n` +
+    (docType === "worker-auto" ? `  "documentType": "one key from the document kind list above, or other",\n` : "") +
     `  "firstName": "Full given name (English or Thai) — see naming rule above",\n` +
     `  "lastName": "Family surname only if one genuinely exists — leave empty for Myanmar nationals",\n` +
     `  "uid": "13-digit worker ID (เลขประจำตัวคนต่างด้าว 13 หลัก) if found",\n` +

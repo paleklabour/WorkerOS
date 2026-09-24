@@ -209,6 +209,36 @@
         return cleaned.slice(0, 150) || "file";
     }
 
+    // -------------------- OCR (edge function ocr-document) --------------------
+    // ต้องตรงกับ ALLOWED_DOC_TYPES ใน supabase/functions/ocr-document/index.ts
+    const OCR_DOC_TYPES = ["worker-passport", "worker-wp-doc", "worker-visa", "worker-myanmar-id", "worker-pink-card", "worker-insurance-doc", "cust-id-card", "cust-cert", "expense-slip", "job-appointment", "worker-auto"];
+
+    // คืน { parsedData, ocrError } — ocrError: null (สำเร็จ) / "busy" (Gemini ไม่ว่าง/โควตาหมด) / "failed"
+    async function callOcr(base64Data, mimeType, docType) {
+        try {
+            const headers = await getAuthHeaders();
+            const ocrRes = await fetch(`${FUNCTIONS_BASE}/ocr-document`, {
+                method: "POST",
+                headers,
+                body: JSON.stringify({ base64Data, mimeType, docType })
+            });
+            const ocrJson = await ocrRes.json();
+            if (ocrJson && ocrJson.status === "success" && ocrJson.parsedData) return { parsedData: ocrJson.parsedData, ocrError: null };
+            return { parsedData: null, ocrError: ocrJson && ocrJson.ocrError === "busy" ? "busy" : "failed" };
+        } catch (e) {
+            console.warn("OCR call failed:", e);
+            return { parsedData: null, ocrError: "failed" };
+        }
+    }
+
+    // ให้ AI อ่านเอกสารอย่างเดียว ไม่อัปโหลดไฟล์ — ใช้ใน Bulk Import ขั้น "ให้ AI อ่านและจับคู่" (ไฟล์ยังไม่ถูกเก็บจนกดนำเข้า)
+    async function ocrDocument(fileDataUrl, docType) {
+        const parts = fileDataUrl.split(",");
+        if (parts.length < 2) return { parsedData: null, ocrError: "failed" };
+        const mimeType = parts[0].match(/:(.*?);/)[1];
+        return callOcr(parts[1], mimeType, docType);
+    }
+
     // -------------------- File upload (Supabase Storage + OCR edge function) --------------------
     // options.skipOcr = ผู้ใช้เลือก "บันทึกไฟล์ กรอกเอง" หลัง AI อ่านไม่สำเร็จ — อัปโหลดเลยโดยไม่เรียก AI ซ้ำ
     async function uploadFile(fileDataUrl, fileName, customerId, workerId, docType, currentUser, options = {}) {
@@ -223,31 +253,13 @@
         // ให้ AI อ่านก่อนอัปโหลด — เอกสารประเภทที่ใช้ AI ถ้าอ่านไม่สำเร็จ (Gemini ไม่ว่าง/อ่านไม่ได้) จะไม่เก็บไฟล์เลย
         // ให้ผู้ใช้แนบใหม่ทีหลัง แทนที่จะมีไฟล์ค้างในระบบแล้วแนบซ้ำจนไฟล์ซ้ำซ้อน
         let parsedData = null;
-        let ocrError = null;
-        // ต้องตรงกับ ALLOWED_DOC_TYPES ใน supabase/functions/ocr-document/index.ts
-        const ocrAttempted = !options.skipOcr && !!docType && ["worker-passport", "worker-wp-doc", "worker-visa", "worker-myanmar-id", "worker-pink-card", "worker-insurance-doc", "cust-id-card", "cust-cert", "expense-slip", "job-appointment"].includes(docType);
+        const ocrAttempted = !options.skipOcr && OCR_DOC_TYPES.includes(docType);
         if (ocrAttempted) {
-            try {
-                const headers = await getAuthHeaders();
-                const ocrRes = await fetch(`${FUNCTIONS_BASE}/ocr-document`, {
-                    method: "POST",
-                    headers,
-                    body: JSON.stringify({ base64Data, mimeType, docType })
-                });
-                const ocrJson = await ocrRes.json();
-                if (ocrJson && ocrJson.status === "success") {
-                    parsedData = ocrJson.parsedData;
-                    ocrError = ocrJson.ocrError || null;
-                } else {
-                    ocrError = "failed";
-                }
-            } catch (e) {
-                console.warn("OCR call failed:", e);
-                ocrError = "failed";
+            const ocr = await callOcr(base64Data, mimeType, docType);
+            if (!ocr.parsedData) {
+                return { status: "error", aiRejected: true, ocrError: ocr.ocrError, message: "AI อ่านเอกสารไม่สำเร็จ ยังไม่ได้บันทึกไฟล์" };
             }
-            if (!parsedData) {
-                return { status: "error", aiRejected: true, ocrError: ocrError === "busy" ? "busy" : "failed", message: "AI อ่านเอกสารไม่สำเร็จ ยังไม่ได้บันทึกไฟล์" };
-            }
+            parsedData = ocr.parsedData;
         }
 
         const path = `${customerId || "misc"}/${workerId || "employer"}/${Date.now()}_${sanitizeStorageFileName(fileName)}`;
@@ -329,7 +341,7 @@
     }
 
     window.supabaseAdapter = {
-        login, callCloudAPI, uploadFile, client: sb,
+        login, callCloudAPI, uploadFile, ocrDocument, client: sb,
         isPasswordRecovery, updatePassword, signOut
     };
 })();
