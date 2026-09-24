@@ -2267,8 +2267,9 @@ function renderWorkers() {
 
         const avatarUrl = w.photo ? w.photo : 'data:image/svg+xml;utf8,<svg xmlns="http:' + '/' + '/www.w3.org/2000/svg" viewBox="0 0 24 24" width="32" height="32" fill="%2394a3b8"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4.42 0-8 3.58-8 8v1h16v-1c0-4.42-3.58-8-8-8z"/></svg>';
 
+        // คลิกทั้งแถวเพื่อเปิดดูข้อมูลคนงาน เหมือนตาราง "ข้อมูลคนงานต่ออายุ" (ปุ่มในแถวใช้ stopPropagation ไม่ให้เปิดซ้อน)
         return `
-            <tr>
+            <tr class="clickable-row" onclick="openWorkerModal('${w.id}')" title="คลิกเพื่อดูรายละเอียดคนงาน">
                 <td>
                     <div><strong>${w.refNo || '-'}</strong></div>
                     <small class="text-muted">เลขประจำตัวคนต่างด้าว: ${w.workerUid || '-'}</small><br>
@@ -2300,8 +2301,8 @@ function renderWorkers() {
                     ${getEmployerIdParts(emp).map(p => `<small class="text-muted">${p.label}: ${p.value}</small><br>`).join('')}
                 </td>
                 <td>${statusBadge}</td>
-                <td>${attachHtml}</td>
-                <td class="actions-col">
+                <td onclick="event.stopPropagation()">${attachHtml}</td>
+                <td class="actions-col" onclick="event.stopPropagation()">
                     <div class="actions-cell">
                         ${editBtn}
                         ${deleteBtn}
