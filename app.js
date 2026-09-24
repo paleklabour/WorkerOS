@@ -2104,15 +2104,14 @@ function changeWorkersPage(direction) {
     renderWorkers();
 }
 
-// 1 บรรทัดในคอลัมน์ "วันหมดอายุ" ของตารางคนงาน — สีตามเกณฑ์เดียวกับป้ายสถานะเอกสาร
+// 1 บรรทัดในคอลัมน์ "วันหมดอายุ" ของตารางคนงาน (แสดงแค่วันที่ ไม่แสดงจำนวนวันที่เหลือ) — สีตามเกณฑ์เดียวกับป้ายสถานะเอกสาร
 // (ใบอนุญาตทำงานเตือนก่อน 60 วัน / พาสปอร์ตเตือนก่อน 180 วัน)
 function renderWorkerExpiryLine(label, expDate, daysLeft, warnDays) {
     if (!expDate || isNaN(expDate.getTime())) {
         return `<div class="worker-expiry-line text-muted"><span>${label}:</span> -</div>`;
     }
     const cls = daysLeft < 0 ? 'text-danger' : (daysLeft <= warnDays ? 'text-warning' : 'text-muted');
-    const remain = daysLeft < 0 ? `หมดแล้ว ${Math.abs(daysLeft)} วัน` : (daysLeft === 0 ? 'หมดวันนี้' : `เหลือ ${daysLeft} วัน`);
-    return `<div class="worker-expiry-line ${cls}"><span>${label}:</span> <strong>${expDate.toLocaleDateString('th-TH')}</strong> <small>(${remain})</small></div>`;
+    return `<div class="worker-expiry-line ${cls}"><span>${label}:</span> <strong>${expDate.toLocaleDateString('th-TH')}</strong></div>`;
 }
 
 function renderWorkers() {
