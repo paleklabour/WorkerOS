@@ -3865,9 +3865,10 @@ function renderJobs() {
                 <td>${work && work.email ? work.email : '<span class="text-muted">-</span>'}</td>
                 <td><span class="badge ${statusClass}">${displayStatus}</span><br>${paymentBadge}${prepaymentBadge}</td>
                 <td onclick="event.stopPropagation()">
-                    <div style="display:flex; gap:4px; align-items:center;">
-                        <input type="text" id="job-order-no-${j.id}" value="${j.orderNo || ''}" placeholder="Order No." ${j.orderNo ? 'disabled' : ''} style="width:140px; padding:4px 6px; font-size:12px; border:1px solid #cbd5e1; border-radius:4px;">
-                        <button type="button" class="action-icon-btn" onclick="handleJobOrderNoButton('${j.id}')" title="${j.orderNo ? 'แก้ไข Order No.' : 'บันทึก Order No.'}">${j.orderNo ? '✏️' : '💾'}</button>
+                    <div class="order-no-field${j.orderNo ? ' is-locked' : ''}">
+                        <span class="order-no-prefix">#</span>
+                        <input type="text" id="job-order-no-${j.id}" value="${j.orderNo || ''}" placeholder="กรอก Order No." ${j.orderNo ? 'disabled' : ''} onkeydown="if(event.key==='Enter'){event.preventDefault();handleJobOrderNoButton('${j.id}');}">
+                        <button type="button" class="order-no-btn" onclick="handleJobOrderNoButton('${j.id}')" title="${j.orderNo ? 'แก้ไข Order No.' : 'บันทึก Order No.'}">${j.orderNo ? ORDER_NO_ICON_EDIT : ORDER_NO_ICON_SAVE}</button>
                     </div>
                 </td>
                 <td>
@@ -3886,16 +3887,31 @@ function renderJobs() {
     }).join('');
 }
 
+// ไอคอนปุ่มช่อง Order No. (SVG แทน emoji ให้เข้ากับสีธีม)
+const ORDER_NO_ICON_SAVE = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+const ORDER_NO_ICON_EDIT = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>';
+
+// สลับหน้าตาช่อง Order No. ระหว่างโหมดล็อก (บันทึกแล้ว) กับโหมดแก้ไข
+function setOrderNoFieldLocked(input, locked) {
+    input.disabled = locked;
+    const field = input.closest('.order-no-field');
+    if (field) field.classList.toggle('is-locked', locked);
+    const btn = input.nextElementSibling;
+    if (btn) {
+        btn.title = locked ? "แก้ไข Order No." : "บันทึก Order No.";
+        btn.innerHTML = locked ? ORDER_NO_ICON_EDIT : ORDER_NO_ICON_SAVE;
+    }
+}
+
 // ปุ่มเดียวสลับ 2 โหมด: ถ้าช่องถูกล็อกอยู่ (บันทึกแล้ว) กดเพื่อปลดล็อกแก้ไข / ถ้าช่องแก้ไขได้อยู่ กดเพื่อบันทึกแล้วล็อก
 function handleJobOrderNoButton(jobId) {
     const input = document.getElementById(`job-order-no-${jobId}`);
     if (!input) return;
 
     if (input.disabled) {
-        input.disabled = false;
+        setOrderNoFieldLocked(input, false);
         input.focus();
-        const btn = input.nextElementSibling;
-        if (btn) { btn.title = "บันทึก Order No."; btn.textContent = "💾"; }
+        input.select();
     } else {
         saveJobOrderNo(jobId);
     }
@@ -3936,11 +3952,7 @@ async function saveJobOrderNo(jobId) {
         return;
     }
 
-    if (orderNo) {
-        input.disabled = true;
-        const btn = input.nextElementSibling;
-        if (btn) { btn.title = "แก้ไข Order No."; btn.textContent = "✏️"; }
-    }
+    if (orderNo) setOrderNoFieldLocked(input, true);
     showToast(`💾 บันทึก Order No. ของ ${getJobDisplayNo(jobData)} สำเร็จ`, "success");
 }
 
@@ -5405,6 +5417,13 @@ let freeInvoiceCustomerId = null;
 let freeInvoiceWorkerId = null;
 let currentFreeInvoiceId = null; // ตั้งค่าเมื่อบิลอิสระที่เปิดอยู่นี้เคยถูก "วางบิล" บันทึกเป็นรายการจริงในระบบแล้ว
 
+// ตั้งวันที่ออกบิลบนหัวใบวางบิล และเติมวันที่เดียวกันในช่องลายเซ็น "ผู้วางบิล" (ชื่อยังเซ็นมือ)
+function setInvoiceDate(date) {
+    document.getElementById("inv-date").innerText = date.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+    const deliveredDateEl = document.getElementById("inv-delivered-date");
+    if (deliveredDateEl) deliveredDateEl.innerText = `วันที่ ${date.toLocaleDateString('th-TH', { year: 'numeric', month: '2-digit', day: '2-digit' })}`;
+}
+
 function openInvoiceModal(jobId) {
     if (banks.length === 0) {
         alert("กรุณาเพิ่มข้อมูลบัญชีธนาคารอย่างน้อย 1 บัญชีก่อนออกบิลและเก็บเงิน");
@@ -5463,7 +5482,7 @@ function openInvoiceModal(jobId) {
 
         // Fill Invoice Metadata
         document.getElementById("inv-no").innerText = `INV-${j.id.toUpperCase()}`;
-        document.getElementById("inv-date").innerText = new Date(j.updatedAt).toLocaleDateString('th-TH', dateOptions);
+        setInvoiceDate(new Date(j.updatedAt));
 
         const workDetails = work ? 
             `คนงานต่างด้าว: คุณ ${work.firstName} ${work.lastName} (สัญชาติ: ${work.nationality}, เลขคนงาน: ${work.workerUid})` : 
@@ -5525,16 +5544,18 @@ function openInvoiceModal(jobId) {
         }
 
         document.getElementById("inv-no").innerText = `INV-FREE-${Date.now().toString().slice(-4)}`;
-        document.getElementById("inv-date").innerText = new Date().toLocaleDateString('th-TH', dateOptions);
+        setInvoiceDate(new Date());
 
         currentInvoiceItems = [
             {
                 id: freeId,
                 title: "ค่าธรรมเนียมประสานงานใบแจ้งจัดหางานและยื่นหนังสือเดินทาง (คลิกพิมพ์แก้ไข)",
                 desc: "ระบุสัญชาติคนงาน หรือเลขเอกสารอื่นตามสมควร (คลิกพิมพ์แก้ไข)",
-                fee: 3000
+                fee: 3000,
+                placeholder: true // รายการตัวอย่าง — ถูกแทนที่อัตโนมัติเมื่อเลือกประเภทงานรายการแรกจาก dropdown
             }
         ];
+        populateFreeInvoiceJobTypeSelect();
         currentInvoiceJobIds = [];
 
         // บิลอิสระไม่ได้ผูกกับนายจ้างรายใดรายหนึ่งแน่นอน (ชื่อที่เติมมาเป็นแค่ค่าเริ่มต้นให้แก้ไข) จึงไม่แสดง note วางบิล
@@ -5630,6 +5651,7 @@ function openFreeInvoiceModal(invoiceId) {
     currentFreeInvoiceId = inv.id;
     currentInvoiceJobIds = [];
     currentInvoiceItems = JSON.parse(JSON.stringify(inv.items || []));
+    currentInvoiceItems.forEach(item => { delete item.placeholder; }); // บิลที่วางแล้ว ไม่มีรายการตัวอย่างให้แทนที่
 
     const freePickerWrap = document.getElementById("invoice-free-picker-wrap");
     if (freePickerWrap) freePickerWrap.classList.remove("hidden");
@@ -5642,7 +5664,7 @@ function openFreeInvoiceModal(invoiceId) {
     updateInvoiceBillingNote(inv.customerId ? customers.find(c => c.id === inv.customerId) : null);
 
     document.getElementById("inv-no").innerText = inv.invoiceNo || `INV-${inv.id.toUpperCase()}`;
-    document.getElementById("inv-date").innerText = new Date(inv.createdAt || Date.now()).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+    setInvoiceDate(new Date(inv.createdAt || Date.now()));
     document.getElementById("inv-due-date").innerText = inv.dueDateText || "ชำระทันทีเมื่อได้รับบิล";
     document.getElementById("inv-notes").innerText = inv.notes || "-";
 
@@ -5651,6 +5673,7 @@ function openFreeInvoiceModal(invoiceId) {
         '<option value="cash">💵 รับชำระเป็นเงินสด (Cash Payment)</option>';
     selectBank.value = inv.bankId || 'cash';
 
+    populateFreeInvoiceJobTypeSelect();
     renderInvoiceItemsTable();
 
     const saveEditsBtn = document.getElementById("btn-save-invoice-edits");
@@ -5711,11 +5734,55 @@ function onSelectFreeInvoiceCustomer(cust) {
     }
 }
 
-// เลือกลูกจ้างจากระบบ -> เติมรายละเอียดคนงานลงในรายการบิลรายการแรก และเติมนายจ้างของคนงานคนนี้ให้อัตโนมัติถ้ายังไม่ตรงกัน
+function getFreeInvoiceWorkerDesc(w) {
+    return `คนงานต่างด้าว: คุณ ${w.firstName} ${w.lastName} (สัญชาติ: ${w.nationality || '-'}, เลขคนงาน: ${w.workerUid || '-'})`;
+}
+
+// เติมตัวเลือก dropdown "ประเภทงานที่แจ้ง" ของบิลอิสระ — ดึงจากเช็กบ็อกซ์ในฟอร์มแจ้งสั่งงาน ให้รายชื่อประเภทงานมีที่เดียว
+function populateFreeInvoiceJobTypeSelect() {
+    const select = document.getElementById("invoice-free-jobtype-select");
+    if (!select) return;
+    const types = Array.from(document.querySelectorAll("input[name='job-type-checkbox']")).map(cb => cb.value);
+    select.innerHTML = '<option value="">-- เลือกประเภทงานเพื่อเพิ่มเป็นรายการในบิล --</option>' +
+        types.map(t => `<option value="${t}">${t}</option>`).join('');
+    select.value = '';
+}
+
+// เลือกประเภทงานจาก dropdown -> เพิ่มเป็นรายการใหม่ในบิลทันที แล้วรีเซ็ต dropdown ให้เลือกประเภทถัดไปได้เลย
+function addFreeInvoiceJobTypeItem(select) {
+    const jobType = select.value;
+    select.value = '';
+    if (!jobType) return;
+
+    currentInvoiceItems.forEach(item => syncInvoiceItemTextFields(item)); // เก็บข้อความที่แก้ไว้ก่อน render ใหม่
+    // รายการตัวอย่างตอนเปิดบิลใหม่ที่ยังไม่ได้แก้ไข ให้ถูกแทนที่ ไม่ต้องลบเอง
+    currentInvoiceItems = currentInvoiceItems.filter(item => !item.placeholder);
+
+    const worker = freeInvoiceWorkerId ? workers.find(w => w.id === freeInvoiceWorkerId) : null;
+    currentInvoiceItems.push({
+        id: 'free-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+        title: `ค่าบริการ: ${jobType}`,
+        desc: worker ? getFreeInvoiceWorkerDesc(worker) : "",
+        qty: 1,
+        unitPrice: 0,
+        fee: 0,
+        serviceName: jobType
+    });
+    renderInvoiceItemsTable();
+}
+
+// ลบรายการออกจากบิลอิสระ (ปุ่มนี้แสดงเฉพาะโหมดบิลอิสระ)
+function removeFreeInvoiceItem(itemId) {
+    currentInvoiceItems.forEach(item => syncInvoiceItemTextFields(item));
+    currentInvoiceItems = currentInvoiceItems.filter(item => item.id !== itemId);
+    renderInvoiceItemsTable();
+}
+
+// เลือกลูกจ้างจากระบบ -> เติมรายละเอียดคนงานลงในทุกรายการของบิล และเติมนายจ้างของคนงานคนนี้ให้อัตโนมัติถ้ายังไม่ตรงกัน
 function onSelectFreeInvoiceWorker(w) {
-    // เติมรายละเอียดคนงานลงในรายการบิลรายการแรก (โหมดบิลอิสระมีรายการเดียวเสมอ) — ยังแก้ไขข้อความเองได้ต่อหลังจากนี้
+    // บิลอิสระออกให้คนงาน 1 คน จึงเติมรายละเอียดคนงานลงทุกรายการ — ยังแก้ไขข้อความเองได้ต่อหลังจากนี้
     if (currentInvoiceItems.length > 0) {
-        currentInvoiceItems[0].desc = `คนงานต่างด้าว: คุณ ${w.firstName} ${w.lastName} (สัญชาติ: ${w.nationality || '-'}, เลขคนงาน: ${w.workerUid || '-'})`;
+        currentInvoiceItems.forEach(item => { item.desc = getFreeInvoiceWorkerDesc(w); });
         renderInvoiceItemsTable();
     }
 
@@ -5786,21 +5853,24 @@ function renderInvoiceItemsTable() {
     if (currentInvoiceItems.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="3" style="text-align: center; color: var(--text-muted); padding: 20px;">
+                <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 20px;">
                     ❌ ไม่มีรายการใบแจ้งหนี้
                 </td>
             </tr>
         `;
+        calculateInvoiceTotals();
         return;
     }
 
+    const isFreeMode = currentInvoiceJobIds.length === 0;
     tbody.innerHTML = currentInvoiceItems.map((item, index) => {
         const qty = item.qty || 1;
         const unitPrice = item.unitPrice !== undefined ? item.unitPrice : item.fee;
         return `
             <tr>
                 <td style="text-align: center;">${index + 1}</td>
-                <td>
+                <td class="inv-item-desc-cell">
+                    ${isFreeMode ? `<button type="button" class="inv-item-remove-btn no-print" onclick="removeFreeInvoiceItem('${item.id}')" title="ลบรายการนี้">&times;</button>` : ''}
                     <div style="font-weight: 600; outline: none; border-bottom: 1px dashed transparent;"
                          id="inv-item-title-${item.id}"
                          contenteditable="true"
@@ -5841,6 +5911,7 @@ function syncInvoiceItemTextFields(item) {
 function onInvoiceItemTextInput(itemId) {
     const item = currentInvoiceItems.find(x => x.id === itemId);
     if (!item) return;
+    delete item.placeholder; // แก้ไขเองแล้ว ไม่ใช่รายการตัวอย่างอีกต่อไป
     syncInvoiceItemTextFields(item);
 }
 
@@ -5848,6 +5919,7 @@ function onInvoiceItemTextInput(itemId) {
 function onInvoiceItemFeeInput(itemId) {
     const item = currentInvoiceItems.find(x => x.id === itemId);
     if (!item) return;
+    delete item.placeholder;
     syncInvoiceItemTextFields(item);
 
     const feeEl = document.getElementById(`inv-item-fee-${itemId}`);
@@ -5871,6 +5943,7 @@ function onInvoiceItemFeeInput(itemId) {
 function onInvoiceItemUnitPriceInput(itemId) {
     const item = currentInvoiceItems.find(x => x.id === itemId);
     if (!item) return;
+    delete item.placeholder;
     syncInvoiceItemTextFields(item);
 
     const unitPriceEl = document.getElementById(`inv-item-unitprice-${itemId}`);
@@ -6264,7 +6337,7 @@ function generateCombinedInvoice() {
 
     // Fill Invoice Metadata
     document.getElementById("inv-no").innerText = `INV-COMB-${Date.now().toString().slice(-4)}`;
-    document.getElementById("inv-date").innerText = new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+    setInvoiceDate(new Date());
 
     // Populate current invoice items array with custom fees from modal!
     currentInvoiceItems = [];

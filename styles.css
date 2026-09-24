@@ -1230,6 +1230,138 @@ h1, h2, h3, h4, h5, h6 {
     background-color: #fef2f2;
 }
 
+/* ==================== ข้อความขอสลิปโอนเงินในใบวางบิล ==================== */
+.invoice-slip-notice {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--danger);
+    margin-top: 15px;
+    border-top: 1px dashed #e2e8f0;
+    padding-top: 8px;
+    -webkit-print-color-adjust: exact; /* ให้สีแดงติดตอนพิมพ์ด้วย */
+    print-color-adjust: exact;
+}
+
+/* ==================== ปุ่มลบรายการในบิลอิสระ ==================== */
+.inv-item-desc-cell {
+    position: relative;
+    padding-right: 34px !important;
+}
+
+.inv-item-remove-btn {
+    position: absolute;
+    top: 8px;
+    right: 6px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 1px solid #e2e8f0;
+    background-color: #fff;
+    color: var(--text-muted);
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.inv-item-remove-btn:hover {
+    border-color: var(--danger);
+    color: var(--danger);
+    background-color: #fef2f2;
+}
+
+/* ==================== ช่อง ORDER NO. ในตารางใบงาน ==================== */
+.order-no-field {
+    display: inline-flex;
+    align-items: stretch;
+    width: 220px;
+    height: 32px;
+    border: 1px solid #cbd5e1;
+    border-radius: var(--radius-sm);
+    background-color: #fff;
+    overflow: hidden;
+    transition: var(--transition);
+}
+
+.order-no-field:focus-within {
+    border-color: var(--gold-primary);
+    box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.12);
+}
+
+.order-no-prefix {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    background-color: var(--gray-bg);
+    border-right: 1px solid #e2e8f0;
+}
+
+.order-no-field input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    outline: none;
+    padding: 0 8px;
+    font-family: inherit;
+    font-size: 12.5px;
+    color: var(--text-dark);
+    background: transparent;
+}
+
+.order-no-field input::placeholder {
+    color: #94a3b8;
+}
+
+.order-no-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    border: none;
+    background-color: var(--gold-primary);
+    color: #fff;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.order-no-btn:hover {
+    background-color: var(--gold-hover);
+}
+
+/* โหมดล็อก (บันทึกแล้ว): แสดงเป็นป้ายเลขสีเขียว ปุ่มแก้ไขเป็นแบบเรียบ */
+.order-no-field.is-locked {
+    border-color: rgba(16, 185, 129, 0.35);
+    background-color: #ecfdf5;
+}
+
+.order-no-field.is-locked .order-no-prefix {
+    color: var(--success);
+    background-color: transparent;
+    border-right-color: rgba(16, 185, 129, 0.25);
+}
+
+.order-no-field.is-locked input {
+    color: #047857;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    cursor: default;
+    -webkit-text-fill-color: #047857; /* กัน Safari ทำตัวอักษรใน input disabled จาง */
+    opacity: 1;
+}
+
+.order-no-field.is-locked .order-no-btn {
+    background-color: transparent;
+    color: var(--text-muted);
+}
+
+.order-no-field.is-locked .order-no-btn:hover {
+    color: var(--gold-primary);
+    background-color: rgba(30, 58, 138, 0.06);
+}
+
 
 /* ==================== MODALS ==================== */
 .modal-backdrop {

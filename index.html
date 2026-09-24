@@ -2385,6 +2385,13 @@
                                 </div>
                             </div>
                         </div>
+                        <!-- เลือกประเภทงานที่แจ้ง -> เพิ่มเป็นรายการในบิลทันที เลือกซ้ำได้เรื่อย ๆ (ตัวเลือกดึงจากเช็กบ็อกซ์ในฟอร์มแจ้งสั่งงาน ดู populateFreeInvoiceJobTypeSelect) -->
+                        <div class="form-group" style="margin: 12px 0 0;">
+                            <label for="invoice-free-jobtype-select" style="font-weight: 600; color: var(--gold-primary);">➕ เพิ่มรายการประเภทงานที่แจ้ง (เลือกได้หลายรายการ)</label>
+                            <select id="invoice-free-jobtype-select" onchange="addFreeInvoiceJobTypeItem(this)">
+                                <!-- Dynamic job type options -->
+                            </select>
+                        </div>
                     </div>
 
                     <!-- Note สำหรับวางบิล: แสดงให้เจ้าหน้าที่เห็นก่อนออกบิลเท่านั้น ไม่ถูกพิมพ์ลงในใบแจ้งหนี้ที่ให้ลูกค้า -->
@@ -2469,8 +2476,8 @@
                                     <div><strong>ชื่อบัญชี:</strong> <span id="inv-bank-acc-name">บจก. แอนติกรีวิตี้</span></div>
                                     <div><strong>เลขที่บัญชี:</strong> <span id="inv-bank-acc-no">026-1-82736-2</span></div>
                                 </div>
-                                <p style="font-size: 11px; color: var(--text-muted); margin-top: 15px; border-top: 1px dashed #e2e8f0; padding-top: 8px;">
-                                    * กรุณาส่งหลักฐานการโอนเงิน (Slip) ให้เจ้าหน้าที่ผู้ประสานงานเพื่อยืนยันการรับเงิน
+                                <p class="invoice-slip-notice">
+                                    * กรุณาส่งหลักฐานการโอนเงิน (Slip) ให้เจ้าหน้าที่ผู้ประสานงานเพื่อยืนยันการจ่ายเงิน
                                 </p>
                             </div>
                         </div>
@@ -2485,12 +2492,12 @@
                         <div class="invoice-signature-row">
                             <div class="invoice-signature-block">
                                 <div class="signature-line"></div>
-                                <p>ผู้รับวางบิล (Received By)</p>
-                                <p class="signature-date">วันที่ ....... /....... /..........</p>
+                                <p>ผู้วางบิล (Delivered By)</p>
+                                <p class="signature-date" id="inv-delivered-date">วันที่ ....... /....... /..........</p>
                             </div>
                             <div class="invoice-signature-block">
                                 <div class="signature-line"></div>
-                                <p>ผู้วางบิล (Delivered By)</p>
+                                <p>ผู้รับวางบิล (Received By)</p>
                                 <p class="signature-date">วันที่ ....... /....... /..........</p>
                             </div>
                         </div>
