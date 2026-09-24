@@ -1277,6 +1277,15 @@ function renderRenewalGroups() {
             : `<span class="badge badge-warning">ยังไม่มีเล่ม</span>`;
     }
 
+    // วันหมดอายุเล่ม (พาสปอร์ต/CI) — สีตามเกณฑ์เดียวกับตารางคนงาน: ส้มเมื่อเหลือไม่ถึง 180 วัน, แดงเมื่อหมดแล้ว
+    function bookExpiryOf(w) {
+        const d = safeParseDate(w.passportExpiry);
+        if (!d) return '<span class="text-muted">-</span>';
+        const diff = Math.ceil((d - today) / (1000 * 60 * 60 * 24));
+        const cls = diff < 0 ? 'text-danger' : (diff <= 180 ? 'text-warning' : '');
+        return `<span class="${cls}">${d.toLocaleDateString('th-TH')}</span>`;
+    }
+
     function buildGroupPanel(title, list) {
         const expiredCount = list.filter(w => { const d = daysLeftOf(w); return d !== null && d < 0; }).length;
         const warningCount = list.filter(w => { const d = daysLeftOf(w); return d !== null && d >= 0 && d <= 60; }).length;
@@ -1308,6 +1317,7 @@ function renderRenewalGroups() {
                     <td>${w.permitExpiry || '-'}</td>
                     <td>${statusBadgeOf(daysDiff)}</td>
                     <td>${bookBadgeOf(w)}</td>
+                    <td>${bookExpiryOf(w)}</td>
                 </tr>
             `;
         }).join('');
@@ -1325,10 +1335,10 @@ function renderRenewalGroups() {
                         <thead>
                             <tr>
                                 <th>เลขคนงาน</th><th>ชื่อ-นามสกุล</th><th>สัญชาติ</th><th>นายจ้าง</th>
-                                <th>วันหมดอายุ</th><th>สถานะ</th><th>เล่ม (พาสปอร์ต)</th>
+                                <th>วันหมดอายุ</th><th>สถานะ</th><th>เล่ม (พาสปอร์ต)</th><th>วันหมดอายุเล่ม</th>
                             </tr>
                         </thead>
-                        <tbody>${rows || `<tr><td colspan="7" style="text-align:center; padding: 16px;">ไม่มีข้อมูล</td></tr>`}</tbody>
+                        <tbody>${rows || `<tr><td colspan="8" style="text-align:center; padding: 16px;">ไม่มีข้อมูล</td></tr>`}</tbody>
                     </table>
                 </div>
             </div>
