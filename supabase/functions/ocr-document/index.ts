@@ -140,7 +140,12 @@ function buildPrompt(docType: string): string {
     `actually use a family surname (e.g. Lao, Cambodian names may still be a single name too — when in doubt, do not split). ` +
     `Output ONLY a valid JSON object matching this schema, without markdown wrapping, json declaration, or backticks:\n` +
     `{\n` +
-    (docType === "worker-auto" ? `  "documentType": "one key from the document kind list above, or other",\n` : "") +
+    (docType === "worker-auto"
+      ? `  "documentType": "one key from the document kind list above, or other",\n` +
+        // ใช้ครอปรูปหน้าคนงานจากเอกสารไปเป็นรูปประจำตัวตอน Bulk Import สร้างคนงานใหม่ (ดู cropPhotoFromFile ใน app.js)
+        `  "photoBox": "only if the document shows a printed portrait photo of the person: its bounding box as [ymin, xmin, ymax, xmax] ` +
+        `normalized to 0-1000 on the first page/image; omit if there is no portrait photo",\n`
+      : "") +
     `  "firstName": "Full given name (English or Thai) — see naming rule above",\n` +
     `  "lastName": "Family surname only if one genuinely exists — leave empty for Myanmar nationals",\n` +
     `  "uid": "13-digit worker ID (เลขประจำตัวคนต่างด้าว 13 หลัก) if found",\n` +

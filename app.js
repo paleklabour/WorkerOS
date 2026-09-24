@@ -8488,6 +8488,67 @@ function getBulkNewWorkerMissingFields(c) {
     return missing;
 }
 
+// ครอปรูปหน้าคนงานจากเอกสาร (ภาพ หรือหน้าแรกของ PDF) ตามกรอบที่ AI บอกมา (photoBox = [ymin, xmin, ymax, xmax] สเกล 0-1000)
+// คืน data URL (jpeg) หรือ null ถ้าครอปไม่ได้ — ใช้เป็นรูปประจำตัวของคนงานใหม่ที่ Bulk Import สร้างให้
+async function cropPhotoFromFile(file, box) {
+    if (!Array.isArray(box) || box.length !== 4 || box.some(v => typeof v !== 'number')) return null;
+    try {
+        let source; // canvas หรือ <img> ของหน้าเต็ม
+        if (file.type === 'application/pdf') {
+            if (!window.pdfjsLib) return null;
+            const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+            const page = await pdf.getPage(1);
+            const viewport = page.getViewport({ scale: 2.5 }); // ความละเอียดพอให้รูปหน้าชัด
+            source = document.createElement('canvas');
+            source.width = viewport.width;
+            source.height = viewport.height;
+            await page.render({ canvasContext: source.getContext('2d'), viewport }).promise;
+        } else {
+            source = await new Promise((resolve, reject) => {
+                const img = new Image();
+                img.onload = () => resolve(img);
+                img.onerror = reject;
+                img.src = URL.createObjectURL(file);
+            });
+        }
+        const W = source.width, H = source.height;
+        const [ymin, xmin, ymax, xmax] = box.map(v => Math.min(1000, Math.max(0, v)) / 1000);
+        if (xmax <= xmin || ymax <= ymin) return null;
+        const padX = (xmax - xmin) * 0.06, padY = (ymax - ymin) * 0.06; // เผื่อขอบเล็กน้อย กันครอปติดหน้า
+        const sx = Math.max(0, (xmin - padX) * W), sy = Math.max(0, (ymin - padY) * H);
+        const sw = Math.min(W, (xmax + padX) * W) - sx, sh = Math.min(H, (ymax + padY) * H) - sy;
+        if (sw < 20 || sh < 20) return null;
+        const scale = Math.min(1, 400 / Math.max(sw, sh));
+        const out = document.createElement('canvas');
+        out.width = Math.round(sw * scale);
+        out.height = Math.round(sh * scale);
+        out.getContext('2d').drawImage(source, sx, sy, sw, sh, 0, 0, out.width, out.height);
+        if (source instanceof HTMLImageElement) URL.revokeObjectURL(source.src);
+        return out.toDataURL('image/jpeg', 0.9);
+    } catch (e) {
+        console.warn('cropPhotoFromFile failed:', file && file.name, e);
+        return null;
+    }
+}
+
+// เลือกเอกสารที่จะใช้ครอปรูปหน้า: ใบอนุญาตทำงาน > บัตรชมพู > พาสปอร์ต > อื่น ๆ (ต้องมี photoBox จาก AI)
+const PHOTO_SOURCE_PRIORITY = ['worker-wp-doc', 'worker-pink-card', 'worker-passport'];
+function pickPhotoSourceRow(rows) {
+    const withBox = rows.filter(r => r.parsedData && Array.isArray(r.parsedData.photoBox));
+    const rank = r => { const i = PHOTO_SOURCE_PRIORITY.indexOf(r.docType); return i === -1 ? 99 : i; };
+    return withBox.sort((a, b) => rank(a) - rank(b))[0] || null;
+}
+
+// ครอปรูปหน้าให้คนงานใหม่ที่ยังไม่มีรูป (ทำหลังจับคู่เสร็จ แสดงในการ์ดให้ตรวจก่อนสร้าง)
+async function fillBulkNewWorkerPhotos() {
+    for (const c of bulkNewWorkers) {
+        if (c.photoDataUrl !== undefined) continue; // ครอปแล้ว (หรือครอปไม่ได้ = null)
+        const row = pickPhotoSourceRow(bulkImportRows.filter(r => r.workerId === BULK_NEW_WORKER_PREFIX + c.id));
+        c.photoDataUrl = row ? await cropPhotoFromFile(row.file, row.parsedData.photoBox) : null;
+    }
+    renderBulkNewWorkers();
+}
+
 // ลบคนงานใหม่ที่ไม่มีไฟล์ไหนชี้ถึงแล้ว (เช่น ผู้ใช้เปลี่ยนไฟล์ไปแนบคนงานเดิมหมด)
 function pruneBulkNewWorkers() {
     bulkNewWorkers = bulkNewWorkers.filter(c => bulkImportRows.some(r => r.workerId === BULK_NEW_WORKER_PREFIX + c.id));
@@ -8658,10 +8719,12 @@ function updateBulkImportWorker(idx, workerId) {
 }
 
 // ==================== ขั้น "🤖 ให้ AI อ่านและจับคู่" ====================
-async function analyzeBulkImportWithAi() {
-    const rowsToRead = bulkImportRows.filter(r => r.status !== 'success' && !r.parsedData);
+// onlyUnattempted: ตอนกด "นำเข้า" ปุ่มเดียว อ่านเฉพาะไฟล์ที่ยังไม่เคยลองอ่าน (ไฟล์ที่ AI ไม่ว่างรอบก่อนไม่ต้องรอซ้ำ
+// — กดปุ่ม "ให้ AI อ่านและจับคู่" เองเพื่อลองอ่านไฟล์พวกนั้นใหม่)
+async function analyzeBulkImportWithAi(onlyUnattempted = false) {
+    const rowsToRead = bulkImportRows.filter(r => r.status !== 'success' && !r.parsedData && (!onlyUnattempted || !r.ocrStatus));
     if (rowsToRead.length === 0) {
-        showToast("ไม่มีไฟล์ที่ต้องให้ AI อ่าน (อ่านไปครบแล้ว)", "warning");
+        if (!onlyUnattempted) showToast("ไม่มีไฟล์ที่ต้องให้ AI อ่าน (อ่านไปครบแล้ว)", "warning");
         return;
     }
 
@@ -8705,7 +8768,8 @@ async function analyzeBulkImportWithAi() {
         }
     }
 
-    matchBulkRowsFromOcr();
+    progressEl.innerText = '🖼️ กำลังจับคู่คนงานและครอปรูปจากเอกสาร...';
+    await matchBulkRowsFromOcr();
     btn.disabled = false;
     importBtn.disabled = false;
 
@@ -8753,6 +8817,9 @@ function matchBulkRowsFromOcr() {
             if (!filled.firstName && p.firstName) { filled.firstName = p.firstName; filled.lastName = p.lastName || ''; }
             if (!filled.nationality && p.nationality) filled.nationality = p.nationality;
             if (filled.nationality === 'Myanmar' && filled.lastName) { filled.firstName = `${filled.firstName} ${filled.lastName}`.trim(); filled.lastName = ''; }
+            // เอกสารส่วนใหญ่ไม่พิมพ์คำนำหน้า — เดาจากเพศเป็นค่าตั้งต้น (หญิง = นางสาว แก้เป็น นาง ได้ในการ์ด)
+            const gender = filled.gender || cand.data.gender;
+            if (!filled.title && !cand.data.title && gender) filled.title = gender === 'Female' ? 'นางสาว' : 'นาย';
             Object.entries(filled).forEach(([k, v]) => { if (v && !cand.data[k]) cand.data[k] = v; });
             row.workerId = BULK_NEW_WORKER_PREFIX + cand.id;
         }
@@ -8761,6 +8828,7 @@ function matchBulkRowsFromOcr() {
 
     pruneBulkNewWorkers();
     renderBulkImportTable();
+    return fillBulkNewWorkerPhotos();
 }
 
 // การ์ด "คนงานใหม่ที่จะสร้าง" ด้านบนตาราง — แก้ข้อมูลที่ AI อ่านมาได้ก่อนสร้างจริง
@@ -8781,6 +8849,7 @@ function renderBulkNewWorkers() {
         return `
             <div class="bulk-new-worker-card">
                 <div class="bulk-new-worker-head">
+                    ${c.photoDataUrl ? `<img class="bulk-new-worker-photo" src="${c.photoDataUrl}" alt="" title="รูปที่ครอปจากเอกสาร — จะใช้เป็นรูปประจำตัวคนงาน">` : ''}
                     <strong>🆕 คนงานใหม่ #${cIdx + 1}</strong>
                     <span class="text-muted">${fileCount} ไฟล์${d.workerUid ? ` • เลข 13 หลัก ${escapeHtml(d.workerUid)}` : ''}${d.permitNo ? ` • ใบอนุญาต ${escapeHtml(d.permitNo)}` : ''}</span>
                     <button type="button" class="btn btn-sm btn-outline bulk-new-worker-discard" onclick="discardBulkNewWorker('${c.id}')" title="ไม่สร้างคนงานนี้ — ไฟล์ของคนนี้จะกลับไปให้เลือกคนงานเอง">ไม่สร้าง</button>
@@ -8843,9 +8912,17 @@ async function createBulkNewWorkers(candIds, progressEl) {
         const existing = uid ? workers.find(w => normalizeIdForMatch(w.workerUid) === uid) : null;
         if (existing) { created.set(c.id, existing.id); continue; }
 
+        const newId = `work-${Date.now()}${i}`;
+        // รูปหน้าที่ครอปจากเอกสาร -> อัปโหลดขึ้น Storage แล้วใช้ลิงก์จริงเป็นรูปประจำตัว (อัปโหลดไม่ได้ก็สร้างคนงานต่อโดยไม่มีรูป)
+        let photo = '';
+        if (c.photoDataUrl) {
+            const up = await uploadDocumentFile(c.photoDataUrl, `${c.data.firstName || 'worker'}_photo.jpg`, bulkImportEmployerId, newId);
+            if (up && up.viewUrl) photo = up.viewUrl;
+        }
         const workerData = {
             ...c.data,
-            id: `work-${Date.now()}${i}`,
+            photo,
+            id: newId,
             employerId: bulkImportEmployerId,
             attachments: {},
             status: 'pending_register', // เปลี่ยนเป็น active เองเมื่อมีใบอนุญาตทำงาน + ใบเสร็จ (ดู attachDocumentToWorker)
@@ -8884,9 +8961,14 @@ async function runBulkImport() {
         return;
     }
 
+    // กดปุ่มเดียวจบ: ไฟล์ที่ยังไม่เคยให้ AI อ่าน -> อ่าน + จับคู่ + เตรียมคนงานใหม่ (พร้อมรูป) ก่อน แล้วค่อยนำเข้าต่อในรอบเดียวกัน
+    if (bulkImportRows.some(r => r.status !== 'success' && !r.parsedData && !r.ocrStatus)) {
+        await analyzeBulkImportWithAi(true);
+    }
+
     const rowsToImport = bulkImportRows.filter(r => r.selected && r.workerId && r.docType && r.status !== 'success');
     if (rowsToImport.length === 0) {
-        alert('กรุณาเลือกอย่างน้อย 1 ไฟล์ที่จับคู่คนงานและประเภทเอกสารครบถ้วนแล้ว');
+        alert('ไม่มีไฟล์ที่พร้อมนำเข้า — ไฟล์ที่ AI อ่านไม่ได้ ให้เลือกคนงานและประเภทเอกสารเองในตาราง');
         return;
     }
 
