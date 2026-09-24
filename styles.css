@@ -1282,6 +1282,14 @@ h1, h2, h3, h4, h5, h6 {
     flex: 1;
 }
 
+/* ช่องที่ต้องกรอกเองหลังเลือก "บันทึกไฟล์ กรอกเอง" (ดู focusManualEntryFields) */
+.manual-entry-highlight {
+    border-color: var(--warning) !important;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.25) !important;
+    background-color: #fffbeb !important;
+    transition: var(--transition);
+}
+
 /* ==================== ข้อความขอสลิปโอนเงินในใบวางบิล ==================== */
 .invoice-slip-notice {
     font-size: 13px;

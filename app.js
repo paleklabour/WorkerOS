@@ -2522,6 +2522,8 @@ function processJobAppointmentFile(file) {
             setVal("job-appointment-no", uploadResult.parsedData.appointmentNo);
             setVal("job-appointment-location", uploadResult.parsedData.appointmentLocation);
             showToast("✨ AI อ่านข้อมูลใบนัดหมายและกรอกฟอร์มให้อัตโนมัติแล้ว กรุณาตรวจสอบความถูกต้องอีกครั้ง", "success");
+        } else if (uploadResult.manualEntry) {
+            focusManualEntryFields("job-appointment");
         }
     };
     reader.readAsDataURL(file);
@@ -2626,6 +2628,7 @@ function processCustomerDocFile(file, docType) {
 
             if (uploadResult) {
                 renderCustomerAttachmentStatus(docType);
+                if (uploadResult.manualEntry) focusManualEntryFields(docType);
             } else {
                 statusEl.innerHTML = `<span class="ai-error">❌ อัปโหลดไม่สำเร็จ (ไฟล์ถูกเก็บไว้ในเครื่องชั่วคราว)</span>` + renderAttachmentChipsHtml(updatedList, idx => `removeStagedCustomerAttachment('${docType}', ${idx})`, idx => `previewStagedCustomerAttachment('${docType}', ${idx})`);
                 if (uploadBox) uploadBox.classList.add("success-upload");
@@ -2870,6 +2873,7 @@ function processUploadedFile(file, docType) {
 
             if (uploadResult) {
                 renderWorkerAttachmentStatus(docType);
+                if (uploadResult.manualEntry) focusManualEntryFields(docType);
             } else {
                 statusEl.innerHTML = `<span class="ai-error">❌ อัปโหลดไม่สำเร็จ (ไฟล์ถูกเก็บไว้ในเครื่องชั่วคราว)</span>` + renderAttachmentChipsHtml(updatedList, idx => `removeStagedWorkerAttachment('${docType}', ${idx})`, idx => `previewStagedWorkerAttachment('${docType}', ${idx})`);
                 uploadBox.classList.add("success-upload");
@@ -4762,6 +4766,8 @@ function processExpenseSlipFile(file) {
         if (uploadResult.parsedData) {
             applyGeminiDataToExpenseForm(uploadResult.parsedData);
             showToast("✨ AI อ่านข้อมูลจากสลิปและกรอกฟอร์มให้อัตโนมัติแล้ว กรุณาตรวจสอบความถูกต้องอีกครั้ง", "success");
+        } else if (uploadResult.manualEntry) {
+            focusManualEntryFields("expense-slip");
         }
     };
     reader.readAsDataURL(file);
@@ -6652,6 +6658,46 @@ function resolveAiRejectedChoice(choice) {
     if (resolve) resolve(choice);
 }
 
+// ช่องที่ต้องกรอกเองเมื่อผู้ใช้เลือก "บันทึกไฟล์ กรอกเอง" — ตามประเภทเอกสาร (ช่องแรก = ช่องที่ได้ focus)
+const MANUAL_ENTRY_FIELDS = {
+    'worker-wp-doc': ['worker-permit-no', 'worker-permit-expiry'],
+    'worker-passport': ['worker-passport-no', 'worker-passport-expiry'],
+    'worker-visa': ['worker-passport-no'],
+    'worker-myanmar-id': ['worker-first-name', 'worker-dob'],
+    'worker-pink-card': ['worker-pink-card-no', 'worker-thai-name'],
+    'worker-insurance-doc': ['worker-insurance-no'],
+    'cust-id-card': ['cust-director-id', 'cust-coordinator'],
+    'cust-cert': ['cust-company-name', 'cust-tax-id', 'cust-cert-issue-date'],
+    'job-appointment': ['job-appointment-date', 'job-appointment-time', 'job-appointment-no'],
+    'expense-slip': ['expense-amount', 'expense-date'],
+};
+
+// เลื่อนไปที่ช่องที่ต้องกรอกในฟอร์มที่เปิดอยู่ ใส่ไฮไลต์ชั่วคราว แล้ว focus ช่องแรก
+function focusManualEntryFields(docType) {
+    const els = (MANUAL_ENTRY_FIELDS[docType] || []).map(id => document.getElementById(id)).filter(Boolean);
+    if (els.length === 0) return;
+    if (docType.startsWith('cust-')) switchCustomerModalTab('general');
+    els.forEach(el => {
+        el.classList.add('manual-entry-highlight');
+        setTimeout(() => el.classList.remove('manual-entry-highlight'), 6000);
+    });
+    els[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+    els[0].focus({ preventScroll: true });
+}
+
+// แนบผ่านแฟ้มเอกสาร/Bulk Import (ไม่มีฟอร์มเปิดอยู่) -> ปิดหน้าต่างเดิม เปิดฟอร์มแก้ไขของคนงาน/นายจ้างรายนั้น แล้วพาไปช่องที่ต้องกรอก
+function openManualEntryForm(kind, recordId, docType) {
+    if (kind === 'customer') {
+        closeCustomerFolderModal();
+        openCustomerModal(recordId);
+    } else {
+        closeWorkerFolderModal();
+        closeBulkImportModal();
+        openWorkerModal(recordId);
+    }
+    setTimeout(() => focusManualEntryFields(docType), 150); // รอฟอร์มเติมค่าและแสดงผลก่อน
+}
+
 function createAiRejectedError(ocrError) {
     const err = new Error(getAiRejectedMessage(ocrError));
     err.aiRejected = true;
@@ -6693,7 +6739,8 @@ async function uploadDocumentFile(fileDataUrl, fileName, customerId = "", worker
                 const manualRes = await window.supabaseAdapter.uploadFile(fileDataUrl, fileName, customerId, workerId, docType, currentUser, { skipOcr: true });
                 if (manualRes && manualRes.status === 'success') {
                     showToast("✅ บันทึกไฟล์แล้ว (ไม่ผ่าน AI) — กรุณากรอกข้อมูลเอง", "success");
-                    return { fileUrl: manualRes.fileUrl, viewUrl: manualRes.viewUrl, fileId: manualRes.fileId, parsedData: null, ocrAttempted: false };
+                    // manualEntry: ผู้เรียกเปิด/เลื่อนไปที่ช่องที่ต้องกรอกให้อัตโนมัติ (ดู focusManualEntryFields)
+                    return { fileUrl: manualRes.fileUrl, viewUrl: manualRes.viewUrl, fileId: manualRes.fileId, parsedData: null, ocrAttempted: false, manualEntry: true };
                 }
                 showToast("❌ อัปโหลดไฟล์ล้มเหลว: " + ((manualRes && manualRes.message) || "ข้อผิดพลาดระบบ"), "danger");
                 return null;
@@ -6960,6 +7007,7 @@ async function handleCustomerFolderFileUpload(event) {
     let failCount = 0;
     let anyAiRead = false;
     let aiRejectedCount = 0; // AI อ่านไม่สำเร็จ = ไม่ได้บันทึกไฟล์ (ต้องแนบใหม่)
+    let needsManualEntry = false; // มีไฟล์ที่ผู้ใช้เลือก "บันทึกไฟล์ กรอกเอง"
     beginAiRejectedBatch();
     for (const file of files) {
         const idx = customers.findIndex(x => x.id === activeFolderCustomerId);
@@ -6969,6 +7017,7 @@ async function handleCustomerFolderFileUpload(event) {
             const fileContent = await readFileAsDataUrl(file);
             const uploadResult = await attachDocumentToCustomer(c, activeFolderCustomerDocType, fileContent);
             if (uploadResult && uploadResult.parsedData) anyAiRead = true;
+            if (uploadResult && uploadResult.manualEntry) needsManualEntry = true;
         } catch (err) {
             console.error("attachDocumentToCustomer failed:", err);
             if (err && err.aiRejected) aiRejectedCount++; else failCount++;
@@ -6982,8 +7031,10 @@ async function handleCustomerFolderFileUpload(event) {
     else if (aiRejectedCount === 0) showToast("✅ อัปโหลดไฟล์และอัปเดตแฟ้มเอกสารสำเร็จ!", "success");
 
     saveData();
-    openCustomerFolderModal(activeFolderCustomerId);
     renderCustomers();
+    // เลือก "บันทึกไฟล์ กรอกเอง" ไว้ -> เปิดฟอร์มแก้ไขนายจ้างรายนี้แล้วพาไปช่องที่ต้องกรอกเลย แทนการกลับไปหน้าแฟ้มเอกสาร
+    if (needsManualEntry) openManualEntryForm('customer', activeFolderCustomerId, activeFolderCustomerDocType);
+    else openCustomerFolderModal(activeFolderCustomerId);
 }
 
 // ==================== CONFIRM-DELETE MODAL สำหรับไฟล์แนบ (ใช้ร่วมกันทั้งแฟ้มคนงาน/นายจ้าง) ====================
@@ -8241,6 +8292,7 @@ async function handleFolderFileUpload(event) {
     let anyAiRead = false;
     let failCount = 0;
     let aiRejectedCount = 0; // AI อ่านไม่สำเร็จ = ไม่ได้บันทึกไฟล์ (ต้องแนบใหม่)
+    let needsManualEntry = false; // มีไฟล์ที่ผู้ใช้เลือก "บันทึกไฟล์ กรอกเอง"
     beginAiRejectedBatch();
     for (const file of files) {
         const workerIdx = workers.findIndex(w => w.id === activeFolderWorkerId);
@@ -8251,6 +8303,7 @@ async function handleFolderFileUpload(event) {
             const fileContent = await readFileAsDataUrl(file);
             const uploadResult = await attachDocumentToWorker(w, activeFolderDocType, fileContent);
             if (uploadResult && uploadResult.parsedData) anyAiRead = true;
+            if (uploadResult && uploadResult.manualEntry) needsManualEntry = true;
             if (wasPending && w.status === 'active') {
                 showToast(`🎉 อัปโหลดใบอนุญาตทำงานและใบเสร็จแล้ว! เปลี่ยนสถานะคุณ ${w.firstName} เป็น ปกติ (Active) อัตโนมัติ`, "success");
             }
@@ -8267,10 +8320,11 @@ async function handleFolderFileUpload(event) {
     else if (aiRejectedCount === 0) showToast("✅ อัปโหลดไฟล์และอัปเดตแฟ้มคนงานต่างด้าวสำเร็จ!", "success");
 
     saveData();
-    // Refresh folder modal and worker lists/dashboard
-    openWorkerFolderModal(activeFolderWorkerId);
     renderWorkers();
     renderDashboard();
+    // เลือก "บันทึกไฟล์ กรอกเอง" ไว้ -> เปิดฟอร์มแก้ไขคนงานคนนี้แล้วพาไปช่องที่ต้องกรอกเลย แทนการกลับไปหน้าแฟ้มเอกสาร
+    if (needsManualEntry) openManualEntryForm('worker', activeFolderWorkerId, activeFolderDocType);
+    else openWorkerFolderModal(activeFolderWorkerId);
 }
 
 // ==================== BULK IMPORT: นำเข้าเอกสารหลายไฟล์พร้อมกัน ====================
@@ -8329,6 +8383,7 @@ let bulkImportRows = [];
 // ผล AI ของไฟล์ที่นำเข้าสำเร็จ: filled = AI เติมข้อมูลแล้ว / none = ประเภทเอกสารนี้ไม่ใช้ AI
 // (AI อ่านไม่สำเร็จ = ไม่บันทึกไฟล์ ไปตกที่ catch ใน runBulkImport แทน ตั้ง aiStatus เป็น busy/failed ที่นั่น)
 function getBulkImportAiStatus(uploadResult) {
+    if (uploadResult && uploadResult.manualEntry) return 'manual'; // ผู้ใช้เลือก "บันทึกไฟล์ กรอกเอง"
     return uploadResult && uploadResult.ocrAttempted && uploadResult.parsedData ? 'filled' : 'none';
 }
 
@@ -8432,6 +8487,7 @@ function renderBulkImportTable() {
         let statusBadge;
         if (row.status === 'failed' && row.aiStatus === 'busy') statusBadge = '<span class="badge badge-warning" style="font-size:10px;" title="Gemini มีผู้ใช้งานมาก ไฟล์นี้ยังไม่ได้บันทึก — กด นำเข้า อีกครั้งในอีกสักครู่">⚠️ ยังไม่บันทึก • AI ไม่ว่าง</span>';
         else if (row.status === 'failed' && row.aiStatus === 'failed') statusBadge = '<span class="badge badge-warning" style="font-size:10px;" title="AI อ่านเอกสารไม่ได้ ไฟล์นี้ยังไม่ได้บันทึก — ตรวจไฟล์แล้วลองใหม่">⚠️ ยังไม่บันทึก • AI อ่านไม่ได้</span>';
+        else if (row.status === 'success' && row.aiStatus === 'manual') statusBadge = `<button type="button" class="btn btn-sm btn-outline" style="font-size:10.5px; padding:2px 8px; white-space:nowrap;" onclick="openManualEntryForm('worker', '${row.workerId}', '${row.docType}')" title="ไฟล์เข้าระบบแล้ว (ไม่ผ่าน AI) — กดเพื่อเปิดฟอร์มคนงานไปกรอกข้อมูล">✍️ กรอกข้อมูล</button>`;
         else if (row.status === 'success' && row.aiStatus === 'filled') statusBadge = '<span class="badge badge-success" style="font-size:10px;">✅ นำเข้าแล้ว • AI เติมข้อมูลแล้ว</span>';
         else if (row.status === 'success') statusBadge = '<span class="badge badge-success" style="font-size:10px;">✅ นำเข้าแล้ว</span>';
         else if (row.status === 'failed') statusBadge = '<span class="badge badge-danger" style="font-size:10px;">❌ ล้มเหลว</span>';
@@ -8553,6 +8609,16 @@ async function runBulkImport() {
     renderWorkers();
     renderDashboard();
     showToast(`นำเข้าเอกสารสำเร็จ ${successCount}/${rowsToImport.length} รายการ`, failCount > 0 ? 'warning' : 'success');
+
+    // ไฟล์ที่เลือก "บันทึกไฟล์ กรอกเอง": ถ้าเป็นของคนงานคนเดียวกันทั้งหมด เปิดฟอร์มคนงานคนนั้นให้เลย
+    // ถ้าหลายคน เปิดทีละคนไม่ได้ — ให้กดปุ่ม "✍️ กรอกข้อมูล" ในแต่ละแถวแทน
+    const manualRows = rowsToImport.filter(r => r.status === 'success' && r.aiStatus === 'manual');
+    const manualWorkerIds = [...new Set(manualRows.map(r => r.workerId))];
+    if (manualWorkerIds.length === 1) {
+        openManualEntryForm('worker', manualWorkerIds[0], manualRows[0].docType);
+    } else if (manualWorkerIds.length > 1) {
+        progressEl.innerText += ` — ✍️ มี ${manualRows.length} ไฟล์ที่ต้องกรอกข้อมูลเอง กดปุ่ม "กรอกข้อมูล" ในแต่ละแถว`;
+    }
 }
 
 // Rename file inside folder modal
