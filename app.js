@@ -815,7 +815,7 @@ function setupAllSearchSuggestions() {
 
     registerSearchSuggest('search-dashboard-missing-docs', () => workers.filter(isWorkerMissingDocs),
         w => `${w.firstName || ''} ${w.lastName || ''}`.trim(),
-        w => { const emp = customers.find(c => c.id === w.employerId); return emp ? emp.companyName : ''; },
+        w => { const emp = customers.find(c => c.id === w.employerId); return [w.workerUid, emp ? emp.companyName : ''].filter(Boolean).join(' · '); },
         renderMissingDocsOverview);
 }
 
@@ -9203,6 +9203,25 @@ function isWorkerMissingDocs(w) {
     return REQUIRED_WORKER_DOCS.some(doc => getAttachments(w, doc.type).length === 0);
 }
 
+const NATIONALITY_TH_LABELS = { Myanmar: 'เมียนมา พม่า', Cambodia: 'กัมพูชา เขมร', Laos: 'ลาว', Vietnam: 'เวียดนาม' };
+
+// ค้นหาในตาราง "คนงานที่ยังไม่ได้แนบเอกสาร" — ครอบคลุม ชื่อเต็ม/ชื่อไทย/คำนำหน้า, เลขเอกสารทุกประเภท, สัญชาติ (ไทย/อังกฤษ),
+// นายจ้าง (ชื่อ/เลขภาษี/เลขบัตรกรรมการ) และชื่อเอกสารที่ "ยังขาด" เช่น พิมพ์ "พาสปอร์ต" หรือ "wp" = คนที่ยังไม่มีเอกสารนั้น
+function missingDocsWorkerMatchesQuery(w, query) {
+    const emp = customers.find(c => c.id === w.employerId);
+    const missingLabels = REQUIRED_WORKER_DOCS.filter(doc => getAttachments(w, doc.type).length === 0).map(doc => doc.label);
+    const haystack = [
+        `${w.title || ''} ${w.firstName || ''} ${w.lastName || ''}`,
+        w.thaiName, w.workerUid, w.permitNo, w.passportNo, w.pinkCardNo, w.refNo, w.insuranceNo,
+        w.nationality, NATIONALITY_TH_LABELS[w.nationality],
+        emp && emp.companyName, emp && emp.taxId, emp && emp.directorId,
+        ...missingLabels
+    ].filter(Boolean).join(' | ').toLowerCase();
+    // เลขที่พิมพ์มีขีด/ช่องว่างก็หาเจอ (เทียบแบบตัดตัวคั่นออกด้วย)
+    const compactQuery = query.replace(/[\s-]/g, '');
+    return haystack.includes(query) || (compactQuery.length >= 4 && haystack.replace(/[\s-]/g, '').includes(compactQuery));
+}
+
 function renderMissingDocsOverview() {
     const tbody = document.getElementById("dashboard-missing-docs-tbody");
     if (!tbody) return;
@@ -9215,14 +9234,7 @@ function renderMissingDocsOverview() {
 
     const searchInput = document.getElementById("search-dashboard-missing-docs");
     const query = searchInput ? searchInput.value.trim().toLowerCase() : "";
-    const filteredWorkers = missingWorkers.filter(w => {
-        if (!query) return true;
-        const emp = customers.find(c => c.id === w.employerId);
-        const empName = emp ? (emp.companyName || "").toLowerCase() : "";
-        return (w.firstName || "").toLowerCase().includes(query) ||
-            (w.lastName || "").toLowerCase().includes(query) ||
-            empName.includes(query);
-    });
+    const filteredWorkers = missingWorkers.filter(w => !query || missingDocsWorkerMatchesQuery(w, query));
 
     const badge = document.getElementById("missing-docs-count-badge");
     if (badge) badge.innerText = `${filteredWorkers.length} คน`;
