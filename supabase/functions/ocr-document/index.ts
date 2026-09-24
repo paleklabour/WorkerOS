@@ -11,6 +11,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || "";
+const GEMINI_MODEL = "gemini-3.6-flash";
+const GEMINI_FALLBACK_MODEL = Deno.env.get("GEMINI_FALLBACK_MODEL") || ""; // ไม่บังคับ — รุ่นสำรองตอนรุ่นหลักคนใช้เยอะ
+const RETRYABLE_STATUSES = [429, 500, 503];
+const RETRY_DELAYS_MS = [1500, 4000]; // ลองซ้ำอีก 2 ครั้งต่อรุ่น
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 
@@ -171,22 +175,37 @@ Deno.serve(async (req) => {
       });
     }
 
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${GEMINI_API_KEY}`;
     const payload = {
       contents: [{ parts: [{ inlineData: { mimeType, data: base64Data } }, { text: buildPrompt(docType) }] }],
       generationConfig: { responseMimeType: "application/json" },
     };
 
-    const geminiRes = await fetch(geminiUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    // Gemini ตอบ 503 "high demand" / 429 เป็นพัก ๆ — ลองซ้ำพร้อมหน่วงเวลาก่อนยอมแพ้ และถ้าตั้ง secret
+    // GEMINI_FALLBACK_MODEL ไว้ จะลองรุ่นสำรองต่ออีกรอบ (ไม่ได้ตั้งไว้ = ใช้รุ่นหลักอย่างเดียว)
+    const models = [GEMINI_MODEL, GEMINI_FALLBACK_MODEL].filter((m, i, arr) => m && arr.indexOf(m) === i);
+    let geminiRes: Response | null = null;
+    let lastStatus = 0;
+    outer: for (const model of models) {
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+      for (let attempt = 0; attempt < RETRY_DELAYS_MS.length + 1; attempt++) {
+        if (attempt > 0) await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt - 1]));
+        const res = await fetch(geminiUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (res.ok) { geminiRes = res; break outer; }
+        lastStatus = res.status;
+        const errText = await res.text();
+        console.error(`Gemini API error (${model}, attempt ${attempt + 1}):`, res.status, errText);
+        if (!RETRYABLE_STATUSES.includes(res.status)) break outer; // เช่น 400 ไฟล์เสีย/คีย์ผิด ลองซ้ำไปก็ไม่หาย
+      }
+    }
 
-    if (!geminiRes.ok) {
-      const errText = await geminiRes.text();
-      console.error("Gemini API error:", geminiRes.status, errText);
-      return new Response(JSON.stringify({ status: "success", parsedData: null }), {
+    if (!geminiRes) {
+      // ยังตอบ success เพื่อให้การอัปโหลดไฟล์ถือว่าสำเร็จ แต่แนบเหตุผลไปให้หน้าเว็บแจ้งผู้ใช้ว่า AI ไม่ได้อ่าน
+      const ocrError = RETRYABLE_STATUSES.includes(lastStatus) ? "busy" : "failed";
+      return new Response(JSON.stringify({ status: "success", parsedData: null, ocrError }), {
         headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
       });
     }
