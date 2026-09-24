@@ -219,15 +219,13 @@
         const bytes = new Uint8Array(binary.length);
         for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
 
-        const path = `${customerId || "misc"}/${workerId || "employer"}/${Date.now()}_${sanitizeStorageFileName(fileName)}`;
-        const { error: upErr } = await sb.storage.from("worker-documents").upload(path, bytes, { contentType: mimeType, upsert: true });
-        if (upErr) return { status: "error", message: upErr.message };
-
-        const { data: pub } = sb.storage.from("worker-documents").getPublicUrl(path);
-        const fileUrl = pub.publicUrl;
-
+        // ให้ AI อ่านก่อนอัปโหลด — เอกสารประเภทที่ใช้ AI ถ้าอ่านไม่สำเร็จ (Gemini ไม่ว่าง/อ่านไม่ได้) จะไม่เก็บไฟล์เลย
+        // ให้ผู้ใช้แนบใหม่ทีหลัง แทนที่จะมีไฟล์ค้างในระบบแล้วแนบซ้ำจนไฟล์ซ้ำซ้อน
         let parsedData = null;
-        if (docType && ["worker-passport", "worker-wp-doc", "worker-visa", "worker-myanmar-id", "worker-pink-card", "cust-id-card", "cust-cert", "expense-slip", "job-appointment"].includes(docType)) {
+        let ocrError = null;
+        // ต้องตรงกับ ALLOWED_DOC_TYPES ใน supabase/functions/ocr-document/index.ts
+        const ocrAttempted = !!docType && ["worker-passport", "worker-wp-doc", "worker-visa", "worker-myanmar-id", "worker-pink-card", "worker-insurance-doc", "cust-id-card", "cust-cert", "expense-slip", "job-appointment"].includes(docType);
+        if (ocrAttempted) {
             try {
                 const headers = await getAuthHeaders();
                 const ocrRes = await fetch(`${FUNCTIONS_BASE}/ocr-document`, {
@@ -236,13 +234,29 @@
                     body: JSON.stringify({ base64Data, mimeType, docType })
                 });
                 const ocrJson = await ocrRes.json();
-                if (ocrJson && ocrJson.status === "success") parsedData = ocrJson.parsedData;
+                if (ocrJson && ocrJson.status === "success") {
+                    parsedData = ocrJson.parsedData;
+                    ocrError = ocrJson.ocrError || null;
+                } else {
+                    ocrError = "failed";
+                }
             } catch (e) {
                 console.warn("OCR call failed:", e);
+                ocrError = "failed";
+            }
+            if (!parsedData) {
+                return { status: "error", aiRejected: true, ocrError: ocrError === "busy" ? "busy" : "failed", message: "AI อ่านเอกสารไม่สำเร็จ ยังไม่ได้บันทึกไฟล์" };
             }
         }
 
-        return { status: "success", fileUrl, viewUrl: fileUrl, fileId: path, parsedData };
+        const path = `${customerId || "misc"}/${workerId || "employer"}/${Date.now()}_${sanitizeStorageFileName(fileName)}`;
+        const { error: upErr } = await sb.storage.from("worker-documents").upload(path, bytes, { contentType: mimeType, upsert: true });
+        if (upErr) return { status: "error", message: upErr.message };
+
+        const { data: pub } = sb.storage.from("worker-documents").getPublicUrl(path);
+        const fileUrl = pub.publicUrl;
+
+        return { status: "success", fileUrl, viewUrl: fileUrl, fileId: path, parsedData, ocrAttempted };
     }
 
     // -------------------- saveUser (needs service role -> Edge Function) --------------------

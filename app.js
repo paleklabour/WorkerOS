@@ -2499,6 +2499,10 @@ function processJobAppointmentFile(file) {
         const fileName = `job-appointment_${editId || Date.now()}${extFromDataUrl(fileContent)}`;
 
         const uploadResult = await uploadDocumentFile(fileContent, fileName, customerId, workerIds[0] || "", "job-appointment");
+        if (uploadResult && uploadResult.aiRejected) {
+            statusEl.innerHTML = `<span class="ai-error">${getAiRejectedMessage(uploadResult.ocrError)}</span>`;
+            return;
+        }
         if (!uploadResult) {
             statusEl.innerHTML = `<span class="ai-error">❌ อัปโหลดไม่สำเร็จ กรุณาลองใหม่</span>`;
             return;
@@ -2604,6 +2608,12 @@ function processCustomerDocFile(file, docType) {
             const fileName = `${nameClean}_${docType}${suffix}${extFromDataUrl(fileContent)}`;
 
             const uploadResult = await uploadDocumentFile(fileContent, fileName, editId, "", docType);
+            if (uploadResult && uploadResult.aiRejected) {
+                renderCustomerAttachmentStatus(docType);
+                statusEl.insertAdjacentHTML('afterbegin', `<span class="ai-error">${getAiRejectedMessage(uploadResult.ocrError)}</span>`);
+                resolve();
+                return;
+            }
             const storedUrl = uploadResult ? uploadResult.fileUrl : null;
             const serverUrl = storedUrl || await uploadFileToServer(fileContent, fileName);
             const updatedList = [...(tempCustomerAttachments[docType] || []), { name: fileName, data: serverUrl || fileContent }];
@@ -2841,6 +2851,12 @@ function processUploadedFile(file, docType) {
             const fileName = `${uidPrefix}${nameClean}_${docType}${suffix}${extFromDataUrl(fileContent)}`;
 
             const uploadResult = await uploadDocumentFile(fileContent, fileName, employerId, editId, docType);
+            if (uploadResult && uploadResult.aiRejected) {
+                renderWorkerAttachmentStatus(docType);
+                statusEl.insertAdjacentHTML('afterbegin', `<span class="ai-error">${getAiRejectedMessage(uploadResult.ocrError)}</span>`);
+                resolve();
+                return;
+            }
             const storedUrl = uploadResult ? uploadResult.fileUrl : null;
             const serverUrl = storedUrl || await uploadFileToServer(fileContent, fileName);
             // เก็บสะสมทุกไฟล์ที่เคยแนบไว้ (เช่น เอกสารต่ออายุรายปี) ไม่ลบของเก่าทิ้งเมื่อแนบไฟล์ใหม่
@@ -4727,6 +4743,10 @@ function processExpenseSlipFile(file) {
         const fileName = file.name;
 
         const uploadResult = await uploadDocumentFile(fileContent, fileName, "expenses", "", "expense-slip");
+        if (uploadResult && uploadResult.aiRejected) {
+            statusEl.innerHTML = `<span class="ai-error">${getAiRejectedMessage(uploadResult.ocrError)}</span>`;
+            return;
+        }
         const storedUrl = uploadResult ? uploadResult.fileUrl : null;
 
         if (!storedUrl) {
@@ -6590,6 +6610,19 @@ async function deleteStorageFileByUrl(url) {
     }
 }
 
+function createAiRejectedError(ocrError) {
+    const err = new Error(getAiRejectedMessage(ocrError));
+    err.aiRejected = true;
+    err.ocrError = ocrError;
+    return err;
+}
+
+function getAiRejectedMessage(ocrError) {
+    return ocrError === 'busy'
+        ? "⚠️ AI ไม่ว่าง (Gemini มีผู้ใช้งานมาก) — ยังไม่ได้บันทึกไฟล์ กรุณาแนบใหม่อีกครั้งในอีกสักครู่"
+        : "⚠️ AI อ่านเอกสารไม่สำเร็จ — ยังไม่ได้บันทึกไฟล์ กรุณาตรวจไฟล์แล้วแนบใหม่";
+}
+
 // อัปโหลดไฟล์ขึ้น Supabase Storage (bucket worker-documents) แล้วเรียก Edge Function
 // "ocr-document" (Gemini) ให้อ่านข้อมูลจากเอกสารกลับมาด้วยถ้าเป็นประเภทเอกสารที่รองรับ
 async function uploadDocumentFile(fileDataUrl, fileName, customerId = "", workerId = "", docType = "") {
@@ -6605,8 +6638,14 @@ async function uploadDocumentFile(fileDataUrl, fileName, customerId = "", worker
                 fileUrl: resData.fileUrl,
                 viewUrl: resData.viewUrl,
                 fileId: resData.fileId,
-                parsedData: resData.parsedData
+                parsedData: resData.parsedData,
+                ocrAttempted: !!resData.ocrAttempted
             };
+        } else if (resData && resData.aiRejected) {
+            // เอกสารประเภทที่ใช้ AI แต่ AI อ่านไม่สำเร็จ — ไม่เก็บไฟล์ (กันไฟล์ซ้ำซ้อนตอนแนบใหม่) ผู้เรียกต้องเช็ก aiRejected
+            // แล้วหยุด ห้าม fallback ไปเก็บไฟล์ทางอื่น (uploadFileToServer)
+            showToast(getAiRejectedMessage(resData.ocrError), "warning");
+            return { aiRejected: true, ocrError: resData.ocrError };
         } else {
             console.warn("Storage upload failed:", resData && resData.message);
             showToast("❌ อัปโหลดไฟล์ล้มเหลว: " + ((resData && resData.message) || "ข้อผิดพลาดระบบ"), "danger");
@@ -6840,6 +6879,7 @@ async function attachDocumentToCustomer(c, docType, fileContent) {
     const fileName = `${nameClean}_${docType}${suffix}${extFromDataUrl(fileContent)}`;
 
     const uploadResult = await uploadDocumentFile(fileContent, fileName, c.id, "", docType);
+    if (uploadResult && uploadResult.aiRejected) throw createAiRejectedError(uploadResult.ocrError);
     const storedUrl = uploadResult ? uploadResult.fileUrl : null;
     const serverUrl = storedUrl || await uploadFileToServer(fileContent, fileName);
 
@@ -6865,6 +6905,7 @@ async function handleCustomerFolderFileUpload(event) {
 
     let failCount = 0;
     let anyAiRead = false;
+    let aiRejectedCount = 0; // AI อ่านไม่สำเร็จ = ไม่ได้บันทึกไฟล์ (ต้องแนบใหม่)
     for (const file of files) {
         const idx = customers.findIndex(x => x.id === activeFolderCustomerId);
         if (idx === -1) break;
@@ -6875,13 +6916,14 @@ async function handleCustomerFolderFileUpload(event) {
             if (uploadResult && uploadResult.parsedData) anyAiRead = true;
         } catch (err) {
             console.error("attachDocumentToCustomer failed:", err);
-            failCount++;
+            if (err && err.aiRejected) aiRejectedCount++; else failCount++;
         }
     }
 
     if (anyAiRead) showToast("✨ AI อ่านข้อมูลจากเอกสารและอัปเดตข้อมูลนายจ้างให้อัตโนมัติแล้ว กรุณาตรวจสอบความถูกต้องอีกครั้ง", "success");
+    if (aiRejectedCount > 0) showToast(`⚠️ AI อ่านไม่สำเร็จ ${aiRejectedCount} จาก ${files.length} ไฟล์ — ไฟล์เหล่านี้ยังไม่ได้บันทึก กรุณาแนบใหม่อีกครั้งในอีกสักครู่`, "warning");
     if (failCount > 0) showToast(`❌ อัปโหลดไม่สำเร็จ ${failCount} จาก ${files.length} ไฟล์`, "danger");
-    else showToast("✅ อัปโหลดไฟล์และอัปเดตแฟ้มเอกสารสำเร็จ!", "success");
+    else if (aiRejectedCount === 0) showToast("✅ อัปโหลดไฟล์และอัปเดตแฟ้มเอกสารสำเร็จ!", "success");
 
     saveData();
     openCustomerFolderModal(activeFolderCustomerId);
@@ -8052,9 +8094,16 @@ function extractDocExpiryDate(docType, parsedData) {
     return null;
 }
 
+// ประเภทเอกสารที่มีวันหมดอายุพิมพ์อยู่จริงและ AI อ่านมาเก็บไว้ได้ (ต้องตรงกับ extractDocExpiryDate ด้านบน)
+const EXPIRY_TRACKED_WORKER_DOC_TYPES = ['worker-wp-doc', 'worker-passport'];
+
 // ไฟล์นี้ "หมดอายุ" หรือยัง — ถ้าเจ้าหน้าที่เคยลากย้ายไฟล์นี้ด้วยตัวเอง (fItem.manualExpired) ให้ยึดตามนั้นก่อนเสมอ
 // ไม่งั้นถ้ามีวันหมดอายุจริงที่บันทึกไว้ตอนแนบไฟล์ (fItem.expiryDate) ให้เทียบกับวันนี้ตรงๆ
-// ถ้าไม่มีทั้งคู่ (ไฟล์เก่าก่อนมีฟีเจอร์นี้ หรือเอกสารประเภทที่ไม่มีวันหมดอายุพิมพ์อยู่) ให้ตัดสินจากลำดับอัปโหลดแทน (ไฟล์ล่าสุดของประเภทนั้น = ปัจจุบัน)
+// ถ้าไม่มีวันหมดอายุ:
+//   - ใบอนุญาตทำงาน/พาสปอร์ต (ปกติมีวันหมดอายุ แต่ AI อ่านไม่ได้ เช่น Gemini ไม่ว่าง หรือเป็นหน้า 2-3 ของเอกสารชุดเดียวกัน)
+//     ถือว่ายังใช้ได้ เว้นแต่มีไฟล์ประเภทเดียวกันที่แนบทีหลังและรู้วันหมดอายุแน่ชัดมาแทนแล้ว — เดิมใช้ลำดับอัปโหลดล้วน ๆ
+//     ทำให้ไฟล์ที่เพิ่งแนบ (แต่ไม่ใช่ไฟล์สุดท้าย) ตกไปอยู่ "หมดอายุ" ทั้งที่ยังไม่หมด
+//   - เอกสารประเภทที่ไม่มีวันหมดอายุพิมพ์อยู่ ให้ตัดสินจากลำดับอัปโหลดแทน (ไฟล์ล่าสุดของประเภทนั้น = ปัจจุบัน)
 function isWorkerDocFileExpired(fItem, fIdx, list, docType) {
     if (fItem && typeof fItem.manualExpired === 'boolean') return fItem.manualExpired;
     if (fItem && fItem.expiryDate) {
@@ -8068,6 +8117,9 @@ function isWorkerDocFileExpired(fItem, fIdx, list, docType) {
     // ใบเสร็จรับเงินเป็นหลักฐานการจ่ายเงิน ไม่มีวันหมดอายุจริงและยังใช้อ้างอิงได้เสมอ ต่อให้มีหลายใบสะสมไว้
     // (ไม่งั้นถ้าอัปโหลดซ้ำ/มีหลายใบจากคนละรอบต่ออายุ ใบเก่าจะโดนจัดเป็น "หมดอายุ" ไปเองตามลำดับอัปโหลดทั้งที่ไม่ควร)
     if (docType === 'worker-receipt') return false;
+    if (EXPIRY_TRACKED_WORKER_DOC_TYPES.includes(docType)) {
+        return list.slice(fIdx + 1).some(f => f && f.expiryDate && f.manualExpired !== true);
+    }
     return fIdx < list.length - 1;
 }
 
@@ -8080,6 +8132,7 @@ async function attachDocumentToWorker(w, docType, fileContent) {
     const fileName = `${uidPrefix}${nameClean}_${docType}${suffix}${extFromDataUrl(fileContent)}`;
 
     const uploadResult = await uploadDocumentFile(fileContent, fileName, w.employerId, w.id, docType);
+    if (uploadResult && uploadResult.aiRejected) throw createAiRejectedError(uploadResult.ocrError);
     const storedUrl = uploadResult ? uploadResult.fileUrl : null;
     const serverUrl = storedUrl || await uploadFileToServer(fileContent, fileName);
 
@@ -8131,6 +8184,7 @@ async function handleFolderFileUpload(event) {
 
     let anyAiRead = false;
     let failCount = 0;
+    let aiRejectedCount = 0; // AI อ่านไม่สำเร็จ = ไม่ได้บันทึกไฟล์ (ต้องแนบใหม่)
     for (const file of files) {
         const workerIdx = workers.findIndex(w => w.id === activeFolderWorkerId);
         if (workerIdx === -1) break;
@@ -8145,13 +8199,14 @@ async function handleFolderFileUpload(event) {
             }
         } catch (err) {
             console.error("attachDocumentToWorker failed:", err);
-            failCount++;
+            if (err && err.aiRejected) aiRejectedCount++; else failCount++;
         }
     }
 
     if (anyAiRead) showToast("✨ AI อ่านข้อมูลจากเอกสารสำเร็จ กำลังอัปเดตข้อมูลคนงาน", "success");
+    if (aiRejectedCount > 0) showToast(`⚠️ AI อ่านไม่สำเร็จ ${aiRejectedCount} จาก ${files.length} ไฟล์ — ไฟล์เหล่านี้ยังไม่ได้บันทึก กรุณาแนบใหม่อีกครั้งในอีกสักครู่`, "warning");
     if (failCount > 0) showToast(`❌ อัปโหลดไม่สำเร็จ ${failCount} จาก ${files.length} ไฟล์`, "danger");
-    else showToast("✅ อัปโหลดไฟล์และอัปเดตแฟ้มคนงานต่างด้าวสำเร็จ!", "success");
+    else if (aiRejectedCount === 0) showToast("✅ อัปโหลดไฟล์และอัปเดตแฟ้มคนงานต่างด้าวสำเร็จ!", "success");
 
     saveData();
     // Refresh folder modal and worker lists/dashboard
@@ -8202,13 +8257,22 @@ function matchWorkerFromFilename(filename) {
 
 function matchDocTypeFromFilename(filename) {
     const base = filename.toLowerCase();
+    // แปลงตัวคั่น (_ - . วงเล็บ) เป็นช่องว่างแล้วเติมช่องว่างหัวท้าย ให้คำย่ออย่าง " wp " / " ci " จับได้ทุกตำแหน่ง
+    // เช่น "6689490000811_wp.pdf", "wp-6689490000811.jpg" (เดิมจับได้แค่ตอนมีตัวคั่นทั้ง 2 ข้าง เช่น "_wp_")
+    const spaced = ` ${base.replace(/[_\-.()\[\]]+/g, ' ')} `;
     for (const dt of WORKER_DOC_TYPES) {
-        if (dt.keywords.some(k => base.includes(k.toLowerCase()))) return dt.key;
+        if (dt.keywords.some(k => base.includes(k.toLowerCase()) || spaced.includes(k.toLowerCase()))) return dt.key;
     }
     return null;
 }
 
 let bulkImportRows = [];
+
+// ผล AI ของไฟล์ที่นำเข้าสำเร็จ: filled = AI เติมข้อมูลแล้ว / none = ประเภทเอกสารนี้ไม่ใช้ AI
+// (AI อ่านไม่สำเร็จ = ไม่บันทึกไฟล์ ไปตกที่ catch ใน runBulkImport แทน ตั้ง aiStatus เป็น busy/failed ที่นั่น)
+function getBulkImportAiStatus(uploadResult) {
+    return uploadResult && uploadResult.ocrAttempted && uploadResult.parsedData ? 'filled' : 'none';
+}
 
 function openBulkImportModal() {
     bulkImportRows = [];
@@ -8308,7 +8372,10 @@ function renderBulkImportTable() {
 
     tbody.innerHTML = bulkImportRows.map((row, idx) => {
         let statusBadge;
-        if (row.status === 'success') statusBadge = '<span class="badge badge-success" style="font-size:10px;">✅ นำเข้าแล้ว</span>';
+        if (row.status === 'failed' && row.aiStatus === 'busy') statusBadge = '<span class="badge badge-warning" style="font-size:10px;" title="Gemini มีผู้ใช้งานมาก ไฟล์นี้ยังไม่ได้บันทึก — กด นำเข้า อีกครั้งในอีกสักครู่">⚠️ ยังไม่บันทึก • AI ไม่ว่าง</span>';
+        else if (row.status === 'failed' && row.aiStatus === 'failed') statusBadge = '<span class="badge badge-warning" style="font-size:10px;" title="AI อ่านเอกสารไม่ได้ ไฟล์นี้ยังไม่ได้บันทึก — ตรวจไฟล์แล้วลองใหม่">⚠️ ยังไม่บันทึก • AI อ่านไม่ได้</span>';
+        else if (row.status === 'success' && row.aiStatus === 'filled') statusBadge = '<span class="badge badge-success" style="font-size:10px;">✅ นำเข้าแล้ว • AI เติมข้อมูลแล้ว</span>';
+        else if (row.status === 'success') statusBadge = '<span class="badge badge-success" style="font-size:10px;">✅ นำเข้าแล้ว</span>';
         else if (row.status === 'failed') statusBadge = '<span class="badge badge-danger" style="font-size:10px;">❌ ล้มเหลว</span>';
         else if (row.confidence === 'high') statusBadge = '<span class="badge badge-success" style="font-size:10px;">✅ ตรงเลข 13 หลัก</span>';
         else if (row.confidence === 'medium') statusBadge = '<span class="badge badge-gold" style="font-size:10px;">🟡 จับคู่จากชื่อ</span>';
@@ -8404,19 +8471,23 @@ async function runBulkImport() {
             const w = workers.find(item => item.id === row.workerId);
             if (!w) throw new Error('ไม่พบคนงานที่จับคู่ไว้');
 
-            await attachDocumentToWorker(w, row.docType, fileContent);
+            const uploadResult = await attachDocumentToWorker(w, row.docType, fileContent);
             row.status = 'success';
+            row.aiStatus = getBulkImportAiStatus(uploadResult);
             successCount++;
         } catch (err) {
             console.error('Bulk import failed for', row.fileName, err);
             row.status = 'failed';
+            row.aiStatus = err && err.aiRejected ? (err.ocrError === 'busy' ? 'busy' : 'failed') : null;
             failCount++;
         }
         renderBulkImportTable();
     }
 
     btn.disabled = false;
-    progressEl.innerText = `✅ เสร็จสิ้น: สำเร็จ ${successCount} รายการ${failCount > 0 ? `, ล้มเหลว ${failCount} รายการ (ดูสถานะรายไฟล์ในตาราง)` : ''}`;
+    const aiMissedCount = rowsToImport.filter(r => r.status === 'failed' && (r.aiStatus === 'busy' || r.aiStatus === 'failed')).length;
+    progressEl.innerText = `✅ เสร็จสิ้น: สำเร็จ ${successCount} รายการ${failCount > 0 ? `, ล้มเหลว ${failCount} รายการ (ดูสถานะรายไฟล์ในตาราง)` : ''}` +
+        (aiMissedCount > 0 ? ` — ⚠️ ${aiMissedCount} ไฟล์ AI อ่านไม่สำเร็จ จึงยังไม่ได้บันทึก (แถวสีเหลือง) กด "นำเข้าที่เลือกทั้งหมด" อีกครั้งเพื่อลองใหม่เฉพาะไฟล์เหล่านี้` : '');
 
     saveData();
     renderWorkers();
