@@ -1230,6 +1230,58 @@ h1, h2, h3, h4, h5, h6 {
     background-color: #fef2f2;
 }
 
+/* ==================== โมดัลเลือก "กรอกเอง / รอแนบใหม่" ตอน AI อ่านเอกสารไม่สำเร็จ ==================== */
+.ai-rejected-backdrop {
+    z-index: 1100; /* ต้องอยู่เหนือโมดัลอื่นที่เปิดค้างอยู่ เช่น Bulk Import (1050) ฟอร์มคนงาน/แฟ้มเอกสาร */
+}
+
+.ai-rejected-content {
+    max-width: 480px;
+}
+
+.ai-rejected-file {
+    font-weight: 600;
+    color: var(--navy-dark);
+    word-break: break-all;
+    margin-bottom: 6px;
+}
+
+.ai-rejected-text {
+    color: var(--text-dark);
+    margin-bottom: 12px;
+    line-height: 1.5;
+}
+
+.ai-rejected-options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 12px;
+    background-color: var(--gray-bg);
+    border: 1px solid #e2e8f0;
+    border-radius: var(--radius-sm);
+    font-size: 12.5px;
+    line-height: 1.5;
+}
+
+.ai-rejected-remember {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    font-size: 12.5px;
+    cursor: pointer;
+}
+
+.ai-rejected-footer {
+    display: flex;
+    gap: 10px;
+}
+
+.ai-rejected-footer .btn {
+    flex: 1;
+}
+
 /* ==================== ข้อความขอสลิปโอนเงินในใบวางบิล ==================== */
 .invoice-slip-notice {
     font-size: 13px;

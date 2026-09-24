@@ -6610,6 +6610,48 @@ async function deleteStorageFileByUrl(url) {
     }
 }
 
+// ==================== ถามผู้ใช้ตอน AI อ่านเอกสารไม่สำเร็จ: กรอกเอง หรือรอแนบใหม่ ====================
+// งานที่แนบทีละหลายไฟล์ (bulk import / แฟ้มเอกสาร) เรียก beginAiRejectedBatch() ก่อนวนไฟล์ และ endAiRejectedBatch()
+// หลังจบ เพื่อให้มีช่อง "ใช้คำตอบนี้กับไฟล์ที่เหลือ" ไม่ต้องตอบซ้ำทุกไฟล์
+let aiRejectedBatchActive = false;
+let aiRejectedBatchChoice = null;
+let pendingAiRejectedResolve = null;
+
+function beginAiRejectedBatch() {
+    aiRejectedBatchActive = true;
+    aiRejectedBatchChoice = null;
+}
+
+function endAiRejectedBatch() {
+    aiRejectedBatchActive = false;
+    aiRejectedBatchChoice = null;
+}
+
+function askAiRejectedChoice(fileName, ocrError) {
+    if (aiRejectedBatchChoice) return Promise.resolve(aiRejectedBatchChoice);
+
+    document.getElementById("ai-rejected-title").innerText = ocrError === 'busy' ? "⚠️ AI ไม่ว่าง" : "⚠️ AI อ่านเอกสารไม่สำเร็จ";
+    document.getElementById("ai-rejected-filename").innerText = `📄 ${fileName}`;
+    document.getElementById("ai-rejected-text").innerText = ocrError === 'busy'
+        ? "Gemini มีผู้ใช้งานมากตอนนี้ AI จึงยังอ่านเอกสารนี้ไม่ได้ ไฟล์ยังไม่ถูกบันทึก ต้องการทำอย่างไร?"
+        : "AI อ่านข้อมูลจากเอกสารนี้ไม่ได้ (ไฟล์อาจไม่ชัด หรือไม่ใช่เอกสารประเภทนี้) ไฟล์ยังไม่ถูกบันทึก ต้องการทำอย่างไร?";
+    document.getElementById("ai-rejected-remember").checked = false;
+    document.getElementById("ai-rejected-remember-wrap").classList.toggle("hidden", !aiRejectedBatchActive);
+    document.getElementById("ai-rejected-modal").classList.remove("hidden");
+
+    return new Promise(resolve => { pendingAiRejectedResolve = resolve; });
+}
+
+function resolveAiRejectedChoice(choice) {
+    document.getElementById("ai-rejected-modal").classList.add("hidden");
+    if (aiRejectedBatchActive && document.getElementById("ai-rejected-remember").checked) {
+        aiRejectedBatchChoice = choice;
+    }
+    const resolve = pendingAiRejectedResolve;
+    pendingAiRejectedResolve = null;
+    if (resolve) resolve(choice);
+}
+
 function createAiRejectedError(ocrError) {
     const err = new Error(getAiRejectedMessage(ocrError));
     err.aiRejected = true;
@@ -6642,8 +6684,20 @@ async function uploadDocumentFile(fileDataUrl, fileName, customerId = "", worker
                 ocrAttempted: !!resData.ocrAttempted
             };
         } else if (resData && resData.aiRejected) {
-            // เอกสารประเภทที่ใช้ AI แต่ AI อ่านไม่สำเร็จ — ไม่เก็บไฟล์ (กันไฟล์ซ้ำซ้อนตอนแนบใหม่) ผู้เรียกต้องเช็ก aiRejected
-            // แล้วหยุด ห้าม fallback ไปเก็บไฟล์ทางอื่น (uploadFileToServer)
+            // เอกสารประเภทที่ใช้ AI แต่ AI อ่านไม่สำเร็จ — ไฟล์ยังไม่ถูกเก็บ ให้ผู้ใช้เลือก:
+            //   manual = อัปโหลดไฟล์เดิมอีกรอบแบบไม่ผ่าน AI แล้วกรอกข้อมูลเอง
+            //   retry  = ไม่เก็บไฟล์ (กันไฟล์ซ้ำซ้อนตอนแนบใหม่) ผู้เรียกต้องเช็ก aiRejected แล้วหยุด
+            //            ห้าม fallback ไปเก็บไฟล์ทางอื่น (uploadFileToServer)
+            const choice = await askAiRejectedChoice(fileName, resData.ocrError);
+            if (choice === 'manual') {
+                const manualRes = await window.supabaseAdapter.uploadFile(fileDataUrl, fileName, customerId, workerId, docType, currentUser, { skipOcr: true });
+                if (manualRes && manualRes.status === 'success') {
+                    showToast("✅ บันทึกไฟล์แล้ว (ไม่ผ่าน AI) — กรุณากรอกข้อมูลเอง", "success");
+                    return { fileUrl: manualRes.fileUrl, viewUrl: manualRes.viewUrl, fileId: manualRes.fileId, parsedData: null, ocrAttempted: false };
+                }
+                showToast("❌ อัปโหลดไฟล์ล้มเหลว: " + ((manualRes && manualRes.message) || "ข้อผิดพลาดระบบ"), "danger");
+                return null;
+            }
             showToast(getAiRejectedMessage(resData.ocrError), "warning");
             return { aiRejected: true, ocrError: resData.ocrError };
         } else {
@@ -6906,6 +6960,7 @@ async function handleCustomerFolderFileUpload(event) {
     let failCount = 0;
     let anyAiRead = false;
     let aiRejectedCount = 0; // AI อ่านไม่สำเร็จ = ไม่ได้บันทึกไฟล์ (ต้องแนบใหม่)
+    beginAiRejectedBatch();
     for (const file of files) {
         const idx = customers.findIndex(x => x.id === activeFolderCustomerId);
         if (idx === -1) break;
@@ -6920,6 +6975,7 @@ async function handleCustomerFolderFileUpload(event) {
         }
     }
 
+    endAiRejectedBatch();
     if (anyAiRead) showToast("✨ AI อ่านข้อมูลจากเอกสารและอัปเดตข้อมูลนายจ้างให้อัตโนมัติแล้ว กรุณาตรวจสอบความถูกต้องอีกครั้ง", "success");
     if (aiRejectedCount > 0) showToast(`⚠️ AI อ่านไม่สำเร็จ ${aiRejectedCount} จาก ${files.length} ไฟล์ — ไฟล์เหล่านี้ยังไม่ได้บันทึก กรุณาแนบใหม่อีกครั้งในอีกสักครู่`, "warning");
     if (failCount > 0) showToast(`❌ อัปโหลดไม่สำเร็จ ${failCount} จาก ${files.length} ไฟล์`, "danger");
@@ -8185,6 +8241,7 @@ async function handleFolderFileUpload(event) {
     let anyAiRead = false;
     let failCount = 0;
     let aiRejectedCount = 0; // AI อ่านไม่สำเร็จ = ไม่ได้บันทึกไฟล์ (ต้องแนบใหม่)
+    beginAiRejectedBatch();
     for (const file of files) {
         const workerIdx = workers.findIndex(w => w.id === activeFolderWorkerId);
         if (workerIdx === -1) break;
@@ -8203,6 +8260,7 @@ async function handleFolderFileUpload(event) {
         }
     }
 
+    endAiRejectedBatch();
     if (anyAiRead) showToast("✨ AI อ่านข้อมูลจากเอกสารสำเร็จ กำลังอัปเดตข้อมูลคนงาน", "success");
     if (aiRejectedCount > 0) showToast(`⚠️ AI อ่านไม่สำเร็จ ${aiRejectedCount} จาก ${files.length} ไฟล์ — ไฟล์เหล่านี้ยังไม่ได้บันทึก กรุณาแนบใหม่อีกครั้งในอีกสักครู่`, "warning");
     if (failCount > 0) showToast(`❌ อัปโหลดไม่สำเร็จ ${failCount} จาก ${files.length} ไฟล์`, "danger");
@@ -8455,6 +8513,7 @@ async function runBulkImport() {
 
     let successCount = 0;
     let failCount = 0;
+    beginAiRejectedBatch();
 
     for (let i = 0; i < rowsToImport.length; i++) {
         const row = rowsToImport[i];
@@ -8484,6 +8543,7 @@ async function runBulkImport() {
         renderBulkImportTable();
     }
 
+    endAiRejectedBatch();
     btn.disabled = false;
     const aiMissedCount = rowsToImport.filter(r => r.status === 'failed' && (r.aiStatus === 'busy' || r.aiStatus === 'failed')).length;
     progressEl.innerText = `✅ เสร็จสิ้น: สำเร็จ ${successCount} รายการ${failCount > 0 ? `, ล้มเหลว ${failCount} รายการ (ดูสถานะรายไฟล์ในตาราง)` : ''}` +

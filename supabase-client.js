@@ -210,7 +210,8 @@
     }
 
     // -------------------- File upload (Supabase Storage + OCR edge function) --------------------
-    async function uploadFile(fileDataUrl, fileName, customerId, workerId, docType, currentUser) {
+    // options.skipOcr = ผู้ใช้เลือก "บันทึกไฟล์ กรอกเอง" หลัง AI อ่านไม่สำเร็จ — อัปโหลดเลยโดยไม่เรียก AI ซ้ำ
+    async function uploadFile(fileDataUrl, fileName, customerId, workerId, docType, currentUser, options = {}) {
         const parts = fileDataUrl.split(",");
         if (parts.length < 2) return { status: "error", message: "invalid file data" };
         const mimeType = parts[0].match(/:(.*?);/)[1];
@@ -224,7 +225,7 @@
         let parsedData = null;
         let ocrError = null;
         // ต้องตรงกับ ALLOWED_DOC_TYPES ใน supabase/functions/ocr-document/index.ts
-        const ocrAttempted = !!docType && ["worker-passport", "worker-wp-doc", "worker-visa", "worker-myanmar-id", "worker-pink-card", "worker-insurance-doc", "cust-id-card", "cust-cert", "expense-slip", "job-appointment"].includes(docType);
+        const ocrAttempted = !options.skipOcr && !!docType && ["worker-passport", "worker-wp-doc", "worker-visa", "worker-myanmar-id", "worker-pink-card", "worker-insurance-doc", "cust-id-card", "cust-cert", "expense-slip", "job-appointment"].includes(docType);
         if (ocrAttempted) {
             try {
                 const headers = await getAuthHeaders();

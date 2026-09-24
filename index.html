@@ -2723,6 +2723,30 @@
             </div>
         </div>
 
+        <!-- ==================== AI อ่านเอกสารไม่สำเร็จ: ให้เลือกกรอกเอง หรือรอแนบใหม่ (ดู askAiRejectedChoice ใน app.js) ==================== -->
+        <div id="ai-rejected-modal" class="modal-backdrop hidden ai-rejected-backdrop">
+            <div class="modal-content ai-rejected-content">
+                <div class="modal-header">
+                    <h3 id="ai-rejected-title">⚠️ AI ไม่ว่าง</h3>
+                </div>
+                <div class="modal-body">
+                    <p class="ai-rejected-file" id="ai-rejected-filename"></p>
+                    <p class="ai-rejected-text" id="ai-rejected-text"></p>
+                    <div class="ai-rejected-options">
+                        <div><strong>✍️ บันทึกไฟล์ แล้วกรอกข้อมูลเอง</strong> — ไฟล์เข้าระบบทันที แต่ข้อมูล (เลข/ชื่อ/วันหมดอายุ) ต้องพิมพ์เอง</div>
+                        <div><strong>⏳ ยังไม่บันทึก รอแนบใหม่</strong> — ไฟล์ไม่เข้าระบบ แนบไฟล์เดิมอีกครั้งทีหลังให้ AI อ่านให้</div>
+                    </div>
+                    <label class="ai-rejected-remember hidden" id="ai-rejected-remember-wrap">
+                        <input type="checkbox" id="ai-rejected-remember"> ใช้คำตอบนี้กับไฟล์ที่เหลือในรอบนี้ด้วย
+                    </label>
+                </div>
+                <div class="modal-footer ai-rejected-footer">
+                    <button type="button" class="btn btn-outline" onclick="resolveAiRejectedChoice('retry')">⏳ รอแนบใหม่</button>
+                    <button type="button" class="btn btn-gold" onclick="resolveAiRejectedChoice('manual')">✍️ บันทึกไฟล์ กรอกเอง</button>
+                </div>
+            </div>
+        </div>
+
         <!-- ==================== TOAST NOTIFICATION ==================== -->
         <div id="toast-container" class="toast-container"></div>
     </div>
