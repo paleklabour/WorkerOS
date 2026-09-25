@@ -1759,13 +1759,13 @@
                         <div class="form-row" style="align-items: center; margin-bottom: 20px; display: flex; gap: 20px;">
                             <div class="form-group" style="width: 140px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; margin-bottom: 0;">
                                 <label style="font-weight: 600; font-size: 13px; text-align: center; width: 100%; color: var(--navy-dark);">รูปถ่ายคนงาน</label>
-                                <div style="width: 110px; height: 110px; border: 2px dashed #cbd5e1; border-radius: 50%; display: flex; align-items: center; justify-content: center; overflow: hidden; background-color: #f8fafc; position: relative;" id="worker-photo-preview-container">
+                                <div style="width: 110px; height: 110px; border: 2px dashed #cbd5e1; border-radius: 50%; display: flex; align-items: center; justify-content: center; background-color: #f8fafc; position: relative;" id="worker-photo-preview-container">
                                     <span style="font-size: 32px; color: #94a3b8;" id="worker-photo-icon">👤</span>
-                                    <img id="worker-photo-preview" src="" alt="Worker Photo" class="hidden" style="width: 100%; height: 100%; object-fit: cover;">
+                                    <img id="worker-photo-preview" src="" alt="Worker Photo" class="hidden" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
                                     <input type="file" id="worker-photo-input" accept="image/*" onchange="handleWorkerPhotoUpload(event)" style="position: absolute; width: 100%; height: 100%; opacity: 0; cursor: pointer;">
                                     <button type="button" class="remove-photo-btn" onclick="removeWorkerPhoto(event)" title="ลบรูปถ่าย">&times;</button>
                                 </div>
-                                <small style="font-size: 9.5px; color: var(--text-muted); text-align: center; line-height: 1.3;">คลิกอัปโหลดรูปภาพ<br>(ฉากหลังขาวออโต้)</small>
+                                <small style="font-size: 9.5px; color: var(--text-muted); text-align: center; line-height: 1.3;">คลิกอัปโหลดรูปภาพ</small>
                             </div>
                             <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 12px; width: calc(100% - 160px);">
                                 <div class="form-row" style="margin-bottom: 0;">

@@ -8121,134 +8121,32 @@ function removeWorkerPhoto(event) {
     deleteStorageFileByUrl(oldUrl);
 }
 
+// แนบรูปถ่ายคนงานแบบธรรมดา — ใช้ไฟล์ต้นฉบับตามที่เลือกมา (เดิมแปลงฉากหลังเป็นสีขาว + ครอป 300x300 อัตโนมัติ ซึ่งทำให้รูปเพี้ยน)
 function handleWorkerPhotoUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
-    
+
     const preview = document.getElementById("worker-photo-preview");
     const icon = document.getElementById("worker-photo-icon");
-    
-    showToast("🪄 AI กำลังลบฉากหลังของคนงานเป็นสีขาว...", "warning");
-    
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        processImageBackgroundToWhite(e.target.result, async function(processedDataUrl) {
-            // Set local preview first
-            preview.src = processedDataUrl;
-            preview.classList.remove("hidden");
-            icon.classList.add("hidden");
-            showToast("✅ AI ลบฉากหลังเปลี่ยนเป็นสีขาวเรียบร้อย!", "success");
 
-            // อัปโหลดขึ้น Supabase Storage แบบ async
-            const editId = document.getElementById("worker-edit-id").value;
-            const employerId = document.getElementById("worker-employer-id").value;
-            const firstName = document.getElementById("worker-first-name").value.trim() || "worker";
-            const uploadResult = await uploadDocumentFile(processedDataUrl, `${firstName}_photo.jpg`, employerId, editId);
-            if (uploadResult && uploadResult.viewUrl) {
-                preview.src = uploadResult.viewUrl; // สลับจาก data URL ชั่วคราวเป็นลิงก์ไฟล์จริงบน Storage
-            }
-        });
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        const dataUrl = e.target.result;
+        // Set local preview first
+        preview.src = dataUrl;
+        preview.classList.remove("hidden");
+        icon.classList.add("hidden");
+
+        // อัปโหลดขึ้น Supabase Storage แบบ async
+        const editId = document.getElementById("worker-edit-id").value;
+        const employerId = document.getElementById("worker-employer-id").value;
+        const firstName = document.getElementById("worker-first-name").value.trim() || "worker";
+        const uploadResult = await uploadDocumentFile(dataUrl, `${firstName}_photo${extFromDataUrl(dataUrl)}`, employerId, editId);
+        if (uploadResult && uploadResult.viewUrl) {
+            preview.src = uploadResult.viewUrl; // สลับจาก data URL ชั่วคราวเป็นลิงก์ไฟล์จริงบน Storage
+        }
     };
     reader.readAsDataURL(file);
-}
-
-function processImageBackgroundToWhite(imgUrl, callback) {
-    const img = new Image();
-    img.src = imgUrl;
-    img.onload = () => {
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
-        
-        // Define high quality passport size dimensions (300x300 pixels)
-        const targetW = 300;
-        const targetH = 300;
-        canvas.width = targetW;
-        canvas.height = targetH;
-        
-        // Temporarily draw image to examine pixels
-        ctx.drawImage(img, 0, 0, targetW, targetH);
-        const imgData = ctx.getImageData(0, 0, targetW, targetH);
-        const data = imgData.data;
-        
-        // We will sample background colors from the top/left/right border pixels
-        // where portrait background is typically located.
-        const borderPixels = [];
-        // Sample top border (all columns)
-        for (let x = 0; x < targetW; x += 5) {
-            borderPixels.push({ x: x, y: 0 });
-            borderPixels.push({ x: x, y: 5 });
-        }
-        // Sample left/right borders (top half of image is background)
-        for (let y = 0; y < targetH / 2; y += 5) {
-            borderPixels.push({ x: 0, y: y });
-            borderPixels.push({ x: 5, y: y });
-            borderPixels.push({ x: targetW - 1, y: y });
-            borderPixels.push({ x: targetW - 6, y: y });
-        }
-
-        const bgSamples = borderPixels.map(pt => {
-            const idx = (pt.y * targetW + pt.x) * 4;
-            return { r: data[idx], g: data[idx+1], b: data[idx+2] };
-        });
-
-        // Background removal using a multi-sample proximity match
-        // and flood-fill-like heuristic (higher tolerance for border proximity)
-        for (let y = 0; y < targetH; y++) {
-            for (let x = 0; x < targetW; x++) {
-                const idx = (y * targetW + x) * 4;
-                const r = data[idx];
-                const g = data[idx+1];
-                const b = data[idx+2];
-
-                // Check distance against all border samples
-                let minDistance = Infinity;
-                bgSamples.forEach(sample => {
-                    const dist = Math.sqrt((r - sample.r)**2 + (g - sample.g)**2 + (b - sample.b)**2);
-                    if (dist < minDistance) {
-                        minDistance = dist;
-                    }
-                });
-
-                // Threshold varies by position: higher threshold near edges (more aggressive removal),
-                // lower threshold in center/bottom (protecting the person's face/shirt)
-                const distToLeftEdge = x;
-                const distToRightEdge = targetW - 1 - x;
-                const distToTopEdge = y;
-                const distToEdge = Math.min(distToLeftEdge, distToRightEdge, distToTopEdge);
-                
-                let localThreshold = 65; // Base threshold
-                if (distToEdge < 40) {
-                    localThreshold = 110; // Aggressive removal near border edges
-                } else if (distToEdge < 80) {
-                    localThreshold = 85; 
-                }
-
-                // If pixel color is very close to border colors, OR it's extremely bright/desaturated (close to off-white/gray)
-                const isDesaturatedGray = Math.abs(r - g) < 15 && Math.abs(g - b) < 15 && Math.abs(r - b) < 15;
-                const isVeryBright = r > 215 && g > 215 && b > 215; // Clean up light gray/shadows to solid white
-                
-                if (minDistance < localThreshold || (isVeryBright && isDesaturatedGray)) {
-                    data[idx] = 255;
-                    data[idx+1] = 255;
-                    data[idx+2] = 255;
-                }
-            }
-        }
-        
-        // Redraw onto canvas with solid white backdrop
-        ctx.fillStyle = "#FFFFFF";
-        ctx.fillRect(0, 0, targetW, targetH);
-        
-        // Put modified image data back
-        const tempCanvas = document.createElement("canvas");
-        tempCanvas.width = targetW;
-        tempCanvas.height = targetH;
-        const tempCtx = tempCanvas.getContext("2d");
-        tempCtx.putImageData(imgData, 0, 0);
-        
-        ctx.drawImage(tempCanvas, 0, 0);
-        callback(canvas.toDataURL("image/jpeg", 0.9));
-    };
 }
 
 // State tracker for active worker folder modal interaction
