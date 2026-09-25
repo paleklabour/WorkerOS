@@ -2468,6 +2468,84 @@ function dragLeaveHandler(e) {
     e.currentTarget.classList.remove("dragover");
 }
 
+// ==================== วางภาพจากคลิปบอร์ด (Ctrl+V) เป็นไฟล์แนบ ====================
+// เช่น แคปหน้าจอด้วย Win+Shift+S / Print Screen แล้ววาง — ภาพไม่มีบอกว่าเป็นเอกสารประเภทไหน จึงใช้ช่องที่เมาส์ชี้อยู่
+// เป็นตัวบอก (ใช้ "คลิกช่อง" ไม่ได้ เพราะคลิกแล้วเปิดหน้าต่างเลือกไฟล์) — ยกเว้นหน้าต่างนำเข้าหลายไฟล์
+// ที่ AI แยกประเภทและจับคู่คนงานให้เองอยู่แล้ว วางได้เลยไม่ต้องชี้
+let lastPointerPos = null;
+document.addEventListener('mousemove', e => { lastPointerPos = { x: e.clientX, y: e.clientY }; }, { passive: true });
+
+function getClipboardImageFiles(e) {
+    const items = Array.from((e.clipboardData && e.clipboardData.items) || []);
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+    return items
+        .filter(it => it.kind === 'file' && it.type.startsWith('image/'))
+        .map((it, i) => {
+            const f = it.getAsFile();
+            const ext = (f.type.split('/')[1] || 'png').replace('jpeg', 'jpg');
+            // ภาพจากคลิปบอร์ดชื่อ "image.png" เหมือนกันหมด — ตั้งชื่อใหม่ให้แยกกันได้ (แนบเข้าคนงานแล้วระบบตั้งชื่อตามแพทเทิร์นอีกที)
+            return new File([f], `screenshot_${stamp}${i ? '_' + (i + 1) : ''}.${ext}`, { type: f.type });
+        });
+}
+
+// ช่องแนบไฟล์ที่เมาส์ชี้อยู่: ช่องในฟอร์มคนงาน/นายจ้าง (.upload-box id="drop-<ประเภท>") หรือช่อง ➕ ในแฟ้มเอกสาร (data-paste-target)
+function findPasteTarget() {
+    if (!lastPointerPos) return null;
+    const el = document.elementFromPoint(lastPointerPos.x, lastPointerPos.y);
+    if (!el) return null;
+    const tile = el.closest('[data-paste-target]');
+    if (tile) {
+        const [kind, docType] = tile.dataset.pasteTarget.split(':');
+        return { kind, docType, el: tile };
+    }
+    const box = el.closest('.upload-box[id^="drop-"]');
+    if (box) {
+        const docType = box.id.slice('drop-'.length);
+        if (docType.startsWith('worker-')) return { kind: 'worker-form', docType, el: box };
+        if (docType.startsWith('cust-') || docType === 'employer-house') return { kind: 'customer-form', docType, el: box };
+    }
+    return null;
+}
+
+document.addEventListener('paste', async e => {
+    const files = getClipboardImageFiles(e);
+    if (files.length === 0) return; // วางข้อความธรรมดา — ปล่อยให้ทำงานตามปกติ
+
+    const bulkModal = document.getElementById('bulk-import-modal');
+    if (bulkModal && !bulkModal.classList.contains('hidden')) {
+        e.preventDefault();
+        addFilesToBulkImport(files);
+        showToast(`📋 วางภาพ ${files.length} ภาพลงรายการนำเข้าแล้ว`, "success");
+        return;
+    }
+
+    const target = findPasteTarget();
+    if (!target) {
+        // วางภาพตอนเปิดหน้าที่มีช่องแนบไฟล์ แต่ไม่ได้ชี้ช่องไหน — บอกวิธีใช้ แทนที่จะเงียบหาย
+        if (document.querySelector('.modal-backdrop:not(.hidden) .upload-box, .modal-backdrop:not(.hidden) [data-paste-target]')) {
+            showToast("📋 ชี้เมาส์ไว้ที่ช่องเอกสารที่ต้องการก่อน แล้วกด Ctrl+V", "warning");
+        }
+        return;
+    }
+    e.preventDefault();
+    target.el.classList.add('dragover');
+    setTimeout(() => target.el.classList.remove('dragover'), 800);
+
+    if (target.kind === 'worker-form') {
+        for (const f of files) await processUploadedFile(f, target.docType);
+    } else if (target.kind === 'customer-form') {
+        files.forEach(f => processCustomerDocFile(f, target.docType));
+    } else if (target.kind === 'worker-folder') {
+        activeFolderDocType = target.docType;
+        await handleFolderFileUpload({ target: { files } });
+    } else if (target.kind === 'customer-folder') {
+        activeFolderCustomerDocType = target.docType;
+        await handleCustomerFolderFileUpload({ target: { files } });
+    }
+});
+
 async function dropDocHandler(e, docType) {
     e.preventDefault();
     e.currentTarget.classList.remove("dragover");
@@ -6985,7 +7063,7 @@ function renderCustomerFolderTiles() {
             if (query && !(fItem.name || '').toLowerCase().includes(query)) return;
             tiles.push(renderCustomerDriveTile(docInfo, fItem, fIdx, c.companyName));
         });
-        if (!query) tiles.push(renderDriveAddTile(docInfo.label, `triggerCustomerFolderFileUpload('${docInfo.key}')`));
+        if (!query) tiles.push(renderDriveAddTile(docInfo.label, `triggerCustomerFolderFileUpload('${docInfo.key}')`, `customer-folder:${docInfo.key}`));
     });
 
     const customerFolderListEl = document.getElementById("customer-folder-files-list");
@@ -7075,9 +7153,10 @@ function tryPdfThumbFallback(imgEl) {
     hydrateSinglePdfThumb(container);
 }
 
-function renderDriveAddTile(label, triggerCall) {
+// pasteTarget ("worker-folder:<ประเภท>" / "customer-folder:<ประเภท>") = ชี้เมาส์ที่ช่องนี้แล้วกด Ctrl+V วางภาพได้ (ดู findPasteTarget)
+function renderDriveAddTile(label, triggerCall, pasteTarget = '') {
     return `
-        <div class="drive-tile add-tile" onclick="${triggerCall}" title="แนบไฟล์: ${label}">
+        <div class="drive-tile add-tile" onclick="${triggerCall}" ${pasteTarget ? `data-paste-target="${pasteTarget}"` : ''} title="แนบไฟล์: ${label}${pasteTarget ? ' — คลิกเลือกไฟล์ หรือชี้แล้วกด Ctrl+V วางภาพ' : ''}">
             <div class="add-tile-icon">➕</div>
             <div class="add-tile-label">${label}</div>
         </div>
@@ -8187,7 +8266,7 @@ function renderWorkerFolderTiles() {
             if (isExpired) expiredTiles.push(tile);
             else tiles.push(tile);
         });
-        if (!query) tiles.push(renderDriveAddTile(file.label, `triggerFolderFileUpload('${file.key}')`));
+        if (!query) tiles.push(renderDriveAddTile(file.label, `triggerFolderFileUpload('${file.key}')`, `worker-folder:${file.key}`));
     });
 
     const workerFolderListEl = document.getElementById("worker-folder-files-list");
