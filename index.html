@@ -1243,33 +1243,41 @@
                             <div class="panel-header" style="padding-bottom: 20px; border-bottom: 1px solid #e2e8f0; margin-bottom: 25px;">
                                 <h3 style="font-size: 18px; font-weight: 600; color: var(--navy-dark);">💾 จัดการและสำรองข้อมูลระบบ (Data Backup & Sync)</h3>
                                 <p style="font-size: 13px; color: var(--text-muted); margin-top: 5px;">
-                                    เนื่องจากระบบทำงานบนบราวเซอร์ภายในเครื่องของคุณ (Local Browser Storage) เพื่อความปลอดภัยสูงสุดและป้องกันข้อมูลสูญหาย คุณสามารถทำการสำรองไฟล์เก็บเข้าแฟลชไดรฟ์ หรืออัปโหลดเก็บขึ้นระบบคลาวด์ เช่น Google Drive ได้ตลอดเวลาครับ
+                                    ข้อมูลจริงเก็บอยู่บนคลาวด์ (Supabase แพ็กเกจฟรี ซึ่งไม่มีระบบสำรองอัตโนมัติให้) — ควรกดสำรองทั้งระบบอย่างน้อยสัปดาห์ละครั้ง แล้วเซฟไฟล์เก็บไว้ใน Google Drive หรือแฟลชไดรฟ์
                                 </p>
                             </div>
-                            
+
                             <div style="display: flex; flex-direction: column; gap: 30px;">
                                 <!-- Section 1: Export Data to Drive file -->
                                 <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); padding: 20px;">
                                     <h4 style="font-size: 14.5px; font-weight: 600; margin-bottom: 8px; color: var(--navy-dark);">1. ส่งออกข้อมูลสำรอง (Export Backup File)</h4>
                                     <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 15px; line-height: 1.5;">
-                                        ดาวน์โหลดไฟล์ฐานข้อมูลระบบทั้งหมด (รวมถึงรายชื่อคนงานต่างด้าว 3,000 คน นายจ้าง 300 ราย ข้อมูลสั่งงาน และยอดบัญชีธนาคารทั้งหมด) เป็นไฟล์เดียว เพื่อนำไปเซฟเก็บไว้ใน Google Drive, OneDrive หรือโฟลเดอร์ในเครื่องคอมพิวเตอร์ของคุณ
+                                        <strong>สำรองทั้งระบบ (แนะนำ)</strong> — ข้อมูลทุกอย่าง (นายจ้าง, คนงาน, งาน, บัญชีธนาคาร, Agent, รายจ่าย, บิลอิสระ, กลุ่ม LINE) พร้อมไฟล์เอกสารและรูปทุกไฟล์ รวมเป็นไฟล์ ZIP เดียว ใช้เวลานานขึ้นตามจำนวนไฟล์<br>
+                                        <strong>เฉพาะข้อมูล</strong> — ไฟล์ .json เล็กและเร็ว แต่เก็บแค่ลิงก์เอกสาร ไม่มีไฟล์จริง
                                     </p>
-                                    <button class="btn btn-gold" onclick="exportSystemData()" style="padding: 10px 20px; display: flex; align-items: center; gap: 8px;">
-                                        📥 ดาวน์โหลดไฟล์สำรองข้อมูล (Download Backup JSON)
-                                    </button>
+                                    <div class="backup-actions">
+                                        <button class="btn btn-gold" id="btn-full-backup" onclick="exportFullBackup()">
+                                            📦 สำรองทั้งระบบ (ข้อมูล + เอกสาร/รูป .zip)
+                                        </button>
+                                        <button class="btn btn-outline" onclick="exportSystemData()">
+                                            📥 เฉพาะข้อมูล (.json)
+                                        </button>
+                                    </div>
+                                    <div id="backup-last-info" class="backup-last-info"></div>
+                                    <div id="backup-progress" class="backup-progress hidden"></div>
                                 </div>
 
                                 <!-- Section 2: Import Data from Drive file -->
                                 <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); padding: 20px;">
                                     <h4 style="font-size: 14.5px; font-weight: 600; margin-bottom: 8px; color: var(--navy-dark);">2. นำเข้าข้อมูลระบบจากภายนอก (Import Backup File)</h4>
                                     <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 15px; line-height: 1.5;">
-                                        เลือกไฟล์สำรองข้อมูลที่คุณเคยบันทึกไว้ (ไฟล์ .json) จากในเครื่องคอมพิวเตอร์ หรือดึงลงมาจาก Google Drive เพื่อกู้คืนฐานข้อมูลทั้งหมดกลับมาทำงานในเบราว์เซอร์นี้ทันที
+                                        เลือกไฟล์สำรองที่เคยบันทึกไว้ — ไฟล์ .zip (สำรองทั้งระบบ) จะกู้คืนทั้งข้อมูลและไฟล์เอกสาร/รูป, ไฟล์ .json กู้คืนเฉพาะข้อมูล ข้อมูลในไฟล์จะเขียนทับรายการเดียวกันในคลาวด์ (รายการที่ไม่มีในไฟล์จะไม่ถูกลบ)
                                     </p>
                                     <div style="display: flex; align-items: center; gap: 15px;">
                                         <button class="btn btn-outline" onclick="document.getElementById('import-file-input').click()" style="padding: 10px 20px;">
-                                            📁 เลือกไฟล์เพื่ออัปโหลด (.json)
+                                            📁 เลือกไฟล์เพื่อกู้คืน (.zip / .json)
                                         </button>
-                                        <input type="file" id="import-file-input" accept=".json" onchange="importSystemData(event)" class="hidden" style="display: none;">
+                                        <input type="file" id="import-file-input" accept=".json,.zip" onchange="importSystemData(event)" class="hidden" style="display: none;">
                                         <span id="import-file-name" class="text-muted" style="font-size: 13px;">ยังไม่ได้เลือกไฟล์</span>
                                     </div>
                                 </div>

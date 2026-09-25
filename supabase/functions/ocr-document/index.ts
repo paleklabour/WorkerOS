@@ -20,6 +20,7 @@ const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 
 const ALLOWED_DOC_TYPES = [
   "worker-passport", "worker-wp-doc", "worker-visa", "worker-myanmar-id", "worker-pink-card", "worker-insurance-doc",
+  "worker-receipt", // ใบเสร็จกรมการจัดหางาน: ชื่อ, เลขประจำตัวคนต่างด้าว, อีเมล (ใช้ prompt คนงานทั่วไป)
   "cust-id-card", "cust-cert", "cust-house", "cust-commerce",
   "expense-slip",
   "job-appointment",
@@ -165,7 +166,8 @@ function buildPrompt(docType: string): string {
     `  "refNo": "17-digit reference number (รหัสอ้างอิงคนต่างด้าว) starting with RA if found",\n` +
     `  "pinkCardNo": "13-digit pink card number (เลขที่บัตรชมพู) if this is a pink card",\n` +
     `  "thaiName": "Full name as printed in Thai script on the pink card, if this is a pink card",\n` +
-    `  "insuranceNo": "Health insurance number (เลขประกันสุขภาพ) if found, e.g. on a pink card"\n` +
+    `  "insuranceNo": "Health insurance number (เลขประกันสุขภาพ) if found, e.g. on a pink card",\n` +
+    `  "email": "Email address (อีเมล / Email) printed on the document if found, e.g. the Email field on a Department of Employment receipt"\n` +
     `}`;
 }
 

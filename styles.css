@@ -2643,3 +2643,28 @@ h1, h2, h3, h4, h5, h6 {
 #worker-photo-preview-container:has(#worker-photo-preview:not(.hidden)) .remove-photo-btn {
     display: flex;
 }
+
+/* ==================== Backup page ==================== */
+.backup-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+.backup-actions .btn {
+    padding: 10px 20px;
+}
+.backup-last-info {
+    margin-top: 12px;
+    font-size: 12.5px;
+    color: var(--text-muted);
+}
+.backup-last-info.is-stale {
+    color: var(--warning);
+    font-weight: 600;
+}
+.backup-progress {
+    margin-top: 10px;
+    font-size: 12.5px;
+    line-height: 1.5;
+    word-break: break-word;
+}

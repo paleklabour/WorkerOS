@@ -1163,7 +1163,10 @@ function switchView(viewName) {
     if (viewName === 'agents') titleEl.innerText = "จัดการ Agent (ผู้ส่งงาน / ผู้แนะนำลูกค้า)";
     if (viewName === 'expenses') titleEl.innerText = "การเงิน, รายจ่าย และบัญชีธนาคาร";
     if (viewName === 'users') titleEl.innerText = "จัดการบัญชีผู้ใช้งานระบบ";
-    if (viewName === 'backup') titleEl.innerText = "สำรองและกู้คืนข้อมูลระบบ";
+    if (viewName === 'backup') {
+        titleEl.innerText = "สำรองและกู้คืนข้อมูลระบบ";
+        renderLastBackupInfo();
+    }
 
     // Refresh contents
     if (viewName === 'dashboard') {
@@ -2831,7 +2834,12 @@ function applyGeminiDataToWorkerForm(docType, parsedData) {
         applyGeminiTitleToWorkerForm(parsedData.title);
     } else if (docType === 'worker-insurance-doc') {
         setVal("worker-insurance-no", parsedData.insuranceNo);
+    } else if (docType === 'worker-receipt') {
+        // ใบเสร็จ: เติมเฉพาะช่องที่ยังว่าง (ไม่ทับข้อมูลจากใบอนุญาตทำงาน)
+        if (!document.getElementById("worker-uid").value.trim()) setVal("worker-uid", parsedData.uid);
+        if (!document.getElementById("worker-ref-no").value.trim()) setVal("worker-ref-no", parsedData.refNo);
     }
+    if (!document.getElementById("worker-email").value.trim()) setVal("worker-email", parsedData.email);
 }
 
 // คืนนามสกุลไฟล์จาก data URL (เช่น "data:image/jpeg;base64,..." -> ".jpg")
@@ -6500,105 +6508,235 @@ function generateCombinedInvoice() {
 }
 
 // ==================== SYSTEM DATA BACKUP & RESTORE ====================
-function exportSystemData() {
-    const backupData = {
-        version: "1.0",
-        exportDate: new Date().toISOString(),
-        customers: customers,
-        workers: workers,
-        banks: banks,
-        jobs: jobs
-    };
+// ข้อมูลทุกตารางที่สำรอง — เรียงตามลำดับที่ต้องกู้คืน (ตารางที่ถูกอ้างถึงก่อน เช่น Agent/นายจ้าง ก่อนคนงาน ก่อนใบงาน)
+// เดิมสำรองแค่ นายจ้าง/คนงาน/งาน/บัญชีธนาคาร — Agent, รายจ่าย, บิลอิสระ, กลุ่ม LINE หายหมดถ้าต้องกู้คืน
+const BACKUP_COLLECTIONS = [
+    { key: 'agents', label: 'Agent', save: 'saveAgent', payloadKey: 'agentData', get: () => agents, set: v => { agents = v; } },
+    { key: 'banks', label: 'บัญชีธนาคาร', save: 'saveBank', payloadKey: 'bankData', get: () => banks, set: v => { banks = v; } },
+    { key: 'customers', label: 'นายจ้าง', save: 'saveCustomer', payloadKey: 'customerData', get: () => customers, set: v => { customers = v; } },
+    { key: 'workers', label: 'คนงาน', save: 'saveWorker', payloadKey: 'workerData', get: () => workers, set: v => { workers = v; } },
+    { key: 'jobs', label: 'งาน', save: 'saveJob', payloadKey: 'jobData', get: () => jobs, set: v => { jobs = v; } },
+    { key: 'expenses', label: 'รายจ่าย', save: 'saveExpense', payloadKey: 'expenseData', get: () => expenses, set: v => { expenses = v; } },
+    { key: 'freeInvoices', label: 'บิลอิสระ', save: 'saveFreeInvoice', payloadKey: 'invoiceData', get: () => freeInvoices, set: v => { freeInvoices = v; } }
+];
+const BACKUP_BUCKET = 'worker-documents';
+const BACKUP_FILES_PREFIX = 'files/'; // โฟลเดอร์ในไฟล์ ZIP ที่เก็บไฟล์เอกสาร/รูป (path ด้านในตรงกับ path จริงบน Storage)
+const LAST_BACKUP_KEY = 'mw_last_full_backup';
 
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
-    const downloadAnchor = document.createElement('a');
-    
-    // Set file name: migrant_system_backup_YYYY-MM-DD.json
-    const dateStr = new Date().toISOString().split('T')[0];
-    downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `migrant_system_backup_${dateStr}.json`);
-    
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
-
-    showToast("📥 ดาวน์โหลดไฟล์สำรองข้อมูลเรียบร้อยแล้ว กรุณาเซฟเก็บไว้ใน Google Drive", "success");
+function setBackupProgress(text) {
+    const el = document.getElementById('backup-progress');
+    if (!el) return;
+    el.classList.toggle('hidden', !text);
+    el.innerText = text || '';
 }
 
-function importSystemData(event) {
+// ดึงข้อมูลล่าสุดจากคลาวด์ตรง ๆ (ไม่ใช้ข้อมูลในแท็บนี้ที่อาจค้างเก่า และไม่ถอยไปใช้แคชในเครื่องแบบ loadData —
+// ถ้าดึงไม่สำเร็จต้องล้มเหลวให้เห็น ไม่ใช่ได้ไฟล์ backup ที่ข้อมูลไม่ครบโดยไม่รู้ตัว)
+async function buildBackupData() {
+    const res = await callCloudAPI("getData");
+    if (!res || res.status === "error") throw new Error('ดึงข้อมูลจากคลาวด์ไม่สำเร็จ: ' + ((res && res.message) || 'unknown error'));
+    const data = { version: "2.0", exportDate: new Date().toISOString() };
+    BACKUP_COLLECTIONS.forEach(c => { data[c.key] = res[c.key] || []; });
+    // กลุ่ม LINE ไม่ได้โหลดเข้าแอป (line-webhook ใช้) — อ่านตรงจากตาราง เก็บเป็นแถวดิบ
+    const lg = await window.supabaseAdapter.client.from('line_groups').select('*');
+    data.lineGroups = lg.error ? [] : (lg.data || []);
+    return data;
+}
+
+// รายชื่อไฟล์ทั้งหมดใน Storage bucket (ไล่ทุกโฟลเดอร์ย่อย)
+async function listAllStorageFiles(prefix = '') {
+    const bucket = window.supabaseAdapter.client.storage.from(BACKUP_BUCKET);
+    let out = [];
+    for (let offset = 0; ; offset += 1000) {
+        const { data, error } = await bucket.list(prefix, { limit: 1000, offset });
+        if (error) throw new Error('อ่านรายชื่อไฟล์ใน Storage ไม่สำเร็จ: ' + error.message);
+        for (const item of data) {
+            const path = prefix ? `${prefix}/${item.name}` : item.name;
+            if (item.id === null) out = out.concat(await listAllStorageFiles(path)); // โฟลเดอร์
+            else out.push(path);
+        }
+        if (data.length < 1000) break;
+    }
+    return out;
+}
+
+function loadJsZip() {
+    if (window.JSZip) return Promise.resolve(window.JSZip);
+    return new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js';
+        s.onload = () => resolve(window.JSZip);
+        s.onerror = () => reject(new Error('โหลดตัวสร้างไฟล์ ZIP ไม่สำเร็จ (ตรวจสอบอินเทอร์เน็ต)'));
+        document.head.appendChild(s);
+    });
+}
+
+function downloadBlob(blob, fileName) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
+function describeBackupCounts(data) {
+    const parts = BACKUP_COLLECTIONS.map(c => `${c.label} ${(data[c.key] || []).length}`);
+    parts.push(`กลุ่ม LINE ${(data.lineGroups || []).length}`);
+    return parts.join(', ');
+}
+
+// สำรองเฉพาะข้อมูล (ไฟล์ .json เล็ก เร็ว) — ไม่รวมไฟล์เอกสาร/รูป
+async function exportSystemData() {
+    try {
+        setBackupProgress('⏳ กำลังดึงข้อมูลล่าสุดจากคลาวด์...');
+        const data = await buildBackupData();
+        const dateStr = new Date().toISOString().split('T')[0];
+        downloadBlob(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }), `migrant_system_backup_${dateStr}.json`);
+        setBackupProgress(`✅ ดาวน์โหลดไฟล์ข้อมูลแล้ว (${describeBackupCounts(data)}) — ไฟล์นี้ไม่รวมเอกสาร/รูป`);
+        showToast("📥 ดาวน์โหลดไฟล์สำรองข้อมูลเรียบร้อยแล้ว กรุณาเซฟเก็บไว้ใน Google Drive", "success");
+    } catch (err) {
+        setBackupProgress('');
+        showToast("❌ สำรองข้อมูลไม่สำเร็จ: " + err.message, "danger");
+    }
+}
+
+// สำรองทั้งระบบ: ข้อมูลทุกตาราง + ไฟล์เอกสาร/รูปทุกไฟล์ใน Storage รวมเป็น ZIP ไฟล์เดียว
+// (ไฟล์ .json อย่างเดียวเก็บแค่ลิงก์ ถ้าไฟล์จริงบน Storage หายไป กู้ข้อมูลกลับมาก็เปิดเอกสารไม่ได้)
+async function exportFullBackup() {
+    const btn = document.getElementById('btn-full-backup');
+    if (btn) btn.disabled = true;
+    try {
+        setBackupProgress('⏳ กำลังดึงข้อมูลล่าสุดจากคลาวด์...');
+        const [JSZip, data] = await Promise.all([loadJsZip(), buildBackupData()]);
+        const zip = new JSZip();
+
+        setBackupProgress('⏳ กำลังอ่านรายชื่อไฟล์เอกสาร/รูป...');
+        const paths = await listAllStorageFiles();
+        const bucket = window.supabaseAdapter.client.storage.from(BACKUP_BUCKET);
+        const failed = [];
+        for (let i = 0; i < paths.length; i++) {
+            setBackupProgress(`📦 กำลังดาวน์โหลดไฟล์ ${i + 1}/${paths.length}...`);
+            const { data: blob, error } = await bucket.download(paths[i]);
+            if (error || !blob) { failed.push(paths[i]); continue; }
+            zip.file(BACKUP_FILES_PREFIX + paths[i], blob);
+        }
+        data.storageFiles = paths.filter(p => !failed.includes(p));
+        zip.file('data.json', JSON.stringify(data, null, 2));
+
+        setBackupProgress('🗜️ กำลังสร้างไฟล์ ZIP...');
+        // PDF/JPG บีบอัดมาแล้ว — เก็บแบบไม่บีบซ้ำ (STORE) เร็วกว่ามากและขนาดแทบไม่ต่างกัน
+        const out = await zip.generateAsync({ type: 'blob', compression: 'STORE' });
+        const dateStr = new Date().toISOString().split('T')[0];
+        downloadBlob(out, `workeros_full_backup_${dateStr}.zip`);
+
+        try { localStorage.setItem(LAST_BACKUP_KEY, new Date().toISOString()); } catch (e) { /* ไม่มี localStorage ก็สำรองได้ปกติ */ }
+        renderLastBackupInfo();
+        const sizeMb = (out.size / 1024 / 1024).toFixed(1);
+        setBackupProgress(`✅ สำรองทั้งระบบแล้ว: ${describeBackupCounts(data)}, ไฟล์เอกสาร/รูป ${data.storageFiles.length} ไฟล์ (${sizeMb} MB)` +
+            (failed.length ? ` — ⚠️ ดาวน์โหลดไม่ได้ ${failed.length} ไฟล์: ${failed.slice(0, 5).join(', ')}${failed.length > 5 ? ' ...' : ''}` : ''));
+        showToast(failed.length ? `⚠️ สำรองเสร็จ แต่มี ${failed.length} ไฟล์ที่ดาวน์โหลดไม่ได้` : "📦 สำรองทั้งระบบเรียบร้อย กรุณาเซฟไฟล์ ZIP เก็บไว้ใน Google Drive", failed.length ? "warning" : "success");
+    } catch (err) {
+        setBackupProgress('');
+        showToast("❌ สำรองทั้งระบบไม่สำเร็จ: " + err.message, "danger");
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
+function renderLastBackupInfo() {
+    const el = document.getElementById('backup-last-info');
+    if (!el) return;
+    let last = null;
+    try { last = localStorage.getItem(LAST_BACKUP_KEY); } catch (e) { /* ignore */ }
+    if (!last) { el.innerText = '⚠️ ยังไม่เคยสำรองทั้งระบบจากเครื่องนี้'; el.classList.add('is-stale'); return; }
+    const days = Math.floor((Date.now() - new Date(last).getTime()) / 86400000);
+    el.innerText = `สำรองทั้งระบบล่าสุดจากเครื่องนี้: ${formatDateForInput(last.split('T')[0])} (${days === 0 ? 'วันนี้' : days + ' วันที่แล้ว'})`;
+    el.classList.toggle('is-stale', days >= 7);
+}
+
+// กู้คืนจากไฟล์ .json (ข้อมูลอย่างเดียว) หรือ .zip (ข้อมูล + ไฟล์เอกสาร/รูป — อัปโหลดกลับไปที่ path เดิมบน Storage
+// ลิงก์เอกสารใน data.json จึงกลับมาเปิดได้เหมือนเดิม)
+async function importSystemData(event) {
     const file = event.target.files[0];
     if (!file) return;
-
-    // Display file name in UI
+    const resetInput = () => {
+        event.target.value = '';
+        document.getElementById("import-file-name").innerText = "ยังไม่ได้เลือกไฟล์";
+    };
     document.getElementById("import-file-name").innerText = file.name;
 
-    const reader = new FileReader();
-    reader.onload = async function(e) {
-        try {
-            const imported = JSON.parse(e.target.result);
-
-            // Validate backup file structure
-            if (!imported.customers || !imported.workers || !imported.banks || !imported.jobs) {
-                throw new Error("โครงสร้างไฟล์ข้อมูลไม่ถูกต้อง");
-            }
-
-            if (!confirm(`⚠️ ยืนยันการนำเข้าข้อมูล? การนำเข้าข้อมูลนี้จะเขียนทับฐานข้อมูลเดิมทั้งหมดของคุณในคลาวด์ (นายจ้าง ${imported.customers.length} ราย, คนงาน ${imported.workers.length} คน, งาน ${imported.jobs.length} รายการ, บัญชีธนาคาร ${imported.banks.length} บัญชี)`)) {
-                // reset input file
-                event.target.value = '';
-                document.getElementById("import-file-name").innerText = "ยังไม่ได้เลือกไฟล์";
-                return;
-            }
-
-            // อัปโหลดข้อมูลที่นำเข้าขึ้นคลาวด์จริงทีละรายการ (เดิมเขียนแค่ localStorage เท่านั้น —
-            // หน้าจอขึ้น "สำเร็จ" แต่คลาวด์ไม่เคยถูกเขียนทับตามที่ข้อความยืนยันด้านบนบอกไว้เลย)
-            showToast("☁️ กำลังนำเข้าข้อมูลขึ้นคลาวด์ อาจใช้เวลาสักครู่...", "warning");
-            let failCount = 0;
-            for (const c of imported.customers) {
-                const res = await callCloudAPI("saveCustomer", { customerData: c });
-                if (!res || res.status === "error") failCount++;
-            }
-            for (const w of imported.workers) {
-                const res = await callCloudAPI("saveWorker", { workerData: w });
-                if (!res || res.status === "error") failCount++;
-            }
-            for (const b of imported.banks) {
-                const res = await callCloudAPI("saveBank", { bankData: b });
-                if (!res || res.status === "error") failCount++;
-            }
-            for (const j of imported.jobs) {
-                const res = await callCloudAPI("saveJob", { jobData: j });
-                if (!res || res.status === "error") failCount++;
-            }
-
-            // Write variables
-            customers = imported.customers;
-            workers = imported.workers;
-            banks = imported.banks;
-            jobs = imported.jobs;
-
-            // Save to localStorage
-            saveData();
-
-            if (failCount > 0) {
-                showToast(`⚠️ นำเข้าข้อมูลเสร็จ แต่มี ${failCount} รายการบันทึกขึ้นคลาวด์ไม่สำเร็จ — ข้อมูลในเครื่องนี้กับคลาวด์อาจไม่ตรงกัน กรุณาตรวจสอบ`, "danger");
-            } else {
-                showToast("✅ นำเข้าข้อมูลระบบทั้งหมดขึ้นคลาวด์เสร็จสมบูรณ์!", "success");
-            }
-
-            // Refresh dashboard and redirect to dashboard
-            switchView('dashboard');
-
-            // reset file input
-            event.target.value = '';
-            document.getElementById("import-file-name").innerText = "ยังไม่ได้เลือกไฟล์";
-
-        } catch (err) {
-            alert("❌ เกิดข้อผิดพลาดในการอ่านไฟล์: " + err.message);
-            event.target.value = '';
-            document.getElementById("import-file-name").innerText = "ยังไม่ได้เลือกไฟล์";
+    try {
+        let imported, zip = null;
+        if (/\.zip$/i.test(file.name)) {
+            const JSZip = await loadJsZip();
+            zip = await JSZip.loadAsync(file);
+            const dataFile = zip.file('data.json');
+            if (!dataFile) throw new Error("ไม่พบ data.json ในไฟล์ ZIP");
+            imported = JSON.parse(await dataFile.async('string'));
+        } else {
+            imported = JSON.parse(await file.text());
         }
-    };
-    reader.readAsText(file);
+
+        // ไฟล์รุ่นเก่า (1.0) มีแค่ 4 ตารางหลัก — ตารางที่ไม่มีในไฟล์จะไม่ถูกแตะ
+        if (!imported.customers || !imported.workers || !imported.banks || !imported.jobs) {
+            throw new Error("โครงสร้างไฟล์ข้อมูลไม่ถูกต้อง");
+        }
+        const present = BACKUP_COLLECTIONS.filter(c => Array.isArray(imported[c.key]));
+        const fileEntries = zip ? Object.values(zip.files).filter(f => !f.dir && f.name.startsWith(BACKUP_FILES_PREFIX)) : [];
+        const summary = present.map(c => `${c.label} ${imported[c.key].length}`).join(', ') +
+            (Array.isArray(imported.lineGroups) ? `, กลุ่ม LINE ${imported.lineGroups.length}` : '') +
+            (zip ? `, ไฟล์เอกสาร/รูป ${fileEntries.length} ไฟล์` : '');
+
+        if (!confirm(`⚠️ ยืนยันการกู้คืนข้อมูล? ข้อมูลในไฟล์จะเขียนทับรายการที่มี id เดียวกันในคลาวด์ (${summary})\nรายการที่มีอยู่ในระบบแต่ไม่มีในไฟล์จะไม่ถูกลบ`)) {
+            resetInput();
+            return;
+        }
+
+        let failCount = 0;
+        // ไฟล์ก่อน — ให้ลิงก์ในข้อมูลที่กู้คืนเปิดได้ทันที
+        if (zip) {
+            const bucket = window.supabaseAdapter.client.storage.from(BACKUP_BUCKET);
+            for (let i = 0; i < fileEntries.length; i++) {
+                setBackupProgress(`☁️ กำลังอัปโหลดไฟล์เอกสาร/รูปกลับ ${i + 1}/${fileEntries.length}...`);
+                const path = fileEntries[i].name.slice(BACKUP_FILES_PREFIX.length);
+                const blob = await fileEntries[i].async('blob');
+                const { error } = await bucket.upload(path, blob, { upsert: true, contentType: blob.type || undefined });
+                if (error) { failCount++; console.error('Restore file failed:', path, error); }
+            }
+        }
+
+        for (const c of present) {
+            const rows = imported[c.key];
+            for (let i = 0; i < rows.length; i++) {
+                setBackupProgress(`☁️ กำลังกู้คืน${c.label} ${i + 1}/${rows.length}...`);
+                const res = await callCloudAPI(c.save, { [c.payloadKey]: rows[i] });
+                if (!res || res.status === "error") failCount++;
+            }
+        }
+        if (Array.isArray(imported.lineGroups) && imported.lineGroups.length) {
+            setBackupProgress('☁️ กำลังกู้คืนกลุ่ม LINE...');
+            const { error } = await window.supabaseAdapter.client.from('line_groups').upsert(imported.lineGroups);
+            if (error) failCount += imported.lineGroups.length;
+        }
+
+        // โหลดข้อมูลจากคลาวด์ใหม่ทั้งหมด (ไม่ใช้ข้อมูลจากไฟล์ตรง ๆ — ให้หน้าจอตรงกับที่บันทึกขึ้นคลาวด์ได้จริง)
+        await loadData();
+        setBackupProgress('');
+        if (failCount > 0) {
+            showToast(`⚠️ กู้คืนเสร็จ แต่มี ${failCount} รายการบันทึกขึ้นคลาวด์ไม่สำเร็จ — ดูรายละเอียดใน Console`, "danger");
+        } else {
+            showToast("✅ กู้คืนข้อมูลขึ้นคลาวด์เสร็จสมบูรณ์!", "success");
+        }
+        switchView('dashboard');
+        resetInput();
+    } catch (err) {
+        setBackupProgress('');
+        showToast("❌ กู้คืนไม่สำเร็จ: " + err.message, "danger");
+        resetInput();
+    }
 }
 
 // Automatically load on app start
@@ -8222,7 +8360,16 @@ function applyOcrDataToWorker(w, docType, p) {
         }
     } else if (docType === 'worker-insurance-doc') {
         if (p.insuranceNo) w.insuranceNo = p.insuranceNo;
+    } else if (docType === 'worker-receipt') {
+        // ใบเสร็จกรมการจัดหางาน: เติมเฉพาะช่องที่ยังว่าง — ไม่ทับข้อมูลจากใบอนุญาตทำงาน/พาสปอร์ตที่แม่นกว่า
+        if (p.uid && !w.workerUid) w.workerUid = p.uid;
+        if (p.refNo && !w.refNo) w.refNo = p.refNo;
+        if (title && !w.title) w.title = title;
+        if (gender && !w.gender) w.gender = gender;
+        if (['Myanmar', 'Cambodia', 'Laos'].includes(p.nationality) && !w.nationality) w.nationality = p.nationality;
     }
+    // อีเมล (เช่น ช่อง Email บนใบเสร็จ) — เติมเมื่อคนงานยังไม่มีอีเมลเท่านั้น
+    if (p.email && !w.email) w.email = String(p.email).trim();
 }
 
 // วันหมดอายุจริงของเอกสาร (อ่านจากผล OCR ตอนแนบไฟล์) — มีแค่บางประเภทเอกสารที่มีวันหมดอายุพิมพ์อยู่จริง
@@ -8293,6 +8440,9 @@ async function attachDocumentToWorker(w, docType, fileContent, preParsed = null)
     const hasReceipt = getAttachments(w, 'worker-receipt').length > 0;
     if (w.status === 'pending_register' && hasWp && hasReceipt) {
         w.status = 'active';
+        // ขึ้นทะเบียนเสร็จ = เข้าระบบแล้ว ไม่ต้องแจ้งเข้าซ้ำ (ไม่งั้นป้าย "⏳ รอแจ้งเข้า" ขึ้นทันทีที่สถานะเปลี่ยนเป็นปกติ
+        // เพราะคนงานยังไม่มีใบงาน) — admin ยกเลิกติ๊กได้ในฟอร์มคนงานถ้าคนนี้ต้องแจ้งเข้าจริง
+        w.skipNotifyEntry = true;
     }
 
     // บันทึกข้อมูลคนงาน (attachments ใหม่ + ฟิลด์ที่ AI เติมให้) กลับขึ้นคลาวด์จริง —
@@ -8452,12 +8602,29 @@ function getOcrMatchKeys(docType, p) {
         add('pink:', p.pinkCardNo);
     } else if (docType === 'worker-insurance-doc') {
         add('ins:', p.insuranceNo);
+    } else if (docType === 'worker-receipt') {
+        // ใบเสร็จกรมการจัดหางานพิมพ์เลขประจำตัวคนต่างด้าว/เลขพาสปอร์ตของคนงานไว้ (ไม่เอา permitNo — ช่องนั้นเป็นเลขที่ใบเสร็จ)
+        add('uid:', p.uid);
+        add('passport:', p.passportNo);
+        add('ref:', p.refNo);
     }
     const dob = parseDateInput(p.dob);
     const name = normalizeNameForMatch(p.firstName, p.lastName);
     if (name && dob) keys.push(`nd:${name}|${dob}`);
     if (p.thaiName && dob) keys.push(`td:${String(p.thaiName).replace(/\s+/g, '')}|${dob}`);
+    // เอกสารที่ไม่มีวันเกิด (เช่น ใบเสร็จ) — จับคู่ด้วยชื่ออย่างเดียวเป็นทางสุดท้าย (ใช้เฉพาะตอนชื่อตรงคนงานเดิมคนเดียว ดู matchBulkRowsFromOcr)
+    if (!dob) {
+        const nameKey = compactNameForMatch(p.firstName, p.lastName);
+        if (nameKey) keys.push(`nm:${nameKey}`);
+        if (p.thaiName) keys.push(`tn:${String(p.thaiName).replace(/\s+/g, '')}`);
+    }
     return keys;
+}
+
+// ชื่อเต็มไม่มีช่องว่าง — ชื่อพม่าบางใบ AI แยกเป็นชื่อ/นามสกุล บางใบรวมเป็นชื่อเดียว ให้เทียบกันได้
+function compactNameForMatch(first, last) {
+    const n = `${first || ''}${last || ''}`.replace(/\s+/g, '').toUpperCase();
+    return n.length >= 4 ? n : '';
 }
 
 function getWorkerMatchKeys(w) {
@@ -8472,13 +8639,16 @@ function getWorkerMatchKeys(w) {
     const name = normalizeNameForMatch(w.firstName, w.lastName);
     if (name && w.dob) keys.push(`nd:${name}|${w.dob}`);
     if (w.thaiName && w.dob) keys.push(`td:${String(w.thaiName).replace(/\s+/g, '')}|${w.dob}`);
+    const nameKey = compactNameForMatch(w.firstName, w.lastName);
+    if (nameKey) keys.push(`nm:${nameKey}`);
+    if (w.thaiName) keys.push(`tn:${String(w.thaiName).replace(/\s+/g, '')}`);
     return keys;
 }
 
 function describeMatchKey(key) {
     const prefix = key.split(':')[0];
     return { uid: 'เลขประจำตัว 13 หลัก', permit: 'เลขใบอนุญาต', ref: 'เลขอ้างอิง', passport: 'เลขพาสปอร์ต',
-        pink: 'เลขบัตรชมพู', ins: 'เลขประกัน', nd: 'ชื่อ+วันเกิด', td: 'ชื่อไทย+วันเกิด' }[prefix] || 'ข้อมูลเอกสาร';
+        pink: 'เลขบัตรชมพู', ins: 'เลขประกัน', nd: 'ชื่อ+วันเกิด', td: 'ชื่อไทย+วันเกิด', nm: 'ชื่อ', tn: 'ชื่อไทย' }[prefix] || 'ข้อมูลเอกสาร';
 }
 
 function isBulkNewWorkerId(workerId) {
@@ -8793,7 +8963,12 @@ async function analyzeBulkImportWithAi(onlyUnattempted = false) {
 // จับคู่ไฟล์ที่ AI อ่านแล้ว: ตรงกับคนงานเดิม -> แนบคนนั้น / ไม่ตรง -> รวมกลุ่มเป็นคนงานใหม่ (ไฟล์ของคนเดียวกันอยู่กลุ่มเดียวกัน)
 function matchBulkRowsFromOcr() {
     const workerKeyIndex = new Map();
-    workers.forEach(w => getWorkerMatchKeys(w).forEach(k => { if (!workerKeyIndex.has(k)) workerKeyIndex.set(k, w.id); }));
+    const ambiguousNameKeys = new Set(); // ชื่อซ้ำกันหลายคนในระบบ — จับคู่ด้วยชื่ออย่างเดียวไม่ได้
+    workers.forEach(w => getWorkerMatchKeys(w).forEach(k => {
+        if (!workerKeyIndex.has(k)) workerKeyIndex.set(k, w.id);
+        else if (/^(nm|tn):/.test(k) && workerKeyIndex.get(k) !== w.id) ambiguousNameKeys.add(k);
+    }));
+    ambiguousNameKeys.forEach(k => workerKeyIndex.delete(k));
 
     bulkImportRows.forEach(row => {
         if (row.status === 'success' || !row.parsedData || row.workerManual) return;
@@ -9265,8 +9440,9 @@ function renderMissingDocsOverview() {
 
         const avatarUrl = w.photo ? w.photo : 'data:image/svg+xml;utf8,<svg xmlns="http:' + '/' + '/www.w3.org/2000/svg" viewBox="0 0 24 24" width="32" height="32" fill="%2394a3b8"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4.42 0-8 3.58-8 8v1h16v-1c0-4.42-3.58-8-8-8z"/></svg>';
 
+        // คลิกทั้งแถวเพื่อเปิดดูข้อมูลคนงาน เหมือนตารางคนงานหลัก (ปุ่มเปิดแฟ้มใช้ stopPropagation ไม่ให้เปิดซ้อน)
         return `
-            <tr>
+            <tr class="clickable-row" onclick="openWorkerModal('${w.id}')" title="คลิกเพื่อดูรายละเอียดคนงาน">
                 <td style="width: 50px; text-align: center;">
                     <div style="width: 32px; height: 32px; border-radius: 50%; overflow: hidden; background-color: #f1f5f9; border: 1px solid #cbd5e1; display: inline-flex; align-items: center; justify-content: center;">
                         <img src="${avatarUrl}" style="width: 100%; height: 100%; object-fit: cover;">
@@ -9279,7 +9455,7 @@ function renderMissingDocsOverview() {
                 <td><span class="badge badge-gold">${w.nationality}</span></td>
                 <td>${empName}</td>
                 ${docCells}
-                <td style="text-align: center;">
+                <td style="text-align: center;" onclick="event.stopPropagation()">
                     <button class="btn btn-sm btn-gold" onclick="openWorkerFolderModal('${w.id}')" style="font-size: 11.5px; padding: 5px 12px; white-space: nowrap;">
                         📂 เปิดแฟ้มอัปเอกสาร
                     </button>
