@@ -8837,6 +8837,7 @@ function renderBulkImportTable() {
     if (bulkImportRows.length === 0) {
         tbody.innerHTML = `<tr><td colspan="6" class="text-muted" style="text-align:center; padding:20px;">ยังไม่ได้เลือกไฟล์</td></tr>`;
         if (summary) summary.style.display = 'none';
+        syncBulkImportSelectAll();
         return;
     }
 
@@ -8860,7 +8861,7 @@ function renderBulkImportTable() {
 
         return `
             <tr style="${rowStyle}">
-                <td><input type="checkbox" ${row.selected ? 'checked' : ''} onchange="bulkImportRows[${idx}].selected = this.checked"></td>
+                <td><input type="checkbox" ${row.selected ? 'checked' : ''} ${row.status === 'success' ? 'disabled' : ''} onchange="setBulkImportRowSelected(${idx}, this.checked)"></td>
                 <td style="max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${row.fileName}">${row.fileName}</td>
                 <td>
                     <select style="font-size:12px; max-width:200px;" onchange="updateBulkImportWorker(${idx}, this.value)">
@@ -8887,6 +8888,7 @@ function renderBulkImportTable() {
         summary.innerHTML = `พบ ${bulkImportRows.length} ไฟล์ — จับคู่แล้ว ${matchedCount} ไฟล์ (เหลืออีก ${bulkImportRows.length - matchedCount} ไฟล์ที่ต้องเลือกเอง)` +
             (bulkNewWorkers.length > 0 ? ` • จะสร้างคนงานใหม่ ${bulkNewWorkers.length} คน` : '');
     }
+    syncBulkImportSelectAll();
     renderBulkNewWorkers();
 }
 
@@ -8981,7 +8983,7 @@ function matchBulkRowsFromOcr() {
         if (hitKey) {
             row.workerId = workerKeyIndex.get(hitKey);
             row.matchNote = describeMatchKey(hitKey);
-            row.selected = !!row.docType;
+            if (!row.selectManual) row.selected = !!row.docType; // ผู้ใช้ติ๊ก/เอาติ๊กออกเองแล้ว ไม่ทับ
             return;
         }
 
@@ -9009,7 +9011,7 @@ function matchBulkRowsFromOcr() {
             Object.entries(filled).forEach(([k, v]) => { if (v && !cand.data[k]) cand.data[k] = v; });
             row.workerId = BULK_NEW_WORKER_PREFIX + cand.id;
         }
-        row.selected = !!row.docType;
+        if (!row.selectManual) row.selected = !!row.docType; // ผู้ใช้ติ๊ก/เอาติ๊กออกเองแล้ว ไม่ทับ
     });
 
     pruneBulkNewWorkers();
@@ -9136,9 +9138,33 @@ function removeBulkImportRow(idx) {
     renderBulkImportTable();
 }
 
+// ติ๊ก "เลือกทั้งหมด" = เลือกทุกไฟล์ที่ยังไม่ได้นำเข้า (เดิมเลือกได้เฉพาะแถวที่จับคู่คนงาน+ประเภทแล้ว
+// ก่อนให้ AI อ่านจึงไม่มีแถวไหนถูกเลือกเลย) — แถวที่ยังขาดคนงาน/ประเภทตอนกดนำเข้าจะถูกข้ามและแจ้งจำนวนให้เห็น
 function toggleAllBulkImportRows(checked) {
-    bulkImportRows.forEach(r => { if (r.workerId && r.docType) r.selected = checked; });
+    bulkImportRows.forEach(r => {
+        if (r.status === 'success') return;
+        r.selected = checked;
+        r.selectManual = true;
+    });
     renderBulkImportTable();
+}
+
+function setBulkImportRowSelected(idx, checked) {
+    const row = bulkImportRows[idx];
+    if (!row) return;
+    row.selected = checked;
+    row.selectManual = true;
+    syncBulkImportSelectAll();
+}
+
+// ช่องติ๊กหัวตาราง: ติ๊กเมื่อเลือกครบทุกไฟล์ที่ยังไม่ได้นำเข้า, ขีดกลางเมื่อเลือกบางไฟล์
+function syncBulkImportSelectAll() {
+    const el = document.getElementById('bulk-import-select-all');
+    if (!el) return;
+    const pending = bulkImportRows.filter(r => r.status !== 'success');
+    const selectedCount = pending.filter(r => r.selected).length;
+    el.checked = pending.length > 0 && selectedCount === pending.length;
+    el.indeterminate = selectedCount > 0 && selectedCount < pending.length;
 }
 
 async function runBulkImport() {
@@ -9153,6 +9179,8 @@ async function runBulkImport() {
     }
 
     const rowsToImport = bulkImportRows.filter(r => r.selected && r.workerId && r.docType && r.status !== 'success');
+    // ไฟล์ที่ติ๊กไว้แต่ยังไม่รู้คนงาน/ประเภทเอกสาร (เช่น AI อ่านไม่ได้) — ข้ามไป แต่ต้องบอกให้รู้ ไม่เงียบหาย
+    const skippedCount = bulkImportRows.filter(r => r.selected && r.status !== 'success' && !(r.workerId && r.docType)).length;
     if (rowsToImport.length === 0) {
         alert('ไม่มีไฟล์ที่พร้อมนำเข้า — ไฟล์ที่ AI อ่านไม่ได้ ให้เลือกคนงานและประเภทเอกสารเองในตาราง');
         return;
@@ -9234,6 +9262,7 @@ async function runBulkImport() {
     const aiMissedCount = rowsToImport.filter(r => r.status === 'failed' && (r.aiStatus === 'busy' || r.aiStatus === 'failed')).length;
     progressEl.innerText = `✅ เสร็จสิ้น: สำเร็จ ${successCount} รายการ${failCount > 0 ? `, ล้มเหลว ${failCount} รายการ (ดูสถานะรายไฟล์ในตาราง)` : ''}` +
         (createdWorkerCount > 0 ? ` • สร้างคนงานใหม่ ${createdWorkerCount} คน` : '') +
+        (skippedCount > 0 ? ` • ⚠️ ข้าม ${skippedCount} ไฟล์ที่ติ๊กไว้แต่ยังไม่ได้เลือกคนงาน/ประเภทเอกสาร (แถวสีแดง)` : '') +
         (aiMissedCount > 0 ? ` — ⚠️ ${aiMissedCount} ไฟล์ AI อ่านไม่สำเร็จ จึงยังไม่ได้บันทึก (แถวสีเหลือง) กด "นำเข้าที่เลือกทั้งหมด" อีกครั้งเพื่อลองใหม่เฉพาะไฟล์เหล่านี้` : '');
 
     saveData();
