@@ -2100,20 +2100,45 @@ function updateEmployerDropdownOptions() {
     }
 }
 
-// ที่อยู่สำนักงานใหญ่ของนายจ้าง 1 ราย ใช้เติมช่อง "สถานที่ทำงาน" ของคนงานอัตโนมัติตอนเลือกนายจ้าง
+// ที่อยู่สำนักงานใหญ่ของนายจ้าง 1 ราย = "สถานที่ทำงาน" ของคนงานทุกคนของนายจ้างรายนี้ (ล็อคไว้ ไม่ใช้ค่าจาก AI/พิมพ์เอง —
+// ที่อยู่ที่ AI อ่านจากใบอนุญาตทำงานไม่ตรงกับที่อยู่นายจ้างในระบบ) ข้ามช่องที่ว่าง ไม่ให้มี "ม." ลอย ๆ
 function getCustomerHQAddress(customerId) {
     const c = customers.find(item => item.id === customerId);
     if (!c || !Array.isArray(c.branches) || c.branches.length === 0) return "";
-    const hqBranch = c.branches.find(b => (b.name || "").includes("สำนักงานใหญ่")) || c.branches[0];
-    if (!hqBranch) return "";
-    return `เลขที่ ${hqBranch.houseNo || ''} ม.${hqBranch.moo || ''} ต.${hqBranch.subdistrict || ''} อ.${hqBranch.district || ''} จ.${hqBranch.province || ''}`;
+    const b = c.branches.find(br => (br.name || "").includes("สำนักงานใหญ่")) || c.branches[0];
+    if (!b) return "";
+    return [
+        b.houseNo && `เลขที่ ${b.houseNo}`,
+        b.moo && `ม.${b.moo}`,
+        b.soi && `ซ.${b.soi}`,
+        b.road && `ถ.${b.road}`,
+        b.subdistrict && `ต.${b.subdistrict}`,
+        b.district && `อ.${b.district}`,
+        b.province && `จ.${b.province}`,
+        b.postalCode
+    ].filter(Boolean).join(' ');
 }
 
 function fillWorkerWorkplaceFromEmployer(employerId) {
     const workplaceInput = document.getElementById("worker-workplace");
-    if (!workplaceInput || !employerId) return;
-    const address = getCustomerHQAddress(employerId);
-    if (address) workplaceInput.value = address;
+    if (!workplaceInput) return;
+    workplaceInput.value = employerId ? getCustomerHQAddress(employerId) : '';
+}
+
+// แก้ที่อยู่นายจ้างแล้ว สถานที่ทำงานของคนงานทุกคนของนายจ้างรายนี้ต้องเปลี่ยนตาม (ไม่งั้นค่าในคนงานค้างเป็นที่อยู่เก่า)
+async function syncWorkersWorkplaceForEmployer(customerId) {
+    const address = getCustomerHQAddress(customerId);
+    const stale = workers.filter(w => w.employerId === customerId && (w.workplace || '') !== address);
+    let failCount = 0;
+    for (const w of stale) {
+        const res = await callCloudAPI("saveWorker", { workerData: { ...w, workplace: address } });
+        if (!res || res.status === "error") failCount++;
+        else w.workplace = address;
+    }
+    if (stale.length > 0) {
+        saveData();
+        showToast(failCount ? `⚠️ อัปเดตสถานที่ทำงานของคนงานไม่สำเร็จ ${failCount} คน` : `📍 อัปเดตสถานที่ทำงานของคนงาน ${stale.length} คนตามที่อยู่นายจ้างแล้ว`, failCount ? "danger" : "success");
+    }
 }
 
 let workersCurrentPage = 1;
@@ -2883,7 +2908,6 @@ function applyGeminiDataToWorkerForm(docType, parsedData) {
         setVal("worker-dob", parsedData.dob);
         setVal("worker-ref-no", parsedData.refNo);
         setVal("worker-position", parsedData.position);
-        setVal("worker-workplace", parsedData.workplace);
         applyNationality();
         applyGeminiGenderToWorkerForm(parsedData.gender);
         applyGeminiTitleToWorkerForm(parsedData.title);
@@ -3298,6 +3322,7 @@ async function saveCustomer(e) {
         if (idx !== -1) {
             customers[idx] = customerData;
             showToast("แก้ไขข้อมูลนายจ้าง/ลูกค้าสำเร็จ", "success");
+            await syncWorkersWorkplaceForEmployer(editId);
         }
     } else {
         customers.push(customerData);
@@ -3577,7 +3602,7 @@ function openWorkerModal(id = null) {
         document.getElementById("worker-ref-no").value = w.refNo || '';
         document.getElementById("worker-gender").value = w.gender || '';
         document.getElementById("worker-position").value = w.position || '';
-        document.getElementById("worker-workplace").value = w.workplace || '';
+        fillWorkerWorkplaceFromEmployer(w.employerId); // ล็อคตามที่อยู่นายจ้าง ไม่ใช้ค่าที่เคยเก็บไว้
         document.getElementById("worker-email").value = w.email || '';
         
         // Parent names
@@ -3655,7 +3680,7 @@ async function saveWorker(e) {
     const refNo = document.getElementById("worker-ref-no").value.trim();
     const gender = document.getElementById("worker-gender").value;
     const position = document.getElementById("worker-position").value.trim();
-    const workplace = document.getElementById("worker-workplace").value.trim();
+    const workplace = getCustomerHQAddress(employerId); // ล็อคตามที่อยู่นายจ้างเสมอ (ช่องในฟอร์มเป็นแบบอ่านอย่างเดียว)
     const email = document.getElementById("worker-email").value.trim();
     
     // Parent info
@@ -8418,7 +8443,6 @@ function applyOcrDataToWorker(w, docType, p) {
         if (gender) w.gender = gender;
         if (title) w.title = title;
         if (p.position) w.position = p.position;
-        if (p.workplace) w.workplace = p.workplace;
 
         // กฎ: คนสัญชาติเมียนมาไม่มีนามสกุล (ชื่อพม่าเป็นชื่อเดียวทั้งหมด ต่อให้มีหลายคำ)
         // เผื่อ AI ยังแยกชื่อ-นามสกุลมาให้ผิดๆ ทั้งที่สั่งในพรอมต์แล้วว่าไม่ต้องแยก
@@ -8543,6 +8567,7 @@ async function attachDocumentToWorker(w, docType, fileContent, preParsed = null)
     // บันทึกข้อมูลคนงาน (attachments ใหม่ + ฟิลด์ที่ AI เติมให้) กลับขึ้นคลาวด์จริง —
     // ไฟล์อัปโหลดขึ้น Storage ไปแล้วก็จริง แต่ถ้าไม่บันทึกจุดนี้ แถว worker ใน DB จะไม่รู้จักไฟล์นี้เลย
     // (เห็นแค่ในเบราว์เซอร์เครื่องนี้ผ่าน localStorage ชั่วคราว หายไปทันทีที่เปิดจากเครื่อง/บัญชีอื่น)
+    w.workplace = getCustomerHQAddress(w.employerId); // ล็อคตามที่อยู่นายจ้าง (ไม่ใช้ที่อยู่ที่ AI อ่านจากเอกสาร)
     const saveRes = await callCloudAPI("saveWorker", { workerData: w });
     if (!saveRes || saveRes.status === "error") {
         throw new Error('อัปโหลดไฟล์สำเร็จ แต่บันทึกข้อมูลคนงานขึ้นคลาวด์ไม่สำเร็จ: ' + (saveRes && saveRes.message ? saveRes.message : 'unknown error'));
@@ -9207,6 +9232,7 @@ async function createBulkNewWorkers(candIds, progressEl) {
             photo,
             id: newId,
             employerId: bulkImportEmployerId,
+            workplace: getCustomerHQAddress(bulkImportEmployerId),
             attachments: {},
             status: 'pending_register', // เปลี่ยนเป็น active เองเมื่อมีใบอนุญาตทำงาน + ใบเสร็จ (ดู attachDocumentToWorker)
             skipNotifyEntry: false,

@@ -2668,3 +2668,10 @@ h1, h2, h3, h4, h5, h6 {
     line-height: 1.5;
     word-break: break-word;
 }
+
+/* ช่องที่ระบบเติมให้เอง แก้ในฟอร์มนี้ไม่ได้ (เช่น สถานที่ทำงาน = ที่อยู่นายจ้าง) */
+.locked-input {
+    background-color: var(--gray-bg);
+    color: var(--text-muted);
+    cursor: not-allowed;
+}
