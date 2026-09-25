@@ -2541,7 +2541,7 @@ function processJobAppointmentFile(file) {
                 const el = document.getElementById(id);
                 if (el) el.value = val;
             };
-            setVal("job-appointment-date", uploadResult.parsedData.appointmentDate);
+            setVal("job-appointment-date", normalizeDisplayDateYear(uploadResult.parsedData.appointmentDate));
             setVal("job-appointment-time", uploadResult.parsedData.appointmentTime);
             setVal("job-appointment-no", uploadResult.parsedData.appointmentNo);
             setVal("job-appointment-location", uploadResult.parsedData.appointmentLocation);
@@ -2584,7 +2584,7 @@ function applyGeminiDataToCustomerForm(docType, parsedData) {
         setVal("cust-company-name", parsedData.companyName);
         setVal("cust-tax-id", parsedData.taxId);
         if (docType === 'cust-cert') {
-            setVal("cust-cert-issue-date", parsedData.issueDate);
+            setVal("cust-cert-issue-date", normalizeDisplayDateYear(parsedData.issueDate));
             updateCertExpiryDisplay();
         }
     } else if (docType === 'cust-house') {
@@ -2787,7 +2787,7 @@ function applyGeminiDataToWorkerForm(docType, parsedData) {
     const setVal = (id, val) => {
         if (val === undefined || val === null || val === "") return;
         const el = document.getElementById(id);
-        if (el) el.value = val;
+        if (el) el.value = normalizeDisplayDateYear(val); // ช่องวันที่: ปี พ.ศ. จาก AI -> ค.ศ.
     };
     const applyNationality = () => {
         if (!parsedData.nationality) return;
@@ -3295,11 +3295,24 @@ function toggleNationalityOtherInput() {
     }
 }
 
+// ปี พ.ศ. -> ค.ศ. — เอกสารราชการไทยพิมพ์ปี พ.ศ. (เช่น 2570) และ AI บางครั้งคัดลอกมาตรง ๆ ไม่แปลง
+// ทำให้บันทึกคนงานไม่ได้ ("วันหมดอายุใบอนุญาตทำงาน ไม่ถูกต้อง") ปี ค.ศ. จริงไม่มีทางเกิน 2400 จึงแปลงได้ปลอดภัย
+function toGregorianYear(year) {
+    const n = parseInt(year, 10);
+    return !isNaN(n) && n >= 2400 ? String(n - 543) : String(year);
+}
+
+// วัน/เดือน/ปี ที่ปีเป็น พ.ศ. -> ปี ค.ศ. (ค่าอื่นคืนตามเดิม)
+function normalizeDisplayDateYear(val) {
+    const m = String(val || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    return m ? `${m[1]}/${m[2]}/${toGregorianYear(m[3])}` : val;
+}
+
 function formatDateForInput(val) {
     if (!val) return '';
     const parts = val.split('-');
     if (parts.length === 3) {
-        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        return `${parts[2]}/${parts[1]}/${toGregorianYear(parts[0])}`;
     }
     return val;
 }
@@ -3361,9 +3374,12 @@ function parseDateInput(val) {
         const month = parts[1].padStart(2, '0');
         const year = parts[2];
         if (day && month && year && year.length === 4) {
-            return `${year}-${month}-${day}`;
+            return `${toGregorianYear(year)}-${month}-${day}`;
         }
     }
+    // ค่าที่เป็น ปปปป-ดด-วว อยู่แล้ว (เช่น จาก AI) ก็แปลงปี พ.ศ. เหมือนกัน
+    const iso = String(val).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (iso) return `${toGregorianYear(iso[1])}-${iso[2]}-${iso[3]}`;
     return val;
 }
 

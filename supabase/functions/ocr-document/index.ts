@@ -45,6 +45,11 @@ const EXPENSE_CATEGORIES = [
   "ค่าธรรมเนียมราชการ/กรมจัดหางาน", "ค่าคอมมิชชั่น Agent", "ค่าเดินทาง", "ค่าอุปกรณ์สำนักงาน", "อื่นๆ",
 ];
 
+// เอกสารราชการไทยพิมพ์ปี พ.ศ. — ถ้าไม่สั่งชัด ๆ AI จะคัดลอกปี 2570 มาตรง ๆ แล้วหน้าเว็บบันทึกไม่ได้
+// (ต่อประโยค "...DD/MM/YYYY format" ในทุก prompt — ขึ้นต้นด้วยจุดปิดประโยคเดิม)
+const BE_YEAR_RULE = `. Always output the Gregorian (ค.ศ.) year: if a date is printed in the Thai Buddhist Era ` +
+  `(พ.ศ., e.g. 2569 or 2570), subtract 543 (2570 -> 2027). Never output a year above 2200.`;
+
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -52,7 +57,7 @@ const CORS_HEADERS = {
 
 function buildExpenseSlipPrompt(): string {
   return `You are a professional bookkeeping assistant. Parse this payment slip / receipt / bank transfer confirmation ` +
-    `and extract the relevant fields for an expense record. Convert the date to DD/MM/YYYY format. Only fill fields you ` +
+    `and extract the relevant fields for an expense record. Convert the date to DD/MM/YYYY format${BE_YEAR_RULE} Only fill fields you ` +
     `can actually read from the image — leave a field out entirely (do not guess or invent values) if it is not clearly ` +
     `present. For "amount", output digits only (no currency symbol, no commas, e.g. "1500.00"). For "category", pick the ` +
     `single best match from this exact list based on the payee/memo/items shown, or omit the field if none clearly fit: ` +
@@ -86,7 +91,7 @@ function buildCustomerDocPrompt(docType: string): string {
     fields.push(`"issueDate": "Date the certificate was issued (วันที่ออกหนังสือรับรอง / ออกให้ ณ วันที่), in DD/MM/YYYY format, if found"`);
   }
   return `You are a professional assistant. Parse this ${docLabel} and extract the relevant fields. ` +
-    `Convert dates to DD/MM/YYYY format. Only fill fields you can actually read from the document — ` +
+    `Convert dates to DD/MM/YYYY format${BE_YEAR_RULE} Only fill fields you can actually read from the document — ` +
     `leave a field out entirely (do not guess or invent values) if it is not clearly present. ` +
     `Output ONLY a valid JSON object matching this schema, without markdown wrapping, json declaration, or backticks:\n` +
     `{\n  ${fields.join(",\n  ")}\n}`;
@@ -110,7 +115,7 @@ function buildAppointmentPrompt(): string {
 
 function buildInsurancePrompt(): string {
   return `You are a professional assistant. Parse this health/accident insurance policy document for a migrant worker ` +
-    `and extract the relevant fields. Convert dates to DD/MM/YYYY format. Only fill fields you can actually read from ` +
+    `and extract the relevant fields. Convert dates to DD/MM/YYYY format${BE_YEAR_RULE} Only fill fields you can actually read from ` +
     `the document — leave a field out entirely (do not guess or invent values) if it is not clearly present. ` +
     `Output ONLY a valid JSON object matching this schema, without markdown wrapping, json declaration, or backticks:\n` +
     `{\n` +
@@ -133,7 +138,7 @@ function buildPrompt(docType: string): string {
       `from a work permit's 13-digit worker ID (เลขประจำตัวคนต่างด้าว). `
     : "";
   return `You are a professional assistant. ${classify}Parse this migrant worker document (${docType}) and extract the relevant fields. ` +
-    `Convert all dates to DD/MM/YYYY format. Only fill fields you can actually read from the document — ` +
+    `Convert all dates to DD/MM/YYYY format${BE_YEAR_RULE} Only fill fields you can actually read from the document — ` +
     `leave a field out entirely (do not guess or invent values) if it is not clearly present in the image/PDF. ` +
     `IMPORTANT naming rule: Myanmar (Burmese) names do NOT have a family surname — the full printed name is a single ` +
     `given name, even if it has multiple words (e.g. "HTET DO", "AUNG NAING WIN"). If nationality is Myanmar, put the ` +
