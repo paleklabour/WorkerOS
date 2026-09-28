@@ -2838,14 +2838,36 @@ function mapGeminiGender(rawGender) {
     return null;
 }
 
+// อ่านคำนำหน้าจากต้นข้อความ — รองรับทั้งคำเต็ม, ตัวย่อ (น.ส. / ด.ช. / ด.ญ. / Mr.) และแบบติดกับชื่อ (เช่น "นายหม่อง")
+// เรียงคำยาวก่อน: "นางสาว" ต้องเช็คก่อน "นาง" ไม่งั้นจะได้ "นาง" ผิด
+const TITLE_PATTERNS = [
+    [/^เด็กชาย/, "เด็กชาย"], [/^ด\s*\.\s*ช\s*\.?/, "เด็กชาย"],
+    [/^เด็กหญิง/, "เด็กหญิง"], [/^ด\s*\.\s*ญ\s*\.?/, "เด็กหญิง"],
+    [/^นางสาว/, "นางสาว"], [/^น\s*\.\s*ส\s*\.?/, "นางสาว"],
+    [/^นาง/, "นาง"],
+    [/^นาย/, "นาย"],
+    [/^mrs\b/i, "นาง"],
+    [/^(miss|ms)\b/i, "นางสาว"],
+    [/^mr\b/i, "นาย"]
+];
+
 function mapGeminiTitle(rawTitle) {
     if (!rawTitle) return null;
-    const t = rawTitle.trim();
-    if (["นาย", "นาง", "นางสาว", "เด็กชาย", "เด็กหญิง"].includes(t)) return t;
-    const lower = t.toLowerCase();
-    if (lower.includes("mrs")) return "นาง";
-    if (lower.includes("miss") || lower.includes("ms")) return "นางสาว";
-    if (lower.includes("mr")) return "นาย";
+    const t = String(rawTitle).trim();
+    const hit = TITLE_PATTERNS.find(([re]) => re.test(t));
+    return hit ? hit[1] : null;
+}
+
+// คำนำหน้าจากผล AI: ช่อง title ก่อน ถ้าว่างให้ดูว่าพิมพ์ติดมากับชื่อหรือไม่ (บัตรชมพูมักพิมพ์ "นายxxx" ในชื่อไทย เลยไม่ถูกแยกมาใส่ช่อง title)
+function readOcrTitle(p) {
+    if (!p) return null;
+    return mapGeminiTitle(p.title) || mapGeminiTitle(p.thaiName) || mapGeminiTitle(p.firstName);
+}
+
+// เอกสารส่วนใหญ่ (พาสปอร์ต/ใบอนุญาตทำงาน) ไม่พิมพ์คำนำหน้า มีแต่เพศ — ใช้ค่าตั้งต้นเดียวกับ Bulk Import (หญิง = นางสาว แก้เป็น นาง ได้เอง)
+function defaultTitleForGender(gender) {
+    if (gender === 'Male') return 'นาย';
+    if (gender === 'Female') return 'นางสาว';
     return null;
 }
 
@@ -2870,9 +2892,15 @@ function applyGeminiGenderToWorkerForm(rawGender) {
     if (mapped && genderSelect) genderSelect.value = mapped;
 }
 
-function applyGeminiTitleToWorkerForm(rawTitle) {
-    const mapped = mapGeminiTitle(rawTitle);
+function applyGeminiTitleToWorkerForm(parsedData) {
+    const mapped = readOcrTitle(parsedData);
     const titleSelect = document.getElementById("worker-title");
+    if (!mapped && titleSelect && !titleSelect.value) {
+        // ไม่มีคำนำหน้าพิมพ์ในเอกสาร — เติมจากเพศเฉพาะตอนช่องยังว่าง (ไม่ทับที่ผู้ใช้เลือกไว้)
+        const fallback = defaultTitleForGender(document.getElementById("worker-gender")?.value);
+        if (fallback) titleSelect.value = fallback;
+        return;
+    }
     if (mapped && titleSelect) {
         titleSelect.value = mapped;
 
@@ -2910,7 +2938,7 @@ function applyGeminiDataToWorkerForm(docType, parsedData) {
         setVal("worker-position", parsedData.position);
         applyNationality();
         applyGeminiGenderToWorkerForm(parsedData.gender);
-        applyGeminiTitleToWorkerForm(parsedData.title);
+        applyGeminiTitleToWorkerForm(parsedData);
     } else if (docType === 'worker-passport') {
         setVal("worker-passport-no", parsedData.passportNo);
         setVal("worker-passport-pob", parsedData.passportPob);
@@ -2919,21 +2947,21 @@ function applyGeminiDataToWorkerForm(docType, parsedData) {
         setVal("worker-passport-expiry", parsedData.passportExpiry);
         setVal("worker-dob", parsedData.dob);
         applyGeminiGenderToWorkerForm(parsedData.gender);
-        applyGeminiTitleToWorkerForm(parsedData.title);
+        applyGeminiTitleToWorkerForm(parsedData);
     } else if (docType === 'worker-pink-card') {
         setVal("worker-pink-card-no", parsedData.pinkCardNo);
         setVal("worker-thai-name", parsedData.thaiName);
         setVal("worker-insurance-no", parsedData.insuranceNo);
         setVal("worker-dob", parsedData.dob);
         applyGeminiGenderToWorkerForm(parsedData.gender);
-        applyGeminiTitleToWorkerForm(parsedData.title);
+        applyGeminiTitleToWorkerForm(parsedData);
     } else if (docType === 'worker-myanmar-id') {
         setVal("worker-first-name", parsedData.firstName);
         setVal("worker-last-name", parsedData.lastName);
         setVal("worker-dob", parsedData.dob);
         applyNationality();
         applyGeminiGenderToWorkerForm(parsedData.gender);
-        applyGeminiTitleToWorkerForm(parsedData.title);
+        applyGeminiTitleToWorkerForm(parsedData);
     } else if (docType === 'worker-insurance-doc') {
         setVal("worker-insurance-no", parsedData.insuranceNo);
     } else if (docType === 'worker-receipt') {
@@ -2941,7 +2969,59 @@ function applyGeminiDataToWorkerForm(docType, parsedData) {
         if (!document.getElementById("worker-uid").value.trim()) setVal("worker-uid", parsedData.uid);
         if (!document.getElementById("worker-ref-no").value.trim()) setVal("worker-ref-no", parsedData.refNo);
     }
+    if (parsedData.ewp) applyEwpDataToWorkerForm(parsedData, setVal);
     if (!document.getElementById("worker-email").value.trim()) setVal("worker-email", parsedData.email);
+}
+
+// ข้อมูลจาก QR ของกรมการจัดหางาน (parsedData.ewp — ดู ewpCardToParsedData ใน supabase-client.js) เป็นข้อมูลทางการ
+// เติมครบทุกช่องที่กรมส่งมา ไม่ว่าจะแนบไว้ในช่องเอกสารประเภทไหน
+const EWP_FORM_FIELDS = {
+    uid: "worker-uid", permitNo: "worker-permit-no", permitExpiry: "worker-permit-expiry",
+    firstName: "worker-first-name", lastName: "worker-last-name", dob: "worker-dob", position: "worker-position",
+    thaiName: "worker-thai-name", passportNo: "worker-passport-no", passportIssue: "worker-passport-issue", passportExpiry: "worker-passport-expiry"
+};
+const EWP_OBJECT_FIELDS = {
+    uid: "workerUid", permitNo: "permitNo", firstName: "firstName", lastName: "lastName", position: "position",
+    thaiName: "thaiName", passportNo: "passportNo"
+};
+const EWP_OBJECT_DATE_FIELDS = { permitExpiry: "permitExpiry", dob: "dob", passportIssue: "passportIssue", passportExpiry: "passportExpiry" };
+
+function applyEwpDataToWorkerForm(p, setVal) {
+    Object.entries(EWP_FORM_FIELDS).forEach(([key, id]) => setVal(id, p[key]));
+    if (p.lastName === "") document.getElementById("worker-last-name").value = "";
+    const natSelect = document.getElementById("worker-nationality");
+    if (p.nationality && Array.from(natSelect.options).some(o => o.value === p.nationality)) natSelect.value = p.nationality;
+    const title = mapGeminiTitle(p.title);
+    if (title) {
+        document.getElementById("worker-title").value = title;
+        const gender = deriveGenderFromTitle(title);
+        if (gender) document.getElementById("worker-gender").value = gender;
+    }
+}
+
+function applyEwpDataToWorker(w, p) {
+    Object.entries(EWP_OBJECT_FIELDS).forEach(([key, field]) => { if (p[key]) w[field] = p[key]; });
+    if (p.firstName && p.lastName === "") w.lastName = "";
+    Object.entries(EWP_OBJECT_DATE_FIELDS).forEach(([key, field]) => { if (p[key]) w[field] = parseDateInput(p[key]) || w[field]; });
+    if (p.nationality) w.nationality = p.nationality;
+    const title = mapGeminiTitle(p.title);
+    if (title) {
+        w.title = title;
+        w.gender = deriveGenderFromTitle(title) || w.gender;
+    }
+}
+
+// แจ้งผลจาก QR ของกรม: ใบอนุญาตถูกยกเลิก/เพิกถอน/หมดอายุ = เตือนแดง (บนบัตรไม่มีข้อมูลนี้ ต้องรู้จาก QR เท่านั้น)
+const EWP_BAD_STATUS_RE = /ยกเลิก|เพิกถอน|หมดอายุ|สิ้นสุด|cancel|revok|expire|terminat/i;
+function notifyEwpStatus(parsedData, label = "") {
+    const ewp = parsedData && parsedData.ewp;
+    if (!ewp) return;
+    const who = label ? ` (${label})` : "";
+    if (EWP_BAD_STATUS_RE.test(`${ewp.statusName} ${ewp.statusDesc}`)) {
+        showToast(`⛔ กรมการจัดหางานแจ้ง: ${ewp.statusName || ewp.statusDesc}${who} — ตรวจสอบกับนายจ้างก่อนดำเนินการ`, "danger");
+    } else {
+        showToast(`🔎 อ่าน QR กรมการจัดหางานแล้ว${who}: ${ewp.statusName || "ได้ข้อมูลทางการ"}`, "success");
+    }
 }
 
 // คืนนามสกุลไฟล์จาก data URL (เช่น "data:image/jpeg;base64,..." -> ".jpg")
@@ -7012,6 +7092,7 @@ async function uploadDocumentFile(fileDataUrl, fileName, customerId = "", worker
 
         if (resData && resData.status === 'success') {
             showToast("✅ บันทึกไฟล์สำเร็จ!", "success");
+            notifyEwpStatus(resData.parsedData);
             return {
                 fileUrl: resData.fileUrl,
                 viewUrl: resData.viewUrl,
@@ -8325,9 +8406,11 @@ function triggerFolderFileUpload(docType) {
 // เติมข้อมูลคนงานจากผลลัพธ์ AI OCR — ใช้ร่วมกันทั้งอัปโหลดทีละไฟล์ และนำเข้าหลายไฟล์พร้อมกัน (bulk import)
 function applyOcrDataToWorker(w, docType, p) {
     if (!p) return;
-    const title = mapGeminiTitle(p.title);
+    const printedTitle = readOcrTitle(p);
     // เชื่อมโยงคำนำหน้านามกับเพศ: ถ้า AI ไม่ได้อ่านเพศแยกมาให้ (หรืออ่านไม่ออก) ใช้คำนำหน้าที่อ่านได้มาเดาเพศแทน
-    const gender = mapGeminiGender(p.gender) || deriveGenderFromTitle(title);
+    const gender = mapGeminiGender(p.gender) || deriveGenderFromTitle(printedTitle);
+    // ไม่มีคำนำหน้าพิมพ์ในเอกสาร: เติมจากเพศเฉพาะคนงานที่ยังไม่มีคำนำหน้า (ไม่ทับค่าเดิม เช่น "นาง" ที่ผู้ใช้แก้ไว้)
+    const title = printedTitle || (!w.title ? defaultTitleForGender(gender || w.gender) : null);
 
     if (docType === 'worker-wp-doc') {
         if (p.permitNo) w.permitNo = p.permitNo;
@@ -8385,6 +8468,7 @@ function applyOcrDataToWorker(w, docType, p) {
         if (gender && !w.gender) w.gender = gender;
         if (['Myanmar', 'Cambodia', 'Laos'].includes(p.nationality) && !w.nationality) w.nationality = p.nationality;
     }
+    if (p.ewp) applyEwpDataToWorker(w, p);
     // อีเมล (เช่น ช่อง Email บนใบเสร็จ) — เติมเมื่อคนงานยังไม่มีอีเมลเท่านั้น
     if (p.email && !w.email) w.email = String(p.email).trim();
 }
@@ -8948,6 +9032,7 @@ async function analyzeBulkImportWithAi(onlyUnattempted = false) {
             if (ocr.parsedData) {
                 row.parsedData = ocr.parsedData;
                 row.ocrStatus = 'read';
+                notifyEwpStatus(ocr.parsedData, row.fileName);
                 consecutiveBusy = 0;
                 readCount++;
                 // ประเภทเอกสาร: ถ้ายังไม่รู้ (ชื่อไฟล์ไม่บอก) ใช้ที่ AI จำแนกให้

@@ -214,7 +214,161 @@
     const OCR_DOC_TYPES = ["worker-passport", "worker-wp-doc", "worker-visa", "worker-myanmar-id", "worker-pink-card", "worker-insurance-doc", "worker-receipt", "cust-id-card", "cust-cert", "expense-slip", "job-appointment", "worker-auto"];
 
     // คืน { parsedData, ocrError } — ocrError: null (สำเร็จ) / "busy" (Gemini ไม่ว่าง/โควตาหมด) / "failed"
+    // เอกสารคนงาน: อ่าน QR ของกรมการจัดหางานคู่ไปกับ AI — ถ้าเจอ ข้อมูลจากกรมทับค่าที่ AI อ่าน (แม่นกว่า)
+    // และถ้า AI อ่านไม่สำเร็จแต่ QR ได้ข้อมูล ก็ถือว่าอ่านสำเร็จ ไม่ต้องให้ผู้ใช้แนบใหม่
     async function callOcr(base64Data, mimeType, docType) {
+        const [ocr, ewp] = await Promise.all([
+            callGeminiOcr(base64Data, mimeType, docType),
+            EWP_QR_DOC_TYPES.includes(docType) ? lookupEwpFromFile(base64Data, mimeType) : null
+        ]);
+        if (!ewp) return ocr;
+        const parsedData = { ...(ocr.parsedData || {}), ...ewpCardToParsedData(ewp.card, ewp.ref) };
+        // Bulk Import: AI จำแนกประเภทไม่ได้ — QR นี้มีบนใบอนุญาตทำงานเท่านั้น
+        if (docType === "worker-auto" && !parsedData.documentType) parsedData.documentType = "worker-wp-doc";
+        return { parsedData, ocrError: null };
+    }
+
+    // -------------------- QR ใบอนุญาตทำงาน (e-WorkPermit กรมการจัดหางาน, edge function ewp-qrcheck) --------------------
+    const EWP_QR_DOC_TYPES = ["worker-wp-doc", "worker-pink-card", "worker-receipt", "worker-passport", "worker-auto"];
+    const EWP_QR_REF_RE = /qrcheck\/ref\?(?:ref_no=)?(\d{8,25})/;
+    const QR_MAX_DIM = 2000; // ย่อรูปใหญ่ก่อนหา QR — jsQR ช้ามากกับรูปจากกล้องมือถือเต็มขนาด
+
+    // คืน { ref, card } ถ้าในไฟล์มี QR ของ e-WorkPermit และดึงข้อมูลจากกรมได้ ไม่งั้นคืน null (ไม่ throw — ไม่ให้กระทบการอ่านด้วย AI)
+    async function lookupEwpFromFile(base64Data, mimeType) {
+        try {
+            if (typeof jsQR !== "function") return null;
+            const ref = await findEwpQrRef(base64Data, mimeType);
+            if (!ref) return null;
+            const headers = await getAuthHeaders();
+            const res = await fetch(`${FUNCTIONS_BASE}/ewp-qrcheck`, { method: "POST", headers, body: JSON.stringify({ ref }) });
+            const json = await res.json();
+            if (json && json.status === "success" && json.card && json.card.card_document_no) return { ref, card: json.card };
+            console.warn("e-WorkPermit lookup failed:", json && json.message);
+        } catch (e) {
+            console.warn("e-WorkPermit QR lookup failed:", e);
+        }
+        return null;
+    }
+
+    async function findEwpQrRef(base64Data, mimeType) {
+        const bytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+        // PDF: หา QR ในรูป JPEG ที่ฝังอยู่ (ไฟล์สแกน/รูปถ่ายที่แปลงเป็น PDF) — ยังไม่รองรับ PDF ที่เป็นภาพแบบอื่น
+        const blobs = mimeType === "application/pdf"
+            ? extractPdfJpegs(bytes).map(b => new Blob([b], { type: "image/jpeg" }))
+            : mimeType.startsWith("image/") ? [new Blob([bytes], { type: mimeType })] : [];
+        for (const blob of blobs) {
+            const text = await decodeQrFromBlob(blob);
+            const m = text && text.match(EWP_QR_REF_RE);
+            if (m) return m[1];
+        }
+        return null;
+    }
+
+    function extractPdfJpegs(bytes) {
+        const out = [];
+        const findSeq = (seq, from) => {
+            outer: for (let i = from; i <= bytes.length - seq.length; i++) {
+                for (let k = 0; k < seq.length; k++) if (bytes[i + k] !== seq[k]) continue outer;
+                return i;
+            }
+            return -1;
+        };
+        const ENDSTREAM = Array.from("endstream", c => c.charCodeAt(0));
+        let i = 0;
+        while ((i = findSeq([0xFF, 0xD8, 0xFF], i)) >= 0) {
+            const end = findSeq(ENDSTREAM, i);
+            if (end < 0) break;
+            out.push(bytes.subarray(i, end));
+            i = end;
+        }
+        return out;
+    }
+
+    async function decodeQrFromBlob(blob) {
+        try {
+            const bmp = await createImageBitmap(blob);
+            const scale = Math.min(1, QR_MAX_DIM / Math.max(bmp.width, bmp.height));
+            // ลองขนาดย่อก่อน (เร็ว) ถ้าไม่เจอและรูปถูกย่อไว้ ลองขนาดจริงอีกรอบ เผื่อ QR เล็กในรูปใหญ่
+            for (const s of scale < 1 ? [scale, 1] : [1]) {
+                const w = Math.round(bmp.width * s), h = Math.round(bmp.height * s);
+                const canvas = document.createElement("canvas");
+                canvas.width = w; canvas.height = h;
+                const ctx = canvas.getContext("2d", { willReadFrequently: true });
+                ctx.drawImage(bmp, 0, 0, w, h);
+                const code = jsQR(ctx.getImageData(0, 0, w, h).data, w, h, { inversionAttempts: "attemptBoth" });
+                if (code && code.data) return code.data;
+            }
+        } catch (e) {
+            console.warn("QR decode failed:", e);
+        }
+        return null;
+    }
+
+    const THAI_MONTHS = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+    const pad2 = n => String(n).padStart(2, "0");
+
+    // "13 กุมภาพันธ์ 2570" -> "13/02/2027" (ปี พ.ศ. -> ค.ศ.)
+    function ewpThaiDateToDmy(s) {
+        const m = String(s || "").trim().match(/^(\d{1,2})\s+(\S+)\s+(\d{4})$/);
+        const month = m ? THAI_MONTHS.indexOf(m[2]) + 1 : 0;
+        if (!month) return undefined;
+        const year = Number(m[3]) > 2400 ? Number(m[3]) - 543 : Number(m[3]);
+        return `${pad2(m[1])}/${pad2(month)}/${year}`;
+    }
+
+    // "20291220" -> "20/12/2029"
+    function ewpCompactDateToDmy(s) {
+        const m = String(s || "").match(/^(\d{4})(\d{2})(\d{2})$/);
+        return m ? `${m[3]}/${m[2]}/${m[1]}` : undefined;
+    }
+
+    function ewpNationality(en) {
+        const n = String(en || "").toLowerCase();
+        if (n.includes("myanmar") || n.includes("burm")) return "Myanmar";
+        if (n.includes("cambod")) return "Cambodia";
+        if (n.includes("lao")) return "Laos";
+        return undefined;
+    }
+
+    // แปลงผลจากกรมเป็นรูปแบบเดียวกับผล AI (ocr-document) เพื่อใช้ฟังก์ชันเติมข้อมูลเดิมได้ + เก็บข้อมูลดิบไว้ที่ .ewp
+    // ใส่เฉพาะช่องที่มีค่า — ช่องที่กรมไม่ส่งมา จะไม่ทับค่าที่ AI อ่านได้
+    function ewpCardToParsedData(card, ref) {
+        const TITLE_RE = /^(นางสาว|นาง|นาย|เด็กชาย|เด็กหญิง)\s*/;
+        const thFull = String(card.fullname_th || "").trim();
+        const titleMatch = thFull.match(TITLE_RE);
+        const enFull = String(card.fullname_en || "").replace(/^(mrs|miss|ms|mr)\.?\s+/i, "").trim();
+        const nationality = ewpNationality(card.nationality_en);
+        const isPassport = /passport/i.test(card.document_type_en || "") || card.document_type === "หนังสือเดินทาง";
+        // ชื่อ: ใช้ช่อง first/last ที่กรมแยกมาให้ถ้ามี ไม่งั้นใช้ชื่อเต็มเป็นชื่อเดียว (กฎเดียวกับ AI: ไม่แน่ใจ = ไม่แยก)
+        const firstName = card.first_name ? String(card.first_name).trim() : enFull;
+        const lastName = card.first_name && nationality !== "Myanmar" ? String(card.last_name || "").trim() : "";
+        const d = {
+            uid: card.alien_no,
+            permitNo: card.card_document_no,
+            permitExpiry: ewpThaiDateToDmy(card.expired_time),
+            dob: ewpThaiDateToDmy(card.date_of_birth),
+            nationality,
+            position: card.working_type,
+            firstName: nationality === "Myanmar" ? `${firstName} ${lastName}`.trim() : firstName,
+            lastName,
+            thaiName: titleMatch ? thFull.slice(titleMatch[0].length).trim() : thFull,
+            title: titleMatch ? titleMatch[1] : undefined,
+            passportNo: isPassport ? card.document_no : undefined,
+            passportIssue: isPassport ? ewpCompactDateToDmy(card.document_issue_date) : undefined,
+            passportExpiry: isPassport ? ewpCompactDateToDmy(card.document_expiry_date) : undefined
+        };
+        Object.keys(d).forEach(k => { if (d[k] === undefined || d[k] === null || d[k] === "") delete d[k]; });
+        d.ewp = {
+            ref,
+            statusId: card.wp_status_id,
+            statusName: card.wp_status_name || "",
+            statusDesc: card.wp_status_desc || "",
+            employers: (card.employer_list || []).map(e => String(e.company_name || "").replace(/\s+/g, " ").trim()).filter(Boolean)
+        };
+        return d;
+    }
+
+    async function callGeminiOcr(base64Data, mimeType, docType) {
         try {
             const headers = await getAuthHeaders();
             const ocrRes = await fetch(`${FUNCTIONS_BASE}/ocr-document`, {
