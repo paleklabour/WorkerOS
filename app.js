@@ -8998,6 +8998,9 @@ function renderBulkImportTable() {
         tbody.innerHTML = `<tr><td colspan="6" class="text-muted" style="text-align:center; padding:20px;">ยังไม่ได้เลือกไฟล์</td></tr>`;
         if (summary) summary.style.display = 'none';
         syncBulkImportSelectAll();
+        // ต้องวาดการ์ดคนงานใหม่ด้วย ไม่งั้นการ์ดเก่าค้างบนจอหลังลบไฟล์สุดท้าย/กดไม่สร้าง/เปิดหน้าต่างใหม่ และกดเอาออกไม่ได้
+        pruneBulkNewWorkers();
+        renderBulkNewWorkers();
         return;
     }
 
