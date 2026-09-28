@@ -338,7 +338,9 @@
         const titleMatch = thFull.match(TITLE_RE);
         const enFull = String(card.fullname_en || "").replace(/^(mrs|miss|ms|mr)\.?\s+/i, "").trim();
         const nationality = ewpNationality(card.nationality_en);
-        const isPassport = /passport/i.test(card.document_type_en || "") || card.document_type === "หนังสือเดินทาง";
+        // เอกสารเข้าเมือง: Passport หรือ CI — ช่องในระบบเป็น "เลขที่เล่ม Passport / CI" ใช้ร่วมกัน
+        const isPassport = /passport|\bCI\b|certificate of identity/i.test(card.document_type_en || "") ||
+            /หนังสือเดินทาง|เอกสารรับรองบุคคล/.test(card.document_type || "");
         // ชื่อ: ใช้ช่อง first/last ที่กรมแยกมาให้ถ้ามี ไม่งั้นใช้ชื่อเต็มเป็นชื่อเดียว (กฎเดียวกับ AI: ไม่แน่ใจ = ไม่แยก)
         const firstName = card.first_name ? String(card.first_name).trim() : enFull;
         const lastName = card.first_name && nationality !== "Myanmar" ? String(card.last_name || "").trim() : "";

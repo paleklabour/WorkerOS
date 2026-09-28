@@ -2970,6 +2970,7 @@ function applyGeminiDataToWorkerForm(docType, parsedData) {
         if (!document.getElementById("worker-ref-no").value.trim()) setVal("worker-ref-no", parsedData.refNo);
     }
     if (parsedData.ewp) applyEwpDataToWorkerForm(parsedData, setVal);
+    if (docType === 'worker-wp-doc' || (parsedData.ewp && docType !== 'worker-passport')) applyWpPassportInfoToForm(parsedData);
     if (!document.getElementById("worker-email").value.trim()) setVal("worker-email", parsedData.email);
 }
 
@@ -2978,13 +2979,69 @@ function applyGeminiDataToWorkerForm(docType, parsedData) {
 const EWP_FORM_FIELDS = {
     uid: "worker-uid", permitNo: "worker-permit-no", permitExpiry: "worker-permit-expiry",
     firstName: "worker-first-name", lastName: "worker-last-name", dob: "worker-dob", position: "worker-position",
-    thaiName: "worker-thai-name", passportNo: "worker-passport-no", passportIssue: "worker-passport-issue", passportExpiry: "worker-passport-expiry"
+    thaiName: "worker-thai-name"
 };
 const EWP_OBJECT_FIELDS = {
     uid: "workerUid", permitNo: "permitNo", firstName: "firstName", lastName: "lastName", position: "position",
-    thaiName: "thaiName", passportNo: "passportNo"
+    thaiName: "thaiName"
 };
-const EWP_OBJECT_DATE_FIELDS = { permitExpiry: "permitExpiry", dob: "dob", passportIssue: "passportIssue", passportExpiry: "passportExpiry" };
+const EWP_OBJECT_DATE_FIELDS = { permitExpiry: "permitExpiry", dob: "dob" };
+
+// ==================== ข้อมูลเล่ม Passport/CI ที่พิมพ์อยู่ในใบอนุญาตทำงาน ====================
+// e-WorkPermit (เช่น ใบมติ ครม.) มีหัวข้อ "ข้อมูลหนังสือเดินทาง" และ QR ของกรมก็ส่งเลขเอกสารเข้าเมืองมา —
+// เติมลงช่องพาสปอร์ตเฉพาะเมื่อใบอนุญาตยังไม่หมดอายุ/ไม่ถูกยกเลิก (ใบเก่าอาจอ้างเล่มที่เลิกใช้แล้ว)
+// ช่องพาสปอร์ตที่มีค่าอยู่แล้ว: เลขเล่มเดียวกัน = เติมเฉพาะช่องที่ยังว่าง, คนละเล่ม = ทับเฉพาะเมื่อเล่มในใบอนุญาตหมดอายุช้ากว่า
+// (กันใบอนุญาตที่ออกก่อนต่อเล่มใหม่ มาทับเล่มใหม่ที่แนบจากพาสปอร์ตจริงแล้ว)
+const WP_PASSPORT_KEYS = ["passportNo", "passportIssue", "passportExpiry", "passportAuth"];
+
+function isWpDocStillValid(p) {
+    if (p.ewp && EWP_BAD_STATUS_RE.test(`${p.ewp.statusName} ${p.ewp.statusDesc}`)) return false;
+    const expiry = safeParseDate(p.permitExpiry);
+    if (!expiry) return false; // อ่านวันหมดอายุไม่ได้ = ยืนยันไม่ได้ว่ายังใช้ได้ ไม่เติม
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    return expiry >= todayStart;
+}
+
+// current = ค่าพาสปอร์ตปัจจุบันของคนงาน (key เดียวกับ WP_PASSPORT_KEYS) คืนเฉพาะช่องที่ควรเติม/ทับ หรือ null
+function pickWpPassportUpdates(p, current) {
+    if (!p || !p.passportNo || !isWpDocStillValid(p)) return null;
+    const norm = v => String(v || "").replace(/\s+/g, "").toUpperCase();
+    const updates = {};
+    if (!norm(current.passportNo) || norm(current.passportNo) === norm(p.passportNo)) {
+        WP_PASSPORT_KEYS.forEach(k => { if (p[k] && !current[k]) updates[k] = p[k]; });
+    } else {
+        const newExp = safeParseDate(p.passportExpiry), curExp = safeParseDate(current.passportExpiry);
+        if (!newExp || (curExp && newExp <= curExp)) return null;
+        WP_PASSPORT_KEYS.forEach(k => { if (p[k]) updates[k] = p[k]; });
+    }
+    return Object.keys(updates).length ? updates : null;
+}
+
+const WP_PASSPORT_FORM_IDS = {
+    passportNo: "worker-passport-no", passportIssue: "worker-passport-issue",
+    passportExpiry: "worker-passport-expiry", passportAuth: "worker-passport-auth"
+};
+
+function applyWpPassportInfoToForm(p) {
+    const current = {};
+    Object.entries(WP_PASSPORT_FORM_IDS).forEach(([k, id]) => { current[k] = document.getElementById(id).value.trim(); });
+    const updates = pickWpPassportUpdates(p, current);
+    if (!updates) return;
+    Object.entries(updates).forEach(([k, v]) => {
+        document.getElementById(WP_PASSPORT_FORM_IDS[k]).value = k === "passportNo" || k === "passportAuth" ? v : normalizeDisplayDateYear(v);
+    });
+}
+
+function applyWpPassportInfoToWorker(w, p) {
+    const updates = pickWpPassportUpdates(p, {
+        passportNo: w.passportNo, passportIssue: w.passportIssue, passportExpiry: w.passportExpiry, passportAuth: w.passportAuth
+    });
+    if (!updates) return;
+    Object.entries(updates).forEach(([k, v]) => {
+        w[k] = k === "passportNo" || k === "passportAuth" ? v : (parseDateInput(v) || w[k]);
+    });
+}
 
 function applyEwpDataToWorkerForm(p, setVal) {
     Object.entries(EWP_FORM_FIELDS).forEach(([key, id]) => setVal(id, p[key]));
@@ -8469,6 +8526,7 @@ function applyOcrDataToWorker(w, docType, p) {
         if (['Myanmar', 'Cambodia', 'Laos'].includes(p.nationality) && !w.nationality) w.nationality = p.nationality;
     }
     if (p.ewp) applyEwpDataToWorker(w, p);
+    if (docType === 'worker-wp-doc' || (p.ewp && docType !== 'worker-passport')) applyWpPassportInfoToWorker(w, p);
     // อีเมล (เช่น ช่อง Email บนใบเสร็จ) — เติมเมื่อคนงานยังไม่มีอีเมลเท่านั้น
     if (p.email && !w.email) w.email = String(p.email).trim();
 }

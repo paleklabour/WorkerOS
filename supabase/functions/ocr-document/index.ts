@@ -155,11 +155,15 @@ function buildPrompt(docType: string): string {
     `  "firstName": "Full given name (English or Thai) — see naming rule above",\n` +
     `  "lastName": "Family surname only if one genuinely exists — leave empty for Myanmar nationals",\n` +
     `  "uid": "13-digit worker ID (เลขประจำตัวคนต่างด้าว 13 หลัก) if found",\n` +
-    `  "passportNo": "Passport number if passport",\n` +
-    `  "passportExpiry": "DD/MM/YYYY format if passport",\n` +
+    // ใบอนุญาตทำงาน/e-WorkPermit มักมีหัวข้อ "ข้อมูลหนังสือเดินทาง" (เลขเล่ม Passport/CI, สถานที่ออก, วันออก/หมดอายุ)
+    // — ให้อ่านมาด้วย หน้าเว็บจะเติมลงช่องพาสปอร์ตเมื่อใบอนุญาตยังไม่หมดอายุ (ดู pickWpPassportUpdates ใน app.js)
+    `  "passportNo": "Passport or CI (Certificate of Identity) number — from a passport/CI, or from the passport section ` +
+    `(ข้อมูลหนังสือเดินทาง / เลขที่หนังสือเดินทาง) printed on a work permit document",\n` +
+    `  "passportType": "Passport or CI, if the document states the passport type (ประเภทหนังสือเดินทาง)",\n` +
+    `  "passportExpiry": "Passport/CI expiry date in DD/MM/YYYY format (from a passport/CI or a work permit's passport section)",\n` +
     `  "passportPob": "Place of birth (as printed on passport/CI) if passport",\n` +
-    `  "passportAuth": "Issuing authority (Authority field) if passport",\n` +
-    `  "passportIssue": "Date of issue in DD/MM/YYYY format if passport",\n` +
+    `  "passportAuth": "Issuing authority (Authority field) of the passport/CI, or its place of issue (สถานที่ออกหนังสือเดินทาง) on a work permit",\n` +
+    `  "passportIssue": "Passport/CI date of issue in DD/MM/YYYY format (from a passport/CI or a work permit's passport section)",\n` +
     `  "permitNo": "Work permit number or Receipt number (เลขรับที่) if work permit",\n` +
     `  "permitExpiry": "DD/MM/YYYY format if work permit",\n` +
     `  "dob": "Date of birth in DD/MM/YYYY",\n` +
