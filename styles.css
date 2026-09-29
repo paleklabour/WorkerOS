@@ -2676,3 +2676,28 @@ h1, h2, h3, h4, h5, h6 {
     color: var(--text-muted);
     cursor: not-allowed;
 }
+
+/* ==================== WORKERS: เปลี่ยน "รอขึ้นทะเบียน" → "ปกติ" ทีละหลายคน (admin) ==================== */
+.worker-bulk-bar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+    padding: 10px 14px;
+    background: var(--gold-light);
+    border: 1px solid var(--gold-border);
+    border-radius: var(--radius-md);
+}
+.worker-bulk-bar label,
+.worker-bulk-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+}
+.worker-bulk-check {
+    font-size: 11px;
+    color: var(--gold-primary);
+    margin-bottom: 4px;
+}

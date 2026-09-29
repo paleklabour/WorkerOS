@@ -2162,6 +2162,59 @@ function renderWorkerExpiryLine(label, expDate, daysLeft, warnDays) {
     return `<div class="worker-expiry-line ${cls}"><span>${label}:</span> <strong>${expDate.toLocaleDateString('th-TH')}</strong></div>`;
 }
 
+let selectedPendingWorkerIds = new Set();
+let lastPendingFilteredIds = [];
+
+function updateWorkerBulkStatusBar(visible) {
+    const bar = document.getElementById("worker-bulk-status-bar");
+    if (!bar) return;
+    bar.classList.toggle("hidden", !visible);
+    if (!visible) return;
+    const selected = selectedPendingWorkerIds.size;
+    const total = lastPendingFilteredIds.length;
+    document.getElementById("worker-bulk-total").innerText = total;
+    document.getElementById("worker-bulk-count").innerText = `เลือกแล้ว ${selected} คน`;
+    const selectAll = document.getElementById("worker-bulk-select-all");
+    selectAll.checked = total > 0 && selected === total;
+    selectAll.indeterminate = selected > 0 && selected < total;
+    document.getElementById("btn-bulk-activate-workers").disabled = selected === 0;
+}
+
+function togglePendingWorkerSelection(id, checked) {
+    if (checked) selectedPendingWorkerIds.add(id); else selectedPendingWorkerIds.delete(id);
+    updateWorkerBulkStatusBar(true);
+}
+
+// เลือกทุกคนที่ตรงตัวกรองตอนนี้ (ทุกหน้า ไม่ใช่แค่หน้าที่เห็น)
+function toggleSelectAllPendingWorkers(checked) {
+    selectedPendingWorkerIds = checked ? new Set(lastPendingFilteredIds) : new Set();
+    renderWorkers();
+}
+
+async function bulkActivateSelectedWorkers() {
+    if (currentUser.role !== 'admin') {
+        showToast("❌ เฉพาะ Admin เท่านั้นที่เปลี่ยนสถานะทีละหลายคนได้", "danger");
+        return;
+    }
+    const ids = [...selectedPendingWorkerIds];
+    if (ids.length === 0) return;
+    if (!confirm(`ยืนยันเปลี่ยนสถานะคนงาน ${ids.length} คน จาก "รอขึ้นทะเบียน" เป็น "ปกติ (Active)"?`)) return;
+
+    showToast(`💾 กำลังเปลี่ยนสถานะคนงาน ${ids.length} คน...`, "warning");
+    const res = await callCloudAPI("bulkSetWorkerStatus", { ids, status: 'active' });
+    if (!res || res.status === "error") {
+        showToast("❌ เปลี่ยนสถานะไม่สำเร็จ: " + (res && res.message ? res.message : "กรุณาลองใหม่"), "danger");
+        return;
+    }
+    const updated = new Set(res.updatedIds || ids);
+    workers.forEach(w => { if (updated.has(w.id)) w.status = 'active'; });
+    selectedPendingWorkerIds = new Set();
+    saveData();
+    renderWorkers();
+    const missed = ids.length - updated.size;
+    showToast(`✅ เปลี่ยนเป็นปกติแล้ว ${updated.size} คน${missed > 0 ? ` (ไม่สำเร็จ ${missed} คน)` : ''}`, missed > 0 ? "warning" : "success");
+}
+
 function renderWorkers() {
     const searchVal = document.getElementById("search-worker").value.toLowerCase();
     const natFilter = document.getElementById("filter-worker-nationality").value;
@@ -2231,6 +2284,13 @@ function renderWorkers() {
 
         return matchSearch && matchNat && matchEmp && matchStatus && matchEmpStatus;
     });
+
+    // เปลี่ยน "รอขึ้นทะเบียน" → "ปกติ" ทีละหลายคน: เฉพาะ admin และเฉพาะตอนกรองดู "รอขึ้นทะเบียน" อยู่
+    const bulkPendingMode = currentUser.role === 'admin' && empStatusFilter === 'pending_register';
+    const pendingFilteredIds = bulkPendingMode ? filtered.filter(w => w.status === 'pending_register').map(w => w.id) : [];
+    selectedPendingWorkerIds = new Set([...selectedPendingWorkerIds].filter(id => pendingFilteredIds.includes(id)));
+    lastPendingFilteredIds = pendingFilteredIds;
+    updateWorkerBulkStatusBar(bulkPendingMode);
 
     // Pagination calculations
     const totalPages = Math.ceil(filtered.length / workersPageSize) || 1;
@@ -2311,6 +2371,7 @@ function renderWorkers() {
         return `
             <tr class="clickable-row" onclick="openWorkerModal('${w.id}')" title="คลิกเพื่อดูรายละเอียดคนงาน">
                 <td>
+                    ${bulkPendingMode && w.status === 'pending_register' ? `<label class="worker-bulk-check" onclick="event.stopPropagation()"><input type="checkbox" ${selectedPendingWorkerIds.has(w.id) ? 'checked' : ''} onchange="togglePendingWorkerSelection('${w.id}', this.checked)"> เลือก</label>` : ''}
                     <div><strong>${w.refNo || '-'}</strong></div>
                     <small class="text-muted">เลขประจำตัวคนต่างด้าว: ${w.workerUid || '-'}</small><br>
                     <small class="text-muted">เลขที่ใบอนุญาตทำงาน: ${w.permitNo || '-'}</small>

@@ -602,6 +602,13 @@
                             </button>
                         </div>
 
+                        <!-- เปลี่ยน "รอขึ้นทะเบียน" → "ปกติ" ทีละหลายคน: แสดงเฉพาะ admin ตอนกรอง "รอขึ้นทะเบียน" (ดู updateWorkerBulkStatusBar ใน app.js) -->
+                        <div id="worker-bulk-status-bar" class="worker-bulk-bar hidden">
+                            <label><input type="checkbox" id="worker-bulk-select-all" onchange="toggleSelectAllPendingWorkers(this.checked)"> เลือกทั้งหมด (<span id="worker-bulk-total">0</span> คนตามตัวกรอง)</label>
+                            <span id="worker-bulk-count" class="text-muted">เลือกแล้ว 0 คน</span>
+                            <button class="btn btn-sm btn-gold" id="btn-bulk-activate-workers" onclick="bulkActivateSelectedWorkers()" disabled>✅ เปลี่ยนเป็นปกติ</button>
+                        </div>
+
                         <div class="table-container">
                             <table class="data-table" id="workers-table">
                                 <thead>

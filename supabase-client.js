@@ -468,8 +468,23 @@
                 return await handleGetData();
             case "saveCustomer":
                 return await upsertOne("customers", CUSTOMER_MAP, payload.customerData);
-            case "saveWorker":
-                return await upsertOne("workers", WORKER_MAP, payload.workerData);
+            case "saveWorker": {
+                // worker_uid เป็น unique — ค่าว่าง "" ซ้ำกันได้แค่แถวเดียว แต่ NULL ซ้ำกันได้ไม่จำกัด
+                // คนงานที่ยังไม่มีเลขประจำตัวจึงต้องบันทึกเป็น NULL ไม่งั้นแก้ไขคนที่สองจะชน "workers_worker_uid_key"
+                const workerData = { ...payload.workerData };
+                if (workerData.workerUid !== undefined) workerData.workerUid = String(workerData.workerUid || "").trim() || null;
+                const res = await upsertOne("workers", WORKER_MAP, workerData);
+                if (res.status === "error" && /workers_worker_uid_key/.test(res.message)) {
+                    res.message = `เลขประจำตัวคนต่างด้าว ${workerData.workerUid} มีอยู่แล้วในคนงานรายอื่น กรุณาตรวจสอบเลขอีกครั้ง`;
+                }
+                return res;
+            }
+            case "bulkSetWorkerStatus": {
+                // RLS กรองแถวที่ไม่มีสิทธิ์ทิ้งเงียบๆ (ไม่ error) — คืน id ที่อัปเดตได้จริงให้ app.js เทียบเอง
+                const { data, error } = await sb.from("workers").update({ status: payload.status }).in("id", payload.ids).select("id");
+                if (error) return { status: "error", message: error.message };
+                return { status: "success", updatedIds: (data || []).map(r => r.id) };
+            }
             case "saveJob":
                 return await upsertOne("jobs", JOB_MAP, payload.jobData);
             case "saveAgent":
