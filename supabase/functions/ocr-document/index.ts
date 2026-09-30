@@ -144,6 +144,9 @@ function buildPrompt(docType: string): string {
     `given name, even if it has multiple words (e.g. "HTET DO", "AUNG NAING WIN"). If nationality is Myanmar, put the ` +
     `ENTIRE name into "firstName" and leave "lastName" empty. Only split into firstName/lastName for nationalities that ` +
     `actually use a family surname (e.g. Lao, Cambodian names may still be a single name too — when in doubt, do not split). ` +
+    `"firstName"/"lastName" MUST be in English (Latin letters A-Z) exactly as romanized on the document — NEVER output ` +
+    `Burmese/Myanmar, Khmer, Lao or Thai script in these two fields, and never transliterate a native-script name yourself. ` +
+    `If the document prints the name only in a non-Latin script (e.g. a Myanmar national ID card), omit "firstName" and "lastName". ` +
     `Output ONLY a valid JSON object matching this schema, without markdown wrapping, json declaration, or backticks:\n` +
     `{\n` +
     (docType === "worker-auto"
@@ -152,8 +155,8 @@ function buildPrompt(docType: string): string {
         `  "photoBox": "only if the document shows a printed portrait photo of the person: its bounding box as [ymin, xmin, ymax, xmax] ` +
         `normalized to 0-1000 on the first page/image; omit if there is no portrait photo",\n`
       : "") +
-    `  "firstName": "Full given name (English or Thai) — see naming rule above",\n` +
-    `  "lastName": "Family surname only if one genuinely exists — leave empty for Myanmar nationals",\n` +
+    `  "firstName": "Full given name in English (Latin letters only) — see naming rule above",\n` +
+    `  "lastName": "Family surname in English (Latin letters only), only if one genuinely exists — leave empty for Myanmar nationals",\n` +
     `  "uid": "13-digit worker ID (เลขประจำตัวคนต่างด้าว 13 หลัก) if found",\n` +
     // ใบอนุญาตทำงาน/e-WorkPermit มักมีหัวข้อ "ข้อมูลหนังสือเดินทาง" (เลขเล่ม Passport/CI, สถานที่ออก, วันออก/หมดอายุ)
     // — ให้อ่านมาด้วย หน้าเว็บจะเติมลงช่องพาสปอร์ตเมื่อใบอนุญาตยังไม่หมดอายุ (ดู pickWpPassportUpdates ใน app.js)
@@ -178,6 +181,15 @@ function buildPrompt(docType: string): string {
     `  "insuranceNo": "Health insurance number (เลขประกันสุขภาพ) if found, e.g. on a pink card",\n` +
     `  "email": "Email address (อีเมล / Email) printed on the document if found, e.g. the Email field on a Department of Employment receipt"\n` +
     `}`;
+}
+
+// ช่อง "ชื่อ" ของคนงานต้องเป็นภาษาอังกฤษเท่านั้น — แม้สั่งใน prompt แล้ว AI ยังส่งอักษรพม่า (หรือเขมร/ลาว/ไทย)
+// มาบ้าง โดยเฉพาะบัตรประชาชนพม่า ถ้าเจออักษรที่ไม่ใช่ละตินให้ตัดทิ้ง หน้าเว็บจะไม่เอาไปทับชื่อที่มีอยู่
+const NON_LATIN_LETTER_RE = /(?!\p{Script=Latin})\p{L}/u;
+function dropNonEnglishNames(p: Record<string, unknown>) {
+  for (const key of ["firstName", "lastName"]) {
+    if (typeof p[key] === "string" && NON_LATIN_LETTER_RE.test(p[key] as string)) delete p[key];
+  }
 }
 
 Deno.serve(async (req) => {
@@ -260,6 +272,7 @@ Deno.serve(async (req) => {
         console.error("Failed to parse Gemini JSON output:", e, cleaned);
       }
     }
+    if (parsedData && typeof parsedData === "object") dropNonEnglishNames(parsedData);
 
     return new Response(JSON.stringify({ status: "success", parsedData }), {
       headers: { ...CORS_HEADERS, "Content-Type": "application/json" },

@@ -252,14 +252,45 @@
 
     async function findEwpQrRef(base64Data, mimeType) {
         const bytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
-        // PDF: หา QR ในรูป JPEG ที่ฝังอยู่ (ไฟล์สแกน/รูปถ่ายที่แปลงเป็น PDF) — ยังไม่รองรับ PDF ที่เป็นภาพแบบอื่น
-        const blobs = mimeType === "application/pdf"
+        const matchRef = text => { const m = text && text.match(EWP_QR_REF_RE); return m ? m[1] : null; };
+        const isPdf = mimeType === "application/pdf";
+        // PDF: ลองรูป JPEG ที่ฝังอยู่ก่อน (เร็ว — ไฟล์สแกน/รูปถ่ายที่แปลงเป็น PDF)
+        const blobs = isPdf
             ? extractPdfJpegs(bytes).map(b => new Blob([b], { type: "image/jpeg" }))
             : mimeType.startsWith("image/") ? [new Blob([bytes], { type: mimeType })] : [];
         for (const blob of blobs) {
-            const text = await decodeQrFromBlob(blob);
-            const m = text && text.match(EWP_QR_REF_RE);
-            if (m) return m[1];
+            const ref = matchRef(await decodeQrFromBlob(blob));
+            if (ref) return ref;
+        }
+        // ไม่เจอ: PDF ส่วนใหญ่ที่แนบใบอนุญาตทำงาน (ไฟล์จากระบบกรม/สแกนเนอร์) เก็บภาพแบบอื่นหรือวาด QR เป็นเวกเตอร์
+        // — ให้ pdf.js วาดทั้งหน้าเป็นภาพแล้วหา QR แทน
+        return isPdf ? await findQrInRenderedPdf(bytes, matchRef) : null;
+    }
+
+    const PDF_QR_MAX_PAGES = 3;
+    const PDF_QR_RENDER_DIMS = [2000, 3500]; // QR บนบัตรที่สแกนลง A4 มีขนาดเล็ก — ไม่เจอที่ขนาดแรก ลองวาดใหญ่ขึ้นอีกรอบ
+
+    async function findQrInRenderedPdf(bytes, matchRef) {
+        if (!window.pdfjsLib) return null;
+        try {
+            // pdf.js ย้าย buffer ที่ส่งเข้าไปให้ worker — ส่งสำเนา ไม่ให้ bytes เดิมใช้ไม่ได้
+            const pdf = await window.pdfjsLib.getDocument({ data: bytes.slice() }).promise;
+            for (let p = 1; p <= Math.min(pdf.numPages, PDF_QR_MAX_PAGES); p++) {
+                const page = await pdf.getPage(p);
+                const base = page.getViewport({ scale: 1 });
+                for (const dim of PDF_QR_RENDER_DIMS) {
+                    const viewport = page.getViewport({ scale: dim / Math.max(base.width, base.height) });
+                    const canvas = document.createElement("canvas");
+                    canvas.width = Math.round(viewport.width); canvas.height = Math.round(viewport.height);
+                    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+                    await page.render({ canvasContext: ctx, viewport }).promise;
+                    const code = jsQR(ctx.getImageData(0, 0, canvas.width, canvas.height).data, canvas.width, canvas.height, { inversionAttempts: "attemptBoth" });
+                    const ref = matchRef(code && code.data);
+                    if (ref) return ref;
+                }
+            }
+        } catch (e) {
+            console.warn("PDF QR render failed:", e);
         }
         return null;
     }
