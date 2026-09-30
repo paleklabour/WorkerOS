@@ -2981,6 +2981,16 @@ function applyGeminiDataToWorkerForm(docType, parsedData) {
         const el = document.getElementById(id);
         if (el) el.value = normalizeDisplayDateYear(val); // ช่องวันที่: ปี พ.ศ. จาก AI -> ค.ศ.
     };
+    // ข้อมูลจากใบอนุญาตทำงาน (ไฟล์ในช่องใบอนุญาต หรือ QR ของกรม): ถ้าใบนี้เก่ากว่าข้อมูลที่ฟอร์มมีอยู่
+    // (เช่น ใบแทนฉบับเก่า) -> เติมเฉพาะช่องที่ยังว่าง ไม่ทับ (ดู shouldWpDocOverride)
+    const wpOverride = (docType !== 'worker-wp-doc' && !parsedData.ewp) ||
+        shouldWpDocOverride(parsedData, document.getElementById("worker-permit-expiry").value.trim());
+    const setPermitVal = (id, val) => {
+        const el = document.getElementById(id);
+        if (!wpOverride && el && el.value.trim()) return;
+        setVal(id, val);
+    };
+    if (!wpOverride) showToast("เอกสารใบอนุญาตทำงานนี้เก่ากว่าข้อมูลเดิม (หมดอายุก่อน) — คงข้อมูลเดิมไว้ เติมเฉพาะช่องที่ยังว่าง", "warning");
     const applyNationality = () => {
         if (!parsedData.nationality) return;
         const natSelect = document.getElementById("worker-nationality");
@@ -2989,14 +2999,14 @@ function applyGeminiDataToWorkerForm(docType, parsedData) {
     };
 
     if (docType === 'worker-wp-doc') {
-        setVal("worker-uid", parsedData.uid);
-        setVal("worker-permit-no", parsedData.permitNo);
-        setVal("worker-permit-expiry", parsedData.permitExpiry);
-        setVal("worker-first-name", parsedData.firstName);
-        setVal("worker-last-name", parsedData.lastName);
-        setVal("worker-dob", parsedData.dob);
-        setVal("worker-ref-no", parsedData.refNo);
-        setVal("worker-position", parsedData.position);
+        setPermitVal("worker-uid", parsedData.uid);
+        setPermitVal("worker-permit-no", parsedData.permitNo);
+        setPermitVal("worker-permit-expiry", parsedData.permitExpiry);
+        setPermitVal("worker-first-name", parsedData.firstName);
+        setPermitVal("worker-last-name", parsedData.lastName);
+        setPermitVal("worker-dob", parsedData.dob);
+        setPermitVal("worker-ref-no", parsedData.refNo);
+        setPermitVal("worker-position", parsedData.position);
         applyNationality();
         applyGeminiGenderToWorkerForm(parsedData.gender);
         applyGeminiTitleToWorkerForm(parsedData);
@@ -3030,7 +3040,7 @@ function applyGeminiDataToWorkerForm(docType, parsedData) {
         if (!document.getElementById("worker-uid").value.trim()) setVal("worker-uid", parsedData.uid);
         if (!document.getElementById("worker-ref-no").value.trim()) setVal("worker-ref-no", parsedData.refNo);
     }
-    if (parsedData.ewp) applyEwpDataToWorkerForm(parsedData, setVal);
+    if (parsedData.ewp) applyEwpDataToWorkerForm(parsedData, setPermitVal, wpOverride);
     if (docType === 'worker-wp-doc' || (parsedData.ewp && docType !== 'worker-passport')) applyWpPassportInfoToForm(parsedData);
     if (!document.getElementById("worker-email").value.trim()) setVal("worker-email", parsedData.email);
 }
@@ -3062,6 +3072,23 @@ function isWpDocStillValid(p) {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
     return expiry >= todayStart;
+}
+
+// ช่องใบอนุญาตทำงานรับทั้งใบอนุญาตจริงและ "ใบแทนใบอนุญาตทำงาน" (ซึ่งอาจเป็นฉบับเก่าที่หมดอายุแล้ว) — ใช้ข้อมูลจากใบที่ยังไม่หมดอายุก่อนเสมอ
+// ถ้าใช้ได้/หมดอายุเหมือนกันทั้งคู่ ใช้ใบที่หมดอายุช้ากว่า (= ฉบับล่าสุด) วันเท่ากัน (ใบแทนของใบเดียวกัน) ใบที่แนบทีหลังชนะ
+// คืน true = ใบที่แนบใหม่ทับข้อมูลใบอนุญาตเดิมได้, false = เติมเฉพาะช่องที่ยังว่าง (ไม่ขึ้นกับลำดับที่แนบ)
+function shouldWpDocOverride(p, currentPermitExpiry) {
+    // เทียบเฉพาะวันที่ — "2026-03-01" (ค่าที่บันทึก) ถูกอ่านเป็นเที่ยงคืน UTC แต่ "01/03/2026" (จากเอกสาร) เป็นเที่ยงคืนเวลาไทย
+    const dayOf = s => { const d = safeParseDate(s); return d ? new Date(d.getFullYear(), d.getMonth(), d.getDate()) : null; };
+    const cur = dayOf(currentPermitExpiry);
+    if (!cur) return true; // ยังไม่มีข้อมูลใบอนุญาต -> ใช้ใบใหม่
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const curValid = cur >= todayStart;
+    const newExp = dayOf(p.permitExpiry);
+    if (isWpDocStillValid(p)) return !curValid || newExp >= cur;
+    // ใบใหม่หมดอายุ/ถูกยกเลิก/อ่านวันไม่ได้: ไม่ทับใบที่ยังใช้ได้ — หมดอายุทั้งคู่เทียบวันหมดอายุ (อ่านวันไม่ได้ = ไม่ทับ)
+    return !curValid && !!newExp && newExp >= cur;
 }
 
 // current = ค่าพาสปอร์ตปัจจุบันของคนงาน (key เดียวกับ WP_PASSPORT_KEYS) คืนเฉพาะช่องที่ควรเติม/ทับ หรือ null
@@ -3104,8 +3131,10 @@ function applyWpPassportInfoToWorker(w, p) {
     });
 }
 
-function applyEwpDataToWorkerForm(p, setVal) {
+// override = false: QR มาจากใบที่หมดอายุแล้ว แต่ฟอร์มมีข้อมูลจากใบที่ยังใช้ได้ — setVal เติมเฉพาะช่องว่าง และไม่ล้าง/เปลี่ยนค่าอื่น
+function applyEwpDataToWorkerForm(p, setVal, override = true) {
     Object.entries(EWP_FORM_FIELDS).forEach(([key, id]) => setVal(id, p[key]));
+    if (!override) return;
     if (p.lastName === "") document.getElementById("worker-last-name").value = "";
     const natSelect = document.getElementById("worker-nationality");
     if (p.nationality && Array.from(natSelect.options).some(o => o.value === p.nationality)) natSelect.value = p.nationality;
@@ -3117,7 +3146,14 @@ function applyEwpDataToWorkerForm(p, setVal) {
     }
 }
 
-function applyEwpDataToWorker(w, p) {
+// override = false: QR มาจากใบที่หมดอายุแล้ว แต่คนงานมีข้อมูลจากใบที่ยังใช้ได้ — เติมเฉพาะช่องที่ยังว่าง
+function applyEwpDataToWorker(w, p, override = true) {
+    if (!override) {
+        Object.entries(EWP_OBJECT_FIELDS).forEach(([key, field]) => { if (p[key] && !w[field]) w[field] = p[key]; });
+        Object.entries(EWP_OBJECT_DATE_FIELDS).forEach(([key, field]) => { if (p[key] && !w[field]) w[field] = parseDateInput(p[key]); });
+        if (p.nationality && !w.nationality) w.nationality = p.nationality;
+        return;
+    }
     Object.entries(EWP_OBJECT_FIELDS).forEach(([key, field]) => { if (p[key]) w[field] = p[key]; });
     if (p.firstName && p.lastName === "") w.lastName = "";
     Object.entries(EWP_OBJECT_DATE_FIELDS).forEach(([key, field]) => { if (p[key]) w[field] = parseDateInput(p[key]) || w[field]; });
@@ -8530,7 +8566,22 @@ function applyOcrDataToWorker(w, docType, p) {
     // ไม่มีคำนำหน้าพิมพ์ในเอกสาร: เติมจากเพศเฉพาะคนงานที่ยังไม่มีคำนำหน้า (ไม่ทับค่าเดิม เช่น "นาง" ที่ผู้ใช้แก้ไว้)
     const title = printedTitle || (!w.title ? defaultTitleForGender(gender || w.gender) : null);
 
-    if (docType === 'worker-wp-doc') {
+    // ข้อมูลจากใบอนุญาตทำงาน: ใบที่เก่ากว่า (เช่น ใบแทนฉบับเก่า) ไม่ทับข้อมูลจากใบที่ใหม่กว่า — เติมเฉพาะช่องว่าง (ดู shouldWpDocOverride)
+    const wpOverride = (docType !== 'worker-wp-doc' && !p.ewp) || shouldWpDocOverride(p, w.permitExpiry);
+    if (docType === 'worker-wp-doc' && !wpOverride) {
+        const fillEmpty = (field, val) => { if (val && !w[field]) w[field] = val; };
+        fillEmpty('permitNo', p.permitNo);
+        fillEmpty('permitExpiry', p.permitExpiry && parseDateInput(p.permitExpiry));
+        fillEmpty('workerUid', p.uid);
+        fillEmpty('firstName', p.firstName);
+        fillEmpty('lastName', w.firstName ? null : p.lastName);
+        fillEmpty('dob', p.dob && parseDateInput(p.dob));
+        fillEmpty('nationality', p.nationality);
+        fillEmpty('refNo', p.refNo);
+        fillEmpty('gender', gender);
+        fillEmpty('title', title);
+        fillEmpty('position', p.position);
+    } else if (docType === 'worker-wp-doc') {
         if (p.permitNo) w.permitNo = p.permitNo;
         if (p.permitExpiry) w.permitExpiry = parseDateInput(p.permitExpiry) || w.permitExpiry;
         if (p.uid) w.workerUid = p.uid;
@@ -8586,7 +8637,7 @@ function applyOcrDataToWorker(w, docType, p) {
         if (gender && !w.gender) w.gender = gender;
         if (['Myanmar', 'Cambodia', 'Laos'].includes(p.nationality) && !w.nationality) w.nationality = p.nationality;
     }
-    if (p.ewp) applyEwpDataToWorker(w, p);
+    if (p.ewp) applyEwpDataToWorker(w, p, wpOverride);
     if (docType === 'worker-wp-doc' || (p.ewp && docType !== 'worker-passport')) applyWpPassportInfoToWorker(w, p);
     // อีเมล (เช่น ช่อง Email บนใบเสร็จ) — เติมเมื่อคนงานยังไม่มีอีเมลเท่านั้น
     if (p.email && !w.email) w.email = String(p.email).trim();
