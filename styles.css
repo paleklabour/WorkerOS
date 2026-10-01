@@ -136,6 +136,21 @@ h1, h2, h3, h4, h5, h6 {
     font-size: 12px;
 }
 
+/* ปุ่มสลับ "ตารางใบงาน / คัมบังบอร์ด" (หน้าระบบแจ้งงาน) — switchJobView() เปลี่ยน className ของปุ่มทุกครั้ง
+   จึงกำหนดขนาดผ่านกล่องแม่ .view-toggle-bar แทน */
+.view-toggle-bar .btn {
+    padding: 9px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    gap: 8px;
+}
+
+.view-toggle-bar .btn .ico {
+    width: 18px;
+    height: 18px;
+}
+
 /* ป้าย "รอแจ้งเข้า" ใต้บรรทัดเพศ ในช่องชื่อคนงาน (ตารางคนงาน) */
 .worker-notify-badge {
     margin-top: 4px;
@@ -240,6 +255,14 @@ h1, h2, h3, h4, h5, h6 {
     color: var(--text-dark);
 }
 
+/* ช่องข้อความหลายบรรทัด (Note วางบิล, รายละเอียดรายจ่าย, บันทึกงาน, หมายเหตุปิดงาน)
+   ลากมุมขวาล่างเพื่อขยายได้เฉพาะแนวตั้ง — กันลากกว้างจนดันฟอร์มเบี้ยว */
+.form-group textarea {
+    resize: vertical;
+    min-height: 64px;
+    line-height: 1.5;
+}
+
 .form-group input:focus,
 .form-group select:focus,
 .form-group textarea:focus {
@@ -251,6 +274,91 @@ h1, h2, h3, h4, h5, h6 {
 .form-row {
     display: flex;
     gap: 16px;
+}
+
+/* ==================== DROPDOWN (<select>) ทั้งระบบ ====================
+   กล่องปิด: มุมโค้ง ขอบเทาอมฟ้า ลูกศรกรมท่า (ซ่อนลูกศรเดิมของเบราว์เซอร์)
+   :not([multiple]):not([size]) ทำให้ specificity สูงกว่า .form-group select / .filter-box select
+   จึงชนะเรื่อง padding-right (กันตัวหนังสือทับลูกศร) โดยไม่ต้องใช้ !important */
+select:not([multiple]):not([size]) {
+    appearance: none;
+    -webkit-appearance: none;
+    background-color: #ffffff;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232d4fa3' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 16px;
+    padding-right: 38px;
+    border: 1px solid #d5dce8;
+    border-radius: var(--radius-sm);
+    color: var(--text-dark);
+    font-family: inherit;
+    cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+select:not([multiple]):not([size]):hover {
+    border-color: #a9b8d6;
+}
+
+select:not([multiple]):not([size]):focus {
+    outline: none;
+    border-color: var(--gold-primary);
+    box-shadow: 0 0 0 3px rgba(45, 79, 163, 0.12);
+}
+
+select:disabled {
+    background-color: var(--gray-bg);
+    color: var(--text-muted);
+    cursor: not-allowed;
+}
+
+/* รายการที่เปิดออกมา: เบราว์เซอร์ใหม่ (Chrome/Edge 135+) ปรับแต่งได้เต็มที่ผ่าน appearance: base-select
+   → กล่องโค้ง มีเงา ตัวเลือกที่เลือกอยู่เป็นแถบกรมท่า; เบราว์เซอร์อื่นใช้รายการแบบเดิมของเครื่อง */
+@supports (appearance: base-select) {
+    select:not([multiple]):not([size]),
+    select:not([multiple]):not([size])::picker(select) {
+        appearance: base-select;
+    }
+
+    select:not([multiple]):not([size])::picker-icon {
+        display: none; /* ใช้ลูกศรกรมท่าจาก background-image แทน */
+    }
+
+    select:not([multiple]):not([size])::picker(select) {
+        border: none;
+        border-radius: 14px;
+        padding: 6px;
+        margin-top: 6px;
+        background-color: #ffffff;
+        box-shadow: var(--shadow-lg), 0 0 0 1px rgba(45, 79, 163, 0.08);
+        max-height: 320px;
+    }
+
+    select:not([multiple]):not([size]) option {
+        padding: 9px 12px;
+        border-radius: 10px;
+        font-size: 13.5px;
+        color: var(--text-dark);
+        cursor: pointer;
+    }
+
+    select:not([multiple]):not([size]) option:hover,
+    select:not([multiple]):not([size]) option:focus-visible {
+        background-color: var(--gold-light);
+        color: var(--navy-dark);
+        outline: none;
+    }
+
+    select:not([multiple]):not([size]) option:checked {
+        background-color: var(--gold-primary);
+        color: #ffffff;
+        font-weight: 600;
+    }
+
+    select:not([multiple]):not([size]) option::checkmark {
+        display: none;
+    }
 }
 
 .col-6 { width: 50%; }

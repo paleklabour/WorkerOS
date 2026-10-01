@@ -9912,7 +9912,7 @@ function renderMissingDocsOverview() {
                 ${docCells}
                 <td style="text-align: center;" onclick="event.stopPropagation()">
                     <button class="btn btn-sm btn-gold btn-open-folder" onclick="openWorkerFolderModal('${w.id}')">
-                        ${icon("folder")} เปิดแฟ้มอัปเอกสาร
+                        ${icon("folder")} เปิดแฟ้มเอกสาร
                     </button>
                 </td>
             </tr>

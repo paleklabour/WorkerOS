@@ -413,7 +413,7 @@
                             <div class="dashboard-panel" style="margin-top: 25px;">
                                 <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
                                     <h3 id="db-monthly-details-title" style="margin: 0;"><span class="ico" data-icon="clipboard"></span> รายชื่อข้อมูลผู้ลงทะเบียนประจำเดือน</h3>
-                                    <select id="db-monthly-select-month" onchange="renderMonthlyDetails()" style="padding: 8px 14px; border-radius: var(--radius-sm); border: 1px solid #cbd5e1; outline: none; font-size: 13.5px;">
+                                    <select id="db-monthly-select-month" onchange="renderMonthlyDetails()" style="font-size: 13.5px;">
                                         <!-- Month Options -->
                                     </select>
                                 </div>
@@ -440,11 +440,11 @@
                                 <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
                                     <h3 style="margin: 0;"><span class="ico" data-icon="search"></span> ค้นหางานที่แจ้งสำเร็จ</h3>
                                     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                                        <select id="db-completed-select-employer" onchange="renderCompletedJobsStats()" style="padding: 8px 14px; border-radius: var(--radius-sm); border: 1px solid #cbd5e1; outline: none; font-size: 13.5px; min-width: 260px;">
+                                        <select id="db-completed-select-employer" onchange="renderCompletedJobsStats()" style="font-size: 13.5px; min-width: 260px;">
                                             <option value="">🌐 ภาพรวมทั้งหมด (ทุกนายจ้าง)</option>
                                             <!-- Dynamic employer options -->
                                         </select>
-                                        <select id="db-completed-select-agent" onchange="renderCompletedJobsStats()" style="padding: 8px 14px; border-radius: var(--radius-sm); border: 1px solid #cbd5e1; outline: none; font-size: 13.5px; min-width: 260px;">
+                                        <select id="db-completed-select-agent" onchange="renderCompletedJobsStats()" style="font-size: 13.5px; min-width: 260px;">
                                             <option value="">🤝 ทุก Agent (ไม่กรอง)</option>
                                             <!-- Dynamic agent options -->
                                         </select>
@@ -690,10 +690,10 @@
 
                         <!-- View Toggle for Kanban -->
                         <div class="view-toggle-bar" style="display: flex; gap: 10px; margin-bottom: 20px; background: #f1f5f9; padding: 6px; border-radius: var(--radius-md); width: fit-content;">
-                            <button class="btn btn-gold btn-sm" id="btn-job-view-table" onclick="switchJobView('table')" style="padding: 6px 16px; border-radius: var(--radius-sm); font-size: 12px; font-weight: 600;">
+                            <button class="btn btn-gold btn-sm" id="btn-job-view-table" onclick="switchJobView('table')">
                                 <span class="ico" data-icon="chart"></span> ตารางใบงาน (Table)
                             </button>
-                            <button class="btn btn-outline btn-sm" id="btn-job-view-kanban" onclick="switchJobView('kanban')" style="padding: 6px 16px; border-radius: var(--radius-sm); font-size: 12px; font-weight: 600; border-color: transparent; color: var(--text-dark); background: transparent;">
+                            <button class="btn btn-outline btn-sm" id="btn-job-view-kanban" onclick="switchJobView('kanban')" style="border-color: transparent; color: var(--text-dark); background: transparent;">
                                 <span class="ico" data-icon="clipboard"></span> คัมบังบอร์ด (Kanban)
                             </button>
                         </div>
@@ -845,7 +845,7 @@
                             <!-- Period Filter -->
                             <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; padding: 0;">
                                 <h4 style="font-size: 14.5px; font-weight: 700; color: var(--navy-dark); margin: 0;"><span class="ico" data-icon="calendar"></span> ช่วงเวลาที่ต้องการดูสรุป</h4>
-                                <select id="db-finance-period-select" onchange="renderFinanceStats()" style="padding: 8px 14px; border-radius: var(--radius-sm); border: 1px solid #cbd5e1; outline: none; font-size: 13.5px; min-width: 220px;">
+                                <select id="db-finance-period-select" onchange="renderFinanceStats()" style="font-size: 13.5px; min-width: 220px;">
                                     <option value="">ทั้งหมด (All Time)</option>
                                     <!-- Dynamic ปี/เดือน options -->
                                 </select>
@@ -1065,7 +1065,7 @@
                                     </svg>
                                     <input type="text" id="search-billing" placeholder="ค้นหาใบสั่งงาน, นายจ้าง, คนงาน..." oninput="renderBillingTab()">
                                 </div>
-                                <select id="filter-billing-payment-status" onchange="renderBillingTab()" style="padding: 8px 14px; border-radius: var(--radius-sm); border: 1px solid #cbd5e1; outline: none; font-size: 13.5px;">
+                                <select id="filter-billing-payment-status" onchange="renderBillingTab()" style="font-size: 13.5px;">
                                     <option value="pending" selected>ค้างชำระ (ยังไม่จ่าย)</option>
                                     <option value="paid">ชำระแล้ว</option>
                                     <option value="all">ทั้งหมด</option>
@@ -1112,7 +1112,7 @@
                                     </svg>
                                     <input type="text" id="search-expense" placeholder="ค้นหารายละเอียด, หมวดหมู่..." oninput="renderExpenses()">
                                 </div>
-                                <select id="filter-expense-category" onchange="renderExpenses()" style="padding: 8px 14px; border-radius: var(--radius-sm); border: 1px solid #cbd5e1; outline: none; font-size: 13.5px;">
+                                <select id="filter-expense-category" onchange="renderExpenses()" style="font-size: 13.5px;">
                                     <option value="">ทุกหมวดหมู่</option>
                                 </select>
                                 <button class="btn btn-gold btn-add" id="btn-add-expense" onclick="openExpenseModal()">
@@ -1395,7 +1395,7 @@
                         </div>
                         <div class="form-group">
                             <label for="expense-description">รายละเอียด</label>
-                            <input type="text" id="expense-description" placeholder="เช่น ค่าเช่าสำนักงานประจำเดือนสิงหาคม">
+                            <textarea id="expense-description" rows="2" placeholder="เช่น ค่าเช่าสำนักงานประจำเดือนสิงหาคม"></textarea>
                         </div>
                         <div class="form-group">
                             <label for="expense-payment-method">จ่ายจากบัญชี</label>
