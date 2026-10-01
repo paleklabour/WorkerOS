@@ -1205,6 +1205,17 @@ function closeMobileSidebar() {
     document.getElementById("sidebar-overlay")?.classList.remove("visible");
 }
 
+// ==================== ดับเบิลคลิกแถวตารางเพื่อเปิดข้อมูล (.clickable-row) ====================
+// แถวนายจ้าง/คนงานเปิดรายละเอียดด้วยดับเบิลคลิก (คลิกเดียวไม่เปิด จะได้เลือก/คัดลอกข้อความในแถวได้)
+// ใช้: ondblclick="handleRowDblClick(event) && openXxxModal(id)"
+// - ดับเบิลคลิกโดนปุ่ม/ลิงก์/ช่องติ๊กในแถว → ไม่เปิด (ปุ่มพวกนั้นทำงานของมันเองอยู่แล้ว)
+// - ล้างข้อความที่ถูกไฮไลต์จากการดับเบิลคลิกทิ้ง
+function handleRowDblClick(event) {
+    if (event.target.closest("button, a, input, select, textarea, label")) return false;
+    window.getSelection()?.removeAllRanges();
+    return true;
+}
+
 // ==================== ย่อ/ขยายเมนูข้างบนจอกว้าง (Collapsible Sidebar) ====================
 // ย่อแล้วเหลือแต่ไอคอน (ดู .sidebar-collapsed ใน styles.css) จำค่าไว้ในเครื่องผ่าน localStorage
 // ตอนย่อ ใส่ title ให้แต่ละเมนูเพื่อให้ชี้เมาส์แล้วเห็นชื่อเมนู
@@ -1337,7 +1348,7 @@ function renderRenewalGroups() {
             const emp = customers.find(c => c.id === w.employerId);
             const daysDiff = daysLeftOf(w);
             return `
-                <tr class="clickable-row" onclick="openWorkerModal('${w.id}')" title="คลิกเพื่อดูรายละเอียดคนงาน">
+                <tr class="clickable-row" ondblclick="handleRowDblClick(event) && openWorkerModal('${w.id}')" title="ดับเบิลคลิกเพื่อดูรายละเอียดคนงาน">
                     <td>
                         <div><strong>${w.refNo || '-'}</strong></div>
                         <small class="text-muted">เลขประจำตัวคนต่างด้าว: ${w.workerUid || '-'}</small><br>
@@ -2046,7 +2057,7 @@ function renderCustomers() {
             `;
         }
 
-        // ไม่มีปุ่มดินสอ (แก้ไข) แล้ว — กดที่แถวเพื่อเปิดข้อมูล/แก้ไขนายจ้างแทน (เหมือนตารางคนงาน)
+        // ไม่มีปุ่มดินสอ (แก้ไข) แล้ว — ดับเบิลคลิกที่แถวเพื่อเปิดข้อมูล/แก้ไขนายจ้างแทน (เหมือนตารางคนงาน)
         const activeWorkersCount = workers.filter(w => w.employerId === c.id && w.status !== 'archived' && w.status !== 'deleted').length;
         const totalWorkersCount = workers.filter(w => w.employerId === c.id && w.status !== 'deleted').length;
         
@@ -2091,7 +2102,7 @@ function renderCustomers() {
         ).join('');
 
         return `
-            <tr class="clickable-row" onclick="openCustomerModal('${c.id}')" title="คลิกเพื่อดูรายละเอียดนายจ้าง">
+            <tr class="clickable-row" ondblclick="handleRowDblClick(event) && openCustomerModal('${c.id}')" title="ดับเบิลคลิกเพื่อดูรายละเอียดนายจ้าง">
                 <td>${idPartsHtml}</td>
                 <td><strong>${c.companyName}${statusLabel}${prepaymentLabel}</strong></td>
                 <td><span class="badge badge-gold">${c.businessType}</span></td>
@@ -2397,12 +2408,12 @@ function renderWorkers() {
             `;
         }
 
-        // ไม่มีปุ่มดินสอ (แก้ไข) แล้ว — กดที่แถวเพื่อเปิดข้อมูล/แก้ไขคนงานแทน
+        // ไม่มีปุ่มดินสอ (แก้ไข) แล้ว — ดับเบิลคลิกที่แถวเพื่อเปิดข้อมูล/แก้ไขคนงานแทน
         const avatarUrl = w.photo ? w.photo : 'data:image/svg+xml;utf8,<svg xmlns=%22http:' + '/' + '/www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 width=%2232%22 height=%2232%22 fill=%22%2394a3b8%22><path d=%22M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4.42 0-8 3.58-8 8v1h16v-1c0-4.42-3.58-8-8-8z%22/></svg>';
 
-        // คลิกทั้งแถวเพื่อเปิดดูข้อมูลคนงาน เหมือนตาราง "ข้อมูลคนงานต่ออายุ" (ปุ่มในแถวใช้ stopPropagation ไม่ให้เปิดซ้อน)
+        // ดับเบิลคลิกแถวเพื่อเปิดดูข้อมูลคนงาน เหมือนตาราง "ข้อมูลคนงานต่ออายุ" (ปุ่มในแถวใช้ stopPropagation ไม่ให้เปิดซ้อน)
         return `
-            <tr class="clickable-row" onclick="openWorkerModal('${w.id}')" title="คลิกเพื่อดูรายละเอียดคนงาน">
+            <tr class="clickable-row" ondblclick="handleRowDblClick(event) && openWorkerModal('${w.id}')" title="ดับเบิลคลิกเพื่อดูรายละเอียดคนงาน">
                 <td>
                     ${bulkPendingMode && w.status === 'pending_register' ? `<label class="worker-bulk-check" onclick="event.stopPropagation()"><input type="checkbox" ${selectedPendingWorkerIds.has(w.id) ? 'checked' : ''} onchange="togglePendingWorkerSelection('${w.id}', this.checked)"> เลือก</label>` : ''}
                     <div><strong>${w.refNo || '-'}</strong></div>
@@ -4288,7 +4299,7 @@ function renderJobs() {
             : '';
 
         const rowClickAttrs = work
-            ? `class="clickable-row" onclick="openWorkerFolderModal('${work.id}')" title="คลิกเพื่อดูข้อมูลคนงาน / แนบเอกสารเพิ่มเติม"`
+            ? `class="clickable-row" ondblclick="handleRowDblClick(event) && openWorkerFolderModal('${work.id}')" title="ดับเบิลคลิกเพื่อดูข้อมูลคนงาน / แนบเอกสารเพิ่มเติม"`
             : '';
 
         return `
@@ -9779,9 +9790,9 @@ function renderMissingDocsOverview() {
 
         const avatarUrl = w.photo ? w.photo : 'data:image/svg+xml;utf8,<svg xmlns=%22http:' + '/' + '/www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 width=%2232%22 height=%2232%22 fill=%22%2394a3b8%22><path d=%22M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4.42 0-8 3.58-8 8v1h16v-1c0-4.42-3.58-8-8-8z%22/></svg>';
 
-        // คลิกทั้งแถวเพื่อเปิดดูข้อมูลคนงาน เหมือนตารางคนงานหลัก (ปุ่มเปิดแฟ้มใช้ stopPropagation ไม่ให้เปิดซ้อน)
+        // ดับเบิลคลิกแถวเพื่อเปิดดูข้อมูลคนงาน เหมือนตารางคนงานหลัก (ปุ่มเปิดแฟ้มใช้ stopPropagation ไม่ให้เปิดซ้อน)
         return `
-            <tr class="clickable-row" onclick="openWorkerModal('${w.id}')" title="คลิกเพื่อดูรายละเอียดคนงาน">
+            <tr class="clickable-row" ondblclick="handleRowDblClick(event) && openWorkerModal('${w.id}')" title="ดับเบิลคลิกเพื่อดูรายละเอียดคนงาน">
                 <td style="width: 50px; text-align: center;">
                     <div style="width: 32px; height: 32px; border-radius: 50%; overflow: hidden; background-color: #f1f5f9; border: 1px solid #cbd5e1; display: inline-flex; align-items: center; justify-content: center;">
                         <img src="${avatarUrl}" style="width: 100%; height: 100%; object-fit: cover;">
