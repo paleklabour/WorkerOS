@@ -1205,6 +1205,39 @@ function closeMobileSidebar() {
     document.getElementById("sidebar-overlay")?.classList.remove("visible");
 }
 
+// ==================== ย่อ/ขยายเมนูข้างบนจอกว้าง (Collapsible Sidebar) ====================
+// ย่อแล้วเหลือแต่ไอคอน (ดู .sidebar-collapsed ใน styles.css) จำค่าไว้ในเครื่องผ่าน localStorage
+// ตอนย่อ ใส่ title ให้แต่ละเมนูเพื่อให้ชี้เมาส์แล้วเห็นชื่อเมนู
+function applySidebarCollapsed(collapsed) {
+    const sidebar = document.querySelector(".sidebar");
+    if (!sidebar) return;
+    sidebar.classList.toggle("sidebar-collapsed", collapsed);
+
+    sidebar.querySelectorAll(".menu-item, .btn-logout").forEach(el => {
+        const label = el.querySelector("span:not(.menu-badge)")?.textContent.trim() || "";
+        if (collapsed) el.setAttribute("title", label);
+        else el.removeAttribute("title");
+    });
+
+    const btn = document.getElementById("sidebar-collapse-btn");
+    if (btn) {
+        btn.title = collapsed ? "ขยายเมนู" : "ย่อเมนู";
+        btn.classList.toggle("is-collapsed", collapsed);
+    }
+}
+
+function toggleSidebarCollapse() {
+    const collapsed = !document.querySelector(".sidebar")?.classList.contains("sidebar-collapsed");
+    applySidebarCollapsed(collapsed);
+    try { localStorage.setItem("mw_sidebar_collapsed", collapsed ? "1" : "0"); } catch (e) { /* ไม่เป็นไร แค่จำค่าไม่ได้ */ }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    let saved = null;
+    try { saved = localStorage.getItem("mw_sidebar_collapsed"); } catch (e) { /* ไม่เป็นไร ใช้ค่าเริ่มต้น (ขยาย) */ }
+    if (saved === "1") applySidebarCollapsed(true);
+});
+
 // ถ้าหมุนจอ/ปรับขนาดหน้าต่างจนกว้างเกินเบรกพอยต์แล้ว ให้ล้างสถานะลิ้นชักทิ้ง กันเมนูค้างเปิดตอนสลับกลับเป็นจอกว้าง
 window.addEventListener("resize", () => {
     if (window.innerWidth > 1024) closeMobileSidebar();
@@ -2365,7 +2398,7 @@ function renderWorkers() {
         }
 
         // ไม่มีปุ่มดินสอ (แก้ไข) แล้ว — กดที่แถวเพื่อเปิดข้อมูล/แก้ไขคนงานแทน
-        const avatarUrl = w.photo ? w.photo : 'data:image/svg+xml;utf8,<svg xmlns="http:' + '/' + '/www.w3.org/2000/svg" viewBox="0 0 24 24" width="32" height="32" fill="%2394a3b8"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4.42 0-8 3.58-8 8v1h16v-1c0-4.42-3.58-8-8-8z"/></svg>';
+        const avatarUrl = w.photo ? w.photo : 'data:image/svg+xml;utf8,<svg xmlns=%22http:' + '/' + '/www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 width=%2232%22 height=%2232%22 fill=%22%2394a3b8%22><path d=%22M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4.42 0-8 3.58-8 8v1h16v-1c0-4.42-3.58-8-8-8z%22/></svg>';
 
         // คลิกทั้งแถวเพื่อเปิดดูข้อมูลคนงาน เหมือนตาราง "ข้อมูลคนงานต่ออายุ" (ปุ่มในแถวใช้ stopPropagation ไม่ให้เปิดซ้อน)
         return `
@@ -9744,7 +9777,7 @@ function renderMissingDocsOverview() {
                 : `<td style="text-align: center; color: #dc2626;" title="${doc.label}: ขาด">❌</td>`;
         }).join('');
 
-        const avatarUrl = w.photo ? w.photo : 'data:image/svg+xml;utf8,<svg xmlns="http:' + '/' + '/www.w3.org/2000/svg" viewBox="0 0 24 24" width="32" height="32" fill="%2394a3b8"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4.42 0-8 3.58-8 8v1h16v-1c0-4.42-3.58-8-8-8z"/></svg>';
+        const avatarUrl = w.photo ? w.photo : 'data:image/svg+xml;utf8,<svg xmlns=%22http:' + '/' + '/www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 width=%2232%22 height=%2232%22 fill=%22%2394a3b8%22><path d=%22M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4.42 0-8 3.58-8 8v1h16v-1c0-4.42-3.58-8-8-8z%22/></svg>';
 
         // คลิกทั้งแถวเพื่อเปิดดูข้อมูลคนงาน เหมือนตารางคนงานหลัก (ปุ่มเปิดแฟ้มใช้ stopPropagation ไม่ให้เปิดซ้อน)
         return `

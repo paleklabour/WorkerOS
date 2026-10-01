@@ -6,10 +6,10 @@
     <meta name="description" content="ระบบบริหารจัดการข้อมูลคนงานต่างด้าวและลูกค้าผู้ว่าจ้าง พร้อมระบบแจ้งเตือนเอกสารหมดอายุ">
     <title>ระบบบริหารจัดการคนงานต่างด้าว (Migrant Worker Management System)</title>
     <link rel="icon" type="image/png" href="assets/logo.png">
-    <!-- Google Fonts: Inter & Prompt (Thai) -->
+    <!-- Google Fonts: Kanit (หัวข้อ) & Sarabun (เนื้อหา) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script>
         window.GAS_WEB_APP_URL = "<?!= webAppUrl ?>";
     </script>
@@ -184,6 +184,12 @@
                         <button type="button" class="topbar-refresh-btn" id="topbar-refresh-btn" onclick="refreshAppData()" title="ดึงข้อมูลล่าสุด (รีเฟรช)">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="22">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                        </button>
+                        <!-- ย่อ/ขยายเมนูข้าง (เฉพาะจอกว้าง) — ย่อแล้วเหลือแต่ไอคอน ดู toggleSidebarCollapse() -->
+                        <button type="button" class="topbar-refresh-btn sidebar-collapse-btn" id="sidebar-collapse-btn" onclick="toggleSidebarCollapse()" title="ย่อเมนู">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="22">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
                             </svg>
                         </button>
                         <div class="notification-bell" onclick="switchView('dashboard')">

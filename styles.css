@@ -2,23 +2,26 @@
     --navy-dark: #0f172a;       /* Slate black - Google AI Studio primary */
     --navy-medium: #1e293b;     /* Card headings and text */
     --navy-light: #64748b;      /* Muted details */
-    --gold-primary: #1e3b8b;    /* Rich blue primary accent */
-    --gold-hover: #172e6b;      /* Darker primary on hover */
-    --gold-light: rgba(30, 58, 138, 0.04); /* Light blue accent background */
-    --gold-border: rgba(30, 58, 138, 0.1);
-    --gray-bg: #f8fafc;         /* Pure minimalist background */
+    --gold-primary: #2d4fa3;    /* สีหลักกรมท่า (อ่อนลงจาก #1e3b8b ตามธีมใหม่ 2026-10) */
+    --gold-hover: #243f86;      /* กรมท่าเข้มขึ้นตอน hover */
+    --gold-light: rgba(45, 79, 163, 0.06); /* พื้นฟ้าอ่อนสำหรับเน้น */
+    --gold-border: rgba(45, 79, 163, 0.14);
+    --gray-bg: #f1f4f9;         /* พื้นหลังเทาอมฟ้าอ่อน ให้การ์ดสีขาวลอยเด่น */
     --gray-card: #ffffff;       /* Pure white card container */
     --text-dark: #334155;       /* Charcoal gray text - gentle for eyes */
     --text-muted: #64748b;      /* Muted gray text */
     --success: #10b981;
     --warning: #f59e0b;
     --danger: #ef4444;
-    --radius-sm: 6px;           /* Modern rounded corners */
-    --radius-md: 10px;          /* Card rounded corners */
-    --radius-lg: 14px;          /* Modal rounded corners */
-    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.02);
-    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.04), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
-    --shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.04), 0 4px 6px -2px rgba(15, 23, 42, 0.02);
+    --radius-sm: 10px;          /* ปุ่ม ช่องกรอก เมนู */
+    --radius-md: 18px;          /* การ์ด/ตาราง */
+    --radius-lg: 20px;          /* โมดอล */
+    /* ธีมโค้งมน: การ์ดไม่มีขอบ ใช้เงาบาง ๆ อมสีกรมท่าแทน */
+    --shadow-sm: 0 4px 14px rgba(45, 79, 163, 0.07);
+    --shadow-md: 0 6px 18px rgba(45, 79, 163, 0.09);
+    --shadow-lg: 0 12px 28px rgba(20, 32, 57, 0.12);
+    --font-head: 'Kanit', 'Sarabun', Tahoma, sans-serif;
+    --font-body: 'Sarabun', 'Kanit', Tahoma, sans-serif;
     --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -30,12 +33,12 @@
 }
 
 body {
-    font-family: 'Prompt', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: var(--font-body);
     background-color: var(--gray-bg);
     color: var(--text-dark);
     line-height: 1.5;
     overflow-x: hidden;
-    font-size: 13.5px; /* Clean developer-focused density */
+    font-size: 14px; /* Sarabun ตัวเล็กกว่า Prompt เล็กน้อย เลยขยับจาก 13.5px */
 }
 
 /* Custom Scrollbars styled like Google AI Studio */
@@ -55,6 +58,7 @@ body {
 }
 
 h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-head);
     font-weight: 500;
     color: var(--navy-dark);
     letter-spacing: -0.01em;
@@ -200,7 +204,7 @@ h1, h2, h3, h4, h5, h6 {
 .form-group textarea:focus {
     outline: none;
     border-color: var(--gold-primary);
-    box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.08);
+    box-shadow: 0 0 0 3px rgba(45, 79, 163, 0.08);
 }
 
 .form-row {
@@ -234,7 +238,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .login-card {
     background-color: var(--gray-card);
-    border: 1px solid #e2e8f0;
+    border: none;
     border-radius: var(--radius-lg);
     padding: 40px;
     box-shadow: var(--shadow-lg);
@@ -283,7 +287,7 @@ h1, h2, h3, h4, h5, h6 {
 #reset-password-form input:focus {
     border-color: var(--gold-primary);
     background-color: #ffffff;
-    box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.08);
+    box-shadow: 0 0 0 3px rgba(45, 79, 163, 0.08);
 }
 
 .error-msg {
@@ -450,11 +454,11 @@ h1, h2, h3, h4, h5, h6 {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 10px 16px;
-    border-radius: var(--radius-sm);
+    padding: 11px 16px;
+    border-radius: 12px;
     color: var(--text-muted);
     text-decoration: none;
-    font-size: 13.5px;
+    font-size: 14px;
     font-weight: 500;
     transition: var(--transition);
     position: relative;
@@ -468,25 +472,15 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .menu-item:hover {
-    background-color: #f1f5f9;
+    background-color: var(--gold-light);
     color: var(--navy-dark);
 }
 
+/* เมนูที่เลือกอยู่: แถบกรมท่าทึบ ตัวหนังสือขาว */
 .menu-item.active {
-    background-color: rgba(30, 58, 138, 0.05);
-    color: var(--gold-primary);
-    font-weight: 600;
-}
-
-.menu-item.active::before {
-    content: "";
-    position: absolute;
-    left: 0;
-    top: 20%;
-    height: 60%;
-    width: 3.5px;
     background-color: var(--gold-primary);
-    border-radius: 2px;
+    color: #ffffff;
+    font-weight: 600;
 }
 
 .menu-item:hover svg {
@@ -494,7 +488,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .menu-item.active svg {
-    color: var(--gold-primary);
+    color: #ffffff;
 }
 
 .menu-badge {
@@ -510,6 +504,76 @@ h1, h2, h3, h4, h5, h6 {
 .sidebar-footer {
     padding: 16px 20px;
     border-top: 1px solid #f1f5f9;
+}
+
+/* ปุ่มย่อ/ขยายเมนูข้างที่แถบบนขวา (หน้าตาเหมือนปุ่มรีเฟรช .topbar-refresh-btn)
+   ใช้ได้เฉพาะจอกว้าง — จอแคบเมนูเป็นลิ้นชักอยู่แล้ว ซ่อนปุ่มนี้ใน media query
+   ตอนเมนูย่ออยู่ ลูกศรกลับด้านชี้ขวา (= กดเพื่อขยาย) */
+.sidebar-collapse-btn svg {
+    transition: transform 0.2s ease;
+}
+
+.sidebar-collapse-btn.is-collapsed svg {
+    transform: rotate(180deg);
+}
+
+.sidebar {
+    transition: width 0.2s ease;
+}
+
+/* สถานะย่อ: เหลือแต่ไอคอน ชี้เมาส์ที่เมนูจะเห็นชื่อจาก title (ตั้งใน applySidebarCollapsed)
+   ใช้เฉพาะจอกว้าง — จอแคบ (<=1024px) เมนูเป็นลิ้นชักเต็มความกว้างเสมอ */
+@media (min-width: 1025px) {
+.sidebar.sidebar-collapsed {
+    width: 72px;
+}
+
+.sidebar.sidebar-collapsed .brand-text,
+.sidebar.sidebar-collapsed .user-info,
+.sidebar.sidebar-collapsed .menu-item > span:not(.menu-badge),
+.sidebar.sidebar-collapsed .btn-logout span {
+    display: none;
+}
+
+.sidebar.sidebar-collapsed .sidebar-brand {
+    padding: 16px 8px;
+}
+
+.sidebar.sidebar-collapsed .brand-logo-img {
+    height: 40px;
+}
+
+.sidebar.sidebar-collapsed .sidebar-user {
+    padding: 12px 8px;
+    justify-content: center;
+}
+
+.sidebar.sidebar-collapsed .sidebar-menu {
+    padding: 16px 8px;
+}
+
+.sidebar.sidebar-collapsed .menu-item {
+    justify-content: center;
+    padding: 10px 0;
+}
+
+.sidebar.sidebar-collapsed .menu-badge {
+    position: absolute;
+    top: 2px;
+    right: 6px;
+    margin-left: 0;
+    padding: 1px 5px;
+    font-size: 9.5px;
+}
+
+.sidebar.sidebar-collapsed .sidebar-footer {
+    padding: 12px 8px;
+}
+
+.sidebar.sidebar-collapsed .btn-logout {
+    padding-left: 0;
+    padding-right: 0;
+}
 }
 
 .btn-logout {
@@ -536,13 +600,11 @@ h1, h2, h3, h4, h5, h6 {
 /* Top Header Bar */
 .top-bar {
     height: 70px;
-    background-color: #ffffff;
-    border-bottom: 1px solid #e2e8f0;
+    background-color: transparent; /* ธีมโค้งมน: แถบบนกลืนกับพื้นหลัง ปุ่มไอคอนเป็นวงกลมขาวลอยแทน */
     padding: 0 30px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    box-shadow: var(--shadow-sm);
 }
 
 .page-title h2 {
@@ -597,17 +659,25 @@ h1, h2, h3, h4, h5, h6 {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 6px;
+    width: 38px;
+    height: 38px;
     border: none;
     border-radius: 50%;
-    background: transparent;
-    color: var(--navy-medium);
+    background: #ffffff;
+    box-shadow: var(--shadow-sm);
+    color: var(--navy-light);
     cursor: pointer;
     transition: var(--transition);
 }
 
 .topbar-refresh-btn:hover {
-    background-color: rgba(23, 42, 69, 0.05);
+    background-color: var(--gold-light);
+    color: var(--gold-primary);
+}
+
+.topbar-refresh-btn svg {
+    width: 20px;
+    height: 20px;
 }
 
 .topbar-refresh-btn.spinning svg {
@@ -621,20 +691,32 @@ h1, h2, h3, h4, h5, h6 {
 .notification-bell {
     position: relative;
     cursor: pointer;
-    color: var(--navy-medium);
-    padding: 6px;
+    color: var(--navy-light);
+    width: 38px;
+    height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     border-radius: 50%;
+    background: #ffffff;
+    box-shadow: var(--shadow-sm);
     transition: var(--transition);
 }
 
 .notification-bell:hover {
-    background-color: rgba(23, 42, 69, 0.05);
+    background-color: var(--gold-light);
+    color: var(--gold-primary);
+}
+
+.notification-bell svg {
+    width: 20px;
+    height: 20px;
 }
 
 .bell-badge {
     position: absolute;
-    top: 4px;
-    right: 4px;
+    top: -4px;
+    right: -4px;
     width: 16px;
     height: 16px;
     background-color: var(--danger);
@@ -645,7 +727,7 @@ h1, h2, h3, h4, h5, h6 {
     display: flex;
     align-items: center;
     justify-content: center;
-    border: 2px solid white;
+    border: 2px solid var(--gray-bg);
 }
 
 .current-date {
@@ -685,7 +767,7 @@ h1, h2, h3, h4, h5, h6 {
     background-color: var(--gray-card);
     border-radius: var(--radius-md);
     padding: 24px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid transparent; /* ธีมโค้งมน: ไม่มีขอบ ใช้เงา (การ์ดแจ้งเตือนยังมีขอบแดง) */
     display: flex;
     align-items: center;
     gap: 20px;
@@ -708,8 +790,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .stats-card:hover {
     transform: translateY(-2px);
-    box-shadow: var(--shadow-lg);
-    border-color: #cbd5e1;
+    box-shadow: var(--shadow-md);
 }
 
 .stats-card:hover::after {
@@ -733,7 +814,7 @@ h1, h2, h3, h4, h5, h6 {
     width: 48px;
     height: 48px;
     border-radius: 50%;
-    background-color: rgba(30, 58, 138, 0.05);
+    background-color: rgba(45, 79, 163, 0.05);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -786,7 +867,7 @@ h1, h2, h3, h4, h5, h6 {
 .dashboard-panel {
     background-color: var(--gray-card);
     border-radius: var(--radius-md);
-    border: 1px solid #e2e8f0;
+    border: none;
     box-shadow: var(--shadow-sm);
     display: flex;
     flex-direction: column;
@@ -795,7 +876,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .panel-header {
     padding: 18px 24px;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid #edf0f5;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -1169,7 +1250,7 @@ h1, h2, h3, h4, h5, h6 {
 .table-container {
     background-color: var(--gray-card);
     border-radius: var(--radius-md);
-    border: 1px solid #e2e8f0;
+    border: none;
     box-shadow: var(--shadow-sm);
     /* overflow-x: auto (ไม่ใช่ hidden) — จอแคบ/iPad ตารางคอลัมน์เยอะจะเลื่อนดูแนวนอนได้แทนที่จะถูกตัดขอบมองไม่เห็น
        ส่วน overflow-y: hidden ไว้เผื่อคุมมุมโค้ง (border-radius) ของ container เหมือนเดิม */
@@ -1186,11 +1267,11 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .data-table th {
-    background-color: #f8fafc;
-    color: var(--navy-dark);
+    background-color: #ffffff;
+    color: var(--text-muted);
     font-weight: 600;
-    padding: 12px 20px;
-    border-bottom: 1px solid #e2e8f0;
+    padding: 14px 20px;
+    border-bottom: 1px solid #edf0f5;
     font-size: 12.5px;
     letter-spacing: -0.01em;
 }
@@ -1207,7 +1288,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .data-table tbody tr:hover {
-    background-color: rgba(30, 58, 138, 0.02);
+    background-color: rgba(45, 79, 163, 0.02);
 }
 
 .data-table tbody tr.clickable-row {
@@ -1215,7 +1296,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .data-table tbody tr.clickable-row:hover {
-    background-color: rgba(30, 58, 138, 0.05);
+    background-color: rgba(45, 79, 163, 0.05);
 }
 
 .actions-col {
@@ -1246,7 +1327,7 @@ h1, h2, h3, h4, h5, h6 {
 .action-icon-btn:hover {
     border-color: var(--gold-primary);
     color: var(--gold-primary);
-    background-color: rgba(30, 58, 138, 0.04);
+    background-color: rgba(45, 79, 163, 0.04);
 }
 
 .action-icon-btn.delete-btn:hover {
@@ -1458,7 +1539,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .order-no-field:focus-within {
     border-color: var(--gold-primary);
-    box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.12);
+    box-shadow: 0 0 0 3px rgba(45, 79, 163, 0.12);
 }
 
 .order-no-prefix {
@@ -1532,7 +1613,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .order-no-field.is-locked .order-no-btn:hover {
     color: var(--gold-primary);
-    background-color: rgba(30, 58, 138, 0.06);
+    background-color: rgba(45, 79, 163, 0.06);
 }
 
 
@@ -1562,7 +1643,7 @@ h1, h2, h3, h4, h5, h6 {
     max-height: 90vh;
     overflow-y: auto;
     box-shadow: var(--shadow-lg);
-    border: 1px solid #e2e8f0;
+    border: none;
     display: flex;
     flex-direction: column;
     animation: slideUp 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -2323,6 +2404,11 @@ h1, h2, h3, h4, h5, h6 {
 
     .sidebar.sidebar-open {
         transform: translateX(0);
+    }
+
+    /* จอแคบเมนูเป็นลิ้นชักแล้ว ไม่ใช้โหมดย่อ — ซ่อนปุ่มย่อ */
+    .sidebar-collapse-btn {
+        display: none;
     }
 
     .sidebar-menu {
