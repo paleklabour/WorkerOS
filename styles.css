@@ -2841,14 +2841,19 @@ td > .ico {
 }
 
 .invoice-logo-img {
-    height: 66px;
+    height: 72px;
     width: auto;
     flex-shrink: 0;
 }
 
+/* ใบเสร็จใช้หัวผู้ออกบิลชุดเดียวกับบิล แต่ขยายโลโก้ให้ใหญ่ขึ้นเล็กน้อย */
+.receipt-sheet .invoice-logo-img {
+    height: 86px;
+}
+
 .invoice-brand h2 {
     font-family: var(--font-head);
-    font-size: 19px;
+    font-size: 16.5px;
     font-weight: 600;
     color: var(--navy-dark);
     margin-bottom: 4px;
