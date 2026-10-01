@@ -413,7 +413,7 @@
                             <div class="dashboard-panel" style="margin-top: 25px;">
                                 <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
                                     <h3 id="db-monthly-details-title" style="margin: 0;"><span class="ico" data-icon="clipboard"></span> รายชื่อข้อมูลผู้ลงทะเบียนประจำเดือน</h3>
-                                    <select id="db-monthly-select-month" onchange="renderMonthlyDetails()" style="font-size: 13.5px;">
+                                    <select id="db-monthly-select-month" class="select-filter" onchange="renderMonthlyDetails()">
                                         <!-- Month Options -->
                                     </select>
                                 </div>
@@ -440,11 +440,11 @@
                                 <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
                                     <h3 style="margin: 0;"><span class="ico" data-icon="search"></span> ค้นหางานที่แจ้งสำเร็จ</h3>
                                     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                                        <select id="db-completed-select-employer" onchange="renderCompletedJobsStats()" style="font-size: 13.5px; min-width: 260px;">
+                                        <select id="db-completed-select-employer" class="select-filter" onchange="renderCompletedJobsStats()" style="min-width: 260px;">
                                             <option value="">🌐 ภาพรวมทั้งหมด (ทุกนายจ้าง)</option>
                                             <!-- Dynamic employer options -->
                                         </select>
-                                        <select id="db-completed-select-agent" onchange="renderCompletedJobsStats()" style="font-size: 13.5px; min-width: 260px;">
+                                        <select id="db-completed-select-agent" class="select-filter" onchange="renderCompletedJobsStats()" style="min-width: 260px;">
                                             <option value="">🤝 ทุก Agent (ไม่กรอง)</option>
                                             <!-- Dynamic agent options -->
                                         </select>
@@ -689,7 +689,7 @@
                         </div>
 
                         <!-- View Toggle for Kanban -->
-                        <div class="view-toggle-bar" style="display: flex; gap: 10px; margin-bottom: 20px; background: #f1f5f9; padding: 6px; border-radius: var(--radius-md); width: fit-content;">
+                        <div class="view-toggle-bar">
                             <button class="btn btn-gold btn-sm" id="btn-job-view-table" onclick="switchJobView('table')">
                                 <span class="ico" data-icon="chart"></span> ตารางใบงาน (Table)
                             </button>
@@ -787,7 +787,38 @@
                                 </svg>
                                 <input type="text" id="search-renewal" placeholder="ค้นหาชื่อคนงาน, นายจ้าง, เลขคนงาน..." oninput="renderRenewalGroups()">
                             </div>
+                            <!-- ตัวกรองหน้าต่ออายุ/ทำเล่ม — กรองคนงาน "ภายใน" แต่ละกลุ่ม (กลุ่มยังจัดจากคนงานทั้งหมด) ดู renderRenewalGroups() -->
+                            <div class="filter-box renewal-filters">
+                                <select id="filter-renewal-employer" onchange="renderRenewalGroups()">
+                                    <option value="">ทุกนายจ้าง/บริษัท</option>
+                                </select>
+                                <select id="filter-renewal-nationality" onchange="renderRenewalGroups()">
+                                    <option value="">ทุกสัญชาติ</option>
+                                    <option value="Myanmar">เมียนมา (Myanmar)</option>
+                                    <option value="Cambodia">กัมพูชา (Cambodia)</option>
+                                    <option value="Laos">ลาว (Laos)</option>
+                                    <option value="Vietnam">เวียดนาม (Vietnam)</option>
+                                </select>
+                                <select id="filter-renewal-status" onchange="renderRenewalGroups()">
+                                    <option value="">สถานะใบอนุญาตทั้งหมด</option>
+                                    <option value="normal">ปกติ</option>
+                                    <option value="warning">ใกล้หมดอายุ (≤ 60 วัน)</option>
+                                    <option value="expired">หมดอายุแล้ว</option>
+                                </select>
+                                <select id="filter-renewal-book" onchange="renderRenewalGroups()">
+                                    <option value="">เล่มทั้งหมด</option>
+                                    <option value="has">มีเล่มแล้ว</option>
+                                    <option value="none">ยังไม่มีเล่ม</option>
+                                </select>
+                                <select id="filter-renewal-group" onchange="renderRenewalGroups()">
+                                    <option value="">ทุกกลุ่ม</option>
+                                    <option value="batch">เฉพาะกลุ่มมติ ครม.</option>
+                                    <option value="mou">เฉพาะกลุ่ม MOU</option>
+                                </select>
+                                <button type="button" class="btn btn-outline renewal-filter-clear hidden" id="btn-clear-renewal-filters" onclick="clearRenewalFilters()">ล้างตัวกรอง</button>
+                            </div>
                         </div>
+                        <p class="renewal-filter-summary hidden" id="renewal-filter-summary"></p>
                         <div id="renewal-groups-container">
                             <!-- Dynamic renewal groups -->
                         </div>
@@ -845,7 +876,7 @@
                             <!-- Period Filter -->
                             <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; padding: 0;">
                                 <h4 style="font-size: 14.5px; font-weight: 700; color: var(--navy-dark); margin: 0;"><span class="ico" data-icon="calendar"></span> ช่วงเวลาที่ต้องการดูสรุป</h4>
-                                <select id="db-finance-period-select" onchange="renderFinanceStats()" style="font-size: 13.5px; min-width: 220px;">
+                                <select id="db-finance-period-select" class="select-filter" onchange="renderFinanceStats()" style="min-width: 220px;">
                                     <option value="">ทั้งหมด (All Time)</option>
                                     <!-- Dynamic ปี/เดือน options -->
                                 </select>
@@ -923,8 +954,8 @@
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px; margin-bottom: 12px;">
                                 <h4 style="font-size: 14.5px; font-weight: 700; color: var(--navy-dark); margin: 0;"><span class="ico" data-icon="bank"></span> ยอดรายรับแยกตามบัญชีธนาคารและเงินสด (Received by Accounts)</h4>
                                 <div style="display: flex; gap: 4px;">
-                                    <button type="button" class="btn btn-sm btn-gold" id="btn-accounts-view-table" onclick="toggleChartView('accounts', 'table')" style="font-size: 11px; padding: 4px 10px;"><span class="ico" data-icon="clipboard"></span> การ์ด</button>
-                                    <button type="button" class="btn btn-sm btn-outline" id="btn-accounts-view-chart" onclick="toggleChartView('accounts', 'chart')" style="font-size: 11px; padding: 4px 10px;"><span class="ico" data-icon="pie"></span> กราฟวงกลม</button>
+                                    <button type="button" class="btn btn-sm btn-gold btn-chart-toggle" id="btn-accounts-view-table" onclick="toggleChartView('accounts', 'table')"><span class="ico" data-icon="clipboard"></span> การ์ด</button>
+                                    <button type="button" class="btn btn-sm btn-outline btn-chart-toggle" id="btn-accounts-view-chart" onclick="toggleChartView('accounts', 'chart')"><span class="ico" data-icon="pie"></span> กราฟวงกลม</button>
                                 </div>
                             </div>
                             <div id="db-finance-accounts-table-wrap" style="margin-bottom: 25px;">
@@ -946,8 +977,8 @@
                                     <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
                                         <h3><span class="ico" data-icon="chart"></span> สรุปรายรับแยกตามประเภทงานที่แจ้ง (Revenue by Job Type)</h3>
                                         <div style="display: flex; gap: 4px;">
-                                            <button type="button" class="btn btn-sm btn-gold" id="btn-jobtypes-view-table" onclick="toggleChartView('jobtypes', 'table')" style="font-size: 11px; padding: 4px 10px;"><span class="ico" data-icon="clipboard"></span> ตาราง</button>
-                                            <button type="button" class="btn btn-sm btn-outline" id="btn-jobtypes-view-chart" onclick="toggleChartView('jobtypes', 'chart')" style="font-size: 11px; padding: 4px 10px;"><span class="ico" data-icon="pie"></span> กราฟวงกลม</button>
+                                            <button type="button" class="btn btn-sm btn-gold btn-chart-toggle" id="btn-jobtypes-view-table" onclick="toggleChartView('jobtypes', 'table')"><span class="ico" data-icon="clipboard"></span> ตาราง</button>
+                                            <button type="button" class="btn btn-sm btn-outline btn-chart-toggle" id="btn-jobtypes-view-chart" onclick="toggleChartView('jobtypes', 'chart')"><span class="ico" data-icon="pie"></span> กราฟวงกลม</button>
                                         </div>
                                     </div>
                                     <div class="panel-content" id="db-finance-jobtypes-table-wrap" style="padding: 0; overflow-x: auto; max-height: 320px;">
@@ -998,8 +1029,8 @@
                                 <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
                                     <h3><span class="ico" data-icon="building"></span> สรุปรายรับและยอดเงินค้างชำระแยกตามลูกค้า/นายจ้าง (Revenue by Customer)</h3>
                                     <div style="display: flex; gap: 4px;">
-                                        <button type="button" class="btn btn-sm btn-gold" id="btn-customers-view-table" onclick="toggleChartView('customers', 'table')" style="font-size: 11px; padding: 4px 10px;"><span class="ico" data-icon="clipboard"></span> ตาราง</button>
-                                        <button type="button" class="btn btn-sm btn-outline" id="btn-customers-view-chart" onclick="toggleChartView('customers', 'chart')" style="font-size: 11px; padding: 4px 10px;"><span class="ico" data-icon="pie"></span> กราฟวงกลม</button>
+                                        <button type="button" class="btn btn-sm btn-gold btn-chart-toggle" id="btn-customers-view-table" onclick="toggleChartView('customers', 'table')"><span class="ico" data-icon="clipboard"></span> ตาราง</button>
+                                        <button type="button" class="btn btn-sm btn-outline btn-chart-toggle" id="btn-customers-view-chart" onclick="toggleChartView('customers', 'chart')"><span class="ico" data-icon="pie"></span> กราฟวงกลม</button>
                                     </div>
                                 </div>
                                 <div class="panel-content" id="db-finance-customers-table-wrap" style="padding: 0; overflow-x: auto;">
@@ -1030,8 +1061,8 @@
                                 <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
                                     <h3><span class="ico" data-icon="trenddown"></span> สรุปรายจ่ายแยกตามหมวดหมู่ (Expenses by Category)</h3>
                                     <div style="display: flex; gap: 4px;">
-                                        <button type="button" class="btn btn-sm btn-gold" id="btn-expensecat-view-table" onclick="toggleChartView('expensecat', 'table')" style="font-size: 11px; padding: 4px 10px;"><span class="ico" data-icon="clipboard"></span> ตาราง</button>
-                                        <button type="button" class="btn btn-sm btn-outline" id="btn-expensecat-view-chart" onclick="toggleChartView('expensecat', 'chart')" style="font-size: 11px; padding: 4px 10px;"><span class="ico" data-icon="pie"></span> กราฟวงกลม</button>
+                                        <button type="button" class="btn btn-sm btn-gold btn-chart-toggle" id="btn-expensecat-view-table" onclick="toggleChartView('expensecat', 'table')"><span class="ico" data-icon="clipboard"></span> ตาราง</button>
+                                        <button type="button" class="btn btn-sm btn-outline btn-chart-toggle" id="btn-expensecat-view-chart" onclick="toggleChartView('expensecat', 'chart')"><span class="ico" data-icon="pie"></span> กราฟวงกลม</button>
                                     </div>
                                 </div>
                                 <div class="panel-content" id="db-finance-expensecat-table-wrap" style="padding: 0; overflow-x: auto;">
@@ -1065,7 +1096,7 @@
                                     </svg>
                                     <input type="text" id="search-billing" placeholder="ค้นหาใบสั่งงาน, นายจ้าง, คนงาน..." oninput="renderBillingTab()">
                                 </div>
-                                <select id="filter-billing-payment-status" onchange="renderBillingTab()" style="font-size: 13.5px;">
+                                <select id="filter-billing-payment-status" class="select-filter" onchange="renderBillingTab()">
                                     <option value="pending" selected>ค้างชำระ (ยังไม่จ่าย)</option>
                                     <option value="paid">ชำระแล้ว</option>
                                     <option value="all">ทั้งหมด</option>
@@ -1112,7 +1143,7 @@
                                     </svg>
                                     <input type="text" id="search-expense" placeholder="ค้นหารายละเอียด, หมวดหมู่..." oninput="renderExpenses()">
                                 </div>
-                                <select id="filter-expense-category" onchange="renderExpenses()" style="font-size: 13.5px;">
+                                <select id="filter-expense-category" class="select-filter" onchange="renderExpenses()">
                                     <option value="">ทุกหมวดหมู่</option>
                                 </select>
                                 <button class="btn btn-gold btn-add" id="btn-add-expense" onclick="openExpenseModal()">

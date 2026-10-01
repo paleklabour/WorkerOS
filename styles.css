@@ -136,8 +136,234 @@ h1, h2, h3, h4, h5, h6 {
     font-size: 12px;
 }
 
+/* ปุ่มแดงทึบ — ใช้เป็นปุ่ม "ลบ" ในหน้าต่างยืนยัน */
+.btn-danger-solid {
+    background-color: var(--danger);
+    color: #ffffff;
+}
+
+.btn-danger-solid:hover {
+    background-color: #dc2626;
+}
+
+/* ==================== หน้าต่างยืนยัน/แจ้งเตือนของระบบ (showUiDialog / uiConfirm / uiAlert / uiPrompt ใน app.js) ====================
+   z-index สูงกว่าโมดัลอื่นทั้งหมด (ai-rejected 1100) เพราะเปิดซ้อนจากในฟอร์มได้ */
+.ui-dialog-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background-color: rgba(20, 32, 57, 0.45);
+    animation: fadeIn 0.15s ease-out;
+}
+
+.ui-dialog {
+    width: 100%;
+    max-width: 420px;
+    background-color: #ffffff;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    padding: 28px 28px 22px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 10px;
+    animation: slideUp 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ui-dialog-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 4px;
+}
+
+.ui-dialog-icon .ico {
+    width: 28px;
+    height: 28px;
+}
+
+.ui-dialog-icon-blue  { background-color: #eaf0fb; }
+.ui-dialog-icon-red   { background-color: #fde8e8; }
+.ui-dialog-icon-amber { background-color: #fff3dd; }
+
+.ui-dialog-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--navy-dark);
+    margin: 0;
+}
+
+.ui-dialog-message {
+    margin: 0;
+    font-size: 14.5px;
+    line-height: 1.6;
+    color: var(--text-dark);
+    white-space: pre-line;
+    max-height: 50vh;
+    overflow-y: auto;
+    word-break: break-word;
+}
+
+/* การ์ดข้อมูลรายการที่กำลังจะลบ/แก้ไข (รูป + ชื่อ + รายละเอียด) */
+.ui-dialog-card {
+    width: 100%;
+    margin-top: 6px;
+    padding: 14px 16px;
+    background-color: var(--gray-bg);
+    border-radius: 14px;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.ui-dialog-card-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.ui-dialog-card-pic {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+    background-color: #ffffff;
+    border: 2px solid #ffffff;
+    box-shadow: 0 0 0 1px #d5dce8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ui-dialog-card-pic img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.ui-dialog-card-pic .ico {
+    width: 28px;
+    height: 28px;
+}
+
+.ui-dialog-card-names {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.ui-dialog-card-names strong {
+    font-size: 15px;
+    color: var(--navy-dark);
+    word-break: break-word;
+}
+
+.ui-dialog-card-names small {
+    font-size: 12.5px;
+    color: var(--text-muted);
+}
+
+.ui-dialog-card-rows {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 5px 14px;
+    margin: 0;
+    padding-top: 10px;
+    border-top: 1px solid #e2e7ef;
+    font-size: 13px;
+}
+
+.ui-dialog-card-rows dt {
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.ui-dialog-card-rows dd {
+    margin: 0;
+    color: var(--text-dark);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    word-break: break-word;
+}
+
+.ui-dialog-card-list {
+    margin: 0;
+    padding: 10px 0 0 18px;
+    border-top: 1px solid #e2e7ef;
+    font-size: 13px;
+    color: var(--text-dark);
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.ui-dialog-card-more {
+    list-style: none;
+    margin-left: -18px;
+    color: var(--text-muted);
+}
+
+.ui-dialog-input {
+    width: 100%;
+    margin-top: 4px;
+    padding: 10px 14px;
+    border: 1px solid #d5dce8;
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: 15px;
+    text-align: center;
+}
+
+.ui-dialog-input:focus {
+    outline: none;
+    border-color: var(--gold-primary);
+    box-shadow: 0 0 0 3px rgba(45, 79, 163, 0.12);
+}
+
+.ui-dialog-actions {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+    margin-top: 12px;
+}
+
+.ui-dialog-actions .btn {
+    flex: 1;
+    padding: 11px 16px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.ui-dialog-actions .btn:focus-visible {
+    outline: 2px solid var(--gold-primary);
+    outline-offset: 2px;
+}
+
 /* ปุ่มสลับ "ตารางใบงาน / คัมบังบอร์ด" (หน้าระบบแจ้งงาน) — switchJobView() เปลี่ยน className ของปุ่มทุกครั้ง
-   จึงกำหนดขนาดผ่านกล่องแม่ .view-toggle-bar แทน */
+   จึงกำหนดขนาดผ่านกล่องแม่ .view-toggle-bar แทน
+   กรอบเป็นการ์ดขาวมีเงา (เดิมพื้นเทา #f1f5f9 กลืนกับพื้นหลังระบบ #f1f4f9 จนมองไม่เห็นกรอบ) */
+.view-toggle-bar {
+    display: flex;
+    gap: 6px;
+    width: fit-content;
+    margin-bottom: 20px;
+    padding: 6px;
+    background-color: #ffffff;
+    border-radius: 14px;
+    box-shadow: var(--shadow-sm), 0 0 0 1px rgba(45, 79, 163, 0.08);
+}
+
 .view-toggle-bar .btn {
     padding: 9px 20px;
     font-size: 14px;
@@ -151,9 +377,95 @@ h1, h2, h3, h4, h5, h6 {
     height: 18px;
 }
 
+/* ปุ่มสลับ "ตาราง / กราฟวงกลม" ในหน้าบัญชีและการเงิน (toggleChartView() สลับแค่ btn-gold/btn-outline) */
+.btn-chart-toggle {
+    font-size: 13px;
+    padding: 7px 16px;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+.btn-chart-toggle .ico {
+    width: 16px;
+    height: 16px;
+}
+
+/* เลขประจำตัวคนต่างด้าว / เลขใบอนุญาตทำงาน ในช่อง "เลขคนงาน / บัตร" (ตารางคนงาน + ต่ออายุ)
+   และเลขบริษัท / เลขกรรมการ / เลขประจำตัว ใต้ชื่อนายจ้าง (buildEmployerIdLinesHtml — ตารางคนงาน, นายจ้าง, ใบงาน, วางบิล) */
+.employer-name {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--navy-dark);
+    margin-bottom: 2px;
+}
+
+.worker-id-line,
+.employer-id-line {
+    font-size: 13px;
+    line-height: 1.6;
+    white-space: nowrap;
+}
+
+.worker-id-line span,
+.employer-id-line span {
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.employer-id-line b,
+.worker-id-line b {
+    color: var(--navy-dark);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.01em;
+}
+
+/* ตัวกรองหน้าคนงานต่ออายุ/ทำเล่ม — ตัวกรองหลายตัว ให้ขึ้นบรรทัดใหม่ได้เมื่อจอแคบ */
+.renewal-filters {
+    flex-wrap: wrap;
+}
+
+.renewal-filter-clear {
+    white-space: nowrap;
+}
+
+.renewal-filter-summary {
+    margin: -6px 0 14px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gold-primary);
+}
+
 /* ป้าย "รอแจ้งเข้า" ใต้บรรทัดเพศ ในช่องชื่อคนงาน (ตารางคนงาน) */
 .worker-notify-badge {
     margin-top: 4px;
+}
+
+/* admin เห็นป้าย "รอแจ้งเข้า" เป็นปุ่ม — มีส่วน "✓ ผ่าน" ต่อท้าย กดทีเดียวเพื่อข้ามการแจ้งเข้า */
+.notify-skip-btn {
+    font-family: inherit;
+    cursor: pointer;
+    gap: 6px;
+    transition: var(--transition);
+}
+
+.notify-skip-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding-left: 6px;
+    border-left: 1px solid rgba(161, 92, 0, 0.25);
+    color: #1f9254;
+}
+
+.notify-skip-btn:hover {
+    background-color: #e5f5ed;
+    border-color: rgba(31, 146, 84, 0.3);
+}
+
+.notify-skip-btn:disabled {
+    opacity: 0.6;
+    cursor: wait;
 }
 
 /* ปุ่ม "เปิดแฟ้มเอกสาร" ในตารางนายจ้าง/คนงาน/แดชบอร์ด — ปุ่มหลักของแถว ให้ใหญ่กดง่าย */
@@ -295,6 +607,17 @@ select:not([multiple]):not([size]) {
     font-family: inherit;
     cursor: pointer;
     transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+/* dropdown กรองข้อมูลที่อยู่เดี่ยว ๆ (ไม่อยู่ใน .form-group/.filter-box) เช่น ช่วงเวลาสรุปการเงิน,
+   เดือนสถิติ, นายจ้าง/Agent งานสำเร็จ, สถานะบิล, หมวดรายจ่าย — padding-right มาจากกฎ select ด้านบน (กันทับลูกศร) */
+.select-filter {
+    padding-top: 10px;
+    padding-bottom: 10px;
+    padding-left: 16px;
+    font-size: 14.5px;
+    font-weight: 500;
+    min-height: 44px;
 }
 
 select:not([multiple]):not([size]):hover {
@@ -994,6 +1317,23 @@ select:disabled {
 .stats-icon svg {
     width: 22px;
     height: 22px;
+}
+
+/* ไอคอนสองโทน (.ico) ในวงกลมการ์ดสรุป — ไม่งั้นจะเล็กตามตัวหนังสือ (1.15em ≈ 16px) */
+.stats-icon .ico {
+    width: 26px;
+    height: 26px;
+}
+
+.stats-icon .ico svg {
+    width: 100%;
+    height: 100%;
+}
+
+/* แท็บหน้าการเงิน (สรุปการเงิน / ออกบิล / จัดการรายจ่าย / บัญชีธนาคาร) */
+[id^="btn-finpage-tab-"] .ico {
+    width: 18px;
+    height: 18px;
 }
 
 .stats-info h3 {
@@ -2127,27 +2467,199 @@ td > .ico {
     z-index: 2000;
 }
 
+/* ==================== การ์ดสถานะดึงข้อมูลกลางจอ (showSyncStatus ใน app.js) ==================== */
+#sync-status {
+    position: fixed;
+    inset: 0;
+    z-index: 1900;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+}
+
+#sync-status.is-visible {
+    opacity: 1;
+}
+
+.sync-card {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    min-width: 300px;
+    max-width: 440px;
+    padding: 18px 26px 18px 18px;
+    background-color: rgba(255, 255, 255, 0.97);
+    border-radius: 20px;
+    box-shadow: 0 20px 50px rgba(20, 32, 57, 0.18), 0 0 0 1px rgba(45, 79, 163, 0.08);
+    transform: translateY(8px) scale(0.97);
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+#sync-status.is-visible .sync-card {
+    transform: none;
+}
+
+.sync-visual {
+    position: relative;
+    width: 48px;
+    height: 48px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background-color: #eaf0fb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s;
+}
+
+.sync-spinner {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 3px solid rgba(45, 79, 163, 0.18);
+    border-top-color: var(--gold-primary);
+    animation: sync-spin 0.8s linear infinite;
+}
+
+.sync-icon {
+    display: none;
+}
+
+.sync-icon .ico {
+    width: 28px;
+    height: 28px;
+}
+
+#sync-status.is-success .sync-visual { background-color: #e5f5ed; }
+#sync-status.is-error .sync-visual   { background-color: #fff3dd; }
+
+#sync-status.is-success .sync-spinner,
+#sync-status.is-error .sync-spinner { display: none; }
+
+#sync-status.is-success .sync-icon,
+#sync-status.is-error .sync-icon {
+    display: flex;
+    animation: sync-pop 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sync-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.sync-title {
+    font-family: var(--font-head);
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--navy-dark);
+}
+
+.sync-detail {
+    font-size: 13px;
+    color: var(--text-muted);
+    word-break: break-word;
+}
+
+.sync-close {
+    display: none;
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    width: 26px;
+    height: 26px;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    pointer-events: auto;
+}
+
+.sync-close:hover {
+    background-color: var(--gray-bg);
+}
+
+#sync-status.is-error .sync-close {
+    display: block;
+}
+
+@keyframes sync-spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes sync-pop {
+    from { transform: scale(0.4); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sync-spinner { animation-duration: 2s; }
+    .sync-card, #sync-status.is-success .sync-icon, #sync-status.is-error .sync-icon { animation: none; transition: none; }
+}
+
+/* แจ้งเตือนมุมจอ (showToast ใน app.js) — การ์ดขาว + ไอคอนสองโทนในวงกลมสีตามประเภท */
 .toast {
-    background-color: var(--navy-dark);
-    color: white;
-    padding: 14px 20px;
-    border-radius: var(--radius-sm);
-    box-shadow: var(--shadow-md);
+    background-color: #ffffff;
+    color: var(--text-dark);
+    padding: 12px 18px 12px 12px;
+    border-radius: 14px;
+    box-shadow: var(--shadow-lg), 0 0 0 1px rgba(45, 79, 163, 0.06);
     border-left: 4px solid var(--gold-primary);
-    font-size: 13.5px;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.45;
     display: flex;
     align-items: center;
     gap: 12px;
     animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     min-width: 280px;
+    max-width: 420px;
 }
 
 .toast.success {
-    border-left-color: var(--success);
+    border-left-color: #1f9254;
 }
 
 .toast.danger {
-    border-left-color: var(--danger);
+    border-left-color: #d13b3b;
+}
+
+.toast.warning {
+    border-left-color: #c27c0e;
+}
+
+.toast-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.toast-icon .ico {
+    width: 20px;
+    height: 20px;
+}
+
+.toast-icon-green  { background-color: #e5f5ed; }
+.toast-icon-red    { background-color: #fde8e8; }
+.toast-icon-amber  { background-color: #fff3dd; }
+.toast-icon-blue   { background-color: #eaf0fb; }
+
+.toast-text {
+    min-width: 0;
+    word-break: break-word;
 }
 
 @keyframes slideInRight {

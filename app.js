@@ -217,6 +217,8 @@ async function callCloudAPI(action, payload = {}) {
         showToast("⚠️ ยังไม่ได้โหลด supabase-client.js หรือยังไม่ได้ตั้งค่า Supabase", "danger");
         return null;
     }
+    // ทุกทางที่บันทึกคนงาน (ฟอร์ม, แนบไฟล์จากแฟ้ม, Bulk Import, ฯลฯ) ผ่านตรงนี้ — เพศว่างแต่มีคำนำหน้าให้เติมจากคำนำหน้าเสมอ
+    if (action === "saveWorker" && payload.workerData) fillGenderFromTitle(payload.workerData);
     try {
         const result = await window.supabaseAdapter.callCloudAPI(action, payload, currentUser);
         if (result && result.status === "success") {
@@ -263,10 +265,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     try {
         // Set Date in Header
-        const dateOptions = { year: 'numeric', month: 'long', day: 'numeric' };
         const headerDate = document.getElementById("header-date");
         if (headerDate) {
-            headerDate.innerText = new Date().toLocaleDateString('th-TH', dateOptions);
+            headerDate.innerText = formatThaiDate(new Date());
         }
 
         // Setup Login Form Handler
@@ -328,7 +329,7 @@ async function loadData() {
 
     const url = getApiUrl();
     if (url && currentUser) {
-        showToast("⏳ กำลังดึงข้อมูลจาก Supabase...", "warning");
+        showSyncStatus('loading');
         const res = await callCloudAPI("getData");
         if (res && res.status !== "error") {
             customers = res.customers || [];
@@ -350,12 +351,10 @@ async function loadData() {
             localStorage.setItem("mw_expenses", JSON.stringify(expenses));
             localStorage.setItem("mw_free_invoices", JSON.stringify(freeInvoices));
 
-            showToast("⚡ ดึงข้อมูลออนไลน์เรียบร้อยแล้ว", "success");
+            showSyncStatus('success', `นายจ้าง ${customers.length} • คนงาน ${workers.length} • ใบงาน ${jobs.length}`);
             return;
         }
-        if (res && res.status === "error") {
-            showToast("⚠️ ดึงข้อมูลจากคลาวด์ไม่สำเร็จ: " + (res.message || "unknown error") + " — ใช้ข้อมูลที่แคชไว้ในเครื่องแทน", "danger");
-        }
+        showSyncStatus('error', (res && res.message) ? res.message : 'เชื่อมต่อคลาวด์ไม่ได้');
     }
 
     const cachedCustomers = localStorage.getItem("mw_customers");
@@ -378,6 +377,45 @@ async function loadData() {
         // Generate Mock Data for immediate usage & wow factor
         seedMockData();
     }
+}
+
+// ==================== การ์ดสถานะการดึงข้อมูลกลางจอ (แทน toast "กำลังดึง..." + "ดึงเรียบร้อย" 2 อันแยกกัน) ====================
+// การ์ดเดียวเปลี่ยนสถานะในตัว: loading (วงหมุน) → success (ติ๊ก + จำนวนข้อมูล แล้วจางหายเอง) หรือ error (ค้างนานกว่า กดปิดได้)
+// ไม่บังการคลิกหน้าเว็บ (pointer-events: none ยกเว้นปุ่มปิด) — ใช้ทั้งตอนเปิดระบบ (loadData) และปุ่มรีเฟรช 🔄
+let _syncStatusTimer = null;
+function showSyncStatus(state, detail = '') {
+    let el = document.getElementById('sync-status');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'sync-status';
+        el.setAttribute('role', 'status');
+        el.setAttribute('aria-live', 'polite');
+        el.innerHTML = `
+            <div class="sync-card">
+                <div class="sync-visual"><span class="sync-spinner"></span><span class="sync-icon"></span></div>
+                <div class="sync-text"><strong class="sync-title"></strong><small class="sync-detail"></small></div>
+                <button type="button" class="sync-close" aria-label="ปิด">×</button>
+            </div>`;
+        el.querySelector('.sync-close').addEventListener('click', () => hideSyncStatus());
+        document.body.appendChild(el);
+    }
+    clearTimeout(_syncStatusTimer);
+    const copy = {
+        loading: ['กำลังดึงข้อมูลล่าสุด', 'กำลังเชื่อมต่อฐานข้อมูลออนไลน์...'],
+        success: ['ข้อมูลเป็นปัจจุบันแล้ว', detail],
+        error: ['ดึงข้อมูลออนไลน์ไม่สำเร็จ', `ใช้ข้อมูลที่บันทึกไว้ในเครื่องแทน${detail ? ` — ${detail}` : ''}`],
+    }[state];
+    el.className = `is-visible is-${state}`;
+    el.querySelector('.sync-title').textContent = copy[0];
+    el.querySelector('.sync-detail').textContent = copy[1] || '';
+    el.querySelector('.sync-icon').innerHTML = state === 'success' ? icon('ok', 'green') : state === 'error' ? icon('warn', 'amber') : '';
+    if (state === 'success') _syncStatusTimer = setTimeout(hideSyncStatus, 1600);
+    if (state === 'error') _syncStatusTimer = setTimeout(hideSyncStatus, 6000);
+}
+
+function hideSyncStatus() {
+    const el = document.getElementById('sync-status');
+    if (el) el.classList.remove('is-visible');
 }
 
 // ปุ่มรีเฟรชข้างกระดิ่ง (มุมขวาบน) — ดึงข้อมูลล่าสุดจาก Supabase แล้ววาดหน้าที่เปิดอยู่ใหม่ (ช่องค้นหา/ตัวกรองคงค่าเดิม)
@@ -1224,7 +1262,7 @@ function closeMobileSidebar() {
 // - ในเทมเพลต JS: ${icon('trash')}  หรือกำหนดสีเอง ${icon('home', 'teal')}
 // - ใน index.html: <span class="ico" data-icon="wp"></span> แล้ว hydrateIcons() จะเติม SVG ให้ตอนโหลดหน้า
 // - class "fl" = รูปทรงปิดที่ถูกเติมสีอ่อน (ดู .ico svg .fl ใน styles.css)
-// ข้อความใน alert()/confirm()/showToast ยังใช้อีโมจิได้ตามเดิม (แสดง SVG ไม่ได้)
+// ข้อความใน showToast ยังใช้อีโมจิได้ตามเดิม (แสดง SVG ไม่ได้) — ส่วน uiConfirm/uiAlert ตัดอีโมจินำหน้าทิ้งเองเพราะมีไอคอนในหน้าต่างอยู่แล้ว
 const ICON_GLYPHS = {
     wp:       { c: 'blue',   d: '<rect class="fl" x="3" y="5" width="18" height="14" rx="2.5"/><circle cx="8.5" cy="11" r="2"/><path d="M5.8 16c.6-1.4 1.6-2 2.7-2s2.1.6 2.7 2M14 10h4M14 13.5h3"/>' },
     passport: { c: 'indigo', d: '<rect class="fl" x="5" y="3" width="14" height="18" rx="2.5"/><circle cx="12" cy="10" r="3.2"/><path d="M8.8 10h6.4M12 6.8c-1 .9-1.4 2-1.4 3.2s.4 2.3 1.4 3.2M12 6.8c1 .9 1.4 2 1.4 3.2s-.4 2.3-1.4 3.2M9 17h6"/>' },
@@ -1307,6 +1345,177 @@ function hydrateIcons(root = document) {
 }
 document.addEventListener("DOMContentLoaded", () => hydrateIcons());
 
+// ==================== หน้าต่างยืนยัน/แจ้งเตือนของระบบ (แทน confirm/alert/prompt ของเบราว์เซอร์) ====================
+// ใช้: if (!(await uiConfirm("ลบ...?"))) return;   uiAlert("กรุณากรอก...");   const pin = await uiPrompt("กรอก PIN", { inputType: "password" });
+// - ข้อความที่มีคำว่า "ลบ" หรือ "ยกเลิกลิงก์" จะเป็นโหมดอันตรายอัตโนมัติ (ปุ่มแดง, โฟกัสที่ "ยกเลิก" ก่อนกันกด Enter พลาด)
+// - Enter = ตกลง, Esc / คลิกพื้นหลัง = ยกเลิก; ข้อความแสดงผ่าน textContent (ไม่ตีความ HTML) และรองรับ \n
+// - คืนค่าเป็น Promise เสมอ — ฟังก์ชันที่เรียก uiConfirm/uiPrompt ต้องเป็น async แล้ว await
+// - card: แสดงข้อมูลของรายการที่กำลังจะลบ/แก้ไข { image, imageIcon, title, subtitle, rows: [[ป้าย, ค่า], ...], list: [...] }
+//   (สร้างด้วย dialogCardForWorker/Customer/Job/... ด้านล่าง) — ทุกค่าใส่ผ่าน textContent/src ไม่ตีความ HTML
+function showUiDialog({ kind, message, title, okText, cancelText, danger, inputType, placeholder, card }) {
+    return new Promise(resolve => {
+        const isDanger = danger ?? (kind === 'confirm' && /ลบ|ยกเลิกลิงก์/.test(message));
+        const iconName = kind === 'alert' ? 'warn' : isDanger ? 'trash' : kind === 'prompt' ? 'lock' : 'clipboard';
+        const iconColor = kind === 'alert' ? 'amber' : isDanger ? 'red' : 'blue';
+        const backdrop = document.createElement('div');
+        backdrop.className = 'ui-dialog-backdrop';
+        backdrop.innerHTML = `
+            <div class="ui-dialog${isDanger ? ' is-danger' : ''}" role="${kind === 'alert' ? 'alertdialog' : 'dialog'}" aria-modal="true">
+                <div class="ui-dialog-icon ui-dialog-icon-${iconColor}">${icon(iconName, iconColor)}</div>
+                <h3 class="ui-dialog-title"></h3>
+                <p class="ui-dialog-message"></p>
+                ${card ? '<div class="ui-dialog-card"></div>' : ''}
+                ${kind === 'prompt' ? `<input class="ui-dialog-input" type="${inputType || 'text'}" name="ui-dialog-${Date.now()}" autocomplete="${inputType === 'password' ? 'new-password' : 'off'}" data-lpignore="true" data-1p-ignore>` : ''}
+                <div class="ui-dialog-actions">
+                    <button type="button" class="btn ${isDanger ? 'btn-danger-solid' : 'btn-gold'} ui-dialog-ok"></button>
+                    ${kind === 'alert' ? '' : '<button type="button" class="btn btn-outline ui-dialog-cancel"></button>'}
+                </div>
+            </div>`;
+        backdrop.querySelector('.ui-dialog-title').textContent = title
+            || (kind === 'alert' ? 'แจ้งเตือน' : kind === 'prompt' ? 'ยืนยันตัวตน' : isDanger ? 'ยืนยันการลบ' : 'ยืนยันการทำรายการ');
+        // ตัดอีโมจินำหน้าข้อความเดิมทิ้ง — หน้าต่างมีไอคอนของตัวเองอยู่แล้ว
+        backdrop.querySelector('.ui-dialog-message').textContent = String(message ?? '').replace(/^\s*(?:\p{Extended_Pictographic}️?\s*)+/u, '');
+        if (card) fillUiDialogCard(backdrop.querySelector('.ui-dialog-card'), card);
+        const okBtn = backdrop.querySelector('.ui-dialog-ok');
+        const cancelBtn = backdrop.querySelector('.ui-dialog-cancel');
+        const input = backdrop.querySelector('.ui-dialog-input');
+        okBtn.textContent = okText || (kind === 'alert' ? 'ตกลง' : isDanger ? 'ลบ' : 'ยืนยัน');
+        if (cancelBtn) cancelBtn.textContent = cancelText || 'ยกเลิก';
+        if (input && placeholder) input.placeholder = placeholder;
+
+        const prevFocus = document.activeElement;
+        const close = (result) => {
+            document.removeEventListener('keydown', onKey, true);
+            backdrop.remove();
+            if (prevFocus && typeof prevFocus.focus === 'function') prevFocus.focus();
+            resolve(result);
+        };
+        const ok = () => close(kind === 'prompt' ? input.value : kind === 'confirm' ? true : undefined);
+        const cancel = () => close(kind === 'prompt' ? null : kind === 'confirm' ? false : undefined);
+        const onKey = (e) => {
+            if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); cancel(); }
+            else if (e.key === 'Enter' && document.activeElement !== cancelBtn) { e.preventDefault(); e.stopPropagation(); ok(); }
+        };
+        okBtn.addEventListener('click', ok);
+        if (cancelBtn) cancelBtn.addEventListener('click', cancel);
+        backdrop.addEventListener('mousedown', (e) => { if (e.target === backdrop) cancel(); });
+        document.addEventListener('keydown', onKey, true);
+
+        document.body.appendChild(backdrop);
+        (input || (isDanger && cancelBtn) || okBtn).focus();
+        // ช่อง PIN: กัน Chrome เติมรหัสผ่านที่บันทึกไว้ (ของบัญชีล็อกอิน) ลงมาเอง — ล้างทิ้งถ้าถูกเติมก่อนผู้ใช้พิมพ์
+        if (input && inputType === 'password') {
+            let typed = false;
+            input.addEventListener('input', (e) => { if (e.isTrusted && e.inputType) typed = true; });
+            setTimeout(() => { if (!typed) input.value = ''; }, 300);
+        }
+    });
+}
+
+function fillUiDialogCard(box, card) {
+    const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+    const head = el('div', 'ui-dialog-card-head');
+    if (card.image || card.imageIcon) {
+        const pic = el('div', 'ui-dialog-card-pic');
+        if (card.image) {
+            const img = el('img');
+            img.alt = '';
+            img.src = card.image;
+            img.onerror = () => { pic.innerHTML = icon(card.imageIcon || 'user', 'slate'); };
+            pic.appendChild(img);
+        } else {
+            pic.innerHTML = icon(card.imageIcon, card.imageIconColor);
+        }
+        head.appendChild(pic);
+    }
+    const names = el('div', 'ui-dialog-card-names');
+    if (card.title) names.appendChild(el('strong', null, card.title));
+    if (card.subtitle) names.appendChild(el('small', null, card.subtitle));
+    head.appendChild(names);
+    box.appendChild(head);
+
+    const rows = (card.rows || []).filter(([, v]) => v != null && String(v).trim() !== '' && v !== '-');
+    if (rows.length) {
+        const dl = el('dl', 'ui-dialog-card-rows');
+        rows.forEach(([k, v]) => { dl.appendChild(el('dt', null, k)); dl.appendChild(el('dd', null, String(v))); });
+        box.appendChild(dl);
+    }
+    if (card.list && card.list.length) {
+        const max = 8;
+        const ul = el('ul', 'ui-dialog-card-list');
+        card.list.slice(0, max).forEach(item => ul.appendChild(el('li', null, item)));
+        if (card.list.length > max) ul.appendChild(el('li', 'ui-dialog-card-more', `และอีก ${card.list.length - max} รายการ`));
+        box.appendChild(ul);
+    }
+}
+
+// ---- การ์ดข้อมูลสำหรับหน้าต่างยืนยัน (ใช้กับ uiConfirm(..., { card })) ----
+function workerFullName(w) {
+    return `${w.title ? w.title + ' ' : ''}${w.firstName || ''} ${w.lastName || ''}`.trim() || '-';
+}
+
+function dialogCardForWorker(w) {
+    if (!w) return null;
+    const emp = customers.find(c => c.id === w.employerId);
+    return {
+        image: w.photo || '', imageIcon: 'user',
+        title: workerFullName(w),
+        subtitle: [w.nationality, w.gender ? `เพศ: ${w.gender}` : ''].filter(Boolean).join(' • '),
+        rows: [
+            ['เลขประจำตัวคนต่างด้าว', w.workerUid],
+            ['เลขใบอนุญาตทำงาน', w.permitNo],
+            ['เลขพาสปอร์ต', w.passportNo],
+            ['นายจ้าง', emp ? emp.companyName : ''],
+        ],
+    };
+}
+
+function dialogCardForCustomer(c) {
+    if (!c) return null;
+    const workerCount = workers.filter(w => w.employerId === c.id).length;
+    return {
+        imageIcon: 'building', imageIconColor: 'teal',
+        title: c.companyName || '-',
+        subtitle: c.businessType || '',
+        rows: [
+            ...getEmployerIdParts(c).map(p => [p.label, p.value]),
+            ['ผู้ประสานงาน', [c.coordinator, c.phone].filter(Boolean).join(' • ')],
+            ['จำนวนคนงาน', `${workerCount} คน`],
+        ],
+    };
+}
+
+function dialogCardForJob(j) {
+    if (!j) return null;
+    const w = workers.find(x => x.id === j.workerId);
+    const c = customers.find(x => x.id === j.customerId);
+    return {
+        image: w ? (w.photo || '') : '', imageIcon: w ? 'user' : 'clipboard',
+        title: `${getJobDisplayNo(j)} • ${j.jobType || '-'}`,
+        subtitle: j.status || '',
+        rows: [
+            ['คนงาน', w ? workerFullName(w) : ''],
+            ['นายจ้าง', c ? c.companyName : ''],
+            ['ค่าบริการ', j.fee ? `${Number(j.fee).toLocaleString()} บาท` : ''],
+        ],
+    };
+}
+
+function dialogCardForBank(b) {
+    if (!b) return null;
+    const meta = getBankMeta(b.bankName);
+    return {
+        image: meta.appIcon ? `assets/banks/${meta.appIcon}` : '', imageIcon: 'bank', imageIconColor: 'indigo',
+        title: b.bankName || '-',
+        subtitle: b.accountName || '',
+        rows: [['เลขที่บัญชี', b.accountNumber], ['พร้อมเพย์', b.promptPayId]],
+    };
+}
+
+function uiConfirm(message, opts = {}) { return showUiDialog({ ...opts, kind: 'confirm', message }); }
+function uiAlert(message, opts = {}) { return showUiDialog({ ...opts, kind: 'alert', message }); }
+function uiPrompt(message, opts = {}) { return showUiDialog({ ...opts, kind: 'prompt', message }); }
+
 // ==================== ดับเบิลคลิกแถวตารางเพื่อเปิดข้อมูล (.clickable-row) ====================
 // แถวนายจ้าง/คนงานเปิดรายละเอียดด้วยดับเบิลคลิก (คลิกเดียวไม่เปิด จะได้เลือก/คัดลอกข้อความในแถวได้)
 // ใช้: ondblclick="handleRowDblClick(event) && openXxxModal(id)"
@@ -1370,8 +1579,26 @@ function renderRenewalGroups() {
 
     const searchInput = document.getElementById("search-renewal");
     const query = searchInput ? searchInput.value.trim().toLowerCase() : "";
+    const filterVal = id => (document.getElementById(id) || {}).value || "";
+    const empFilter = filterVal("filter-renewal-employer");
+    const natFilter = filterVal("filter-renewal-nationality");
+    const statusFilter = filterVal("filter-renewal-status");
+    const bookFilter = filterVal("filter-renewal-book");
+    const groupFilter = filterVal("filter-renewal-group");
+    populateRenewalEmployerFilter(empFilter);
 
-    const relevant = workers.filter(w => w.status !== 'archived' && w.status !== 'deleted' && w.permitExpiry).filter(w => {
+    // จัดกลุ่มจากคนงาน "ทั้งหมด" ก่อน แล้วค่อยกรองภายในกลุ่ม — ไม่งั้นค้นหาจนเหลือคนเดียวในกลุ่มมติ ครม.
+    // จะทำให้คนนั้นถูกย้ายไปอยู่กลุ่ม MOU ผิด ๆ (กลุ่มนิยามจาก "มีคนวันหมดอายุตรงกันตั้งแต่ 2 คน")
+    const relevant = workers.filter(w => w.status !== 'archived' && w.status !== 'deleted' && w.permitExpiry);
+    const matchesFilters = (w) => {
+        if (empFilter && w.employerId !== empFilter) return false;
+        if (natFilter && w.nationality !== natFilter) return false;
+        if (statusFilter) {
+            const d = daysLeftOf(w);
+            const st = d === null ? '' : d < 0 ? 'expired' : d <= 60 ? 'warning' : 'normal';
+            if (st !== statusFilter) return false;
+        }
+        if (bookFilter && (bookFilter === 'has') !== hasBook(w)) return false;
         if (!query) return true;
         const emp = customers.find(c => c.id === w.employerId);
         const empName = emp ? (emp.companyName || "").toLowerCase() : "";
@@ -1381,7 +1608,8 @@ function renderRenewalGroups() {
             (w.permitNo || "").toLowerCase().includes(query) ||
             (w.nationality || "").toLowerCase().includes(query) ||
             empName.includes(query);
-    });
+    };
+    const anyFilter = !!(query || empFilter || natFilter || statusFilter || bookFilter || groupFilter);
 
     const byDateKey = {};
     relevant.forEach(w => {
@@ -1432,7 +1660,7 @@ function renderRenewalGroups() {
         if (!d) return '<span class="text-muted">-</span>';
         const diff = Math.ceil((d - today) / (1000 * 60 * 60 * 24));
         const cls = diff < 0 ? 'text-danger' : (diff <= 180 ? 'text-warning' : '');
-        return `<span class="${cls}">${d.toLocaleDateString('th-TH')}</span>`;
+        return `<span class="${cls}">${formatThaiDate(d)}</span>`;
     }
 
     function buildGroupPanel(title, list) {
@@ -1453,8 +1681,8 @@ function renderRenewalGroups() {
                 <tr class="clickable-row" ondblclick="handleRowDblClick(event) && openWorkerModal('${w.id}')" title="ดับเบิลคลิกเพื่อดูรายละเอียดคนงาน">
                     <td>
                         <div><strong>${w.refNo || '-'}</strong></div>
-                        <small class="text-muted">เลขประจำตัวคนต่างด้าว: ${w.workerUid || '-'}</small><br>
-                        <small class="text-muted">เลขที่ใบอนุญาตทำงาน: ${w.permitNo || '-'}</small>
+                        <div class="worker-id-line"><span>เลขประจำตัวคนต่างด้าว</span> <b>${w.workerUid || '-'}</b></div>
+                        <div class="worker-id-line"><span>เลขที่ใบอนุญาตทำงาน</span> <b>${w.permitNo || '-'}</b></div>
                     </td>
                     <td>
                         <div>${w.firstName || ''} ${w.lastName || ''}</div>
@@ -1463,7 +1691,7 @@ function renderRenewalGroups() {
                     </td>
                     <td>${w.nationality || '-'}</td>
                     <td>${emp ? emp.companyName : '-'}</td>
-                    <td>${w.permitExpiry || '-'}</td>
+                    <td>${formatThaiDate(w.permitExpiry)}</td>
                     <td>${statusBadgeOf(daysDiff)}</td>
                     <td>${bookBadgeOf(w)}</td>
                     <td>${bookExpiryOf(w)}</td>
@@ -1495,14 +1723,49 @@ function renderRenewalGroups() {
     }
 
     let html = '';
-    batchGroups.forEach(g => {
-        html += buildGroupPanel(`มติ ครม. ต่ออายุ (ใบอนุญาตหมดอายุ ${g.date.toLocaleDateString('th-TH')})`, g.workers);
-    });
-    if (mouWorkers.length > 0) {
-        html += buildGroupPanel('กลุ่ม MOU', mouWorkers);
+    let shownCount = 0;
+    if (groupFilter !== 'mou') {
+        batchGroups.forEach(g => {
+            const list = g.workers.filter(matchesFilters);
+            if (list.length === 0) return;
+            shownCount += list.length;
+            html += buildGroupPanel(`มติ ครม. ต่ออายุ (ใบอนุญาตหมดอายุ ${formatThaiDate(g.date)})`, list);
+        });
+    }
+    if (groupFilter !== 'batch') {
+        const list = mouWorkers.filter(matchesFilters);
+        if (list.length > 0) {
+            shownCount += list.length;
+            html += buildGroupPanel('กลุ่ม MOU', list);
+        }
     }
 
-    container.innerHTML = html || `<p class="text-muted" style="text-align:center; padding: 30px;">ไม่มีข้อมูลคนงานที่ต้องต่ออายุ</p>`;
+    const summaryEl = document.getElementById("renewal-filter-summary");
+    const clearBtn = document.getElementById("btn-clear-renewal-filters");
+    if (summaryEl) {
+        summaryEl.classList.toggle("hidden", !anyFilter);
+        summaryEl.textContent = anyFilter ? `พบ ${shownCount} คน จากทั้งหมด ${relevant.length} คน` : '';
+    }
+    if (clearBtn) clearBtn.classList.toggle("hidden", !anyFilter);
+
+    container.innerHTML = html || `<p class="text-muted" style="text-align:center; padding: 30px;">${anyFilter ? 'ไม่พบคนงานตามตัวกรองที่เลือก' : 'ไม่มีข้อมูลคนงานที่ต้องต่ออายุ'}</p>`;
+}
+
+// เติมรายชื่อนายจ้างในตัวกรองหน้าต่ออายุ (เฉพาะนายจ้างที่มีคนงานในหน้านี้) — คงค่าที่เลือกไว้
+function populateRenewalEmployerFilter(selected) {
+    const sel = document.getElementById("filter-renewal-employer");
+    if (!sel) return;
+    const empIds = new Set(workers.filter(w => w.status !== 'archived' && w.status !== 'deleted' && w.permitExpiry).map(w => w.employerId));
+    const list = customers.filter(c => empIds.has(c.id)).sort((a, b) => (a.companyName || '').localeCompare(b.companyName || '', 'th'));
+    sel.innerHTML = '<option value="">ทุกนายจ้าง/บริษัท</option>' +
+        list.map(c => `<option value="${c.id}">${escapeHtml(c.companyName || '-')}</option>`).join('');
+    sel.value = list.some(c => c.id === selected) ? selected : '';
+}
+
+function clearRenewalFilters() {
+    ["search-renewal", "filter-renewal-employer", "filter-renewal-nationality", "filter-renewal-status", "filter-renewal-book", "filter-renewal-group"]
+        .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    renderRenewalGroups();
 }
 
 // ==================== DASHBOARD ENGINE & CALCULATIONS ====================
@@ -1526,7 +1789,7 @@ function calculateDeadlines() {
                 alerts.push({
                     type: 'danger',
                     title: `พาสปอร์ตหมดอายุแล้ว (Expired)`,
-                    message: `คนงาน: ${w.firstName} ${w.lastName} (${w.nationality}) หมดอายุเมื่อ ${expPassDate.toLocaleDateString('th-TH')}`,
+                    message: `คนงาน: ${w.firstName} ${w.lastName} (${w.nationality}) หมดอายุเมื่อ ${formatThaiDate(expPassDate)}`,
                     target: w,
                     empName: empName,
                     daysLeft: daysDiff
@@ -1535,7 +1798,7 @@ function calculateDeadlines() {
                 alerts.push({
                     type: 'warning',
                     title: `พาสปอร์ตใกล้หมดอายุ (ภายใน 180 วัน)`,
-                    message: `คนงาน: ${w.firstName} ${w.lastName} (${w.nationality}) จะหมดอายุวันที่ ${expPassDate.toLocaleDateString('th-TH')}`,
+                    message: `คนงาน: ${w.firstName} ${w.lastName} (${w.nationality}) จะหมดอายุวันที่ ${formatThaiDate(expPassDate)}`,
                     target: w,
                     empName: empName,
                     daysLeft: daysDiff
@@ -1554,7 +1817,7 @@ function calculateDeadlines() {
                 alerts.push({
                     type: 'danger',
                     title: `ใบอนุญาตทำงานหมดอายุแล้ว (Expired)`,
-                    message: `คนงาน: ${w.firstName} ${w.lastName} (${w.nationality}) หมดอายุเมื่อ ${expPermitDate.toLocaleDateString('th-TH')}`,
+                    message: `คนงาน: ${w.firstName} ${w.lastName} (${w.nationality}) หมดอายุเมื่อ ${formatThaiDate(expPermitDate)}`,
                     target: w,
                     empName: empName,
                     daysLeft: daysDiff
@@ -1563,7 +1826,7 @@ function calculateDeadlines() {
                 alerts.push({
                     type: 'warning',
                     title: `ใบอนุญาตทำงานใกล้หมดอายุ (ภายใน 60 วัน)`,
-                    message: `คนงาน: ${w.firstName} ${w.lastName} (${w.nationality}) จะหมดอายุวันที่ ${expPermitDate.toLocaleDateString('th-TH')}`,
+                    message: `คนงาน: ${w.firstName} ${w.lastName} (${w.nationality}) จะหมดอายุวันที่ ${formatThaiDate(expPermitDate)}`,
                     target: w,
                     empName: empName,
                     daysLeft: daysDiff
@@ -1583,7 +1846,7 @@ function calculateDeadlines() {
             alerts.push({
                 type: 'danger',
                 title: `หนังสือรับรองบริษัทหมดอายุแล้ว (Expired)`,
-                message: `นายจ้าง: ${c.companyName} หมดอายุเมื่อ ${certExpDate.toLocaleDateString('th-TH')}`,
+                message: `นายจ้าง: ${c.companyName} หมดอายุเมื่อ ${formatThaiDate(certExpDate)}`,
                 target: c,
                 empName: c.companyName,
                 daysLeft: daysDiff
@@ -1592,7 +1855,7 @@ function calculateDeadlines() {
             alerts.push({
                 type: 'warning',
                 title: `หนังสือรับรองบริษัทใกล้หมดอายุ (ภายใน 30 วัน)`,
-                message: `นายจ้าง: ${c.companyName} จะหมดอายุวันที่ ${certExpDate.toLocaleDateString('th-TH')}`,
+                message: `นายจ้าง: ${c.companyName} จะหมดอายุวันที่ ${formatThaiDate(certExpDate)}`,
                 target: c,
                 empName: c.companyName,
                 daysLeft: daysDiff
@@ -1884,7 +2147,7 @@ function renderBillingTab() {
             <tr>
                 <td><strong>${getJobDisplayNo(j)}</strong></td>
                 <td><span class="badge badge-gold">${cleanJobType}</span></td>
-                <td>${custName}${custIdLines}</td>
+                <td><div class="employer-name">${custName}</div>${custIdLines}</td>
                 <td>${workName}${work && work.workerUid ? `<br><small class="text-muted">เลขประจำตัว: ${work.workerUid}</small>` : ''}</td>
                 <td><strong>${j.fee.toLocaleString()} บาท</strong></td>
                 <td><span class="badge ${statusClass}">${j.status}</span></td>
@@ -2047,7 +2310,7 @@ function renderEmployerAlerts() {
             `<span class="text-muted">ไม่มี</span>`;
 
         let certBadge = `<span class="text-muted">-</span>`;
-        const certExpText = r.customer.certExpiry ? new Date(r.customer.certExpiry).toLocaleDateString('th-TH') : '';
+        const certExpText = r.customer.certExpiry ? formatThaiDate(r.customer.certExpiry) : '';
         if (r.certStatus === 'expired') {
             certBadge = `<span class="badge badge-lg badge-danger" style="font-weight: 600;">${icon("warn")} ${certExpText}</span>`;
         } else if (r.certStatus === 'warning') {
@@ -2190,7 +2453,7 @@ function renderCustomers() {
         if (c.certExpiry) {
             const certExpDate = new Date(c.certExpiry);
             const certDaysDiff = Math.ceil((certExpDate.setHours(0,0,0,0) - new Date().setHours(0,0,0,0)) / (1000 * 60 * 60 * 24));
-            const certExpText = certExpDate.toLocaleDateString('th-TH');
+            const certExpText = formatThaiDate(certExpDate);
             if (certDaysDiff < 0) {
                 certCellHtml = `<span class="badge badge-lg badge-danger" style="font-weight:600;" title="หมดอายุแล้ว">${icon("warn")} ${certExpText}</span>`;
             } else if (certDaysDiff <= 30) {
@@ -2200,10 +2463,7 @@ function renderCustomers() {
             }
         }
 
-        const idPartsHtml = getEmployerIdParts(c).map((p, i) => i === 0
-            ? `<div><small class="text-muted">${p.label}</small></div><strong>${p.value}</strong>`
-            : `<div><small class="text-muted">${p.label}: ${p.value}</small></div>`
-        ).join('');
+        const idPartsHtml = buildEmployerIdLinesHtml(c);
 
         return `
             <tr class="clickable-row" ondblclick="handleRowDblClick(event) && openCustomerModal('${c.id}')" title="ดับเบิลคลิกเพื่อดูรายละเอียดนายจ้าง">
@@ -2307,7 +2567,7 @@ function renderWorkerExpiryLine(label, expDate, daysLeft, warnDays) {
         return `<div class="worker-expiry-line text-muted"><span>${label}:</span> -</div>`;
     }
     const cls = daysLeft < 0 ? 'text-danger' : (daysLeft <= warnDays ? 'text-warning' : 'text-muted');
-    return `<div class="worker-expiry-line ${cls}"><span>${label}:</span> <strong>${expDate.toLocaleDateString('th-TH')}</strong></div>`;
+    return `<div class="worker-expiry-line ${cls}"><span>${label}:</span> <strong>${formatThaiDate(expDate)}</strong></div>`;
 }
 
 let selectedPendingWorkerIds = new Set();
@@ -2346,7 +2606,7 @@ async function bulkActivateSelectedWorkers() {
     }
     const ids = [...selectedPendingWorkerIds];
     if (ids.length === 0) return;
-    if (!confirm(`ยืนยันเปลี่ยนสถานะคนงาน ${ids.length} คน จาก "รอขึ้นทะเบียน" เป็น "ปกติ (Active)"?`)) return;
+    if (!(await uiConfirm(`ยืนยันเปลี่ยนสถานะคนงาน ${ids.length} คน จาก "รอขึ้นทะเบียน" เป็น "ปกติ (Active)"?`, { okText: "เปลี่ยนเป็นปกติ", card: { imageIcon: "users", imageIconColor: "teal", title: `คนงาน ${ids.length} คน`, subtitle: "รอขึ้นทะเบียน → ปกติ (Active)", list: ids.map(id => workers.find(w => w.id === id)).filter(Boolean).map(workerFullName) } }))) return;
 
     showToast(`💾 กำลังเปลี่ยนสถานะคนงาน ${ids.length} คน...`, "warning");
     const res = await callCloudAPI("bulkSetWorkerStatus", { ids, status: 'active' });
@@ -2361,6 +2621,26 @@ async function bulkActivateSelectedWorkers() {
     renderWorkers();
     const missed = ids.length - updated.size;
     showToast(`✅ เปลี่ยนเป็นปกติแล้ว ${updated.size} คน${missed > 0 ? ` (ไม่สำเร็จ ${missed} คน)` : ''}`, missed > 0 ? "warning" : "success");
+}
+
+// admin กดป้าย "รอแจ้งเข้า" ทีเดียว → ตั้ง skipNotifyEntry = true (เหมือนติ๊ก worker-skip-notify ในฟอร์ม) แล้วบันทึกขึ้นคลาวด์
+async function markWorkerNotifySkipped(workerId, btn) {
+    if (currentUser.role !== 'admin') return;
+    const w = workers.find(x => x.id === workerId);
+    if (!w) return;
+    if (btn) btn.disabled = true;
+
+    w.skipNotifyEntry = true;
+    const res = await callCloudAPI("saveWorker", { workerData: w });
+    if (!res || res.status === "error") {
+        w.skipNotifyEntry = false;
+        if (btn) btn.disabled = false;
+        showToast("❌ บันทึกไม่สำเร็จ: " + (res && res.message ? res.message : "กรุณาลองใหม่"), "danger");
+        return;
+    }
+    saveData();
+    renderWorkers();
+    showToast(`✅ ${w.firstName || ''} ${w.lastName || ''}: ไม่ต้องแจ้งเข้าแล้ว (ยกเลิกได้ในฟอร์มแก้ไขคนงาน)`, "success");
 }
 
 function renderWorkers() {
@@ -2472,9 +2752,11 @@ function renderWorkers() {
         const empName = emp ? emp.companyName : "ไม่ระบุนายจ้าง";
         // ยังไม่เคยมีใบงานเลยสักใบ = ยังไม่เคยแจ้งงานให้คนงานคนนี้เลย (ไม่รวมคนที่กำลังรอขึ้นทะเบียนอยู่แล้ว เพราะขึ้นทะเบียนเสร็จก็ถือว่าเข้าระบบแล้วไม่ต้องแจ้งเข้าซ้ำ,
         // และไม่รวมคนที่ admin ระบุไว้ว่าไม่ต้องแจ้งเข้า — ดู worker-skip-notify ในฟอร์มเพิ่ม/แก้ไขคนงาน)
-        const pendingNotifyBadge = (w.status !== 'pending_register' && !w.skipNotifyEntry && !jobs.some(j => j.workerId === w.id))
-            ? '<div class="worker-notify-badge"><span class="badge badge-warning" title="ยังไม่เคยแจ้งงาน/แจ้งเข้าให้คนงานคนนี้เลย">' + icon("hourglass") + ' รอแจ้งเข้า</span></div>'
-            : '';
+        // admin กดที่ป้ายได้เลย = ติ๊ก "ไม่ต้องแจ้งเข้า" ให้ทันที (ดู markWorkerNotifySkipped) — คนอื่นเห็นเป็นป้ายเฉย ๆ
+        const needsNotify = w.status !== 'pending_register' && !w.skipNotifyEntry && !jobs.some(j => j.workerId === w.id);
+        const pendingNotifyBadge = !needsNotify ? '' : currentUser.role === 'admin'
+            ? `<div class="worker-notify-badge"><button type="button" class="badge badge-warning notify-skip-btn" onclick="event.stopPropagation(); markWorkerNotifySkipped('${w.id}', this)" title="ยังไม่เคยแจ้งงาน/แจ้งเข้าให้คนงานคนนี้เลย — กดเพื่อทำเครื่องหมายว่าไม่ต้องแจ้งเข้า (ยกเลิกได้ในฟอร์มแก้ไขคนงาน)">${icon("hourglass")} รอแจ้งเข้า <span class="notify-skip-action">${icon("ok", "green")} ผ่าน</span></button></div>`
+            : `<div class="worker-notify-badge"><span class="badge badge-warning" title="ยังไม่เคยแจ้งงาน/แจ้งเข้าให้คนงานคนนี้เลย">${icon("hourglass")} รอแจ้งเข้า</span></div>`;
 
         // Status badges logic
         const pExpDate = safeParseDate(w.passportExpiry);
@@ -2521,8 +2803,8 @@ function renderWorkers() {
                 <td>
                     ${bulkPendingMode && w.status === 'pending_register' ? `<label class="worker-bulk-check" onclick="event.stopPropagation()"><input type="checkbox" ${selectedPendingWorkerIds.has(w.id) ? 'checked' : ''} onchange="togglePendingWorkerSelection('${w.id}', this.checked)"> เลือก</label>` : ''}
                     <div><strong>${w.refNo || '-'}</strong></div>
-                    <small class="text-muted">เลขประจำตัวคนต่างด้าว: ${w.workerUid || '-'}</small><br>
-                    <small class="text-muted">เลขที่ใบอนุญาตทำงาน: ${w.permitNo || '-'}</small>
+                    <div class="worker-id-line"><span>เลขประจำตัวคนต่างด้าว</span> <b>${w.workerUid || '-'}</b></div>
+                    <div class="worker-id-line"><span>เลขที่ใบอนุญาตทำงาน</span> <b>${w.permitNo || '-'}</b></div>
                 </td>
                 <td>
                     <div style="display: flex; align-items: center; gap: 10px;">
@@ -2547,8 +2829,8 @@ function renderWorkers() {
                     ${renderWorkerExpiryLine('พาสปอร์ต', pExpDate, pDiff, 180)}
                 </td>
                 <td>
-                    <div>${empName}</div>
-                    ${getEmployerIdParts(emp).map(p => `<small class="text-muted">${p.label}: ${p.value}</small><br>`).join('')}
+                    <div class="employer-name">${empName}</div>
+                    ${buildEmployerIdLinesHtml(emp)}
                 </td>
                 <td>${statusBadge}</td>
                 <td onclick="event.stopPropagation()">${attachHtml}</td>
@@ -2645,8 +2927,9 @@ function addNewBranchInput() {
     renderBranchesInputs();
 }
 
-function removeBranchInput(idx) {
-    if (!confirm("คุณแน่ใจหรือไม่ที่จะลบที่อยู่สาขานี้ออกจากฟอร์ม?")) return;
+async function removeBranchInput(idx) {
+    const br = customerBranches[idx] || {};
+    if (!(await uiConfirm("คุณแน่ใจหรือไม่ที่จะลบที่อยู่สาขานี้ออกจากฟอร์ม?", { card: { imageIcon: "pin", imageIconColor: "red", title: `สาขาที่ ${idx + 1}`, subtitle: [br.houseNo, br.moo ? `ม.${br.moo}` : "", br.soi, br.road, br.subdistrict ? `ต.${br.subdistrict}` : "", br.district ? `อ.${br.district}` : "", br.province ? `จ.${br.province}` : "", br.postalCode].filter(Boolean).join(" ") || "ยังไม่ได้กรอกที่อยู่" } }))) return;
     customerBranches.splice(idx, 1);
     renderBranchesInputs();
 }
@@ -3040,12 +3323,26 @@ function removeStagedCustomerAttachment(docType, index) {
 
 // ==================== AI (Gemini) FIELD MAPPING — ใช้ร่วมกันทั้งฝั่งฟอร์ม (DOM) และฝั่งแฟ้มเอกสาร/bulk import (object) ====================
 // แปลงค่าเพศ/คำนำหน้าดิบจาก AI ให้เป็นค่ามาตรฐานของระบบ คืน null ถ้าอ่านไม่ออก/ไม่ตรงรูปแบบที่รู้จัก
+// รองรับทุกรูปแบบที่ AI อาจส่งมา: Male/Female, ชาย/หญิง, ตัวย่อบนพาสปอร์ต M/F (หรือ "Sex: M"), ช./ญ.,
+// คำนำหน้าอังกฤษ Mr/Mrs/Miss/Ms และภาษาพม่า ကျား (ชาย) / မ (หญิง)
 function mapGeminiGender(rawGender) {
     if (!rawGender) return null;
-    const g = rawGender.toLowerCase();
-    if (g.includes("female") || g.includes("หญิง")) return "Female";
-    if (g.includes("male") || g.includes("ชาย")) return "Male";
+    const g = String(rawGender).trim().toLowerCase();
+    if (g.includes("female") || g.includes("หญิง") || g.includes("woman")) return "Female";
+    if (g.includes("male") || g.includes("ชาย") || g.includes("man")) return "Male";
+    const core = g.replace(/^(sex|gender|เพศ)\s*[:\-]?\s*/, '').replace(/[.\s]/g, '');
+    if (["f", "ญ", "mrs", "miss", "ms", "မ"].includes(core)) return "Female";
+    if (["m", "ช", "mr", "ကျား"].includes(core)) return "Male";
     return null;
+}
+
+// เพศว่างแต่มีคำนำหน้า (นาย/นาง/นางสาว/เด็กชาย/เด็กหญิง) → เติมเพศจากคำนำหน้า; ใช้ก่อนบันทึกคนงานทุกช่องทาง
+function fillGenderFromTitle(w) {
+    if (w && !w.gender) {
+        const g = deriveGenderFromTitle(w.title);
+        if (g) w.gender = g;
+    }
+    return w;
 }
 
 // อ่านคำนำหน้าจากต้นข้อความ — รองรับทั้งคำเต็ม, ตัวย่อ (น.ส. / ด.ช. / ด.ญ. / Mr.) และแบบติดกับชื่อ (เช่น "นายหม่อง")
@@ -3598,7 +3895,7 @@ function openDeliveryLabelModal() {
     document.getElementById("dlv-company-name").innerText = info.companyName || "-";
     document.getElementById("dlv-address").innerText = formatDeliveryAddressLine(info);
     document.getElementById("dlv-phone").innerText = info.phone ? `โทร: ${info.phone}` : "-";
-    document.getElementById("dlv-date").innerText = new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+    document.getElementById("dlv-date").innerText = formatThaiDate(new Date());
 
     setPrintPageSize("size: A5; margin: 12mm;");
     document.getElementById("delivery-label-modal").classList.remove("hidden");
@@ -3623,7 +3920,7 @@ async function saveCustomer(e) {
     const requirePrepayment = document.getElementById("cust-require-prepayment").checked;
     const certIssueDateRaw = document.getElementById("cust-cert-issue-date").value.trim();
     if (certIssueDateRaw && !isValidDate(certIssueDateRaw)) {
-        alert("รูปแบบวันที่ออกหนังสือรับรองบริษัทไม่ถูกต้อง กรุณากรอกเป็น วัน/เดือน/ปี ค.ศ. (เช่น 15/03/2026)");
+        uiAlert("รูปแบบวันที่ออกหนังสือรับรองบริษัทไม่ถูกต้อง กรุณากรอกเป็น วัน/เดือน/ปี ค.ศ. (เช่น 15/03/2026)");
         return;
     }
     // หมดอายุไม่ได้พิมพ์อยู่ในเอกสารจริง คำนวณเองจากวันที่ออก + 6 เดือน ณ ตอนบันทึกเสมอ (ไม่เชื่อค่าที่โชว์ในฟอร์มเฉยๆ)
@@ -3650,15 +3947,15 @@ async function saveCustomer(e) {
     // Validate branches
     for (let b of customerBranches) {
         if (!b.houseNo || !b.subdistrict || !b.district || !b.province || !b.postalCode) {
-            alert("กรุณากรอกข้อมูลที่อยู่ให้ครบถ้วนในทุกสาขาที่เปิดอยู่");
+            uiAlert("กรุณากรอกข้อมูลที่อยู่ให้ครบถ้วนในทุกสาขาที่เปิดอยู่");
             return;
         }
         if (!PROVINCES.includes(b.province)) {
-            alert(`จังหวัดต้องอยู่ใน 4 จังหวัดนี้เท่านั้น: ${PROVINCES.join(', ')}`);
+            uiAlert(`จังหวัดต้องอยู่ใน 4 จังหวัดนี้เท่านั้น: ${PROVINCES.join(', ')}`);
             return;
         }
         if (!/^\d{5}$/.test(b.postalCode)) {
-            alert("รหัสไปรษณีย์ต้องเป็นตัวเลข 5 หลัก");
+            uiAlert("รหัสไปรษณีย์ต้องเป็นตัวเลข 5 หลัก");
             return;
         }
     }
@@ -3747,11 +4044,11 @@ async function deleteCustomer(id, rowNum = null) {
     // Check if customer has workers
     const relatedWorkers = workers.filter(w => w.employerId === id);
     if (relatedWorkers.length > 0) {
-        alert("ไม่สามารถลบลูกค้านี้ได้ เนื่องจากมีคนงานต่างด้าวผูกกับบริษัทนี้อยู่ กรุณาย้ายหรือลบคนงานก่อน");
+        uiAlert("ไม่สามารถลบลูกค้านี้ได้ เนื่องจากมีคนงานต่างด้าวผูกกับบริษัทนี้อยู่ กรุณาย้ายหรือลบคนงานก่อน");
         return;
     }
 
-    if (confirm("คุณแน่ใจหรือไม่ที่จะลบข้อมูลผู้ว่าจ้าง/ลูกค้ารายนี้? ข้อมูลทั้งหมดของเขาจะหายไป")) {
+    if (await uiConfirm("คุณแน่ใจหรือไม่ที่จะลบข้อมูลผู้ว่าจ้าง/ลูกค้ารายนี้? ข้อมูลทั้งหมดของเขาจะหายไป", { card: dialogCardForCustomer(customers.find(c => c.id === id)) })) {
         showToast("🗑️ กำลังลบข้อมูลออกจากคลาวด์...", "warning");
         let res = await callCloudAPI("deleteRecord", { sheetName: "Customers", id: id });
 
@@ -3849,7 +4146,23 @@ function formatDateOnly(dateStr) {
     const match = String(dateStr).match(/^(\d{4}-\d{2}-\d{2})/);
     const datePart = match ? match[1] : dateStr;
     const d = safeParseDate(datePart);
-    return d ? d.toLocaleDateString('th-TH') : String(dateStr);
+    return d ? formatThaiDate(d) : String(dateStr);
+}
+
+// รูปแบบวันที่มาตรฐานของทั้งระบบ (ที่แสดงให้ผู้ใช้เห็น): วัน/เดือน/ปี พ.ศ. เติม 0 ครบ 2 หลัก เช่น 13/02/2570
+// รับได้ทั้ง Date, "YYYY-MM-DD", ISO timestamp และ "DD/MM/YYYY" (ค.ศ. หรือ พ.ศ.) — withTime: true ต่อท้ายเวลา "14:30"
+// หมายเหตุ: ช่องกรอกวันที่ในฟอร์มยังเป็น ค.ศ. (ดู formatDateForInput / parseDateInput) — ฟังก์ชันนี้ใช้แสดงผลเท่านั้น
+function formatThaiDate(value, withTime = false) {
+    if (!value) return '-';
+    let d = value instanceof Date ? value : null;
+    if (!d) {
+        const s = String(value);
+        d = /T\d{2}:\d{2}/.test(s) ? new Date(s) : safeParseDate((s.match(/^(\d{4}-\d{2}-\d{2})/) || [])[1] || s);
+    }
+    if (!d || isNaN(d.getTime())) return String(value);
+    const pad = n => String(n).padStart(2, '0');
+    const out = `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear() + 543}`;
+    return withTime ? `${out} ${pad(d.getHours())}:${pad(d.getMinutes())}` : out;
 }
 
 function parseDateInput(val) {
@@ -3908,7 +4221,7 @@ function setupDateMask(elementId) {
 // --- WORKERS ---
 function openWorkerModal(id = null) {
     if (customers.length === 0) {
-        alert("กรุณาเพิ่มข้อมูล นายจ้าง/ลูกค้า อย่างน้อย 1 รายการก่อนจัดการคนงาน");
+        uiAlert("กรุณาเพิ่มข้อมูล นายจ้าง/ลูกค้า อย่างน้อย 1 รายการก่อนจัดการคนงาน");
         return;
     }
 
@@ -4048,7 +4361,7 @@ async function saveWorker(e) {
     if (nationality === "Other") {
         nationality = document.getElementById("worker-nationality-other").value.trim();
         if (!nationality) {
-            alert("กรุณาระบุระบุสัญชาติคนงานต่างด้าวในกล่องระบุเพิ่มเติม");
+            uiAlert("กรุณาระบุระบุสัญชาติคนงานต่างด้าวในกล่องระบุเพิ่มเติม");
             return;
         }
     }
@@ -4095,25 +4408,25 @@ async function saveWorker(e) {
 
     // Validate date formats (DD/MM/YYYY)
     if (dob && !isValidDate(dob)) {
-        alert("วันเดือนปีเกิด ไม่ถูกต้อง (รูปแบบคือ วัน/เดือน/ปี ค.ศ. เช่น 15/08/1994)");
+        uiAlert("วันเดือนปีเกิด ไม่ถูกต้อง (รูปแบบคือ วัน/เดือน/ปี ค.ศ. เช่น 15/08/1994)");
         return;
     }
     if (permitExpiry && !isValidDate(permitExpiry)) {
-        alert("วันหมดอายุใบอนุญาตทำงาน ไม่ถูกต้อง (รูปแบบคือ วัน/เดือน/ปี ค.ศ. เช่น 31/12/2026)");
+        uiAlert("วันหมดอายุใบอนุญาตทำงาน ไม่ถูกต้อง (รูปแบบคือ วัน/เดือน/ปี ค.ศ. เช่น 31/12/2026)");
         return;
     }
     if (passportIssue && !isValidDate(passportIssue)) {
-        alert("วันออกเล่มพาสปอร์ต ไม่ถูกต้อง (รูปแบบคือ วัน/เดือน/ปี ค.ศ. เช่น 20/05/2022)");
+        uiAlert("วันออกเล่มพาสปอร์ต ไม่ถูกต้อง (รูปแบบคือ วัน/เดือน/ปี ค.ศ. เช่น 20/05/2022)");
         return;
     }
     if (passportExpiry && !isValidDate(passportExpiry)) {
-        alert("วันหมดอายุพาสปอร์ต ไม่ถูกต้อง (รูปแบบคือ วัน/เดือน/ปี ค.ศ. เช่น 20/05/2027)");
+        uiAlert("วันหมดอายุพาสปอร์ต ไม่ถูกต้อง (รูปแบบคือ วัน/เดือน/ปี ค.ศ. เช่น 20/05/2027)");
         return;
     }
 
     // Relaxed required validation: only check employer, nationality, title, first name, and birth date
     if (!employerId || !nationality || !title || !firstName || !dob) {
-        alert("กรุณากรอกข้อมูลที่จำเป็น (*) ให้ครบถ้วน");
+        uiAlert("กรุณากรอกข้อมูลที่จำเป็น (*) ให้ครบถ้วน");
         return;
     }
 
@@ -4175,7 +4488,7 @@ async function deleteWorker(id, rowNum = null) {
         return;
     }
 
-    if (confirm("คุณแน่ใจหรือไม่ที่จะลบข้อมูลคนงานต่างด้าวรายนี้?")) {
+    if (await uiConfirm("คุณแน่ใจหรือไม่ที่จะลบข้อมูลคนงานต่างด้าวรายนี้?", { card: dialogCardForWorker(workers.find(w => w.id === id)) })) {
         showToast("🗑️ กำลังลบข้อมูลออกจากคลาวด์...", "warning");
         let res = await callCloudAPI("deleteRecord", { sheetName: "Workers", id: id });
 
@@ -4196,21 +4509,33 @@ async function deleteWorker(id, rowNum = null) {
 }
 
 // ==================== TOAST COMPONENT ====================
+// อีโมจินำหน้าข้อความแจ้งเตือน → ชื่อไอคอนใน ICON_GLYPHS (สีใช้ตามประเภทของแจ้งเตือน)
+const TOAST_EMOJI_ICONS = {
+    '✅': 'ok', '❌': 'bad', '⚠': 'warn', '⛔': 'ban', '🚫': 'ban', '⏳': 'hourglass', '💾': 'save', '🗑': 'trash',
+    '📎': 'clip', '☁': 'cloud', '📤': 'outbox', '📥': 'inbox', '🔄': 'refresh', '⚡': 'bolt', '🎉': 'sparkles',
+    '✨': 'sparkles', '🤖': 'bot', '📋': 'clipboard', '🔗': 'link', '🔒': 'lock', '🔓': 'unlock', '📁': 'folder',
+    '📂': 'folder', '✏': 'edit', '📝': 'edit', '🧾': 'receipt', '💰': 'moneybag', '💵': 'cash', '👤': 'user',
+    '🖨': 'print', '🔍': 'search', '📄': 'file', '🧹': 'sparkles', '🗜': 'box', '📦': 'box',
+};
+
 function showToast(message, type = 'success') {
     const container = document.getElementById("toast-container");
     if (!container) return;
 
     const toast = document.createElement("div");
     toast.className = `toast ${type}`;
-    
-    let icon = '✨';
-    if (type === 'success') icon = '✅';
-    if (type === 'danger') icon = '❌';
-    if (type === 'warning') icon = '⚠️';
+
+    // อีโมจิตัวแรกของข้อความ (เช่น "📎 กำลังแนบไฟล์...") → แปลงเป็นไอคอนสองโทนที่ความหมายตรงกัน แล้วตัดอีโมจิออกจากข้อความ
+    // ไม่มีอีโมจินำหน้า → ใช้ไอคอนตามประเภท (สำเร็จ/ผิดพลาด/คำเตือน)
+    const text = String(message ?? '');
+    const lead = text.match(/^\s*(\p{Extended_Pictographic})️?\s*/u);
+    const typeIcon = { success: ['ok', 'green'], danger: ['bad', 'red'], warning: ['warn', 'amber'] }[type] || ['sparkles', 'blue'];
+    const leadName = lead ? TOAST_EMOJI_ICONS[lead[1]] : null;
+    const [iconName, iconColor] = leadName ? [leadName, typeIcon[1]] : typeIcon;
 
     toast.innerHTML = `
-        <span>${icon}</span>
-        <span>${message}</span>
+        <span class="toast-icon toast-icon-${iconColor}">${icon(iconName, iconColor)}</span>
+        <span class="toast-text">${lead ? text.slice(lead[0].length) : text}</span>
     `;
 
     container.appendChild(toast);
@@ -4265,8 +4590,9 @@ function getEmployerIdParts(cust) {
 }
 
 // สร้าง HTML บรรทัดย่อยแสดงเลขประจำตัวของนายจ้าง ต่อจากชื่อบริษัท (ใช้ร่วมกันทุกจุดที่แสดงนายจ้างในระบบแจ้งงาน)
+// (หน้าตาเดียวกับเลขประจำตัวคนงานในช่อง "เลขคนงาน / บัตร" — ดู .employer-id-line ใน styles.css)
 function buildEmployerIdLinesHtml(cust) {
-    return getEmployerIdParts(cust).map(p => `<br><small class="text-muted">${p.label}: ${p.value}</small>`).join('');
+    return getEmployerIdParts(cust).map(p => `<div class="employer-id-line"><span>${p.label}</span> <b>${p.value}</b></div>`).join('');
 }
 
 // เวอร์ชันข้อความล้วน (ไม่มี HTML) สำหรับใช้เป็น title/tooltip
@@ -4411,7 +4737,7 @@ function renderJobs() {
             <tr ${rowClickAttrs}>
                 <td><strong>${getJobDisplayNo(j)}</strong>${batchBadge}</td>
                 <td><span class="badge badge-gold">${cleanJobType}</span>${siblingPills}</td>
-                <td>${custName}${custIdLines}${agentLine}</td>
+                <td><div class="employer-name">${custName}</div>${custIdLines}${agentLine}</td>
                 <td>${workName}</td>
                 <td>${work && work.email ? work.email : '<span class="text-muted">-</span>'}</td>
                 <td><span class="badge ${statusClass}">${displayStatus}</span><br>${paymentBadge}${prepaymentBadge}</td>
@@ -4546,7 +4872,7 @@ function parseJobTypeItems(jobTypeStr, defaultFee) {
 
 function openJobModal(id = null) {
     if (customers.length === 0) {
-        alert("กรุณาเพิ่มข้อมูลนายจ้างอย่างน้อย 1 รายก่อนสั่งงาน");
+        uiAlert("กรุณาเพิ่มข้อมูลนายจ้างอย่างน้อย 1 รายก่อนสั่งงาน");
         switchView('customers');
         return;
     }
@@ -4614,7 +4940,7 @@ function openJobModal(id = null) {
             statusGroup.style.display = 'none';
             closedBanner.style.display = 'block';
             document.getElementById("job-closed-banner-text").innerHTML =
-                `${icon("lock")} ปิดงานแล้วเมื่อ ${j.closedAt ? new Date(j.closedAt).toLocaleString('th-TH') : '-'}` +
+                `${icon("lock")} ปิดงานแล้วเมื่อ ${j.closedAt ? formatThaiDate(j.closedAt, true) : '-'}` +
                 (j.closedBy ? ` โดย ${getUserNameById(j.closedBy)}` : '');
         } else {
             statusGroup.style.display = '';
@@ -4904,14 +5230,14 @@ async function saveJob(e) {
     const agentId = document.getElementById("job-agent-id").value || null;
 
     if (workerIds.length === 0) {
-        alert("กรุณาเลือกคนงานอย่างน้อย 1 คน");
+        uiAlert("กรุณาเลือกคนงานอย่างน้อย 1 คน");
         return;
     }
 
     // Read checkboxes and their prices
     const checkBoxes = document.querySelectorAll("input[name='job-type-checkbox']:checked");
     if (checkBoxes.length === 0) {
-        alert("กรุณาเลือกประเภทงานที่แจ้งอย่างน้อย 1 รายการ");
+        uiAlert("กรุณาเลือกประเภทงานที่แจ้งอย่างน้อย 1 รายการ");
         return;
     }
 
@@ -4929,7 +5255,7 @@ async function saveJob(e) {
         });
     });
     if (conflicts.length > 0) {
-        alert(`⚠️ ไม่สามารถเปิดงานซ้ำได้\n\nรายการต่อไปนี้ค้างอยู่แล้ว กรุณาแก้ไขหรือปิดงานเดิมก่อน:\n\n${conflicts.join('\n')}`);
+        uiAlert(`⚠️ ไม่สามารถเปิดงานซ้ำได้\n\nรายการต่อไปนี้ค้างอยู่แล้ว กรุณาแก้ไขหรือปิดงานเดิมก่อน:\n\n${conflicts.join('\n')}`);
         return;
     }
 
@@ -4945,7 +5271,7 @@ async function saveJob(e) {
     const updatedAt = new Date().toISOString().split('T')[0];
 
     if (!customerId || !jobTypeLabel) {
-        alert("กรุณากรอกข้อมูลสั่งงานและเลือกประเภทงานที่แจ้งอย่างน้อย 1 รายการ");
+        uiAlert("กรุณากรอกข้อมูลสั่งงานและเลือกประเภทงานที่แจ้งอย่างน้อย 1 รายการ");
         return;
     }
 
@@ -4954,7 +5280,7 @@ async function saveJob(e) {
     const existingJobForGate = editId ? jobs.find(item => item.id === editId) : null;
     const gateBlockReason = jobPrepaymentBlockReason(customerId, status, existingJobForGate ? existingJobForGate.paymentStatus : null);
     if (gateBlockReason) {
-        alert(gateBlockReason + "\n\nกรุณาเปิดงานด้วยสถานะ \"รอดำเนินการ\" ไปก่อน แล้วไปออกบิล/รับชำระที่หน้าบัญชีและการเงิน ก่อนย้ายเข้ากำลังดำเนินการ");
+        uiAlert(gateBlockReason + "\n\nกรุณาเปิดงานด้วยสถานะ \"รอดำเนินการ\" ไปก่อน แล้วไปออกบิล/รับชำระที่หน้าบัญชีและการเงิน ก่อนย้ายเข้ากำลังดำเนินการ");
         return;
     }
 
@@ -5049,7 +5375,7 @@ async function deleteJob(id) {
         return;
     }
 
-    if (confirm("คุณแน่ใจหรือไม่ที่จะลบใบแจ้งงานนี้?")) {
+    if (await uiConfirm("คุณแน่ใจหรือไม่ที่จะลบใบแจ้งงานนี้?", { card: dialogCardForJob(jobs.find(j => j.id === id)) })) {
         showToast("🗑️ กำลังลบข้อมูลออกจากคลาวด์...", "warning");
         const res = await callCloudAPI("deleteRecord", { sheetName: "Jobs", id: id });
         if (res && res.status !== "error") {
@@ -5143,7 +5469,7 @@ async function saveAgentForm(e) {
     const name = document.getElementById("agent-name").value.trim();
     const phone = document.getElementById("agent-phone").value.trim();
     if (!name) {
-        alert("กรุณากรอกชื่อ Agent");
+        uiAlert("กรุณากรอกชื่อ Agent");
         return;
     }
 
@@ -5174,7 +5500,9 @@ async function deleteAgent(id, name) {
         showToast("❌ เฉพาะแอดมิน (Admin) เท่านั้นที่สามารถลบ Agent ได้", "danger");
         return;
     }
-    if (!confirm(`ลบ Agent "${name}" หรือไม่?`)) return;
+    const ag = agents.find(a => a.id === id) || { name };
+    const agJobs = jobs.filter(j => j.agentId === id).length;
+    if (!(await uiConfirm(`ลบ Agent "${name}" หรือไม่?`, { card: { imageIcon: "users", imageIconColor: "teal", title: ag.name || name, rows: [["เบอร์โทร", ag.phone], ["งานที่แนะนำมา", `${agJobs} งาน`]] } }))) return;
 
     showToast("🗑️ กำลังลบ Agent...", "warning");
     const res = await callCloudAPI("deleteRecord", { sheetName: "Agents", id });
@@ -5222,7 +5550,7 @@ function renderExpenses() {
         const payMethodHtml = e.paymentMethod === 'เงินสด'
             ? '' + icon("cash") + ' เงินสด'
             : (e.paymentMethod ? `${renderBankLogoBadge(e.paymentMethod, 20)} <span style="margin-left:4px;">${e.paymentMethod}</span>` : '<span class="text-muted">-</span>');
-        const dateLabel = e.expenseDate ? new Date(e.expenseDate).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' }) : '-';
+        const dateLabel = e.expenseDate ? formatThaiDate(e.expenseDate) : '-';
         const slipLink = (e.attachment && e.attachment.data)
             ? ` <a href="${e.attachment.data}" target="_blank" rel="noopener" title="ดูสลิป/ใบเสร็จที่แนบไว้">${icon("receipt")}</a>`
             : '';
@@ -5396,7 +5724,7 @@ async function saveExpense(e) {
     const paymentMethod = document.getElementById("expense-payment-method").value || null;
 
     if (!expenseDate || !category || isNaN(amount) || amount < 0) {
-        alert("กรุณากรอกวันที่ หมวดหมู่ และจำนวนเงินให้ถูกต้อง");
+        uiAlert("กรุณากรอกวันที่ หมวดหมู่ และจำนวนเงินให้ถูกต้อง");
         return;
     }
 
@@ -5434,7 +5762,8 @@ async function deleteExpense(id) {
         showToast("❌ เฉพาะแอดมิน (Admin) เท่านั้นที่สามารถลบรายจ่ายได้", "danger");
         return;
     }
-    if (!confirm("ลบรายการรายจ่ายนี้หรือไม่?")) return;
+    const ex = expenses.find(e => e.id === id);
+    if (!(await uiConfirm("ลบรายการรายจ่ายนี้หรือไม่?", { card: ex ? { imageIcon: "cash", imageIconColor: "green", title: `${Number(ex.amount || 0).toLocaleString()} บาท`, subtitle: ex.category || "", rows: [["วันที่", ex.expenseDate ? formatThaiDate(ex.expenseDate) : ""], ["รายละเอียด", ex.description], ["จ่ายโดย", ex.paymentMethod]] } : null }))) return;
 
     showToast("🗑️ กำลังลบรายจ่าย...", "warning");
     const res = await callCloudAPI("deleteRecord", { sheetName: "Expenses", id });
@@ -5502,7 +5831,7 @@ async function submitCloseJob(e) {
     const fileInput = document.getElementById("job-close-file");
     const note = document.getElementById("job-close-note").value.trim();
     if (!fileInput.files || fileInput.files.length === 0) {
-        alert("กรุณาแนบเอกสารยืนยันการปิดงานก่อน");
+        uiAlert("กรุณาแนบเอกสารยืนยันการปิดงานก่อน");
         return;
     }
 
@@ -5569,7 +5898,7 @@ async function reopenJob(jobId) {
     }
     const j = jobs.find(item => item.id === jobId);
     if (!j) return;
-    if (!confirm(`เปิดงาน ${getJobDisplayNo(j)} อีกครั้งหรือไม่? (สถานะจะกลับเป็น "กำลังดำเนินการ")`)) return;
+    if (!(await uiConfirm(`เปิดงาน ${getJobDisplayNo(j)} อีกครั้งหรือไม่? (สถานะจะกลับเป็น "กำลังดำเนินการ")`, { okText: "เปิดงานอีกครั้ง", card: dialogCardForJob(j) }))) return;
 
     const jobData = Object.assign({}, j, {
         status: 'กำลังดำเนินการ',
@@ -5709,7 +6038,7 @@ async function saveBank(e) {
     const promptPayId = document.getElementById("bank-promptpay-id").value.trim();
 
     if (!bankName || !accountName || !accountNumber || !promptPayId) {
-        alert("กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน");
+        uiAlert("กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน");
         return;
     }
 
@@ -5861,11 +6190,11 @@ async function saveUser(e) {
     const customerId = document.getElementById("user-customer-id") ? document.getElementById("user-customer-id").value : "";
 
     if (!name || !role) {
-        alert("กรุณากรอกข้อมูลที่จำเป็น (*) ให้ครบถ้วน");
+        uiAlert("กรุณากรอกข้อมูลที่จำเป็น (*) ให้ครบถ้วน");
         return;
     }
     if (role === 'client' && !customerId) {
-        alert("กรุณาเลือกนายจ้างสำหรับบัญชีประเภท Client");
+        uiAlert("กรุณาเลือกนายจ้างสำหรับบัญชีประเภท Client");
         return;
     }
 
@@ -5898,11 +6227,11 @@ async function saveUser(e) {
     const pin = document.getElementById("user-pin").value.trim();
 
     if (!email || !password) {
-        alert("กรุณากรอกข้อมูลที่จำเป็น (*) ให้ครบถ้วน");
+        uiAlert("กรุณากรอกข้อมูลที่จำเป็น (*) ให้ครบถ้วน");
         return;
     }
     if (!pin) {
-        alert("กรุณากรอกรหัส PIN เพื่อยืนยันสิทธิ์การเพิ่มบัญชี");
+        uiAlert("กรุณากรอกรหัส PIN เพื่อยืนยันสิทธิ์การเพิ่มบัญชี");
         return;
     }
 
@@ -5927,9 +6256,10 @@ async function deleteUserAccountUi(userId, userName) {
         showToast("❌ เฉพาะแอดมิน (Admin) เท่านั้นที่สามารถลบบัญชีผู้ใช้งานได้", "danger");
         return;
     }
-    if (!confirm(`ลบบัญชี "${userName}" ถาวรหรือไม่? ผู้ใช้งานคนนี้จะเข้าระบบไม่ได้อีกต่อไป`)) return;
+    const acc = users.find(u => u.id === userId) || {};
+    if (!(await uiConfirm(`ลบบัญชี "${userName}" ถาวรหรือไม่? ผู้ใช้งานคนนี้จะเข้าระบบไม่ได้อีกต่อไป`, { okText: "ลบบัญชี", card: { imageIcon: "user", title: acc.name || userName, subtitle: { admin: "Administrator", manager: "Manager", staff: "Staff", client: "Client" }[acc.role] || acc.role || "" } }))) return;
 
-    const pin = prompt("กรอกรหัส PIN เพื่อยืนยันการลบบัญชี:");
+    const pin = await uiPrompt("กรอกรหัส PIN เพื่อยืนยันการลบบัญชี:", { inputType: "password", placeholder: "PIN", okText: "ยืนยันลบบัญชี" });
     if (!pin) return;
 
     showToast("🗑️ กำลังลบบัญชีผู้ใช้งาน...", "warning");
@@ -5950,7 +6280,7 @@ async function deleteBank(id) {
         showToast("❌ คุณไม่มีสิทธิ์ลบข้อมูลนี้", "danger");
         return;
     }
-    if (!confirm("คุณแน่ใจหรือไม่ที่จะลบช่องทางการโอนเงินนี้?")) return;
+    if (!(await uiConfirm("คุณแน่ใจหรือไม่ที่จะลบช่องทางการโอนเงินนี้?", { card: dialogCardForBank(banks.find(b => b.id === id)) }))) return;
 
     showToast("🗑️ กำลังลบข้อมูลออกจากคลาวด์...", "warning");
     const res = await callCloudAPI("deleteRecord", { sheetName: "Banks", id });
@@ -5976,14 +6306,14 @@ let currentFreeInvoiceId = null; // ตั้งค่าเมื่อบิ�
 
 // ตั้งวันที่ออกบิลบนหัวใบวางบิล และเติมวันที่เดียวกันในช่องลายเซ็น "ผู้วางบิล" (ชื่อยังเซ็นมือ)
 function setInvoiceDate(date) {
-    document.getElementById("inv-date").innerText = date.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+    document.getElementById("inv-date").innerText = formatThaiDate(date);
     const deliveredDateEl = document.getElementById("inv-delivered-date");
-    if (deliveredDateEl) deliveredDateEl.innerText = `วันที่ ${date.toLocaleDateString('th-TH', { year: 'numeric', month: '2-digit', day: '2-digit' })}`;
+    if (deliveredDateEl) deliveredDateEl.innerText = `วันที่ ${formatThaiDate(date)}`;
 }
 
 function openInvoiceModal(jobId) {
     if (banks.length === 0) {
-        alert("กรุณาเพิ่มข้อมูลบัญชีธนาคารอย่างน้อย 1 บัญชีก่อนออกบิลและเก็บเงิน");
+        uiAlert("กรุณาเพิ่มข้อมูลบัญชีธนาคารอย่างน้อย 1 บัญชีก่อนออกบิลและเก็บเงิน");
         switchView('expenses');
         switchFinancePageTab('banks');
         return;
@@ -5991,7 +6321,6 @@ function openInvoiceModal(jobId) {
 
     setPrintPageSize(""); // เผื่อยังค้าง @page A5 จากใบปะหน้าจัดส่งเอกสารรอบก่อน
 
-    const dateOptions = { year: 'numeric', month: 'long', day: 'numeric' };
     const selectBank = document.getElementById("invoice-bank-select");
     const markPaidBtn = document.getElementById("btn-mark-paid");
     const saveEditsBtn = document.getElementById("btn-save-invoice-edits");
@@ -6197,7 +6526,7 @@ function openFreeInvoiceModal(invoiceId) {
     if (!inv) return;
 
     if (banks.length === 0) {
-        alert("กรุณาเพิ่มข้อมูลบัญชีธนาคารอย่างน้อย 1 บัญชีก่อนออกบิลและเก็บเงิน");
+        uiAlert("กรุณาเพิ่มข้อมูลบัญชีธนาคารอย่างน้อย 1 บัญชีก่อนออกบิลและเก็บเงิน");
         switchView('expenses');
         switchFinancePageTab('banks');
         return;
@@ -6666,7 +6995,7 @@ async function markJobPaidFromInvoice() {
     const proofFiles = (activeBankId !== 'cash' && proofInput && proofInput.files) ? Array.from(proofInput.files) : [];
 
     if (activeBankId !== 'cash' && proofFiles.length === 0) {
-        if (!confirm("ยังไม่ได้แนบหลักฐานการโอนเงิน ต้องการยืนยันการรับชำระโดยไม่มีหลักฐานแนบหรือไม่?")) {
+        if (!(await uiConfirm("ยังไม่ได้แนบหลักฐานการโอนเงิน ต้องการยืนยันการรับชำระโดยไม่มีหลักฐานแนบหรือไม่?", { okText: "ยืนยันรับชำระ", card: activeBankId !== "cash" ? dialogCardForBank(banks.find(b => b.id === activeBankId)) : null }))) {
             return;
         }
     }
@@ -6770,7 +7099,7 @@ async function markJobPaidFromInvoice() {
 // ==================== COMBINE BILLS MODAL LOGIC ====================
 function openCombineBillsModal() {
     if (customers.length === 0) {
-        alert("กรุณากรอกข้อมูล นายจ้าง/ลูกค้า อย่างน้อย 1 รายก่อนเปิดการรวมบิล");
+        uiAlert("กรุณากรอกข้อมูล นายจ้าง/ลูกค้า อย่างน้อย 1 รายก่อนเปิดการรวมบิล");
         return;
     }
 
@@ -7192,7 +7521,7 @@ async function importSystemData(event) {
             (Array.isArray(imported.lineGroups) ? `, กลุ่ม LINE ${imported.lineGroups.length}` : '') +
             (zip ? `, ไฟล์เอกสาร/รูป ${fileEntries.length} ไฟล์` : '');
 
-        if (!confirm(`⚠️ ยืนยันการกู้คืนข้อมูล? ข้อมูลในไฟล์จะเขียนทับรายการที่มี id เดียวกันในคลาวด์ (${summary})\nรายการที่มีอยู่ในระบบแต่ไม่มีในไฟล์จะไม่ถูกลบ`)) {
+        if (!(await uiConfirm(`⚠️ ยืนยันการกู้คืนข้อมูล? ข้อมูลในไฟล์จะเขียนทับรายการที่มี id เดียวกันในคลาวด์ (${summary})\nรายการที่มีอยู่ในระบบแต่ไม่มีในไฟล์จะไม่ถูกลบ`, { okText: "กู้คืนข้อมูล", card: { imageIcon: "inbox", imageIconColor: "blue", title: "ข้อมูลในไฟล์สำรอง", list: summary.split(", ") } }))) {
             resetInput();
             return;
         }
@@ -7794,7 +8123,7 @@ async function shareCustomerFolder(customerId) {
     navigator.clipboard.writeText(link).then(() => {
         showToast(`📋 คัดลอกลิงก์แชร์ทั้งโฟลเดอร์ของ ${c.companyName} เรียบร้อยแล้ว! ส่งให้ลูกค้าได้เลย ไม่ต้องล็อกอิน`, "success");
     }).catch(err => {
-        alert("ไม่สามารถคัดลอกได้: " + err);
+        uiAlert("ไม่สามารถคัดลอกได้: " + err);
     });
 }
 
@@ -7802,7 +8131,7 @@ async function shareCustomerFolder(customerId) {
 async function revokeCustomerShareLink(customerId) {
     const c = customers.find(item => item.id === customerId);
     if (!c || !c.shareToken) return;
-    if (!confirm(`ยกเลิกลิงก์แชร์ของ ${c.companyName}? ลิงก์เดิมที่เคยส่งให้ลูกค้าจะเปิดไม่ได้อีก`)) return;
+    if (!(await uiConfirm(`ยกเลิกลิงก์แชร์ของ ${c.companyName}? ลิงก์เดิมที่เคยส่งให้ลูกค้าจะเปิดไม่ได้อีก`, { okText: "ยกเลิกลิงก์", card: dialogCardForCustomer(c) }))) return;
 
     c.shareToken = null;
     const res = await callCloudAPI("saveCustomer", { customerData: c });
@@ -7852,7 +8181,7 @@ function downloadAttachment(fileName, dataUrl = null) {
 
 function shareAttachment(fileName, entityName, fileUrl = null) {
     if (!fileUrl) {
-        alert("ยังไม่มีลิงก์เอกสารนี้ (ไฟล์อาจอัปโหลดไม่สำเร็จ หรือเป็นไฟล์เก่าที่ยังไม่ได้ย้ายขึ้น Supabase Storage)");
+        uiAlert("ยังไม่มีลิงก์เอกสารนี้ (ไฟล์อาจอัปโหลดไม่สำเร็จ หรือเป็นไฟล์เก่าที่ยังไม่ได้ย้ายขึ้น Supabase Storage)");
         return;
     }
 
@@ -7861,7 +8190,7 @@ function shareAttachment(fileName, entityName, fileUrl = null) {
     navigator.clipboard.writeText(shareText).then(() => {
         showToast("📋 คัดลอกลิงก์เอกสารเรียบร้อยแล้ว! วางส่งให้ลูกค้าทาง Line/Email ได้เลย (เปิดลิงก์ดาวน์โหลดได้ทันทีโดยไม่ต้องล็อกอิน)", "success");
     }).catch(err => {
-        alert("ไม่สามารถคัดลอกได้: " + err);
+        uiAlert("ไม่สามารถคัดลอกได้: " + err);
     });
 }
 
@@ -8489,12 +8818,13 @@ function quickCombineInvoice(customerId) {
 // ==================== WORKER PHOTO PROCESSING & BACKGROUND REMOVAL ====================
 // ลบรูปถ่ายคนงานที่แนบไว้ (ปุ่ม × มุมขวาบนวงกลม — โผล่เฉพาะตอนมีรูปแล้ว) คืนกลับไปเป็นไอคอนเปล่า
 // และลบไฟล์จริงใน Storage ด้วย (ไม่ใช่แค่ล้าง preview) ต้องกด "บันทึกข้อมูล" อีกครั้งเพื่อให้ตัดออกจากคนงานจริง
-function removeWorkerPhoto(event) {
+async function removeWorkerPhoto(event) {
     if (event) event.stopPropagation();
     const preview = document.getElementById("worker-photo-preview");
     const icon = document.getElementById("worker-photo-icon");
     if (!preview || preview.classList.contains("hidden")) return;
-    if (!confirm("ต้องการลบรูปถ่ายคนงานนี้หรือไม่?")) return;
+    const photoOwner = [document.getElementById("worker-title")?.value, document.getElementById("worker-first-name")?.value, document.getElementById("worker-last-name")?.value].filter(Boolean).join(" ");
+    if (!(await uiConfirm("ต้องการลบรูปถ่ายคนงานนี้หรือไม่?", { card: { image: preview.src, imageIcon: "user", title: photoOwner || "คนงานในฟอร์มนี้", subtitle: "รูปถ่ายนี้จะถูกลบออก" } }))) return;
 
     const oldUrl = preview.src;
     preview.src = "";
@@ -8692,7 +9022,7 @@ function copyWorkerFolderLink(workerId) {
     navigator.clipboard.writeText(shareText).then(() => {
         showToast("📋 คัดลอกลิงก์แฟ้มเอกสารไปที่คลิปบอร์ดเรียบร้อยแล้ว!", "success");
     }).catch(err => {
-        alert("ไม่สามารถคัดลอกได้: " + err);
+        uiAlert("ไม่สามารถคัดลอกได้: " + err);
     });
 }
 
@@ -9608,7 +9938,7 @@ async function runBulkImport() {
     // ไฟล์ที่ติ๊กไว้แต่ยังไม่รู้คนงาน/ประเภทเอกสาร (เช่น AI อ่านไม่ได้) — ข้ามไป แต่ต้องบอกให้รู้ ไม่เงียบหาย
     const skippedCount = bulkImportRows.filter(r => r.selected && r.status !== 'success' && !(r.workerId && r.docType)).length;
     if (rowsToImport.length === 0) {
-        alert('ไม่มีไฟล์ที่พร้อมนำเข้า — ไฟล์ที่ AI อ่านไม่ได้ ให้เลือกคนงานและประเภทเอกสารเองในตาราง');
+        uiAlert('ไม่มีไฟล์ที่พร้อมนำเข้า — ไฟล์ที่ AI อ่านไม่ได้ ให้เลือกคนงานและประเภทเอกสารเองในตาราง');
         return;
     }
 
@@ -9616,14 +9946,14 @@ async function runBulkImport() {
     const newCandIds = [...new Set(rowsToImport.filter(r => isBulkNewWorkerId(r.workerId)).map(r => r.workerId.slice(BULK_NEW_WORKER_PREFIX.length)))];
     if (newCandIds.length > 0) {
         if (!bulkImportEmployerId) {
-            alert('กรุณาเลือก "นายจ้างของคนงานใหม่" ก่อน (ช่องด้านบนรายการคนงานใหม่)');
+            uiAlert('กรุณาเลือก "นายจ้างของคนงานใหม่" ก่อน (ช่องด้านบนรายการคนงานใหม่)');
             document.getElementById('bulk-import-employer-search').focus();
             return;
         }
         const incomplete = newCandIds.map(id => bulkNewWorkers.findIndex(c => c.id === id))
             .filter(i => i !== -1 && getBulkNewWorkerMissingFields(bulkNewWorkers[i]).length > 0);
         if (incomplete.length > 0) {
-            alert(`กรุณากรอกข้อมูลที่จำเป็น (คำนำหน้า ชื่อ สัญชาติ วันเกิด) ของคนงานใหม่ #${incomplete.map(i => i + 1).join(', #')} ให้ครบก่อน (ช่องที่ขอบแดง)`);
+            uiAlert(`กรุณากรอกข้อมูลที่จำเป็น (คำนำหน้า ชื่อ สัญชาติ วันเกิด) ของคนงานใหม่ #${incomplete.map(i => i + 1).join(', #')} ให้ครบก่อน (ช่องที่ขอบแดง)`);
             return;
         }
     }
@@ -9799,7 +10129,7 @@ async function shareWorkerFolder(workerId) {
     navigator.clipboard.writeText(link).then(() => {
         showToast(`📋 คัดลอกลิงก์แชร์ทั้งโฟลเดอร์ของ ${w.firstName} เรียบร้อยแล้ว! ส่งให้ลูกค้าได้เลย ไม่ต้องล็อกอิน`, "success");
     }).catch(err => {
-        alert("ไม่สามารถคัดลอกได้: " + err);
+        uiAlert("ไม่สามารถคัดลอกได้: " + err);
     });
 }
 
@@ -9807,7 +10137,7 @@ async function shareWorkerFolder(workerId) {
 async function revokeWorkerShareLink(workerId) {
     const w = workers.find(item => item.id === workerId);
     if (!w || !w.shareToken) return;
-    if (!confirm(`ยกเลิกลิงก์แชร์ของ ${w.firstName}? ลิงก์เดิมที่เคยส่งให้ลูกค้าจะเปิดไม่ได้อีก`)) return;
+    if (!(await uiConfirm(`ยกเลิกลิงก์แชร์ของ ${w.firstName}? ลิงก์เดิมที่เคยส่งให้ลูกค้าจะเปิดไม่ได้อีก`, { okText: "ยกเลิกลิงก์", card: dialogCardForWorker(w) }))) return;
 
     w.shareToken = null;
     const res = await callCloudAPI("saveWorker", { workerData: w });
