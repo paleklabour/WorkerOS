@@ -56,14 +56,40 @@
         attachments: "attachments", closedAt: "closed_at", closedBy: "closed_by",
         appointmentDate: "appointment_date", appointmentTime: "appointment_time",
         appointmentNo: "appointment_no", appointmentLocation: "appointment_location",
-        appointmentDocUrl: "appointment_doc_url"
+        appointmentDocUrl: "appointment_doc_url",
+        // ระบบบัญชี (20261001082230_accounting_ledger.sql)
+        invoiceId: "invoice_id", paidAt: "paid_at", paidBy: "paid_by", govFee: "gov_fee",
+        commissionAmount: "commission_amount", commissionPaidAt: "commission_paid_at", commissionExpenseId: "commission_expense_id"
     };
-    const AGENT_MAP = { id: "id", name: "name", phone: "phone", createdAt: "created_at" };
+    const AGENT_MAP = { id: "id", name: "name", phone: "phone", createdAt: "created_at", defaultCommission: "default_commission" };
     const EXPENSE_MAP = {
         id: "id", expenseDate: "expense_date", category: "category", amount: "amount",
         description: "description", paymentMethod: "payment_method", attachment: "attachment",
-        createdAt: "created_at"
+        createdAt: "created_at", bankId: "bank_id", agentId: "agent_id", jobIds: "job_ids"
     };
+    // ระบบบัญชี — บิลทุกใบ / การรับเงิน / ราคามาตรฐาน (ดู 20261001082230_accounting_ledger.sql)
+    const INVOICE_MAP = {
+        id: "id", invoiceNo: "invoice_no", kind: "kind", customerId: "customer_id", customerName: "customer_name",
+        customerAddr: "customer_addr", customerTax: "customer_tax", workerId: "worker_id", workerName: "worker_name",
+        jobIds: "job_ids", items: "items", subtotal: "subtotal", grandTotal: "grand_total", govFeeTotal: "gov_fee_total",
+        issueDate: "issue_date", dueDateText: "due_date_text", notes: "notes", bankId: "bank_id", status: "status",
+        voidReason: "void_reason", voidedAt: "voided_at", voidedBy: "voided_by",
+        createdBy: "created_by", createdAt: "created_at", updatedAt: "updated_at"
+    };
+    const PAYMENT_MAP = {
+        id: "id", invoiceId: "invoice_id", receiptNo: "receipt_no", amount: "amount", paidDate: "paid_date",
+        method: "method", bankId: "bank_id", proofUrls: "proof_urls", note: "note",
+        voided: "voided", voidReason: "void_reason", voidedAt: "voided_at", voidedBy: "voided_by",
+        recordedBy: "recorded_by", createdAt: "created_at"
+    };
+    const SERVICE_PRICE_MAP = { jobType: "job_type", govFee: "gov_fee", serviceFee: "service_fee", updatedAt: "updated_at" };
+    // numeric ของ Postgres กลับมาเป็นสตริง ("1500.00") — แปลงเป็นตัวเลขให้ app.js คำนวณได้ตรง ๆ
+    const num = (v) => (v === null || v === undefined || v === "") ? 0 : Number(v);
+    function normalizeNumbers(list, keys) {
+        (list || []).forEach((o) => keys.forEach((k) => { if (k in o) o[k] = num(o[k]); }));
+        return list;
+    }
+
     const FREE_INVOICE_MAP = {
         id: "id", invoiceNo: "invoice_no", customerId: "customer_id", customerName: "customer_name",
         customerAddr: "customer_addr", customerTax: "customer_tax", workerId: "worker_id",
@@ -139,7 +165,8 @@
 
     // -------------------- getData --------------------
     async function handleGetData() {
-        const [customersRes, workersRes, jobsRes, banksRes, profilesRes, agentsRes, expensesRes, freeInvoicesRes] = await Promise.all([
+        const [customersRes, workersRes, jobsRes, banksRes, profilesRes, agentsRes, expensesRes, freeInvoicesRes,
+               invoicesRes, paymentsRes, servicePricesRes] = await Promise.all([
             sb.from("customers").select("*"),
             sb.from("workers").select("*"),
             sb.from("jobs").select("*"),
@@ -147,7 +174,10 @@
             sb.from("profiles").select("name, role, customer_id, id"),
             sb.from("agents").select("*"),
             sb.from("expenses").select("*"),
-            sb.from("free_invoices").select("*")
+            sb.from("free_invoices").select("*"),
+            sb.from("invoices").select("*"),
+            sb.from("payments").select("*"),
+            sb.from("service_prices").select("*")
         ]);
         // RLS กรองแถวให้อัตโนมัติตาม role/customer_id ของผู้ใช้ที่ล็อกอินอยู่แล้ว
         // (ไม่ต้อง filter ซ้ำฝั่ง client เหมือนโค้ด Code.gs เดิม)
@@ -161,14 +191,19 @@
         workers.forEach((w) => { w.attachments = w.attachments || {}; });
         jobs.forEach((j) => { j.attachments = j.attachments || []; });
 
+        normalizeNumbers(jobs, ["fee", "govFee", "commissionAmount"]);
+
         return {
             status: "success",
             customers,
             workers,
             jobs,
-            banks: toCamelList(banksRes.data, BANK_MAP),
-            agents: agentsRes.error ? [] : toCamelList(agentsRes.data, AGENT_MAP),
-            expenses: expensesRes.error ? [] : toCamelList(expensesRes.data, EXPENSE_MAP),
+            banks: normalizeNumbers(toCamelList(banksRes.data, BANK_MAP), ["openingBalance"]),
+            agents: agentsRes.error ? [] : normalizeNumbers(toCamelList(agentsRes.data, AGENT_MAP), ["defaultCommission"]),
+            expenses: expensesRes.error ? [] : normalizeNumbers(toCamelList(expensesRes.data, EXPENSE_MAP), ["amount"]),
+            invoices: invoicesRes.error ? [] : normalizeNumbers(toCamelList(invoicesRes.data, INVOICE_MAP), ["subtotal", "grandTotal", "govFeeTotal"]),
+            payments: paymentsRes.error ? [] : normalizeNumbers(toCamelList(paymentsRes.data, PAYMENT_MAP), ["amount"]),
+            servicePrices: servicePricesRes.error ? [] : normalizeNumbers(toCamelList(servicePricesRes.data, SERVICE_PRICE_MAP), ["govFee", "serviceFee"]),
             freeInvoices: freeInvoicesRes.error ? [] : toCamelList(freeInvoicesRes.data, FREE_INVOICE_MAP),
             users: profilesRes.error ? [] : (profilesRes.data || []).map((p) => ({
                 id: p.id, email: p.id, name: p.name, role: p.role, customer_id: p.customer_id
@@ -187,7 +222,8 @@
     // Banks: bank_name/account_name/account_number/prompt_pay_id/qr_image
     const BANK_MAP = {
         id: "id", bankName: "bank_name", accountName: "account_name",
-        accountNumber: "account_number", promptPayId: "prompt_pay_id", qrImage: "qr_image"
+        accountNumber: "account_number", promptPayId: "prompt_pay_id", qrImage: "qr_image",
+        openingBalance: "opening_balance", openingDate: "opening_date"
     };
 
     // ลบสำเร็จ (ไม่ error) แต่แถวไม่ตรงกับ RLS/id ที่ให้มา ก็จะลบได้ 0 แถวโดยไม่ error เลย (ดูเหมือนสำเร็จ
@@ -526,6 +562,23 @@
                 return await upsertOne("expenses", EXPENSE_MAP, payload.expenseData);
             case "saveFreeInvoice":
                 return await upsertOne("free_invoices", FREE_INVOICE_MAP, payload.invoiceData);
+            case "nextDocNo": {
+                // เลขที่เอกสารเรียงต่อเนื่องรายปี พ.ศ. ออกจากฐานข้อมูลแบบ atomic (กดพร้อมกันหลายเครื่องก็ไม่ซ้ำ)
+                const { data, error } = await sb.rpc("next_doc_no", { p_prefix: payload.prefix });
+                if (error) return { status: "error", message: error.message };
+                return { status: "success", docNo: data };
+            }
+            case "saveInvoice":
+                return await upsertOne("invoices", INVOICE_MAP, payload.invoiceData);
+            case "savePayment":
+                return await upsertOne("payments", PAYMENT_MAP, payload.paymentData);
+            case "saveServicePrice":
+                return await upsertOne("service_prices", SERVICE_PRICE_MAP, payload.priceData, "job_type");
+            case "deleteServicePrice": {
+                const { error } = await sb.from("service_prices").delete().eq("job_type", payload.jobType);
+                if (error) return { status: "error", message: error.message };
+                return { status: "success" };
+            }
             case "saveUser":
                 return await saveUser(payload.userData, payload.pin);
             case "updateUserProfile":

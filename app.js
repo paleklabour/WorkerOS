@@ -10,7 +10,10 @@ let banks = [];
 let users = [];
 let agents = [];
 let expenses = [];
-let freeInvoices = [];
+let freeInvoices = [];   // ตารางเดิม (เลิกใช้แล้ว ย้ายเข้า invoices) — ยังโหลดไว้เผื่อสำรองข้อมูล
+let invoices = [];       // บิลทุกใบ (งานเดียว/บิลรวม/บิลอิสระ) — ดู ACCOUNTING MODULE
+let payments = [];       // การรับเงิน (หลายงวดต่อบิล) — รายรับนับตาม paidDate
+let servicePrices = [];  // ราคามาตรฐานต่อประเภทงาน (ค่าธรรมเนียมรัฐ + ค่าบริการ) — ใช้ภายในเท่านั้น
 
 // Thai provinces selection constraint
 const PROVINCES = ["สงขลา", "ปัตตานี", "ยะลา", "พัทลุง"];
@@ -61,6 +64,17 @@ function renderBankLogoBadge(bankName, size = 30) {
         ? `<img src="assets/banks/${meta.logo}.svg" alt="${shortText}" style="width:64%; height:64%; object-fit:contain;" onerror="this.replaceWith(document.createTextNode(this.alt))">`
         : shortText;
     return `<span style="display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; width:${px}px; height:${px}px; border-radius:50%; background-color:${meta.color}; color:#fff; font-weight:700; font-size:${Math.max(9, Math.round(px * 0.3))}px; line-height:1; overflow:hidden;${meta.appIcon ? " box-shadow:0 0 0 1px #e2e8f0;" : ""}" title="${meta.name}">${inner}</span>`;
+}
+
+// ตัวเลือกบัญชีใน <select> พร้อมโลโก้ธนาคาร + เลขบัญชี กันเลือกบัญชีผิด (ใช้ทุก dropdown ที่เลือกบัญชี)
+// รูปใน <option> แสดงได้ใน Chrome/Edge ที่รองรับ appearance: base-select (ดู styles.css) — เบราว์เซอร์อื่นเห็นแค่ข้อความ
+// BANK_SELECT_HEAD ต้องเป็นลูกตัวแรกของ <select> เพื่อให้กล่องที่เลือกแล้วแสดงโลโก้ด้วย (ไม่ใช่แค่ในรายการ)
+const BANK_SELECT_HEAD = '<button type="button" class="bank-select-head"><selectedcontent></selectedcontent></button>';
+function bankOptionHtml(b, value) {
+    return `<option value="${value !== undefined ? value : b.id}">${renderBankLogoBadge(b.bankName, 18)}<span class="opt-bank-text">${escapeHtml(b.bankName)} — ${escapeHtml(b.accountName || '')}${b.accountNumber ? ` (${escapeHtml(b.accountNumber)})` : ''}</span></option>`;
+}
+function cashOptionHtml(value = 'cash', label = 'เงินสด') {
+    return `<option value="${value}"><span class="opt-cash-icon">${icon('cash', 'green')}</span><span class="opt-bank-text">${escapeHtml(label)}</span></option>`;
 }
 
 const MONTH_NAMES_TH = {
@@ -340,6 +354,9 @@ async function loadData() {
             agents = res.agents || [];
             expenses = res.expenses || [];
             freeInvoices = res.freeInvoices || [];
+            invoices = res.invoices || [];
+            payments = res.payments || [];
+            servicePrices = res.servicePrices || [];
 
             // Cache locally
             localStorage.setItem("mw_customers", JSON.stringify(customers));
@@ -350,6 +367,9 @@ async function loadData() {
             localStorage.setItem("mw_agents", JSON.stringify(agents));
             localStorage.setItem("mw_expenses", JSON.stringify(expenses));
             localStorage.setItem("mw_free_invoices", JSON.stringify(freeInvoices));
+            localStorage.setItem("mw_invoices", JSON.stringify(invoices));
+            localStorage.setItem("mw_payments", JSON.stringify(payments));
+            localStorage.setItem("mw_service_prices", JSON.stringify(servicePrices));
 
             showSyncStatus('success', `นายจ้าง ${customers.length} • คนงาน ${workers.length} • ใบงาน ${jobs.length}`);
             return;
@@ -373,6 +393,10 @@ async function loadData() {
         expenses = cachedExpenses ? JSON.parse(cachedExpenses) : [];
         const cachedFreeInvoices = localStorage.getItem("mw_free_invoices");
         freeInvoices = cachedFreeInvoices ? JSON.parse(cachedFreeInvoices) : [];
+        const readCache = (key) => { try { return JSON.parse(localStorage.getItem(key) || "[]"); } catch (e) { return []; } };
+        invoices = readCache("mw_invoices");
+        payments = readCache("mw_payments");
+        servicePrices = readCache("mw_service_prices");
     } else {
         // Generate Mock Data for immediate usage & wow factor
         seedMockData();
@@ -445,6 +469,9 @@ function saveData() {
     localStorage.setItem("mw_agents", JSON.stringify(agents));
     localStorage.setItem("mw_expenses", JSON.stringify(expenses));
     localStorage.setItem("mw_free_invoices", JSON.stringify(freeInvoices));
+    localStorage.setItem("mw_invoices", JSON.stringify(invoices));
+    localStorage.setItem("mw_payments", JSON.stringify(payments));
+    localStorage.setItem("mw_service_prices", JSON.stringify(servicePrices));
 }
 
 function seedMockData() {
@@ -1450,6 +1477,11 @@ function fillUiDialogCard(box, card) {
 }
 
 // ---- การ์ดข้อมูลสำหรับหน้าต่างยืนยัน (ใช้กับ uiConfirm(..., { card })) ----
+// ข้อความคนงานบนบิล/ใบเสร็จ: ชื่อ + เลขประจำตัว 13 หลักเท่านั้น (ไม่ใส่สัญชาติ — ผู้ใช้ขอตัดออก 2026-10)
+function invoiceWorkerLine(w) {
+    return `${workerFullName(w)} เลขประจำตัว ${w.workerUid || '-'}`;
+}
+
 function workerFullName(w) {
     return `${w.title ? w.title + ' ' : ''}${w.firstName || ''} ${w.lastName || ''}`.trim() || '-';
 }
@@ -2004,7 +2036,7 @@ function switchDashboardTab(tabName) {
 }
 
 function switchFinancePageTab(tabName) {
-    const tabs = ['overview', 'billing', 'expenses', 'banks'];
+    const tabs = ['overview', 'billing', 'expenses', 'banks', 'prices'];
     tabs.forEach(t => {
         const pane = document.getElementById(`finpage-tab-${t}`);
         const btn = document.getElementById(`btn-finpage-tab-${t}`);
@@ -2032,6 +2064,8 @@ function switchFinancePageTab(tabName) {
         renderBillingTab();
     } else if (tabName === 'expenses') {
         renderExpenses();
+    } else if (tabName === 'prices') {
+        renderServicePrices();
     } else if (tabName === 'banks') {
         renderBanks();
     }
@@ -2052,117 +2086,101 @@ function buildFinancePaymentBadge(paymentStatus, paymentMethod, isClosedUnpaid) 
     return badge;
 }
 
-// รายการงานที่ผ่านระบบแจ้งงานที่ยังไม่ได้รับชำระเงิน — ย้ายมาจากหน้า "ระบบแจ้งงาน / ใบสั่งงาน"
-// มาไว้ที่นี่ทั้งหมด (ปุ่มออกบิล/รับเงินต่อรายการ + รวมบิลนายจ้าง + สร้างบิลอิสระ) รวมกับบิลอิสระที่เคย "วางบิล" ไว้แล้ว (freeInvoices)
+// แท็บ "ออกบิล / รับเงิน" — 2 ส่วนในตารางเดียว:
+//   1) ใบงานที่ยังไม่ออกบิล (ไม่มีบิลที่ใช้งานอยู่) → ปุ่ม "ออกบิล" เปิดร่างบิล
+//   2) บิลที่ออกแล้วทุกใบ (invoices) พร้อมยอดรับแล้ว/คงเหลือ → ปุ่ม "เปิดบิล" (รับเงิน/พิมพ์/ใบเสร็จ/ยกเลิก)
 function renderBillingTab() {
     const searchInput = document.getElementById("search-billing");
-    const query = searchInput ? searchInput.value.toLowerCase() : "";
+    const query = searchInput ? searchInput.value.trim().toLowerCase() : "";
     const statusFilterEl = document.getElementById("filter-billing-payment-status");
     const statusFilter = statusFilterEl ? statusFilterEl.value : "pending";
     const tbody = document.getElementById("billing-list-tbody");
     if (!tbody) return;
 
-    const filteredJobs = jobs.filter(j => {
-        const paymentStatus = j.paymentStatus || 'ยังไม่ออกบิล';
-        if (statusFilter === 'pending') return paymentStatus !== 'ชำระเงินแล้ว';
-        if (statusFilter === 'paid') return paymentStatus === 'ชำระเงินแล้ว';
-        return true; // 'all'
-    }).filter(j => {
+    const showUnbilled = ['pending', 'unbilled', 'all'].includes(statusFilter);
+    const invoiceStatuses = {
+        pending: ['issued', 'partial'], unbilled: [], outstanding: ['issued', 'partial'],
+        paid: ['paid'], void: ['void'], all: ['issued', 'partial', 'paid', 'void']
+    }[statusFilter] || ['issued', 'partial'];
+
+    const unbilledJobs = !showUnbilled ? [] : jobs.filter(j => !getJobInvoice(j)).filter(j => {
         if (!query) return true;
         const cust = customers.find(c => c.id === j.customerId);
         const work = workers.find(w => w.id === j.workerId);
-        const custName = cust ? cust.companyName.toLowerCase() : "";
-        const workName = work ? `${work.firstName} ${work.lastName}`.toLowerCase() : "";
-        return (j.id || "").toLowerCase().includes(query) || custName.includes(query) || workName.includes(query);
+        const hay = [getJobDisplayNo(j), j.jobType, cust && cust.companyName, work && `${work.firstName} ${work.lastName}`, work && work.workerUid]
+            .filter(Boolean).join(' ').toLowerCase();
+        return hay.includes(query);
     });
 
-    const filteredFreeInvoices = freeInvoices.filter(inv => {
-        const paymentStatus = inv.paymentStatus || 'ออกบิลแล้ว';
-        if (statusFilter === 'pending') return paymentStatus !== 'ชำระเงินแล้ว';
-        if (statusFilter === 'paid') return paymentStatus === 'ชำระเงินแล้ว';
-        return true; // 'all'
-    }).filter(inv => {
+    const shownInvoices = invoices.filter(inv => invoiceStatuses.includes(inv.status)).filter(inv => {
         if (!query) return true;
-        const custName = (inv.customerName || '').toLowerCase();
-        const workName = (inv.workerName || '').toLowerCase();
-        return (inv.invoiceNo || inv.id || "").toLowerCase().includes(query) || custName.includes(query) || workName.includes(query);
-    });
+        const jobWorkers = (inv.jobIds || []).map(id => jobs.find(j => j.id === id)).filter(Boolean)
+            .map(j => workers.find(w => w.id === j.workerId)).filter(Boolean).map(w => `${w.firstName} ${w.lastName}`);
+        const hay = [inv.invoiceNo, inv.customerName, inv.workerName, ...jobWorkers, ...(inv.items || []).map(i => i.title)]
+            .filter(Boolean).join(' ').toLowerCase();
+        return hay.includes(query);
+    }).sort((a, b) => (b.issueDate || '').localeCompare(a.issueDate || '') || (b.invoiceNo || '').localeCompare(a.invoiceNo || ''));
 
-    if (filteredJobs.length === 0 && filteredFreeInvoices.length === 0) {
-        const emptyMsg = statusFilter === 'pending' ? "" + icon("ok") + " ไม่มีรายการที่ค้างรับชำระ" : "" + icon("bad") + " ไม่พบรายการ";
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="8" class="text-muted" style="text-align: center; padding: 40px;">
-                    ${emptyMsg}
-                </td>
-            </tr>
-        `;
+    if (unbilledJobs.length === 0 && shownInvoices.length === 0) {
+        const emptyMsg = statusFilter === 'pending' ? `${icon("ok")} ไม่มีงานที่ค้างออกบิลหรือค้างรับเงิน` : `${icon("search")} ไม่พบรายการ`;
+        tbody.innerHTML = `<tr><td colspan="8" class="text-muted" style="text-align: center; padding: 40px;">${emptyMsg}</td></tr>`;
         return;
     }
 
-    const freeInvoiceRowsHtml = filteredFreeInvoices.map(inv => {
-        const paymentStatus = inv.paymentStatus || 'ออกบิลแล้ว';
-        const paymentBadge = buildFinancePaymentBadge(paymentStatus, inv.paymentMethod, false);
-        const billBtnLabel = paymentStatus === 'ชำระเงินแล้ว' ? '' + icon("receipt") + ' ดู/พิมพ์บิล' : '' + icon("receipt") + ' ดู/รับเงิน';
-        const grandTotal = inv.grandTotal || 0;
-
+    const kindLabel = { job: 'บิลใบงาน', combined: 'บิลรวม', free: 'บิลอิสระ' };
+    const invoiceRows = shownInvoices.map(inv => {
+        const meta = INVOICE_STATUS_META[inv.status] || INVOICE_STATUS_META.issued;
+        const paid = invoicePaidAmount(inv);
+        const balance = invoiceBalance(inv);
+        const jobCount = (inv.jobIds || []).length;
+        const detail = inv.kind === 'free'
+            ? (inv.workerName || (inv.items || [])[0]?.title || '-')
+            : `${jobCount} ใบงาน • ${(inv.items || []).map(i => i.serviceName || i.title).filter(Boolean).slice(0, 2).join(', ')}${(inv.items || []).length > 2 ? '…' : ''}`;
+        const days = inv.status === 'issued' || inv.status === 'partial'
+            ? Math.max(0, Math.floor((new Date() - (safeParseDate(inv.issueDate) || new Date())) / 86400000)) : null;
         return `
-            <tr>
-                <td><strong>${inv.invoiceNo || inv.id}</strong></td>
-                <td><span class="badge badge-gold">${icon("receipt")} บิลอิสระ</span></td>
-                <td>${inv.customerName || '-'}</td>
-                <td>${inv.workerName || '-'}</td>
-                <td><strong>${grandTotal.toLocaleString()} บาท</strong></td>
-                <td><span class="text-muted">— ไม่ผูกใบงาน —</span></td>
-                <td>${paymentBadge}</td>
-                <td class="actions-col">
-                    <button class="btn btn-sm btn-gold" onclick="openFreeInvoiceModal('${inv.id}')" style="white-space: nowrap;">
-                        ${billBtnLabel}
-                    </button>
+            <tr class="${inv.status === 'void' ? 'is-voided-row' : ''}">
+                <td><strong>${escapeHtml(inv.invoiceNo)}</strong><div class="employer-id-line"><span>ออกเมื่อ</span> <b>${formatThaiDate(inv.issueDate)}</b></div></td>
+                <td><span class="badge badge-gold">${icon("receipt")} ${kindLabel[inv.kind] || 'บิล'}</span></td>
+                <td><div class="employer-name">${escapeHtml(inv.customerName || '-')}</div></td>
+                <td>${escapeHtml(detail)}</td>
+                <td class="inv-num"><strong>${fmtMoney(inv.grandTotal)}</strong></td>
+                <td class="inv-num">
+                    <div class="text-success">รับ ${fmtMoney(paid)}</div>
+                    ${balance > 0 && inv.status !== 'void' ? `<div class="text-danger">ค้าง ${fmtMoney(balance)}${days !== null ? ` <small>(${days} วัน)</small>` : ''}</div>` : ''}
                 </td>
-            </tr>
-        `;
+                <td><span class="badge badge-lg ${meta.cls}">${icon(meta.icon)} ${meta.label}</span></td>
+                <td class="actions-col">
+                    <button class="btn btn-sm btn-gold" onclick="openStoredInvoice('${inv.id}')" style="white-space: nowrap;">${icon("receipt")} เปิดบิล</button>
+                </td>
+            </tr>`;
     }).join('');
 
-    const jobRowsHtml = filteredJobs.map(j => {
+    const jobRows = unbilledJobs.map(j => {
         const cust = customers.find(c => c.id === j.customerId);
         const work = workers.find(w => w.id === j.workerId);
-        const custName = cust ? cust.companyName : "ไม่พบนายจ้าง";
-        const custIdLines = buildEmployerIdLinesHtml(cust);
-        const workName = work ? `${work.firstName} ${work.lastName} (${work.nationality})` : "ไม่พบข้อมูลคนงาน";
         const cleanJobType = (j.jobType || "").replace(/\s*\(\d+\)/g, "");
-
-        let statusClass = 'badge-gold';
-        if (j.status === 'รอดำเนินการ') statusClass = 'badge-warning';
-        else if (j.status === 'รอเอกสารเพิ่มเติม') statusClass = 'badge-danger';
-        else if (j.status === 'ปิดงานแล้ว') statusClass = 'badge-success';
-
-        const paymentStatus = j.paymentStatus || 'ยังไม่ออกบิล';
-        const isClosedUnpaid = j.status === 'ปิดงานแล้ว' && paymentStatus !== 'ชำระเงินแล้ว';
-        const paymentBadge = buildFinancePaymentBadge(paymentStatus, j.paymentMethod, isClosedUnpaid);
-
-        const billBtnLabel = paymentStatus === 'ชำระเงินแล้ว' ? '' + icon("receipt") + ' ดู/พิมพ์บิล' : '' + icon("receipt") + ' ออกบิล/รับเงิน';
-
+        const isClosed = j.status === 'ปิดงานแล้ว';
+        const estimate = j.fee > 0 ? j.fee : parseJobTypeItems(j.jobType, 0).reduce((s, it) => {
+            const std = getServicePrice(it.name);
+            return s + (std ? std.govFee + std.serviceFee : 0);
+        }, 0);
         return `
             <tr>
                 <td><strong>${getJobDisplayNo(j)}</strong></td>
-                <td><span class="badge badge-gold">${cleanJobType}</span></td>
-                <td><div class="employer-name">${custName}</div>${custIdLines}</td>
-                <td>${workName}${work && work.workerUid ? `<br><small class="text-muted">เลขประจำตัว: ${work.workerUid}</small>` : ''}</td>
-                <td><strong>${j.fee.toLocaleString()} บาท</strong></td>
-                <td><span class="badge ${statusClass}">${j.status}</span></td>
-                <td>${paymentBadge}</td>
+                <td><span class="badge badge-warning">${icon("edit")} ยังไม่ออกบิล</span></td>
+                <td><div class="employer-name">${escapeHtml(cust ? cust.companyName : "ไม่พบนายจ้าง")}</div>${buildEmployerIdLinesHtml(cust)}</td>
+                <td>${escapeHtml(cleanJobType)}<br><small class="text-muted">${escapeHtml(work ? `${work.firstName} ${work.lastName}` : 'ไม่พบข้อมูลคนงาน')}</small></td>
+                <td class="inv-num"><strong>${fmtMoney(estimate)}</strong>${j.fee > 0 ? '' : '<br><small class="text-muted">ราคามาตรฐาน</small>'}</td>
+                <td class="inv-num text-muted">-</td>
+                <td><span class="badge ${isClosed ? 'badge-danger' : 'badge-gold'}">${isClosed ? `${icon("warn")} ปิดงานแล้ว ยังไม่ออกบิล` : escapeHtml(j.status || '-')}</span></td>
                 <td class="actions-col">
-                    <button class="btn btn-sm btn-gold" onclick="openInvoiceModal('${j.id}')" style="white-space: nowrap;">
-                        ${billBtnLabel}
-                    </button>
+                    <button class="btn btn-sm btn-gold" onclick="openInvoiceModal('${j.id}')" style="white-space: nowrap;">${icon("receipt")} ออกบิล</button>
                 </td>
-            </tr>
-        `;
+            </tr>`;
     }).join('');
 
-    // บิลอิสระที่เพิ่งวางบิลไว้ขึ้นก่อน (ยังไม่ผ่านขั้นตอนใบงาน จึงเน้นให้เห็นชัด) ตามด้วยรายการที่ผูกใบงานจริง
-    tbody.innerHTML = freeInvoiceRowsHtml + jobRowsHtml;
+    tbody.innerHTML = jobRows + invoiceRows;
 }
 
 function renderDashboardOverview() {
@@ -3879,6 +3897,9 @@ function refreshDeliverySamePreview() {
     `;
 }
 
+// บิล/ใบเสร็จพิมพ์ลง A4 แนวตั้ง ขอบ 10 มม. (หน้าตาบนจอเป็นแผ่น A4 เท่ากัน — ดู .invoice-sheet ใน styles.css)
+const INVOICE_PAGE_CSS = "size: A4 portrait; margin: 10mm;";
+
 function setPrintPageSize(pageCss) {
     let styleTag = document.getElementById("dynamic-print-page-size");
     if (!styleTag) {
@@ -5374,6 +5395,12 @@ async function deleteJob(id) {
         showToast("❌ คุณไม่มีสิทธิ์ลบข้อมูลนี้", "danger");
         return;
     }
+    // ใบงานที่อยู่ในบิลที่ยังใช้งาน ลบไม่ได้ — ยอดบิล/ใบเสร็จจะไม่ตรงกับใบงาน (ยกเลิกบิลก่อน)
+    const billedInv = getJobInvoice(jobs.find(j => j.id === id));
+    if (billedInv) {
+        uiAlert(`ใบงานนี้อยู่ในบิล ${billedInv.invoiceNo} แล้ว ลบไม่ได้\nถ้าต้องการลบ ให้ยกเลิกบิลนั้นก่อน (หน้าการเงิน > ออกบิล/รับเงิน)`);
+        return;
+    }
 
     if (await uiConfirm("คุณแน่ใจหรือไม่ที่จะลบใบแจ้งงานนี้?", { card: dialogCardForJob(jobs.find(j => j.id === id)) })) {
         showToast("🗑️ กำลังลบข้อมูลออกจากคลาวด์...", "warning");
@@ -5399,21 +5426,30 @@ function renderAgentsList() {
     const filtered = query ? agents.filter(a => (a.name || "").toLowerCase().includes(query)) : agents;
 
     if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="text-muted" style="text-align:center; padding:20px;">${icon("bad")} ${query ? 'ไม่พบ Agent ตามคำค้นหา' : 'ยังไม่มี Agent ในระบบ (กดเพิ่ม Agent ใหม่ด้านบน)'}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="text-muted" style="text-align:center; padding:20px;">${icon("bad")} ${query ? 'ไม่พบ Agent ตามคำค้นหา' : 'ยังไม่มี Agent ในระบบ (กดเพิ่ม Agent ใหม่ด้านบน)'}</td></tr>`;
         return;
     }
 
+    const canPay = ['admin', 'manager'].includes(currentUser.role);
     tbody.innerHTML = filtered.map(a => {
         const referredCount = customers.filter(c => c.referredByAgentId === a.id).length;
         const jobCount = jobs.filter(j => j.agentId === a.id).length;
+        const com = agentCommissionSummary(a.id);
         return `
         <tr>
             <td><strong>${a.name}</strong></td>
             <td>${a.phone || '-'}</td>
             <td style="text-align:center;">${referredCount} ราย</td>
             <td style="text-align:center;">${jobCount} งาน</td>
+            <td class="inv-num">${Number(a.defaultCommission) > 0 ? fmtMoney(a.defaultCommission) : '<span class="text-muted">-</span>'}</td>
+            <td class="inv-num">
+                ${com.due > 0 ? `<strong class="text-danger">${fmtMoney(com.due)}</strong> <small class="text-muted">(${com.dueCount} งาน)</small>` : '<span class="text-muted">-</span>'}
+                ${com.waiting > 0 ? `<div><small class="text-muted">รอลูกค้าชำระ ${fmtMoney(com.waiting)}</small></div>` : ''}
+                ${com.paidOut > 0 ? `<div><small class="text-success">จ่ายแล้ว ${fmtMoney(com.paidOut)}</small></div>` : ''}
+            </td>
             <td class="actions-col">
                 <div class="actions-cell">
+                    ${canPay && com.due > 0 ? `<button class="btn btn-sm btn-gold" onclick="openCommissionPayoutModal('${a.id}')" style="white-space:nowrap;">${icon("cash")} จ่ายค่าคอม</button>` : ''}
                     <button class="action-icon-btn" onclick="openAgentModal('${a.id}')" title="แก้ไข">${icon("edit")}</button>
                     ${currentUser.role === 'admin' ? `<button class="action-icon-btn delete-btn" onclick="deleteAgent('${a.id}', '${(a.name || '').replace(/'/g, "\\'")}')" title="ลบ">${icon("trash")}</button>` : ''}
                 </div>
@@ -5453,6 +5489,7 @@ function openAgentModal(id = null) {
         if (a) {
             document.getElementById("agent-name").value = a.name;
             document.getElementById("agent-phone").value = a.phone || "";
+            document.getElementById("agent-default-commission").value = Number(a.defaultCommission) > 0 ? a.defaultCommission : "";
         }
     }
 
@@ -5468,12 +5505,13 @@ async function saveAgentForm(e) {
     const editId = document.getElementById("agent-edit-id").value;
     const name = document.getElementById("agent-name").value.trim();
     const phone = document.getElementById("agent-phone").value.trim();
+    const defaultCommission = round2(document.getElementById("agent-default-commission").value);
     if (!name) {
         uiAlert("กรุณากรอกชื่อ Agent");
         return;
     }
 
-    const agentData = { id: editId || ('agent-' + Date.now().toString().slice(-8)), name, phone };
+    const agentData = { id: editId || ('agent-' + Date.now().toString().slice(-8)), name, phone, defaultCommission };
     showToast("💾 กำลังบันทึก Agent...", "warning");
     const res = await callCloudAPI("saveAgent", { agentData });
     if (!res || res.status === "error") {
@@ -5575,9 +5613,10 @@ function renderExpenses() {
 function populateExpensePaymentMethodOptions(selectedValue) {
     const select = document.getElementById("expense-payment-method");
     if (!select) return;
-    select.innerHTML = '<option value="">-- ไม่ระบุ --</option><option value="เงินสด">💵 เงินสด (Cash)</option>' +
-        banks.map(b => `<option value="${b.bankName}">${b.bankName} - ${b.accountName}</option>`).join('');
+    select.innerHTML = BANK_SELECT_HEAD + '<option value=""><span class="opt-bank-text">-- ไม่ระบุ --</span></option>' + cashOptionHtml('เงินสด', 'เงินสด (Cash)') +
+        banks.map(b => bankOptionHtml(b, `bank:${b.id}`)).join('');
     select.value = selectedValue || "";
+    if (select.value !== (selectedValue || "")) select.value = ""; // ค่าเก่าที่ไม่ตรงบัญชีไหน (เช่นชื่อธนาคารที่มีหลายบัญชี) ให้เลือกใหม่
 }
 
 // แนบสลิป/ใบเสร็จรายจ่าย + ใช้ Gemini OCR อ่านจำนวนเงิน/วันที่/รายละเอียด/หมวดหมู่ แล้วกรอกฟอร์มให้อัตโนมัติ
@@ -5693,7 +5732,7 @@ function openExpenseModal(id = null) {
             document.getElementById("expense-amount").value = e.amount || 0;
             document.getElementById("expense-category").value = e.category || "";
             document.getElementById("expense-description").value = e.description || "";
-            populateExpensePaymentMethodOptions(e.paymentMethod);
+            populateExpensePaymentMethodOptions(expenseBankId(e) ? `bank:${expenseBankId(e)}` : e.paymentMethod);
             if (e.attachment && e.attachment.data) {
                 tempExpenseAttachment = e.attachment;
                 document.getElementById("drop-expense-slip").classList.add("success-upload");
@@ -5721,7 +5760,11 @@ async function saveExpense(e) {
     const amount = parseFloat(document.getElementById("expense-amount").value);
     const category = document.getElementById("expense-category").value;
     const description = document.getElementById("expense-description").value.trim();
-    const paymentMethod = document.getElementById("expense-payment-method").value || null;
+    // ค่าใน dropdown: "เงินสด" หรือ "bank:<id>" (ผูกบัญชีจริง ใช้คำนวณยอดคงเหลือรายบัญชี) — paymentMethod ยังเก็บชื่อธนาคารไว้แสดงผล
+    const methodVal = document.getElementById("expense-payment-method").value || "";
+    const payBank = methodVal.startsWith("bank:") ? banks.find(b => b.id === methodVal.slice(5)) : null;
+    const paymentMethod = payBank ? payBank.bankName : (methodVal || null);
+    const bankId = payBank ? payBank.id : null;
 
     if (!expenseDate || !category || isNaN(amount) || amount < 0) {
         uiAlert("กรุณากรอกวันที่ หมวดหมู่ และจำนวนเงินให้ถูกต้อง");
@@ -5730,7 +5773,7 @@ async function saveExpense(e) {
 
     const expenseData = {
         id: editId || 'expense-' + Date.now(),
-        expenseDate, amount, category, description, paymentMethod,
+        expenseDate, amount, category, description, paymentMethod, bankId,
         attachment: tempExpenseAttachment || {}
     };
 
@@ -5744,7 +5787,7 @@ async function saveExpense(e) {
     if (editId) {
         const idx = expenses.findIndex(item => item.id === editId);
         if (idx !== -1) {
-            expenses[idx] = expenseData;
+            expenses[idx] = { ...expenses[idx], ...expenseData }; // คง agentId/jobIds ของรายจ่ายค่าคอมไว้
             showToast("แก้ไขรายการรายจ่ายสำเร็จ", "success");
         }
     } else {
@@ -5986,13 +6029,43 @@ function renderBanks() {
                     <h4>${b.accountName}</h4>
                     <div class="bank-card-acc-no">${b.accountNumber}</div>
                 </div>
+                ${(() => {
+                    // ยอดคงเหลือ = ยอดยกมา + เงินรับเข้า − รายจ่ายที่จ่ายจากบัญชีนี้ (ดู bankAccountBalance)
+                    const bal = bankAccountBalance(b.id);
+                    return `
+                <div class="bank-balance">
+                    <div class="bank-balance-main"><span>ยอดคงเหลือ (คำนวณจากระบบ)</span><strong class="${bal.balance < 0 ? 'text-danger' : ''}">${fmtMoney(bal.balance)}</strong></div>
+                    <div class="bank-balance-rows">
+                        <div><span>ยอดยกมา${b.openingDate ? ` (${formatThaiDate(b.openingDate)})` : ''}</span><b>${fmtMoney(bal.opening)}</b></div>
+                        <div class="is-in"><span>+ รับเข้า</span><b>${fmtMoney(bal.inflow)}</b></div>
+                        <div class="is-out"><span>− จ่ายออก</span><b>${fmtMoney(bal.outflow)}</b></div>
+                    </div>
+                </div>`;
+                })()}
                 <div class="bank-card-meta">
-                    <div>${icon("chat")} พร้อมเพย์ ID: <strong>${b.promptPayId}</strong></div>
-                    <small class="text-muted">ระบบจะแสดง QR Code ชำระเงินด้วยเบอร์นี้</small>
+                    <div>${icon("chat")} พร้อมเพย์ ID: <strong>${b.promptPayId || '-'}</strong></div>
                 </div>
             </div>
         `;
-    }).join('');
+    }).join('') + (() => {
+        const cash = cashBalance();
+        return `
+            <div class="bank-card cash-card">
+                <div class="bank-card-info">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                        <span class="cash-badge">${icon("cash")}</span><span class="badge badge-success">เงินสด</span>
+                    </div>
+                    <h4>เงินสดในมือ</h4>
+                </div>
+                <div class="bank-balance">
+                    <div class="bank-balance-main"><span>ยอดคงเหลือ (คำนวณจากระบบ)</span><strong class="${cash.balance < 0 ? 'text-danger' : ''}">${fmtMoney(cash.balance)}</strong></div>
+                    <div class="bank-balance-rows">
+                        <div class="is-in"><span>+ รับเงินสด</span><b>${fmtMoney(cash.inflow)}</b></div>
+                        <div class="is-out"><span>− จ่ายเงินสด</span><b>${fmtMoney(cash.outflow)}</b></div>
+                    </div>
+                </div>
+            </div>`;
+    })();
 }
 
 function openBankModal(id = null) {
@@ -6009,6 +6082,8 @@ function openBankModal(id = null) {
         document.getElementById("bank-account-name").value = b.accountName;
         document.getElementById("bank-account-number").value = b.accountNumber;
         document.getElementById("bank-promptpay-id").value = b.promptPayId;
+        document.getElementById("bank-opening-balance").value = Number(b.openingBalance) ? b.openingBalance : "";
+        document.getElementById("bank-opening-date").value = b.openingDate || "";
     } else {
         modalTitle.innerText = "เพิ่มบัญชีธนาคารรับเงินใหม่";
         editIdInput.value = "";
@@ -6044,7 +6119,9 @@ async function saveBank(e) {
 
     const bankData = {
         id: editId || 'bank-' + Date.now(),
-        bankName, accountName, accountNumber, promptPayId
+        bankName, accountName, accountNumber, promptPayId,
+        openingBalance: round2(document.getElementById("bank-opening-balance").value),
+        openingDate: document.getElementById("bank-opening-date").value || null
     };
 
     showToast("💾 กำลังบันทึกบัญชีธนาคารเข้าคลาวด์...", "warning");
@@ -6297,18 +6374,94 @@ async function deleteBank(id) {
 
 
 // ==================== INVOICE / BILLING NOTE GENERATOR ====================
+// บิลมี 2 สถานะในหน้าต่างนี้ (ดู ACCOUNTING MODULE ท้ายไฟล์ด้วย):
+//   - ร่าง (draft): สร้างจากใบงาน / บิลรวม / บิลอิสระ ยังไม่มีเลขที่ ยังไม่ถูกบันทึก — กด "ออกบิล" เพื่อรับเลข INV-ปปปป-NNNN
+//   - บิลที่ออกแล้ว (stored): อยู่ในตาราง invoices — รับเงินได้หลายงวด พิมพ์ซ้ำ/ยกเลิกได้ (currentInvoiceId)
 let currentActiveJobForInvoice = null;
 let currentInvoiceItems = [];
 let currentInvoiceJobIds = [];
 let freeInvoiceCustomerId = null;
 let freeInvoiceWorkerId = null;
-let currentFreeInvoiceId = null; // ตั้งค่าเมื่อบิลอิสระที่เปิดอยู่นี้เคยถูก "วางบิล" บันทึกเป็นรายการจริงในระบบแล้ว
+let currentInvoiceId = null;       // id ของบิลที่ออกแล้วที่กำลังเปิดอยู่ (null = ร่าง)
+let currentInvoiceKind = 'job';    // 'job' | 'combined' | 'free' — ใช้ตอนออกบิลจากร่าง
 
 // ตั้งวันที่ออกบิลบนหัวใบวางบิล และเติมวันที่เดียวกันในช่องลายเซ็น "ผู้วางบิล" (ชื่อยังเซ็นมือ)
 function setInvoiceDate(date) {
     document.getElementById("inv-date").innerText = formatThaiDate(date);
     const deliveredDateEl = document.getElementById("inv-delivered-date");
     if (deliveredDateEl) deliveredDateEl.innerText = `วันที่ ${formatThaiDate(date)}`;
+}
+
+// กำหนดชำระมาตรฐาน: 15 วันนับจากวันออกบิล (แก้ข้อความบนบิลได้ก่อนออกบิล)
+const INVOICE_DUE_DAYS = 15;
+const DUE_DATE_SUFFIX = `(${INVOICE_DUE_DAYS} วันนับจากวันออกบิล)`;
+function defaultDueDateText(issueDate) {
+    const due = new Date(issueDate);
+    due.setDate(due.getDate() + INVOICE_DUE_DAYS);
+    return `${formatThaiDate(due)} ${DUE_DATE_SUFFIX}`;
+}
+
+// ที่อยู่สำนักงานใหญ่ + เลขผู้เสียภาษีของนายจ้าง สำหรับหัวบิล (ใช้ร่วมทุกโหมด)
+function customerInvoiceSnapshot(cust) {
+    if (!cust) return { name: "ไม่ระบุบริษัท/ลูกค้า", addr: "ไม่ระบุที่อยู่", tax: "เลขประจำตัวผู้เสียภาษี: -" };
+    const branches = cust.branches || [];
+    const hq = branches.find(b => (b.name || '').includes("สำนักงานใหญ่")) || branches[0];
+    const addr = hq
+        ? `เลขที่ ${hq.houseNo || '-'} ม.${hq.moo || '-'} ต.${hq.subdistrict || '-'} อ.${hq.district || '-'} จ.${hq.province || '-'} ${hq.postalCode || ''}`.trim()
+        : "ไม่ระบุที่อยู่";
+    return { name: cust.companyName || '-', addr, tax: `เลขผู้เสียภาษี: ${cust.taxId || '-'}` };
+}
+
+function fillInvoiceCustomerHeader(snapshot) {
+    document.getElementById("inv-cust-name").innerText = snapshot.name;
+    document.getElementById("inv-cust-addr").innerText = snapshot.addr;
+    document.getElementById("inv-cust-tax").innerText = snapshot.tax;
+}
+
+// dropdown "บัญชีที่แสดงบนบิลให้ลูกค้าโอน" (ไม่ใช่ช่องทางรับเงินจริง — อันนั้นเลือกตอนบันทึกรับเงินแต่ละงวด)
+function populateInvoiceBankSelect(selectedBankId) {
+    const selectBank = document.getElementById("invoice-bank-select");
+    selectBank.innerHTML = BANK_SELECT_HEAD + banks.map(b => bankOptionHtml(b)).join('') +
+        cashOptionHtml('cash', 'ไม่แสดงบัญชี (รับเงินสด)');
+    selectBank.value = selectedBankId && banks.some(b => b.id === selectedBankId) ? selectedBankId : (banks[0] ? banks[0].id : 'cash');
+}
+
+// ราคามาตรฐาน (ค่าธรรมเนียมรัฐ + ค่าบริการ) ของประเภทงาน — ตั้งได้ที่แท็บ "ราคามาตรฐาน" ในหน้าการเงิน
+function getServicePrice(jobTypeName) {
+    return servicePrices.find(p => p.jobType === jobTypeName) || null;
+}
+
+// สร้างรายการในบิลจากใบงาน 1 ใบ — ถ้าใบงานยังไม่มีราคา (fee = 0) ใช้ราคามาตรฐานแทน
+// govFee ของแต่ละรายการ: ใช้ jobs.govFee ที่เคยบันทึกไว้ (เฉลี่ยตามสัดส่วนราคา) หรือค่าธรรมเนียมรัฐจากราคามาตรฐาน
+function buildInvoiceItemsFromJob(j, workDetails) {
+    const parsed = parseJobTypeItems(j.jobType, j.fee);
+    const useStandard = !(j.fee > 0);
+    // ใบงานเก็บค่าธรรมเนียมรัฐเป็นยอดรวมทั้งใบ (jobs.govFee) — กระจายกลับเป็นรายการตามสัดส่วนค่าธรรมเนียมรัฐในราคามาตรฐาน
+    // (ไม่ใช่ตามราคา ไม่งั้นรายการที่ไม่มีค่าธรรมเนียมรัฐ เช่น ค่าบริการล้วน จะได้ส่วนแบ่งไปผิด ๆ);
+    // ถ้าไม่มีราคามาตรฐานเลยค่อยเฉลี่ยตามราคา
+    const stdGovWeights = parsed.map(item => { const std = getServicePrice(item.name); return std ? std.govFee : 0; });
+    const weightSum = stdGovWeights.reduce((s, w) => s + w, 0);
+    const priceSum = parsed.reduce((s, x) => s + x.price, 0);
+    return parsed.map((item, idx) => {
+        const std = getServicePrice(item.name);
+        const price = useStandard && std ? std.govFee + std.serviceFee : item.price;
+        let govFee = 0;
+        if (j.govFee > 0 && weightSum > 0) govFee = round2(j.govFee * stdGovWeights[idx] / weightSum);
+        else if (j.govFee > 0 && priceSum > 0) govFee = round2(j.govFee * item.price / priceSum);
+        else if (std) govFee = std.govFee;
+        govFee = Math.min(govFee, price);
+        return {
+            id: `${j.id}-${idx}`,
+            title: `ค่าบริการ: ${item.name}`,
+            desc: workDetails,
+            qty: 1,
+            unitPrice: price,
+            fee: price,
+            govFee,
+            serviceName: item.name,
+            jobBreakdown: [{ jobId: j.id, price }]
+        };
+    });
 }
 
 function openInvoiceModal(jobId) {
@@ -6319,258 +6472,191 @@ function openInvoiceModal(jobId) {
         return;
     }
 
-    setPrintPageSize(""); // เผื่อยังค้าง @page A5 จากใบปะหน้าจัดส่งเอกสารรอบก่อน
-
-    const selectBank = document.getElementById("invoice-bank-select");
-    const markPaidBtn = document.getElementById("btn-mark-paid");
-    const saveEditsBtn = document.getElementById("btn-save-invoice-edits");
-    const issueFreeBtn = document.getElementById("btn-issue-free-invoice");
-
-    // รีเซ็ตช่องกำหนดชำระ/หมายเหตุ ไม่ให้ค้างข้อความจากบิลใบก่อนหน้า
-    const dueDateEl = document.getElementById("inv-due-date");
-    const notesEl = document.getElementById("inv-notes");
-    if (dueDateEl) dueDateEl.innerText = "ชำระทันทีเมื่อได้รับบิล";
-    if (notesEl) notesEl.innerText = "-";
-
+    // ใบงานที่ออกบิลไปแล้ว → เปิดบิลใบนั้น (ไม่สร้างร่างซ้ำ)
     if (jobId) {
-        // --- Single Linked Job Mode ---
         const j = jobs.find(item => item.id === jobId);
         if (!j) return;
+        const existing = getJobInvoice(j);
+        if (existing) { openStoredInvoice(existing.id); return; }
+    }
 
-        // Auto update payment status to "ออกบิลแล้ว" if not already paid — เป็นอิสระจากสถานะขั้นตอนงาน
-        if (j.paymentStatus !== 'ชำระเงินแล้ว' && j.paymentStatus !== 'ออกบิลแล้ว') {
-            j.paymentStatus = 'ออกบิลแล้ว';
-            j.updatedAt = new Date().toISOString().split('T')[0];
-            callCloudAPI("saveJob", { jobData: j }).then(res => {
-                if (!res || res.status === "error") {
-                    showToast("⚠️ อัปเดตสถานะออกบิลไปคลาวด์ไม่สำเร็จ: " + (res && res.message ? res.message : "unknown error"), "danger");
-                }
-            });
-            saveData();
-            renderJobs();
-            renderBillingTab();
-            renderDashboard();
-        }
+    setPrintPageSize(INVOICE_PAGE_CSS); // A4 เสมอ (เผื่อยังค้าง @page A5 จากใบปะหน้าจัดส่งเอกสารรอบก่อน)
+    currentInvoiceId = null;
+    document.getElementById("inv-due-date").innerText = defaultDueDateText(new Date());
+    document.getElementById("inv-notes").innerText = "-";
+    const freePickerWrap = document.getElementById("invoice-free-picker-wrap");
 
+    if (jobId) {
+        // --- ร่างบิลจากใบงาน 1 ใบ ---
+        const j = jobs.find(item => item.id === jobId);
         const cust = customers.find(c => c.id === j.customerId);
         const work = workers.find(w => w.id === j.workerId);
-
+        currentInvoiceKind = 'job';
         updateInvoiceBillingNote(cust);
+        fillInvoiceCustomerHeader(customerInvoiceSnapshot(cust));
 
-        // Fill Client Info
-        document.getElementById("inv-cust-name").innerText = cust ? cust.companyName : "ไม่ระบุบริษัท/ลูกค้า";
-        const branchHq = cust ? (cust.branches.find(b => b.name.includes("สำนักงานใหญ่")) || cust.branches[0]) : null;
-        const branchAddrStr = branchHq ? 
-            `เลขที่ ${branchHq.houseNo} ม.${branchHq.moo} ต.${branchHq.subdistrict} อ.${branchHq.district} จ.${branchHq.province} ${branchHq.postalCode}` : 
-            "ไม่ระบุที่อยู่";
-        document.getElementById("inv-cust-addr").innerText = branchAddrStr;
-        document.getElementById("inv-cust-tax").innerText = cust ? `เลขผู้เสียภาษี: ${cust.taxId}` : "เลขประจำตัวผู้เสียภาษี: -";
-
-        // Fill Invoice Metadata
-        document.getElementById("inv-no").innerText = `INV-${j.id.toUpperCase()}`;
-        setInvoiceDate(new Date(j.updatedAt));
-
-        const workDetails = work ? 
-            `คนงานต่างด้าว: คุณ ${work.firstName} ${work.lastName} (สัญชาติ: ${work.nationality}, เลขคนงาน: ${work.workerUid})` : 
-            "คนงานต่างด้าว: ไม่พบข้อมูล/ยกเลิกสัญญาแล้ว";
-
-        // Parse individual items and prices
-        const parsedItems = parseJobTypeItems(j.jobType, j.fee);
-        currentInvoiceItems = parsedItems.map((item, idx) => {
-            return {
-                id: `${j.id}-${idx}`,
-                title: `ค่าบริการ: ${item.name}`,
-                desc: workDetails,
-                qty: 1,
-                unitPrice: item.price,
-                fee: item.price,
-                // ใช้ตอนบันทึกการแก้ไขราคาบิลย้อนกลับเข้าใบงานจริง (ดู computeEditedJobUpdates) —
-                // serviceName ใช้สร้างสตริง jobType ใหม่ (แยกจาก title ที่ผู้ใช้แก้เป็นข้อความอิสระได้)
-                serviceName: item.name,
-                jobBreakdown: [{ jobId: j.id, price: item.price }]
-            };
-        });
+        const workDetails = work
+            ? `คนงานต่างด้าว: ${invoiceWorkerLine(work)}`
+            : "คนงานต่างด้าว: ไม่พบข้อมูล/ยกเลิกสัญญาแล้ว";
+        currentInvoiceItems = buildInvoiceItemsFromJob(j, workDetails);
         currentInvoiceJobIds = [j.id];
-
-        if (j.paymentStatus === 'ชำระเงินแล้ว') {
-            if (markPaidBtn) markPaidBtn.style.display = 'none';
-            if (saveEditsBtn) saveEditsBtn.style.display = 'none';
-        } else {
-            if (markPaidBtn) markPaidBtn.style.display = 'inline-block';
-            if (saveEditsBtn) saveEditsBtn.style.display = 'inline-block';
-        }
-
-        const freePickerWrap = document.getElementById("invoice-free-picker-wrap");
         if (freePickerWrap) freePickerWrap.classList.add("hidden");
-        if (issueFreeBtn) issueFreeBtn.style.display = 'none';
-
     } else {
-        // --- Free / Quick Invoice Mode ---
-        const freeId = 'free-' + Date.now().toString().slice(-4);
-        currentFreeInvoiceId = null; // บิลอิสระใหม่ทุกครั้งที่เปิดจากปุ่ม "สร้างบิลอิสระ" — ยังไม่เคย "วางบิล" บันทึกลงระบบ
-
-        const freePickerWrap = document.getElementById("invoice-free-picker-wrap");
+        // --- ร่างบิลอิสระ (ไม่ผูกใบงาน) ---
+        currentInvoiceKind = 'free';
         if (freePickerWrap) freePickerWrap.classList.remove("hidden");
         presetSearchSelect('free-invoice-customer', null);
         presetSearchSelect('free-invoice-worker', null);
-
-        if (customers.length > 0) {
-            const cust = customers[0];
-            document.getElementById("inv-cust-name").innerText = cust.companyName;
-            const branchHq = cust.branches.find(b => b.name.includes("สำนักงานใหญ่")) || cust.branches[0];
-            const branchAddrStr = branchHq ? 
-                `เลขที่ ${branchHq.houseNo} ม.${branchHq.moo} ต.${branchHq.subdistrict} อ.${branchHq.district} จ.${branchHq.province} ${branchHq.postalCode}` : 
-                "ไม่ระบุที่อยู่";
-            document.getElementById("inv-cust-addr").innerText = branchAddrStr;
-            document.getElementById("inv-cust-tax").innerText = `เลขผู้เสียภาษี: ${cust.taxId}`;
-        } else {
-            document.getElementById("inv-cust-name").innerText = "ชื่อบริษัทลูกค้า/ผู้ว่าจ้าง (คลิกเพื่อพิมพ์แก้ไขตรงนี้)";
-            document.getElementById("inv-cust-addr").innerText = "ที่อยู่ลูกค้า (คลิกเพื่อพิมพ์แก้ไขตรงนี้)";
-            document.getElementById("inv-cust-tax").innerText = "เลขประจำตัวผู้เสียภาษี: -";
-        }
-
-        document.getElementById("inv-no").innerText = `INV-FREE-${Date.now().toString().slice(-4)}`;
-        setInvoiceDate(new Date());
-
-        currentInvoiceItems = [
-            {
-                id: freeId,
-                title: "ค่าธรรมเนียมประสานงานใบแจ้งจัดหางานและยื่นหนังสือเดินทาง (คลิกพิมพ์แก้ไข)",
-                desc: "ระบุสัญชาติคนงาน หรือเลขเอกสารอื่นตามสมควร (คลิกพิมพ์แก้ไข)",
-                fee: 3000,
-                placeholder: true // รายการตัวอย่าง — ถูกแทนที่อัตโนมัติเมื่อเลือกประเภทงานรายการแรกจาก dropdown
-            }
-        ];
+        // ชื่อ/ที่อยู่ว่างไว้ — คำแนะนำ "คลิกเพื่อพิมพ์" มาจาก data-placeholder (แสดงเฉพาะบนจอ ไม่พิมพ์ ไม่บันทึก)
+        fillInvoiceCustomerHeader({ name: "", addr: "", tax: "เลขประจำตัวผู้เสียภาษี: -" });
+        currentInvoiceItems = [{
+            id: 'free-' + Date.now().toString(36),
+            title: "ค่าธรรมเนียมประสานงานใบแจ้งจัดหางานและยื่นหนังสือเดินทาง",
+            desc: "",
+            qty: 1, unitPrice: 0, fee: 0, govFee: 0,
+            placeholder: true // รายการตัวอย่าง — ถูกแทนที่อัตโนมัติเมื่อเลือกประเภทงานรายการแรกจาก dropdown
+        }];
         populateFreeInvoiceJobTypeSelect();
         currentInvoiceJobIds = [];
-
-        // บิลอิสระไม่ได้ผูกกับนายจ้างรายใดรายหนึ่งแน่นอน (ชื่อที่เติมมาเป็นแค่ค่าเริ่มต้นให้แก้ไข) จึงไม่แสดง note วางบิล
-        updateInvoiceBillingNote(null);
-
-        if (markPaidBtn) markPaidBtn.style.display = 'inline-block';
-        if (saveEditsBtn) saveEditsBtn.style.display = 'none'; // บิลอิสระไม่ได้ผูกกับใบงานจริง ไม่มีอะไรให้บันทึกย้อนกลับ
-        if (issueFreeBtn) issueFreeBtn.style.display = 'inline-block';
+        updateInvoiceBillingNote(null); // ชื่อที่เติมมาเป็นแค่ค่าเริ่มต้น ยังไม่ผูกนายจ้างจริง
     }
 
-    // Populate bank account dropdown selection list
-    // ตั้ง "เงินสด" เป็นค่าเริ่มต้นเสมอ — ถ้าไม่ตั้ง .value ชัดเจน เบราว์เซอร์จะเลือก option แรก (บัญชีธนาคาร)
-    // โดยอัตโนมัติ ทำให้ช่องแนบสลิปโผล่มาบังคับแนบไฟล์ทั้งที่ยังไม่ได้เลือกช่องทางโอนเงินเลย
-    selectBank.innerHTML = banks.map(b => `<option value="${b.id}">${b.bankName} - ${b.accountName}</option>`).join('') +
-        '<option value="cash">💵 รับชำระเป็นเงินสด (Cash Payment)</option>';
-    selectBank.value = 'cash';
-
-    // Render invoice items and calculate totals
+    document.getElementById("inv-no").innerText = "ร่าง — ยังไม่ออกเลขที่";
+    setInvoiceDate(new Date());
+    populateInvoiceBankSelect(null);
     renderInvoiceItemsTable();
-
+    renderInvoiceStatusUi();
     document.getElementById("invoice-modal").classList.remove("hidden");
 }
 
-// ==================== FREE INVOICE PERSISTENCE (วางบิล/บันทึกบิลอิสระเป็นรายการจริงในระบบ) ====================
-// รวมข้อมูลจากฟอร์มบิลอิสระที่เปิดอยู่ในโมดัลตอนนี้เป็น payload สำหรับบันทึกลง Supabase (ใช้ทั้งตอน "วางบิล"
-// และ "ยืนยันรับชำระ" — ถ้ายังไม่เคยวางบิลมาก่อนจะได้ id ใหม่ ถ้าเคยวางบิลแล้วจะอัปเดตรายการเดิมด้วย currentFreeInvoiceId)
-function buildFreeInvoicePayload(paymentStatus) {
-    const worker = freeInvoiceWorkerId ? workers.find(w => w.id === freeInvoiceWorkerId) : null;
-    const selectBank = document.getElementById("invoice-bank-select");
-    const bankVal = selectBank ? selectBank.value : 'cash';
-    const bank = bankVal !== 'cash' ? banks.find(b => b.id === bankVal) : null;
-    const subtotal = currentInvoiceItems.reduce((sum, item) => sum + item.fee, 0);
+// เปิดบิลที่ออกแล้ว (จากตารางออกบิล/รับเงิน หรือจากใบงานที่ผูกบิลไว้)
+function openStoredInvoice(invoiceId) {
+    const inv = invoices.find(i => i.id === invoiceId);
+    if (!inv) { showToast("❌ ไม่พบบิลนี้ในระบบ", "danger"); return; }
+    setPrintPageSize(INVOICE_PAGE_CSS);
 
-    return {
-        id: currentFreeInvoiceId || ('free-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)),
-        invoiceNo: document.getElementById("inv-no").innerText,
-        customerId: freeInvoiceCustomerId || null,
-        customerName: document.getElementById("inv-cust-name").innerText,
-        customerAddr: document.getElementById("inv-cust-addr").innerText,
-        customerTax: document.getElementById("inv-cust-tax").innerText,
-        workerId: freeInvoiceWorkerId || null,
-        workerName: worker ? `${worker.firstName} ${worker.lastName}`.trim() : null,
-        items: currentInvoiceItems,
-        subtotal: subtotal,
-        grandTotal: subtotal, // กิจการไม่ได้จด VAT จริง (ดู calculateInvoiceTotals)
-        bankId: bank ? bank.id : null,
-        paymentMethod: bank ? bank.bankName : 'เงินสด',
-        paymentStatus: paymentStatus,
-        dueDateText: document.getElementById("inv-due-date").innerText,
-        notes: document.getElementById("inv-notes").innerText,
-        createdBy: currentUser ? currentUser.id : null
-    };
-}
-
-// ปุ่ม "🧾 วางบิล" — บันทึกบิลอิสระที่กำลังดูอยู่เป็นรายการค้างชำระจริงในระบบ (โผล่ในตาราง "ออกบิล/รับเงิน")
-// กดซ้ำได้ (แก้ไขรายการ/ราคาแล้วกดวางบิลใหม่) จะอัปเดตรายการเดิมแทนที่จะสร้างซ้ำ เพราะจำ currentFreeInvoiceId ไว้แล้ว
-async function issueFreeInvoice() {
-    if (currentInvoiceJobIds.length > 0) return; // ใช้เฉพาะโหมดบิลอิสระเท่านั้น (บิลที่ผูกใบงานจริงออกบิลอัตโนมัติตอนเปิดโมดัลอยู่แล้ว)
-    if (currentInvoiceItems.length === 0) {
-        showToast("⚠️ ไม่มีรายการในบิล", "warning");
-        return;
-    }
-    currentInvoiceItems.forEach(item => syncInvoiceItemTextFields(item)); // sync ค่าล่าสุดจากช่องที่แก้ไขอิสระก่อนบันทึก
-
-    const existing = currentFreeInvoiceId ? freeInvoices.find(f => f.id === currentFreeInvoiceId) : null;
-    const payload = buildFreeInvoicePayload(existing ? existing.paymentStatus : 'ออกบิลแล้ว');
-
-    const res = await callCloudAPI("saveFreeInvoice", { invoiceData: payload });
-    if (!res) return;
-
-    currentFreeInvoiceId = payload.id;
-    const idx = freeInvoices.findIndex(f => f.id === payload.id);
-    if (idx === -1) freeInvoices.push(payload); else freeInvoices[idx] = payload;
-    saveData();
-    renderBillingTab();
-    showToast("🧾 วางบิลเรียบร้อยแล้ว — บันทึกเป็นรายการในระบบแล้ว", "success");
-}
-
-// เปิดดู/พิมพ์บิลอิสระที่เคย "วางบิล" ไว้แล้ว (บันทึกเป็นรายการจริงในระบบแล้ว) จากตารางออกบิล/รับเงิน
-function openFreeInvoiceModal(invoiceId) {
-    const inv = freeInvoices.find(f => f.id === invoiceId);
-    if (!inv) return;
-
-    if (banks.length === 0) {
-        uiAlert("กรุณาเพิ่มข้อมูลบัญชีธนาคารอย่างน้อย 1 บัญชีก่อนออกบิลและเก็บเงิน");
-        switchView('expenses');
-        switchFinancePageTab('banks');
-        return;
-    }
-
-    setPrintPageSize("");
-
-    currentFreeInvoiceId = inv.id;
-    currentInvoiceJobIds = [];
+    currentInvoiceId = inv.id;
+    currentInvoiceKind = inv.kind || 'job';
+    currentInvoiceJobIds = [...(inv.jobIds || [])];
     currentInvoiceItems = JSON.parse(JSON.stringify(inv.items || []));
-    currentInvoiceItems.forEach(item => { delete item.placeholder; }); // บิลที่วางแล้ว ไม่มีรายการตัวอย่างให้แทนที่
+    currentInvoiceItems.forEach(item => { delete item.placeholder; });
+    freeInvoiceCustomerId = inv.customerId || null;
+    freeInvoiceWorkerId = inv.workerId || null;
 
     const freePickerWrap = document.getElementById("invoice-free-picker-wrap");
-    if (freePickerWrap) freePickerWrap.classList.remove("hidden");
-    presetSearchSelect('free-invoice-customer', inv.customerId || null);
-    presetSearchSelect('free-invoice-worker', inv.workerId || null);
+    const editableFree = inv.kind === 'free' && inv.status === 'issued' && invoicePaidAmount(inv) === 0;
+    if (freePickerWrap) freePickerWrap.classList.toggle("hidden", !editableFree);
+    if (editableFree) {
+        presetSearchSelect('free-invoice-customer', inv.customerId || null);
+        presetSearchSelect('free-invoice-worker', inv.workerId || null);
+        populateFreeInvoiceJobTypeSelect();
+    }
 
-    document.getElementById("inv-cust-name").innerText = inv.customerName || '-';
-    document.getElementById("inv-cust-addr").innerText = inv.customerAddr || '-';
-    document.getElementById("inv-cust-tax").innerText = inv.customerTax || '-';
+    fillInvoiceCustomerHeader({ name: inv.customerName || '-', addr: inv.customerAddr || '-', tax: inv.customerTax || '-' });
     updateInvoiceBillingNote(inv.customerId ? customers.find(c => c.id === inv.customerId) : null);
-
-    document.getElementById("inv-no").innerText = inv.invoiceNo || `INV-${inv.id.toUpperCase()}`;
-    setInvoiceDate(new Date(inv.createdAt || Date.now()));
-    document.getElementById("inv-due-date").innerText = inv.dueDateText || "ชำระทันทีเมื่อได้รับบิล";
+    document.getElementById("inv-no").innerText = inv.invoiceNo;
+    setInvoiceDate(safeParseDate(inv.issueDate) || new Date());
+    document.getElementById("inv-due-date").innerText = inv.dueDateText || defaultDueDateText(safeParseDate(inv.issueDate) || new Date());
     document.getElementById("inv-notes").innerText = inv.notes || "-";
 
-    const selectBank = document.getElementById("invoice-bank-select");
-    selectBank.innerHTML = banks.map(b => `<option value="${b.id}">${b.bankName} - ${b.accountName}</option>`).join('') +
-        '<option value="cash">💵 รับชำระเป็นเงินสด (Cash Payment)</option>';
-    selectBank.value = inv.bankId || 'cash';
-
-    populateFreeInvoiceJobTypeSelect();
+    populateInvoiceBankSelect(inv.bankId);
     renderInvoiceItemsTable();
-
-    const saveEditsBtn = document.getElementById("btn-save-invoice-edits");
-    const issueFreeBtn = document.getElementById("btn-issue-free-invoice");
-    const markPaidBtn = document.getElementById("btn-mark-paid");
-    if (saveEditsBtn) saveEditsBtn.style.display = 'none'; // บิลอิสระไม่ได้ผูกกับใบงานจริง ไม่มีอะไรให้บันทึกย้อนกลับ
-    const alreadyPaid = inv.paymentStatus === 'ชำระเงินแล้ว';
-    if (issueFreeBtn) issueFreeBtn.style.display = alreadyPaid ? 'none' : 'inline-block';
-    if (markPaidBtn) markPaidBtn.style.display = alreadyPaid ? 'none' : 'inline-block';
-
+    renderInvoiceStatusUi();
     document.getElementById("invoice-modal").classList.remove("hidden");
+}
+
+// เดิมใช้เปิดบิลอิสระที่ "วางบิล" ไว้ — บิลอิสระย้ายเข้า invoices แล้ว (id เดิม) จึงเปิดผ่าน openStoredInvoice
+function openFreeInvoiceModal(invoiceId) {
+    openStoredInvoice(invoiceId);
+}
+
+// ปุ่ม "ออกบิล (รับเลขที่)" — บันทึกร่างที่เปิดอยู่เป็นบิลจริง: ขอเลขที่ INV-ปปปป-NNNN จากฐานข้อมูล
+// แล้วผูกใบงานทุกใบในบิลเข้ากับบิลนี้ (paymentStatus = 'ออกบิลแล้ว') พร้อมบันทึกราคาที่แก้ในบิลกลับเข้าใบงาน
+async function issueCurrentInvoice() {
+    if (currentInvoiceId) return;
+    if (!['admin', 'manager'].includes(currentUser.role)) {
+        showToast("❌ เฉพาะ Admin / Manager เท่านั้นที่ออกบิลได้", "danger");
+        return;
+    }
+    currentInvoiceItems.forEach(item => syncInvoiceItemTextFields(item));
+    const realItems = currentInvoiceItems.filter(item => !item.placeholder);
+    const total = realItems.reduce((s, item) => s + (item.fee || 0), 0);
+    if (realItems.length === 0 || total <= 0) {
+        uiAlert("บิลต้องมีอย่างน้อย 1 รายการ และยอดรวมมากกว่า 0 บาท");
+        return;
+    }
+    const alreadyBilled = currentInvoiceJobIds.map(id => jobs.find(j => j.id === id)).filter(j => j && getJobInvoice(j));
+    if (alreadyBilled.length > 0) {
+        uiAlert(`มีใบงานที่ออกบิลไปแล้ว ${alreadyBilled.length} ใบในรายการนี้ กรุณาปิดหน้าต่างแล้วเปิดใหม่`);
+        return;
+    }
+
+    const btn = document.getElementById("btn-issue-invoice");
+    if (btn) btn.disabled = true;
+    try {
+        const noRes = await callCloudAPI("nextDocNo", { prefix: "INV" });
+        if (!noRes || !noRes.docNo) return;
+
+        const selectBank = document.getElementById("invoice-bank-select");
+        const bankId = selectBank && selectBank.value !== 'cash' ? selectBank.value : null;
+        const worker = freeInvoiceWorkerId ? workers.find(w => w.id === freeInvoiceWorkerId) : null;
+        const firstJob = currentInvoiceJobIds.length ? jobs.find(j => j.id === currentInvoiceJobIds[0]) : null;
+        const inv = {
+            id: 'inv-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+            invoiceNo: noRes.docNo,
+            kind: currentInvoiceKind,
+            customerId: firstJob ? firstJob.customerId : (freeInvoiceCustomerId || null),
+            customerName: readInvoiceText("inv-cust-name"),
+            customerAddr: readInvoiceText("inv-cust-addr"),
+            customerTax: readInvoiceText("inv-cust-tax"),
+            workerId: currentInvoiceKind === 'free' ? (freeInvoiceWorkerId || null) : null,
+            workerName: currentInvoiceKind === 'free' && worker ? `${worker.firstName} ${worker.lastName}`.trim() : null,
+            jobIds: [...currentInvoiceJobIds],
+            items: realItems,
+            subtotal: round2(total),
+            grandTotal: round2(total),
+            govFeeTotal: round2(realItems.reduce((s, item) => s + (item.govFee || 0), 0)),
+            issueDate: localDateISO(new Date()),
+            // กำหนดชำระแบบมาตรฐาน → คำนวณใหม่จากวันออกบิลจริง (เผื่อเปิดร่างไว้ข้ามวัน); ถ้าแก้ข้อความเองใช้ตามที่แก้
+            dueDateText: readInvoiceText("inv-due-date").endsWith(DUE_DATE_SUFFIX) ? defaultDueDateText(new Date()) : readInvoiceText("inv-due-date"),
+            notes: readInvoiceText("inv-notes"),
+            bankId,
+            status: 'issued',
+            createdBy: currentUser.id || null
+        };
+        const res = await callCloudAPI("saveInvoice", { invoiceData: inv });
+        if (!res || res.status === "error") return;
+        invoices.push(inv);
+
+        // ผูกใบงาน + บันทึกราคา/ค่าธรรมเนียมรัฐที่แก้ในบิลกลับเข้าใบงาน
+        const jobUpdates = computeEditedJobUpdates();
+        let failCount = 0;
+        for (const jobId of currentInvoiceJobIds) {
+            const j = jobs.find(x => x.id === jobId);
+            if (!j) continue;
+            const prev = { ...j };
+            if (jobUpdates[jobId]) {
+                j.fee = round2(jobUpdates[jobId].feeTotal);
+                j.jobType = jobUpdates[jobId].typeSegments.map(s => `${s.serviceName} (${Math.round(s.price)})`).join(', ');
+                j.govFee = round2(jobUpdates[jobId].govTotal);
+            }
+            j.invoiceId = inv.id;
+            j.paymentStatus = 'ออกบิลแล้ว';
+            j.updatedAt = localDateISO(new Date());
+            const r = await callCloudAPI("saveJob", { jobData: j });
+            if (!r || r.status === "error") { Object.assign(j, prev); failCount++; }
+        }
+
+        saveData();
+        renderJobs();
+        renderBillingTab();
+        renderDashboard();
+        if (failCount > 0) showToast(`⚠️ ออกบิล ${inv.invoiceNo} แล้ว แต่ผูกใบงานไม่สำเร็จ ${failCount} ใบ`, "danger");
+        else showToast(`🧾 ออกบิลเลขที่ ${inv.invoiceNo} เรียบร้อยแล้ว`, "success");
+        openStoredInvoice(inv.id);
+    } finally {
+        if (btn) btn.disabled = false;
+    }
 }
 
 // ==================== FREE INVOICE EMPLOYER/WORKER PICKER (ใช้ registerSearchSelect มาตรฐานของโปรเจกต์) ====================
@@ -6621,7 +6707,7 @@ function onSelectFreeInvoiceCustomer(cust) {
 }
 
 function getFreeInvoiceWorkerDesc(w) {
-    return `คนงานต่างด้าว: คุณ ${w.firstName} ${w.lastName} (สัญชาติ: ${w.nationality || '-'}, เลขคนงาน: ${w.workerUid || '-'})`;
+    return `คนงานต่างด้าว: ${invoiceWorkerLine(w)}`;
 }
 
 // เติมตัวเลือก dropdown "ประเภทงานที่แจ้ง" ของบิลอิสระ — ดึงจากเช็กบ็อกซ์ในฟอร์มแจ้งสั่งงาน ให้รายชื่อประเภทงานมีที่เดียว
@@ -6645,13 +6731,16 @@ function addFreeInvoiceJobTypeItem(select) {
     currentInvoiceItems = currentInvoiceItems.filter(item => !item.placeholder);
 
     const worker = freeInvoiceWorkerId ? workers.find(w => w.id === freeInvoiceWorkerId) : null;
+    const std = getServicePrice(jobType); // ราคามาตรฐาน (ถ้าตั้งไว้) — ยังแก้ราคาในบิลได้
+    const price = std ? std.govFee + std.serviceFee : 0;
     currentInvoiceItems.push({
         id: 'free-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
         title: `ค่าบริการ: ${jobType}`,
         desc: worker ? getFreeInvoiceWorkerDesc(worker) : "",
         qty: 1,
-        unitPrice: 0,
-        fee: 0,
+        unitPrice: price,
+        fee: price,
+        govFee: std ? std.govFee : 0,
         serviceName: jobType
     });
     renderInvoiceItemsTable();
@@ -6668,7 +6757,8 @@ function removeFreeInvoiceItem(itemId) {
 function onSelectFreeInvoiceWorker(w) {
     // บิลอิสระออกให้คนงาน 1 คน จึงเติมรายละเอียดคนงานลงทุกรายการ — ยังแก้ไขข้อความเองได้ต่อหลังจากนี้
     if (currentInvoiceItems.length > 0) {
-        currentInvoiceItems.forEach(item => { item.desc = getFreeInvoiceWorkerDesc(w); });
+        // รายการที่เลือกคนงานไว้เองแล้ว (หลายคน) ไม่ต้องทับ
+        currentInvoiceItems.forEach(item => { if (!(item.workerIds && item.workerIds.length)) item.desc = getFreeInvoiceWorkerDesc(w); });
         renderInvoiceItemsTable();
     }
 
@@ -6739,9 +6829,14 @@ function closeInvoiceModal() {
     document.getElementById("invoice-modal").classList.add("hidden");
     currentInvoiceItems = [];
     currentInvoiceJobIds = [];
-    currentFreeInvoiceId = null;
-    const proofInput = document.getElementById("invoice-payment-proof-input");
-    if (proofInput) proofInput.value = '';
+    currentInvoiceId = null;
+}
+
+// แก้ไขรายการ/ราคาในบิลได้เฉพาะ ร่าง หรือบิลที่ออกแล้วแต่ยังไม่ได้รับเงินเลย (ป้องกันยอดบิลไม่ตรงกับเงินที่รับไปแล้ว)
+function isCurrentInvoiceEditable() {
+    if (!currentInvoiceId) return true;
+    const inv = invoices.find(i => i.id === currentInvoiceId);
+    return !!inv && inv.status === 'issued' && invoicePaidAmount(inv) === 0;
 }
 
 function renderInvoiceItemsTable() {
@@ -6754,13 +6849,17 @@ function renderInvoiceItemsTable() {
                 <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 20px;">
                     ${icon("bad")} ไม่มีรายการใบแจ้งหนี้
                 </td>
+                <td class="no-print inv-gov-col"></td>
             </tr>
         `;
         calculateInvoiceTotals();
         return;
     }
 
+    const editable = isCurrentInvoiceEditable();
     const isFreeMode = currentInvoiceJobIds.length === 0;
+    const ce = editable ? 'contenteditable="true"' : '';
+    const fmt = v => Number(v || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     tbody.innerHTML = currentInvoiceItems.map((item, index) => {
         const qty = item.qty || 1;
         const unitPrice = item.unitPrice !== undefined ? item.unitPrice : item.fee;
@@ -6768,42 +6867,49 @@ function renderInvoiceItemsTable() {
             <tr>
                 <td style="text-align: center;">${index + 1}</td>
                 <td class="inv-item-desc-cell">
-                    ${isFreeMode ? `<button type="button" class="inv-item-remove-btn no-print" onclick="removeFreeInvoiceItem('${item.id}')" title="ลบรายการนี้">&times;</button>` : ''}
-                    <div style="font-weight: 600; outline: none; border-bottom: 1px dashed transparent;"
-                         id="inv-item-title-${item.id}"
-                         contenteditable="true"
-                         oninput="onInvoiceItemTextInput('${item.id}')"
-                         title="คลิกเพื่อแก้ไขคำอธิบาย">${item.title}</div>
-                    <div style="font-size: 12.5px; color: var(--text-muted); margin-top: 4px; outline: none; border-bottom: 1px dashed transparent; white-space: pre-line;"
-                         id="inv-item-desc-${item.id}"
-                         contenteditable="true"
-                         oninput="onInvoiceItemTextInput('${item.id}')"
-                         title="คลิกเพื่อแก้ไขคำอธิบายย่อย">${item.desc}</div>
+                    ${isFreeMode && editable ? `<button type="button" class="inv-item-remove-btn no-print" onclick="removeFreeInvoiceItem('${item.id}')" title="ลบรายการนี้">&times;</button>` : ''}
+                    <div class="inv-item-title ${editable ? 'inv-editable' : ''}" id="inv-item-title-${item.id}" ${ce}
+                         oninput="onInvoiceItemTextInput('${item.id}')" title="คลิกเพื่อแก้ไขคำอธิบาย">${escapeHtml(item.title)}</div>
+                    <div class="inv-item-desc ${editable ? 'inv-editable' : ''}" id="inv-item-desc-${item.id}" ${ce}
+                         ${editable ? 'data-placeholder="รายละเอียด เช่น ชื่อคนงาน สัญชาติ เลขเอกสาร (คลิกเพื่อพิมพ์)"' : ''}
+                         oninput="onInvoiceItemTextInput('${item.id}')" title="คลิกเพื่อแก้ไขคำอธิบายย่อย">${escapeHtml(item.desc || '')}</div>
+                    ${isFreeMode && editable ? `<button type="button" class="inv-item-workers-btn no-print" onclick="openItemWorkersPicker('${item.id}')">
+                        ${icon('users')} ${(item.workerIds || []).length ? `คนงาน ${item.workerIds.length} คน — แก้รายชื่อ` : 'เลือกคนงาน (หลายคนได้)'}</button>` : ''}
                 </td>
                 <td style="text-align: center;">${qty}</td>
-                <td style="text-align: right; background-color: rgba(212, 175, 55, 0.05); border: 1px solid var(--gold-primary); outline: none;"
-                    id="inv-item-unitprice-${item.id}"
-                    contenteditable="true"
-                    oninput="onInvoiceItemUnitPriceInput('${item.id}')"
-                    title="คลิกเพื่อแก้ไขราคาต่อหน่วย">${unitPrice.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                <td style="text-align: right; font-weight: 600; background-color: rgba(212, 175, 55, 0.05); border: 1px solid var(--gold-primary); outline: none;"
-                    id="inv-item-fee-${item.id}"
-                    contenteditable="true"
-                    oninput="onInvoiceItemFeeInput('${item.id}')"
-                    title="คลิกเพื่อแก้ไขราคารวม">${item.fee.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td class="inv-num ${editable ? 'inv-price-cell' : ''}" id="inv-item-unitprice-${item.id}" ${ce}
+                    oninput="onInvoiceItemUnitPriceInput('${item.id}')" title="คลิกเพื่อแก้ไขราคาต่อหน่วย">${fmt(unitPrice)}</td>
+                <td class="inv-num inv-amount ${editable ? 'inv-price-cell' : ''}" id="inv-item-fee-${item.id}" ${ce}
+                    oninput="onInvoiceItemFeeInput('${item.id}')" title="คลิกเพื่อแก้ไขราคารวม">${fmt(item.fee)}</td>
+                <td class="no-print inv-gov-col">
+                    ${editable
+                        ? `<input type="number" min="0" step="0.01" class="inv-gov-input" value="${item.govFee || 0}"
+                                  oninput="onInvoiceItemGovFeeInput('${item.id}', this.value)" title="ส่วนที่เป็นค่าธรรมเนียมรัฐในยอดของรายการนี้">`
+                        : fmt(item.govFee)}
+                </td>
             </tr>
         `;
     }).join('');
 
-    // Trigger sum totals calculation
     calculateInvoiceTotals();
+}
+
+// ตัดคำแนะนำแบบเก่า "(คลิก...แก้ไข...)" ที่อาจค้างอยู่ในข้อความ ไม่ให้หลุดไปอยู่ในบิลที่บันทึก/พิมพ์
+function stripEditHint(text) {
+    return String(text || '').replace(/\s*\(คลิก[^)]*\)/g, '').trim();
+}
+
+// อ่านข้อความบนหัวบิล (ชื่อ/ที่อยู่/เลขภาษี/กำหนดชำระ/หมายเหตุ) สำหรับบันทึก
+function readInvoiceText(id) {
+    const el = document.getElementById(id);
+    return el ? stripEditHint(el.innerText) : '';
 }
 
 function syncInvoiceItemTextFields(item) {
     const titleEl = document.getElementById(`inv-item-title-${item.id}`);
     const descEl = document.getElementById(`inv-item-desc-${item.id}`);
-    if (titleEl) item.title = titleEl.innerText.trim();
-    if (descEl) item.desc = descEl.innerText.trim();
+    if (titleEl) item.title = stripEditHint(titleEl.innerText);
+    if (descEl) item.desc = stripEditHint(descEl.innerText);
 }
 
 function onInvoiceItemTextInput(itemId) {
@@ -6822,18 +6928,13 @@ function onInvoiceItemFeeInput(itemId) {
 
     const feeEl = document.getElementById(`inv-item-fee-${itemId}`);
     if (feeEl) {
-        const feeText = feeEl.innerText.replace(/,/g, '').trim();
-        const fee = parseFloat(feeText);
+        const fee = parseFloat(feeEl.innerText.replace(/,/g, '').trim());
         item.fee = isNaN(fee) ? 0 : fee;
         const qty = item.qty || 1;
         item.unitPrice = qty > 0 ? item.fee / qty : 0;
-
         const unitPriceEl = document.getElementById(`inv-item-unitprice-${itemId}`);
-        if (unitPriceEl) {
-            unitPriceEl.innerText = item.unitPrice.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        }
+        if (unitPriceEl) unitPriceEl.innerText = item.unitPrice.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
-
     calculateInvoiceTotals();
 }
 
@@ -6846,255 +6947,163 @@ function onInvoiceItemUnitPriceInput(itemId) {
 
     const unitPriceEl = document.getElementById(`inv-item-unitprice-${itemId}`);
     if (unitPriceEl) {
-        const priceText = unitPriceEl.innerText.replace(/,/g, '').trim();
-        const unitPrice = parseFloat(priceText);
+        const unitPrice = parseFloat(unitPriceEl.innerText.replace(/,/g, '').trim());
         item.unitPrice = isNaN(unitPrice) ? 0 : unitPrice;
-        const qty = item.qty || 1;
-        item.fee = item.unitPrice * qty;
-
+        item.fee = item.unitPrice * (item.qty || 1);
         const feeEl = document.getElementById(`inv-item-fee-${itemId}`);
-        if (feeEl) {
-            feeEl.innerText = item.fee.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        }
+        if (feeEl) feeEl.innerText = item.fee.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
+    calculateInvoiceTotals();
+}
 
+// ค่าธรรมเนียมรัฐ (ภายใน) ของรายการ — ไม่เกินยอดของรายการนั้น
+function onInvoiceItemGovFeeInput(itemId, value) {
+    const item = currentInvoiceItems.find(x => x.id === itemId);
+    if (!item) return;
+    const v = parseFloat(value);
+    item.govFee = isNaN(v) || v < 0 ? 0 : v;
     calculateInvoiceTotals();
 }
 
 function calculateInvoiceTotals() {
-    const subtotal = currentInvoiceItems.reduce((sum, item) => sum + item.fee, 0);
+    const items = currentInvoiceItems.filter(item => !item.placeholder || item.fee > 0);
+    const subtotal = items.reduce((sum, item) => sum + (item.fee || 0), 0);
     const vat = 0; // กิจการไม่ได้จด VAT จริง — ป้าย "ภาษีมูลค่าเพิ่ม" ในใบวางบิลตัดคำว่า "7%" ออกแล้วให้ตรงกับที่นี่
     const grandTotal = subtotal + vat;
+    const govTotal = items.reduce((sum, item) => sum + Math.min(item.govFee || 0, item.fee || 0), 0);
+    const fmt = v => v.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-    document.getElementById("inv-subtotal").innerText = subtotal.toLocaleString('th-TH', { minimumFractionDigits: 2 });
-    document.getElementById("inv-vat").innerText = vat.toLocaleString('th-TH', { minimumFractionDigits: 2 });
-    document.getElementById("inv-grand-total").innerText = grandTotal.toLocaleString('th-TH', { minimumFractionDigits: 2 });
+    document.getElementById("inv-subtotal").innerText = fmt(subtotal);
+    document.getElementById("inv-vat").innerText = fmt(vat);
+    document.getElementById("inv-grand-total").innerText = fmt(grandTotal);
+    const govTotalEl = document.getElementById("inv-gov-total");
+    if (govTotalEl) govTotalEl.innerText = fmt(govTotal);
+
+    // ชำระแล้ว / คงเหลือ (บิลที่ออกแล้วและรับเงินไปบางส่วน) + จำนวนเงินเป็นตัวอักษร
+    const inv = currentInvoiceId ? invoices.find(i => i.id === currentInvoiceId) : null;
+    const paid = inv ? invoicePaidAmount(inv) : 0;
+    const showPaid = !!inv && paid > 0 && inv.status !== 'void';
+    document.getElementById("inv-paid-row").classList.toggle("hidden", !showPaid);
+    document.getElementById("inv-balance-row").classList.toggle("hidden", !showPaid);
+    if (showPaid) {
+        document.getElementById("inv-paid-amount").innerText = fmt(paid);
+        document.getElementById("inv-balance-amount").innerText = fmt(Math.max(0, grandTotal - paid));
+    }
+    document.getElementById("inv-amount-words").innerText = `(${bahtText(grandTotal)})`;
+
+    // สรุปภายใน: ค่าธรรมเนียมรัฐ (เก็บแทน) vs ค่าบริการจริง — ไม่พิมพ์
+    const splitEl = document.getElementById("invoice-internal-split");
+    if (splitEl) {
+        splitEl.innerHTML = `
+            <div class="split-item split-gov"><span>ค่าธรรมเนียมรัฐ (เก็บแทน)</span><strong>${fmt(govTotal)}</strong></div>
+            <div class="split-item split-service"><span>ค่าบริการ (รายได้จริง)</span><strong>${fmt(Math.max(0, grandTotal - govTotal))}</strong></div>
+            <p class="split-note">${icon("lock")} ส่วนนี้เห็นเฉพาะเจ้าหน้าที่ ไม่ถูกพิมพ์ลงบิล — แก้ค่าธรรมเนียมรัฐได้ในคอลัมน์ขวาสุดของตาราง</p>`;
+    }
 
     updateInvoiceBankDetails();
 }
 
 function updateInvoiceBankDetails() {
-    if (currentInvoiceItems.length === 0) return;
-
     const selectBank = document.getElementById("invoice-bank-select");
-    const activeBankId = selectBank.value;
-
-    // ช่องแนบหลักฐานการโอนเงิน: โชว์เฉพาะตอนเลือกช่องทางเป็นบัญชีธนาคาร (ไม่ใช่เงินสด)
-    const proofRow = document.getElementById("invoice-payment-proof-row");
-    if (proofRow) {
-        proofRow.style.display = activeBankId === 'cash' ? 'none' : 'block';
-        if (activeBankId === 'cash') {
-            const proofInput = document.getElementById("invoice-payment-proof-input");
-            if (proofInput) proofInput.value = '';
-        }
-    }
+    const activeBankId = selectBank ? selectBank.value : 'cash';
+    const section = document.querySelector("#invoice-sheet-container .invoice-payment-section");
 
     if (activeBankId === 'cash') {
-        document.getElementById("inv-bank-name").innerText = "รับชำระเป็นเงินสด (Cash)";
-        document.getElementById("inv-bank-acc-name").innerText = "รับเงินสดโดยตรง";
-        document.getElementById("inv-bank-acc-no").innerText = "-";
+        if (section) section.classList.add("hidden");
         return;
     }
-
+    if (section) section.classList.remove("hidden");
     const b = banks.find(item => item.id === activeBankId);
     if (!b) return;
-
-    // Display Bank Card details inside invoice sheet
-    document.getElementById("inv-bank-name").innerHTML = `<span style="display:inline-flex; align-items:center; gap:8px;">${renderBankLogoBadge(b.bankName, 22)}${b.bankName}</span>`;
-    document.getElementById("inv-bank-acc-name").innerText = b.accountName;
-    document.getElementById("inv-bank-acc-no").innerText = b.accountNumber;
+    document.getElementById("inv-bank-name").innerHTML = `<span style="display:inline-flex; align-items:center; gap:10px;">${renderBankLogoBadge(b.bankName, 26)}${escapeHtml(b.bankName)}</span>`;
+    document.getElementById("inv-bank-acc-name").innerText = b.accountName || '-';
+    document.getElementById("inv-bank-acc-no").innerText = b.accountNumber || '-';
 }
 
-// รวมยอดที่แก้ไขแล้วในใบวางบิล (currentInvoiceItems) กลับเป็นค่า fee + jobType ใหม่ต่อ "ใบงานจริง" แต่ละใบ
+// รวมยอดที่แก้ไขแล้วในใบวางบิล (currentInvoiceItems) กลับเป็นค่า fee + jobType + govFee ใหม่ต่อ "ใบงานจริง" แต่ละใบ
 // (รองรับทั้งบิลเดี่ยว และบิลรวมที่ 1 แถวในใบวางบิลอาจครอบคลุมหลายใบงาน โดยเฉลี่ยตามสัดส่วนราคาต้นฉบับ)
 // ต้องคืน jobType ใหม่ด้วยเสมอ ไม่ใช่แค่ fee — เพราะราคาต่อประเภทงานถูกฝังอยู่ในสตริง jobType เอง
 // (เช่น "ตี VISA (500)") ซึ่งเป็นค่าที่ parseJobTypeItems ใช้สร้างรายการในบิลตอนเปิดใหม่ทุกครั้ง
-// ถ้าไม่อัปเดตสตริงนี้ด้วย การแก้ราคาจะ "หาย" ไปเมื่อเปิดใบวางบิลซ้ำ
 function computeEditedJobUpdates() {
-    const jobUpdates = {}; // jobId -> { feeTotal, typeSegments: [{serviceName, price}] }
+    const jobUpdates = {}; // jobId -> { feeTotal, govTotal, typeSegments: [{serviceName, price}] }
     currentInvoiceItems.forEach(item => {
         const breakdown = item.jobBreakdown || [];
         if (breakdown.length === 0) return;
         const oldTotal = breakdown.reduce((sum, b) => sum + b.price, 0);
         const serviceName = item.serviceName || item.title;
         breakdown.forEach(b => {
-            const share = oldTotal > 0 ? (b.price / oldTotal) * item.fee : item.fee / breakdown.length;
-            if (!jobUpdates[b.jobId]) jobUpdates[b.jobId] = { feeTotal: 0, typeSegments: [] };
+            const ratio = oldTotal > 0 ? (b.price / oldTotal) : 1 / breakdown.length;
+            const share = ratio * (item.fee || 0);
+            if (!jobUpdates[b.jobId]) jobUpdates[b.jobId] = { feeTotal: 0, govTotal: 0, typeSegments: [] };
             jobUpdates[b.jobId].feeTotal += share;
+            jobUpdates[b.jobId].govTotal += ratio * Math.min(item.govFee || 0, item.fee || 0);
             jobUpdates[b.jobId].typeSegments.push({ serviceName, price: share });
         });
     });
     return jobUpdates;
 }
 
-// บันทึกราคาที่แก้ไขในใบวางบิลกลับเข้าใบงานจริงในคลาวด์ — ใช้ได้ทั้งก่อนและหลังออกบิลไปแล้ว
-// (ไม่เปลี่ยนสถานะการชำระเงิน แค่แก้ตัวเลข fee/jobType ให้ตรงกับสิ่งที่พิมพ์/ตกลงกันจริง)
+// "บันทึกการแก้ไขบิล" — ใช้กับบิลที่ออกแล้วแต่ยังไม่ได้รับเงิน: อัปเดตรายการ/ยอดในบิล + ราคาในใบงานที่ผูกอยู่
 async function saveInvoiceFeeEdits() {
-    if (currentUser.role === 'staff') {
-        showToast("❌ คุณไม่มีสิทธิ์แก้ไขราคาบิลนี้", "danger");
+    if (!['admin', 'manager'].includes(currentUser.role)) {
+        showToast("❌ คุณไม่มีสิทธิ์แก้ไขบิลนี้", "danger");
         return;
     }
-    if (currentInvoiceJobIds.length === 0) {
-        showToast("⚠️ บิลอิสระนี้ไม่ได้ผูกกับใบงานจริง ไม่มีอะไรให้บันทึก", "warning");
+    const inv = currentInvoiceId ? invoices.find(i => i.id === currentInvoiceId) : null;
+    if (!inv || !isCurrentInvoiceEditable()) {
+        showToast("⚠️ บิลนี้รับเงินไปแล้วหรือถูกยกเลิก แก้ไขไม่ได้ — ยกเลิกบิลแล้วออกใหม่แทน", "warning");
         return;
     }
+    currentInvoiceItems.forEach(item => syncInvoiceItemTextFields(item));
+    const items = currentInvoiceItems.filter(item => !item.placeholder);
+    const total = items.reduce((s, item) => s + (item.fee || 0), 0);
+    if (items.length === 0 || total <= 0) { uiAlert("บิลต้องมีอย่างน้อย 1 รายการ และยอดรวมมากกว่า 0 บาท"); return; }
+
+    const prev = JSON.parse(JSON.stringify(inv));
+    const selectBank = document.getElementById("invoice-bank-select");
+    Object.assign(inv, {
+        items,
+        subtotal: round2(total),
+        grandTotal: round2(total),
+        govFeeTotal: round2(items.reduce((s, item) => s + Math.min(item.govFee || 0, item.fee || 0), 0)),
+        customerName: readInvoiceText("inv-cust-name"),
+        customerAddr: readInvoiceText("inv-cust-addr"),
+        customerTax: readInvoiceText("inv-cust-tax"),
+        dueDateText: readInvoiceText("inv-due-date"),
+        notes: readInvoiceText("inv-notes"),
+        bankId: selectBank && selectBank.value !== 'cash' ? selectBank.value : null,
+        updatedAt: new Date().toISOString()
+    });
+    if (inv.kind === 'free') {
+        inv.customerId = freeInvoiceCustomerId || null;
+        const w = freeInvoiceWorkerId ? workers.find(x => x.id === freeInvoiceWorkerId) : null;
+        inv.workerId = freeInvoiceWorkerId || null;
+        inv.workerName = w ? `${w.firstName} ${w.lastName}`.trim() : null;
+    }
+    const res = await callCloudAPI("saveInvoice", { invoiceData: inv });
+    if (!res || res.status === "error") { Object.assign(inv, prev); return; }
 
     const jobUpdates = computeEditedJobUpdates();
     let failCount = 0;
     for (const jobId of Object.keys(jobUpdates)) {
-        const idx = jobs.findIndex(j => j.id === jobId);
-        if (idx === -1) continue;
-        const newFee = Math.round(jobUpdates[jobId].feeTotal * 100) / 100;
-        const newJobType = jobUpdates[jobId].typeSegments.map(s => `${s.serviceName} (${Math.round(s.price)})`).join(', ');
-        if (newFee === jobs[idx].fee && newJobType === jobs[idx].jobType) continue;
-
-        const prevFee = jobs[idx].fee;
-        const prevJobType = jobs[idx].jobType;
-        jobs[idx].fee = newFee;
-        jobs[idx].jobType = newJobType;
-        jobs[idx].updatedAt = new Date().toISOString().split('T')[0];
-        const res = await callCloudAPI("saveJob", { jobData: jobs[idx] });
-        if (!res || res.status === "error") {
-            jobs[idx].fee = prevFee;
-            jobs[idx].jobType = prevJobType;
-            failCount++;
-        }
+        const j = jobs.find(x => x.id === jobId);
+        if (!j) continue;
+        const before = { ...j };
+        j.fee = round2(jobUpdates[jobId].feeTotal);
+        j.jobType = jobUpdates[jobId].typeSegments.map(s => `${s.serviceName} (${Math.round(s.price)})`).join(', ');
+        j.govFee = round2(jobUpdates[jobId].govTotal);
+        j.updatedAt = localDateISO(new Date());
+        const r = await callCloudAPI("saveJob", { jobData: j });
+        if (!r || r.status === "error") { Object.assign(j, before); failCount++; }
     }
 
     saveData();
     renderJobs();
     renderBillingTab();
     renderDashboard();
-
-    if (failCount > 0) {
-        showToast(`⚠️ บันทึกราคาไม่สำเร็จ ${failCount} รายการ`, "danger");
-    } else {
-        showToast("💾 บันทึกการแก้ไขราคาบิลเรียบร้อยแล้ว", "success");
-    }
+    showToast(failCount > 0 ? `⚠️ บันทึกบิลแล้ว แต่อัปเดตใบงานไม่สำเร็จ ${failCount} ใบ` : `💾 บันทึกการแก้ไขบิล ${inv.invoiceNo} เรียบร้อยแล้ว`, failCount > 0 ? "danger" : "success");
+    renderInvoiceStatusUi();
 }
-
-async function markJobPaidFromInvoice() {
-    if (currentUser.role === 'staff') {
-        showToast("❌ คุณไม่มีสิทธิ์เปลี่ยนสถานะงานนี้", "danger");
-        return;
-    }
-
-    const selectBank = document.getElementById("invoice-bank-select");
-    const activeBankId = selectBank ? selectBank.value : 'cash';
-    let payMethodLabel = "เงินสด";
-
-    if (activeBankId !== 'cash') {
-        const b = banks.find(item => item.id === activeBankId);
-        if (b) {
-            payMethodLabel = b.bankName;
-        }
-    }
-
-    // แนบหลักฐานการโอนเงิน (ใช้เฉพาะกรณีเลือกช่องทางเป็นบัญชีธนาคาร ไม่ใช่เงินสด) — แนบได้หลายไฟล์
-    const proofInput = document.getElementById("invoice-payment-proof-input");
-    const proofFiles = (activeBankId !== 'cash' && proofInput && proofInput.files) ? Array.from(proofInput.files) : [];
-
-    if (activeBankId !== 'cash' && proofFiles.length === 0) {
-        if (!(await uiConfirm("ยังไม่ได้แนบหลักฐานการโอนเงิน ต้องการยืนยันการรับชำระโดยไม่มีหลักฐานแนบหรือไม่?", { okText: "ยืนยันรับชำระ", card: activeBankId !== "cash" ? dialogCardForBank(banks.find(b => b.id === activeBankId)) : null }))) {
-            return;
-        }
-    }
-
-    const proofAttachments = [];
-    if (proofFiles.length > 0) {
-        const firstJob = currentInvoiceJobIds.length > 0 ? jobs.find(j => j.id === currentInvoiceJobIds[0]) : null;
-        for (const proofFile of proofFiles) {
-            const fileDataUrl = await readFileAsDataUrl(proofFile);
-            const uploadResult = await uploadDocumentFile(fileDataUrl, proofFile.name, firstJob ? firstJob.customerId : (freeInvoiceCustomerId || ""), "", "payment-proof");
-            if (!uploadResult) {
-                showToast(`❌ อัปโหลดหลักฐานการโอนเงิน "${proofFile.name}" ไม่สำเร็จ ยังไม่ได้ยืนยันการชำระ`, "danger");
-                return;
-            }
-            proofAttachments.push({
-                name: proofFile.name,
-                url: uploadResult.fileUrl,
-                note: "หลักฐานการโอนเงิน",
-                uploadedAt: new Date().toISOString(),
-                uploadedBy: currentUser.id || null
-            });
-        }
-    }
-
-    if (currentInvoiceJobIds.length === 0) {
-        // Free invoice handling — บันทึก/อัปเดตเป็นรายการจริงในระบบเสมอ (ถ้ายังไม่เคย "วางบิล" มาก่อน จะวางบิลให้พร้อมกันในทีเดียว)
-        currentInvoiceItems.forEach(item => syncInvoiceItemTextFields(item));
-        const payload = buildFreeInvoicePayload('ชำระเงินแล้ว');
-        payload.paymentMethod = payMethodLabel;
-        payload.paymentProofUrl = proofAttachments.length > 0 ? proofAttachments.map(a => a.url).join(', ') : null;
-        payload.paidAt = new Date().toISOString();
-
-        const res = await callCloudAPI("saveFreeInvoice", { invoiceData: payload });
-        if (!res) return;
-
-        currentFreeInvoiceId = payload.id;
-        const idx = freeInvoices.findIndex(f => f.id === payload.id);
-        if (idx === -1) freeInvoices.push(payload); else freeInvoices[idx] = payload;
-        saveData();
-        renderBillingTab();
-
-        showToast(`บันทึกชำระค่าบริการบิลอิสระเรียบร้อยแล้ว (${payMethodLabel})`, 'success');
-        closeInvoiceModal();
-        return;
-    }
-
-    // ราคาที่แก้ไขในใบวางบิล (ถ้ามี) ให้บันทึกลงใบงานจริงไปพร้อมกันตอนยืนยันรับชำระเลย
-    const jobUpdates = computeEditedJobUpdates();
-
-    // Mark all combined jobs as Paid
-    let paidFailedCount = 0;
-    const updatePromises = currentInvoiceJobIds.map(async jobId => {
-        const idx = jobs.findIndex(j => j.id === jobId);
-        if (idx !== -1) {
-            const prevPaymentStatus = jobs[idx].paymentStatus;
-            const prevPaymentMethod = jobs[idx].paymentMethod;
-            const prevAttachments = jobs[idx].attachments;
-            const prevFee = jobs[idx].fee;
-            const prevJobType = jobs[idx].jobType;
-            jobs[idx].paymentStatus = 'ชำระเงินแล้ว';
-            jobs[idx].paymentMethod = payMethodLabel;
-            jobs[idx].updatedAt = new Date().toISOString().split('T')[0];
-            if (jobUpdates[jobId] !== undefined) {
-                jobs[idx].fee = Math.round(jobUpdates[jobId].feeTotal * 100) / 100;
-                jobs[idx].jobType = jobUpdates[jobId].typeSegments.map(s => `${s.serviceName} (${Math.round(s.price)})`).join(', ');
-            }
-            if (proofAttachments.length > 0) {
-                const existingAttachments = Array.isArray(jobs[idx].attachments) ? jobs[idx].attachments : [];
-                jobs[idx].attachments = existingAttachments.concat(proofAttachments);
-            }
-
-            // Sync status to cloud backend
-            const res = await callCloudAPI("saveJob", { jobData: jobs[idx] });
-            if (!res || res.status === "error") {
-                jobs[idx].paymentStatus = prevPaymentStatus; // revert local change since save failed
-                jobs[idx].paymentMethod = prevPaymentMethod;
-                jobs[idx].attachments = prevAttachments;
-                jobs[idx].fee = prevFee;
-                jobs[idx].jobType = prevJobType;
-                paidFailedCount++;
-            }
-        }
-    });
-
-    // Run sync in parallel (safe for updates on individual job rows since they target distinct row keys)
-    Promise.all(updatePromises).then(() => {
-        if (paidFailedCount > 0) {
-            showToast(`⚠️ บันทึกไม่สำเร็จ ${paidFailedCount} จาก ${currentInvoiceJobIds.length} รายการ (ยังไม่ถูกบันทึกลงชีต)`, 'danger');
-        } else {
-            showToast(`บันทึกชำระค่าบริการงานทั้งหมดรวม ${currentInvoiceJobIds.length} รายการ เรียบร้อยแล้ว (${payMethodLabel})`, 'success');
-        }
-        saveData();
-        closeInvoiceModal();
-        renderJobs();
-        renderBillingTab();
-        renderDashboard();
-    });
-}
-
 
 // ==================== COMBINE BILLS MODAL LOGIC ====================
 function openCombineBillsModal() {
@@ -7142,7 +7151,8 @@ function onCombineCustomerChange() {
     }
 
     // Filter unpaid jobs under this customer
-    const unpaidJobs = jobs.filter(j => j.customerId === custId && j.paymentStatus !== 'ชำระเงินแล้ว');
+    // เฉพาะใบงานที่ยังไม่ได้อยู่ในบิลใด (บิลที่ออกแล้วรับเงินผ่านหน้าบิลนั้นแทน)
+    const unpaidJobs = jobs.filter(j => j.customerId === custId && !getJobInvoice(j));
 
     if (unpaidJobs.length === 0) {
         listContainer.innerHTML = `
@@ -7169,7 +7179,7 @@ function onCombineCustomerChange() {
                     </div>
                 </label>
                 <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
-                    <input type="number" id="combine-fee-${j.id}" value="${j.fee}" oninput="updateCombineTotalAmount()" style="width: 90px; padding: 4px 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 12.5px; text-align: right; font-family: inherit;">
+                    <input type="number" id="combine-fee-${j.id}" value="${j.fee > 0 ? j.fee : buildInvoiceItemsFromJob(j, '').reduce((s, it) => s + it.fee, 0)}" oninput="updateCombineTotalAmount()" style="width: 90px; padding: 4px 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 12.5px; text-align: right; font-family: inherit;">
                     <span style="color: var(--text-muted); font-size: 12.5px;">บาท</span>
                 </div>
             </div>
@@ -7198,6 +7208,7 @@ function updateCombineTotalAmount() {
     document.getElementById("btn-generate-combined").disabled = checkboxes.length === 0;
 }
 
+// สร้าง "ร่างบิลรวม" จากใบงานที่เลือก — ยังไม่เปลี่ยนสถานะใบงานจนกว่าจะกด "ออกบิล" (ดู issueCurrentInvoice)
 function generateCombinedInvoice() {
     const checkboxes = document.querySelectorAll('input[name="combine-job-checkbox"]:checked');
     if (checkboxes.length === 0) return;
@@ -7206,134 +7217,64 @@ function generateCombinedInvoice() {
     const firstJob = jobs.find(j => j.id === selectedJobIds[0]);
     const cust = customers.find(c => c.id === firstJob.customerId);
 
-    // Auto set payment status to Invoiced for all selected jobs — เป็นอิสระจากสถานะขั้นตอนงาน
-    selectedJobIds.forEach(jobId => {
-        const jIdx = jobs.findIndex(x => x.id === jobId);
-        if (jIdx !== -1 && jobs[jIdx].paymentStatus !== 'ออกบิลแล้ว' && jobs[jIdx].paymentStatus !== 'ชำระเงินแล้ว') {
-            jobs[jIdx].paymentStatus = 'ออกบิลแล้ว';
-            jobs[jIdx].updatedAt = new Date().toISOString().split('T')[0];
-            callCloudAPI("saveJob", { jobData: jobs[jIdx] }).then(res => {
-                if (!res || res.status === "error") {
-                    showToast("⚠️ อัปเดตสถานะออกบิลไปคลาวด์ไม่สำเร็จ: " + (res && res.message ? res.message : "unknown error"), "danger");
-                }
-            });
-        }
-    });
-    saveData();
-    renderJobs();
-    renderBillingTab();
-    renderDashboard();
-
-    // Fill Client Info inside modal
-    document.getElementById("inv-cust-name").innerText = cust ? cust.companyName : "ไม่ระบุบริษัท";
-    const branchHq = cust ? (cust.branches.find(b => b.name.includes("สำนักงานใหญ่")) || cust.branches[0]) : null;
-    const branchAddrStr = branchHq ? 
-        `เลขที่ ${branchHq.houseNo} ม.${branchHq.moo} ต.${branchHq.subdistrict} อ.${branchHq.district} จ.${branchHq.province} ${branchHq.postalCode}` : 
-        "ไม่ระบุที่อยู่";
-    document.getElementById("inv-cust-addr").innerText = branchAddrStr;
-    document.getElementById("inv-cust-tax").innerText = cust ? `เลขผู้เสียภาษี: ${cust.taxId}` : "เลขประจำตัวผู้เสียภาษี: -";
-
-    // Fill Invoice Metadata
-    document.getElementById("inv-no").innerText = `INV-COMB-${Date.now().toString().slice(-4)}`;
+    setPrintPageSize(INVOICE_PAGE_CSS);
+    currentInvoiceId = null;
+    currentInvoiceKind = 'combined';
+    fillInvoiceCustomerHeader(customerInvoiceSnapshot(cust));
+    updateInvoiceBillingNote(cust);
+    document.getElementById("inv-no").innerText = "ร่าง — ยังไม่ออกเลขที่";
+    document.getElementById("inv-due-date").innerText = defaultDueDateText(new Date());
+    document.getElementById("inv-notes").innerText = "-";
     setInvoiceDate(new Date());
 
-    // Populate current invoice items array with custom fees from modal!
-    currentInvoiceItems = [];
-    const aggregated = {}; // key: serviceName, value: { name, unitPriceSum, jobs: [{ jobId, workDetails, price }] }
-
+    // รวมรายการประเภทงานเดียวกันจากหลายใบงานเป็นแถวเดียว (จำนวน = จำนวนใบงาน) — ราคาต่อใบงานใช้ค่าที่แก้ในหน้าต่างรวมบิล
+    const aggregated = {}; // serviceName -> { jobs: [{ jobId, workDetails, price, govFee }] }
     selectedJobIds.forEach(jobId => {
         const j = jobs.find(x => x.id === jobId);
         if (!j) return;
         const work = workers.find(w => w.id === j.workerId);
-        const workDetails = work ? 
-            `${work.firstName} ${work.lastName} (${work.nationality})` : 
-            "ไม่พบข้อมูลคนงาน";
+        const workDetails = work ? invoiceWorkerLine(work) : "ไม่พบข้อมูลคนงาน";
 
+        const baseItems = buildInvoiceItemsFromJob(j, workDetails);
+        const baseSum = baseItems.reduce((s, x) => s + x.fee, 0);
         const feeInput = document.getElementById(`combine-fee-${jobId}`);
-        const rawFee = feeInput ? feeInput.value : j.fee;
-        const customFee = parseFloat(rawFee);
-        const totalFee = isNaN(customFee) ? 0 : customFee;
+        const customFee = parseFloat(feeInput ? feeInput.value : baseSum);
+        const totalFee = isNaN(customFee) ? baseSum : customFee;
 
-        // Parse items
-        const parsedItems = parseJobTypeItems(j.jobType, j.fee);
-        
-        // Distribute the custom fee proportionally
-        const originalSum = parsedItems.reduce((sum, item) => sum + item.price, 0);
-        
-        parsedItems.forEach((item, idx) => {
-            let itemFee = item.price;
-            if (originalSum > 0) {
-                itemFee = (item.price / originalSum) * totalFee;
-            } else if (idx === 0) {
-                itemFee = totalFee;
-            }
-            
-            const serviceName = item.name;
-            if (!aggregated[serviceName]) {
-                aggregated[serviceName] = {
-                    name: serviceName,
-                    jobs: []
-                };
-            }
-            
-            aggregated[serviceName].jobs.push({
-                jobId: j.id,
-                workDetails: workDetails,
-                price: itemFee
-            });
+        baseItems.forEach((item, idx) => {
+            const ratio = baseSum > 0 ? item.fee / baseSum : (idx === 0 ? 1 : 0);
+            const price = ratio * totalFee;
+            const name = item.serviceName;
+            if (!aggregated[name]) aggregated[name] = { jobs: [] };
+            aggregated[name].jobs.push({ jobId: j.id, workDetails, price, govFee: Math.min(item.govFee, price) });
         });
     });
 
-    // Map aggregated services to currentInvoiceItems
     let itemIdx = 0;
-    Object.keys(aggregated).forEach(serviceName => {
+    currentInvoiceItems = Object.keys(aggregated).map(serviceName => {
         const group = aggregated[serviceName];
         const qty = group.jobs.length;
-        
-        // The unit price is the average of custom fees (which keeps math exact)
-        const unitPrice = qty > 0 ? (group.jobs.reduce((sum, x) => sum + x.price, 0) / qty) : 0;
-        const fee = qty * unitPrice;
-        
-        // Format description with a clean list of workers
-        const workerList = group.jobs.map((jb, idx) => `${idx + 1}. ${jb.workDetails}`).join('\n');
-        
-        currentInvoiceItems.push({
+        const fee = group.jobs.reduce((s, x) => s + x.price, 0);
+        return {
             id: `aggregated-${itemIdx++}`,
             title: `ค่าบริการ: ${serviceName}`,
-            desc: workerList,
-            qty: qty,
-            unitPrice: unitPrice,
-            fee: fee,
-            // ใช้ตอนบันทึกการแก้ไขราคาบิลย้อนกลับเข้าใบงานจริงแต่ละใบ (ดู computeEditedJobUpdates)
-            serviceName: serviceName,
+            desc: group.jobs.map((jb, i) => `${i + 1}. ${jb.workDetails}`).join('\n'),
+            qty,
+            unitPrice: qty > 0 ? fee / qty : 0,
+            fee,
+            govFee: round2(group.jobs.reduce((s, x) => s + x.govFee, 0)),
+            serviceName,
             jobBreakdown: group.jobs.map(x => ({ jobId: x.jobId, price: x.price }))
-        });
+        };
     });
     currentInvoiceJobIds = selectedJobIds;
 
-    // Open invoice sheet
-    // ตั้ง "เงินสด" เป็นค่าเริ่มต้นเสมอ — ถ้าไม่ตั้ง .value ชัดเจน เบราว์เซอร์จะเลือก option แรก (บัญชีธนาคาร)
-    // โดยอัตโนมัติ ทำให้ช่องแนบสลิปโผล่มาบังคับแนบไฟล์ทั้งที่ยังไม่ได้เลือกช่องทางโอนเงินเลย
-    const selectBank = document.getElementById("invoice-bank-select");
-    selectBank.innerHTML = banks.map(b => `<option value="${b.id}">${b.bankName} - ${b.accountName}</option>`).join('') +
-        '<option value="cash">💵 รับชำระเป็นเงินสด (Cash Payment)</option>';
-    selectBank.value = 'cash';
-
-    renderInvoiceItemsTable();
-
-    // Toggle button display
-    const markPaidBtn = document.getElementById("btn-mark-paid");
-    if (markPaidBtn) markPaidBtn.style.display = 'inline-block';
-    const saveEditsBtn = document.getElementById("btn-save-invoice-edits");
-    if (saveEditsBtn) saveEditsBtn.style.display = 'inline-block';
-
     const freePickerWrap = document.getElementById("invoice-free-picker-wrap");
     if (freePickerWrap) freePickerWrap.classList.add("hidden");
-    const issueFreeBtn = document.getElementById("btn-issue-free-invoice");
-    if (issueFreeBtn) issueFreeBtn.style.display = 'none';
-    currentFreeInvoiceId = null;
+    populateInvoiceBankSelect(null);
+    renderInvoiceItemsTable();
+    renderInvoiceStatusUi();
 
-    // Close combine bills modal and open invoice sheet
     closeCombineBillsModal();
     document.getElementById("invoice-modal").classList.remove("hidden");
 }
@@ -7346,9 +7287,13 @@ const BACKUP_COLLECTIONS = [
     { key: 'banks', label: 'บัญชีธนาคาร', save: 'saveBank', payloadKey: 'bankData', get: () => banks, set: v => { banks = v; } },
     { key: 'customers', label: 'นายจ้าง', save: 'saveCustomer', payloadKey: 'customerData', get: () => customers, set: v => { customers = v; } },
     { key: 'workers', label: 'คนงาน', save: 'saveWorker', payloadKey: 'workerData', get: () => workers, set: v => { workers = v; } },
+    // บิลต้องกู้คืนก่อนงาน (jobs.invoice_id อ้างถึงบิล) และก่อนการรับเงิน (payments.invoice_id)
+    { key: 'invoices', label: 'บิล', save: 'saveInvoice', payloadKey: 'invoiceData', get: () => invoices, set: v => { invoices = v; } },
     { key: 'jobs', label: 'งาน', save: 'saveJob', payloadKey: 'jobData', get: () => jobs, set: v => { jobs = v; } },
+    { key: 'payments', label: 'การรับเงิน', save: 'savePayment', payloadKey: 'paymentData', get: () => payments, set: v => { payments = v; } },
     { key: 'expenses', label: 'รายจ่าย', save: 'saveExpense', payloadKey: 'expenseData', get: () => expenses, set: v => { expenses = v; } },
-    { key: 'freeInvoices', label: 'บิลอิสระ', save: 'saveFreeInvoice', payloadKey: 'invoiceData', get: () => freeInvoices, set: v => { freeInvoices = v; } }
+    { key: 'servicePrices', label: 'ราคามาตรฐาน', save: 'saveServicePrice', payloadKey: 'priceData', get: () => servicePrices, set: v => { servicePrices = v; } },
+    { key: 'freeInvoices', label: 'บิลอิสระ (เดิม)', save: 'saveFreeInvoice', payloadKey: 'invoiceData', get: () => freeInvoices, set: v => { freeInvoices = v; } }
 ];
 const BACKUP_BUCKET = 'worker-documents';
 const BACKUP_FILES_PREFIX = 'files/'; // โฟลเดอร์ในไฟล์ ZIP ที่เก็บไฟล์เอกสาร/รูป (path ด้านในตรงกับ path จริงบน Storage)
@@ -8358,6 +8303,8 @@ function populateFinancePeriodSelect() {
     };
     jobs.forEach(j => addPeriod((j.createdAt || j.updatedAt || "").split('T')[0]));
     expenses.forEach(x => addPeriod(x.expenseDate));
+    payments.forEach(p => addPeriod(p.paidDate));
+    invoices.forEach(i => addPeriod(i.issueDate));
 
     const yearOptions = Array.from(years).sort().reverse()
         .map(y => `<option value="${y}">ปี ${parseInt(y) + 543} (ทั้งปี)</option>`).join('');
@@ -8392,19 +8339,17 @@ function renderFinanceStats() {
     const periodJobs = getFinancePeriodFilteredJobs(periodValue);
     const periodExpenses = getFinancePeriodFilteredExpenses(periodValue);
 
-    // 1. Calculations
-    let totalRevenue = 0;
-    let paidRevenue = 0;
-    let unpaidRevenue = 0;
+    // 1. Calculations — รายรับนับตาม "วันที่รับเงินจริง" (payments.paidDate) ไม่ใช่วันเปิดงาน
+    //    ยอดบิล/ค้างรับ นับจากบิลที่ออกในช่วงนี้ (ไม่รวมบิลที่ยกเลิก) + ใบงานในช่วงนี้ที่ยังไม่ออกบิล (ราคาประมาณ)
+    const inPeriod = (d) => !periodValue || (d || '').startsWith(periodValue);
+    const periodPayments = payments.filter(p => !p.voided && inPeriod(p.paidDate));
+    const periodInvoices = invoices.filter(i => i.status !== 'void' && inPeriod(i.issueDate));
+    const unbilledJobs = periodJobs.filter(j => !getJobInvoice(j));
+    const unbilledAmount = unbilledJobs.reduce((s, j) => s + jobEstimatedFee(j), 0);
 
-    periodJobs.forEach(j => {
-        totalRevenue += j.fee;
-        if (isJobPaid(j)) {
-            paidRevenue += j.fee;
-        } else {
-            unpaidRevenue += j.fee;
-        }
-    });
+    const totalRevenue = periodInvoices.reduce((s, i) => s + (Number(i.grandTotal) || 0), 0) + unbilledAmount;
+    const paidRevenue = periodPayments.reduce((s, p) => s + (Number(p.amount) || 0), 0);
+    const unpaidRevenue = periodInvoices.reduce((s, i) => s + invoiceBalance(i), 0) + unbilledAmount;
 
     const totalExpenses = periodExpenses.reduce((sum, x) => sum + (x.amount || 0), 0);
     const netProfit = paidRevenue - totalExpenses;
@@ -8418,7 +8363,10 @@ function renderFinanceStats() {
     netProfitEl.innerText = netProfit.toLocaleString('th-TH', { minimumFractionDigits: 2 }) + " บาท";
     netProfitEl.style.color = netProfit < 0 ? "var(--danger)" : "var(--navy-dark)";
 
-    // 2. Bank & Cash account summaries
+    renderFinanceInternalSplit(periodPayments, periodExpenses);
+    renderReceivablesAging();
+
+    // 2. Bank & Cash account summaries — จากการรับเงินจริงในช่วงนี้ แยกตามบัญชีที่รับ
     const accountsGrid = document.getElementById("db-finance-accounts-grid");
     if (accountsGrid) {
         let cashSum = 0;
@@ -8426,19 +8374,12 @@ function renderFinanceStats() {
         banks.forEach(b => { bankSums[b.bankName] = 0; });
         let unspecifiedSum = 0;
 
-        periodJobs.forEach(j => {
-            if (isJobPaid(j)) {
-                const payMethod = getJobPaymentMethod(j);
-                if (payMethod === 'เงินสด') {
-                    cashSum += j.fee;
-                } else if (payMethod && bankSums[payMethod] !== undefined) {
-                    bankSums[payMethod] += j.fee;
-                } else if (payMethod && payMethod !== "ไม่ระบุบัญชี") {
-                    bankSums[payMethod] = (bankSums[payMethod] || 0) + j.fee;
-                } else {
-                    unspecifiedSum += j.fee;
-                }
-            }
+        periodPayments.forEach(p => {
+            const amount = Number(p.amount) || 0;
+            if (p.method === 'cash') { cashSum += amount; return; }
+            const b = banks.find(x => x.id === p.bankId);
+            if (b) bankSums[b.bankName] = (bankSums[b.bankName] || 0) + amount;
+            else unspecifiedSum += amount;
         });
 
         let accountsHtml = "";
@@ -8547,16 +8488,18 @@ function renderFinanceStats() {
 
     // 4. Revenue & Outstanding by Customer
     const custStats = customers.map(c => {
-        const custJobs = periodJobs.filter(j => j.customerId === c.id);
-        const total = custJobs.reduce((sum, j) => sum + j.fee, 0);
-        const paid = custJobs.reduce((sum, j) => sum + (isJobPaid(j) ? j.fee : 0), 0);
-        const unpaid = total - paid;
+        const custInvoices = periodInvoices.filter(i => i.customerId === c.id);
+        const custUnbilled = unbilledJobs.filter(j => j.customerId === c.id);
+        const unbilled = custUnbilled.reduce((s, j) => s + jobEstimatedFee(j), 0);
+        const total = custInvoices.reduce((s, i) => s + (Number(i.grandTotal) || 0), 0) + unbilled;
+        const paid = custInvoices.reduce((s, i) => s + invoicePaidAmount(i), 0);
+        const unpaid = custInvoices.reduce((s, i) => s + invoiceBalance(i), 0) + unbilled;
         return {
             customer: c,
             total: total,
             paid: paid,
             unpaid: unpaid,
-            jobCount: custJobs.length
+            jobCount: periodJobs.filter(j => j.customerId === c.id).length
         };
     }).filter(item => item.total > 0)
       .sort((a, b) => b.unpaid - a.unpaid || b.total - a.total);
@@ -10504,3 +10447,869 @@ async function onKanbanDrop(e, targetStatus) {
     }
 }
 
+
+// ==================== ACCOUNTING MODULE (บิล / รับเงิน / ใบเสร็จ / ยกเลิก) ====================
+// ข้อมูล: invoices (บิลทุกใบ), payments (รับเงินหลายงวดต่อบิล), servicePrices (ราคามาตรฐานภายใน)
+// ตาราง/คอลัมน์: supabase/migrations/20261001082230_accounting_ledger.sql
+// หลักการ:
+//   - สถานะบิล issued/partial/paid คำนวณจากยอดรับเงินที่ไม่ถูกยกเลิก (deriveInvoiceStatus) — void ตั้งเองตอนยกเลิกบิล
+//   - ใบงานในบิลตามสถานะบิลเสมอ (syncJobsWithInvoice): ครบ → 'ชำระเงินแล้ว' + paidAt, ยกเลิก → ปลดออกจากบิล
+//   - รายรับรายเดือนนับตาม payments.paidDate (วันที่เงินเข้าจริง) ไม่ใช่วันเปิดงาน
+//   - เลขที่บิล/ใบเสร็จออกจากฐานข้อมูล (rpc next_doc_no) เรียงต่อเนื่องรายปี พ.ศ.
+
+const INVOICE_STATUS_META = {
+    draft:   { label: 'ร่าง (ยังไม่ออกบิล)', cls: 'badge-warning', icon: 'edit' },
+    issued:  { label: 'ออกบิลแล้ว รอชำระ',   cls: 'badge-gold',    icon: 'receipt' },
+    partial: { label: 'ชำระบางส่วน',          cls: 'badge-warning', icon: 'hourglass' },
+    paid:    { label: 'ชำระครบแล้ว',          cls: 'badge-success', icon: 'ok' },
+    void:    { label: 'ยกเลิกแล้ว',           cls: 'badge-danger',  icon: 'ban' }
+};
+
+function round2(n) { return Math.round((Number(n) || 0) * 100) / 100; }
+function fmtMoney(n) { return (Number(n) || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+// วันที่ตามเวลาเครื่อง (ไม่ใช่ UTC) รูปแบบ YYYY-MM-DD — toISOString() จะเลื่อนวันผิดช่วงเช้ามืดเวลาไทย
+function localDateISO(d) {
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+// จำนวนเงินเป็นตัวอักษรภาษาไทย เช่น 12500.50 → "หนึ่งหมื่นสองพันห้าร้อยบาทห้าสิบสตางค์"
+function bahtText(amount) {
+    const n = round2(amount);
+    const digits = ['ศูนย์', 'หนึ่ง', 'สอง', 'สาม', 'สี่', 'ห้า', 'หก', 'เจ็ด', 'แปด', 'เก้า'];
+    const units = ['', 'สิบ', 'ร้อย', 'พัน', 'หมื่น', 'แสน'];
+    const readGroup = (numStr) => {           // อ่านเลขไม่เกิน 6 หลัก
+        let out = '';
+        const len = numStr.length;
+        for (let i = 0; i < len; i++) {
+            const d = +numStr[i];
+            const pos = len - i - 1;
+            if (d === 0) continue;
+            if (pos === 0 && d === 1 && len > 1) out += 'เอ็ด';
+            else if (pos === 1 && d === 2) out += 'ยี่';
+            else if (pos === 1 && d === 1) out += '';
+            else out += digits[d];
+            out += units[pos];
+        }
+        return out;
+    };
+    const readInt = (intStr) => {
+        intStr = intStr.replace(/^0+/, '');
+        if (!intStr) return '';
+        if (intStr.length > 6) {
+            const rest = intStr.slice(-6).replace(/^0+/, '');
+            return readInt(intStr.slice(0, -6)) + 'ล้าน' + (rest === '1' ? 'เอ็ด' : readGroup(rest)); // 1,000,001 = หนึ่งล้านเอ็ด
+        }
+        return readGroup(intStr);
+    };
+    const [intPart, decPart] = n.toFixed(2).split('.');
+    const bahtStr = readInt(intPart);
+    const satang = parseInt(decPart, 10);
+    if (!bahtStr && !satang) return 'ศูนย์บาทถ้วน';
+    return (bahtStr ? bahtStr + 'บาท' : '') + (satang ? readInt(decPart) + 'สตางค์' : 'ถ้วน');
+}
+
+function livePaymentsOf(invoiceId) {
+    return payments.filter(p => p.invoiceId === invoiceId && !p.voided);
+}
+
+function invoicePaidAmount(inv) {
+    return inv ? round2(livePaymentsOf(inv.id).reduce((s, p) => s + (Number(p.amount) || 0), 0)) : 0;
+}
+
+function invoiceBalance(inv) {
+    return inv ? Math.max(0, round2((Number(inv.grandTotal) || 0) - invoicePaidAmount(inv))) : 0;
+}
+
+function deriveInvoiceStatus(inv) {
+    if (inv.status === 'void') return 'void';
+    const paid = invoicePaidAmount(inv);
+    if (paid <= 0) return 'issued';
+    return paid + 0.005 >= (Number(inv.grandTotal) || 0) ? 'paid' : 'partial';
+}
+
+// บิลที่ใบงานนี้ผูกอยู่ (ไม่นับบิลที่ยกเลิกแล้ว)
+function getJobInvoice(j) {
+    if (!j || !j.invoiceId) return null;
+    const inv = invoices.find(i => i.id === j.invoiceId);
+    return inv && inv.status !== 'void' ? inv : null;
+}
+
+function paymentMethodLabel(p) {
+    if (!p || p.method === 'cash') return 'เงินสด';
+    const b = banks.find(x => x.id === p.bankId);
+    return b ? b.bankName : 'โอนเข้าบัญชี';
+}
+
+// ให้ใบงานทุกใบในบิลมีสถานะการเงินตรงกับบิล — บันทึกเฉพาะใบที่เปลี่ยนจริง
+async function syncJobsWithInvoice(inv) {
+    const live = livePaymentsOf(inv.id).sort((a, b) => (a.paidDate || '').localeCompare(b.paidDate || ''));
+    const last = live[live.length - 1];
+    let failCount = 0;
+    for (const jobId of inv.jobIds || []) {
+        const j = jobs.find(x => x.id === jobId);
+        if (!j) continue;
+        const before = { ...j };
+        if (inv.status === 'void') {
+            if (j.invoiceId === inv.id) { j.invoiceId = null; j.paymentStatus = 'ยังไม่ออกบิล'; j.paidAt = null; j.paidBy = null; j.paymentMethod = null; }
+        } else if (inv.status === 'paid') {
+            j.invoiceId = inv.id;
+            j.paymentStatus = 'ชำระเงินแล้ว';
+            j.paidAt = last ? new Date(`${last.paidDate}T12:00:00`).toISOString() : new Date().toISOString();
+            j.paidBy = last ? (last.recordedBy || null) : (currentUser.id || null);
+            j.paymentMethod = paymentMethodLabel(last);
+        } else {
+            j.invoiceId = inv.id;
+            j.paymentStatus = 'ออกบิลแล้ว';
+            j.paidAt = null;
+            j.paidBy = null;
+        }
+        const changed = ['invoiceId', 'paymentStatus', 'paidAt', 'paidBy', 'paymentMethod'].some(k => (before[k] || null) !== (j[k] || null));
+        if (!changed) continue;
+        j.updatedAt = localDateISO(new Date());
+        const r = await callCloudAPI("saveJob", { jobData: j });
+        if (!r || r.status === "error") { Object.assign(j, before); failCount++; }
+    }
+    return failCount;
+}
+
+// หัวบิล (ตราประทับ) + ปุ่มท้ายหน้าต่าง + แผงรับเงิน ตามสถานะของบิลที่เปิดอยู่
+function renderInvoiceStatusUi() {
+    const inv = currentInvoiceId ? invoices.find(i => i.id === currentInvoiceId) : null;
+    const status = inv ? inv.status : 'draft';
+    const canManage = ['admin', 'manager'].includes(currentUser.role);
+    const editable = isCurrentInvoiceEditable();
+
+    const stamp = document.getElementById("inv-stamp");
+    if (stamp) {
+        stamp.className = 'invoice-stamp' + (status === 'paid' ? ' is-paid' : status === 'void' ? ' is-void' : ' hidden');
+        stamp.textContent = status === 'paid' ? 'ชำระเงินครบแล้ว' : status === 'void' ? 'ยกเลิก' : '';
+    }
+
+    const meta = INVOICE_STATUS_META[status];
+    const statusEl = document.getElementById("invoice-footer-status");
+    if (statusEl) {
+        const extra = status === 'void' && inv.voidReason ? ` — เหตุผล: ${escapeHtml(inv.voidReason)}`
+            : status === 'draft' ? ' — ตรวจรายการและราคาแล้วกด "ออกบิล" เพื่อรับเลขที่'
+            : (status === 'issued' || status === 'partial') ? ` — คงเหลือ ${fmtMoney(invoiceBalance(inv))} บาท` : '';
+        statusEl.innerHTML = `<span class="badge badge-lg ${meta.cls}">${icon(meta.icon)} ${meta.label}</span><span class="invoice-footer-hint">${extra}</span>`;
+    }
+
+    const show = (id, on) => { const el = document.getElementById(id); if (el) el.classList.toggle('hidden', !on); };
+    show('btn-issue-invoice', !inv && canManage);
+    show('btn-save-invoice-edits', !!inv && editable && canManage);
+    show('btn-void-invoice', !!inv && status !== 'void' && canManage);
+
+    // ช่องแก้ไขข้อความบนหัวบิล (ชื่อ/ที่อยู่/กำหนดชำระ/หมายเหตุ) แก้ได้เฉพาะตอนแก้ไขบิลได้
+    ['inv-cust-name', 'inv-cust-addr', 'inv-cust-tax', 'inv-due-date', 'inv-notes'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.setAttribute('contenteditable', editable ? 'true' : 'false');
+    });
+    const bankSelect = document.getElementById("invoice-bank-select");
+    if (bankSelect) bankSelect.disabled = !editable;
+
+    renderInvoicePaymentsPanel(inv);
+}
+
+// แผง "การรับเงิน" ในบิลที่ออกแล้ว: ยอดบิล/รับแล้ว/คงเหลือ + ประวัติการรับเงิน (พิมพ์ใบเสร็จ/ยกเลิก) + ฟอร์มรับเงินงวดใหม่
+function renderInvoicePaymentsPanel(inv) {
+    const panel = document.getElementById("invoice-payments-panel");
+    if (!panel) return;
+    if (!inv) { panel.classList.add('hidden'); panel.innerHTML = ''; return; }
+    panel.classList.remove('hidden');
+
+    const canManage = ['admin', 'manager'].includes(currentUser.role);
+    const isAdmin = currentUser.role === 'admin';
+    const paid = invoicePaidAmount(inv);
+    const balance = invoiceBalance(inv);
+    const list = payments.filter(p => p.invoiceId === inv.id)
+        .sort((a, b) => (a.paidDate || '').localeCompare(b.paidDate || '') || (a.createdAt || '').localeCompare(b.createdAt || ''));
+
+    const rows = list.map((p, i) => `
+        <tr class="${p.voided ? 'is-voided' : ''}">
+            <td>${i + 1}</td>
+            <td>${formatThaiDate(p.paidDate)}</td>
+            <td><strong>${escapeHtml(p.receiptNo || '-')}</strong>${p.voided ? `<br><small class="text-danger">ยกเลิก: ${escapeHtml(p.voidReason || '-')}</small>` : ''}</td>
+            <td>${p.method === 'cash' ? `${icon('cash')} เงินสด` : `${renderBankLogoBadge(paymentMethodLabel(p), 18)} ${escapeHtml(paymentMethodLabel(p))}`}</td>
+            <td class="inv-num"><strong>${fmtMoney(p.amount)}</strong></td>
+            <td>${(p.proofUrls || []).map((f, k) => `<a href="${escapeHtml(f.url)}" target="_blank" rel="noopener">${icon('clip')} สลิป ${k + 1}</a>`).join(' ') || '-'}</td>
+            <td class="pay-actions">
+                ${p.voided ? '' : `<button type="button" class="btn btn-sm btn-outline" onclick="openReceiptModal('${p.id}')">${icon('print')} ใบเสร็จ</button>`}
+                ${!p.voided && isAdmin ? `<button type="button" class="btn btn-sm btn-outline btn-danger-outline" onclick="voidPayment('${p.id}')">${icon('ban')} ยกเลิก</button>` : ''}
+            </td>
+        </tr>`).join('');
+
+    const canReceive = canManage && (inv.status === 'issued' || inv.status === 'partial') && balance > 0;
+    const bankOptions = banks.map(b => bankOptionHtml(b)).join('');
+
+    panel.innerHTML = `
+        <div class="pay-summary">
+            <div><span>ยอดบิล</span><strong>${fmtMoney(inv.grandTotal)}</strong></div>
+            <div class="is-paid"><span>รับแล้ว</span><strong>${fmtMoney(paid)}</strong></div>
+            <div class="${balance > 0 ? 'is-due' : 'is-done'}"><span>คงเหลือ</span><strong>${fmtMoney(balance)}</strong></div>
+        </div>
+        <h4 class="pay-title">${icon('cash')} ประวัติการรับเงิน</h4>
+        ${list.length ? `<div class="table-container pay-table-wrap"><table class="data-table pay-table">
+            <thead><tr><th>#</th><th>วันที่รับ</th><th>เลขที่ใบเสร็จ</th><th>ช่องทาง</th><th class="inv-num">จำนวนเงิน</th><th>หลักฐาน</th><th></th></tr></thead>
+            <tbody>${rows}</tbody></table></div>` : '<p class="text-muted pay-empty">ยังไม่มีการรับเงินสำหรับบิลนี้</p>'}
+        ${canReceive ? `
+        <div class="pay-form">
+            <h4 class="pay-title">${icon('plus')} บันทึกรับเงิน${paid > 0 ? ' (งวดถัดไป)' : ''}</h4>
+            <div class="pay-form-grid">
+                <div class="form-group"><label for="pay-amount">จำนวนเงิน (บาท)</label>
+                    <input type="number" id="pay-amount" min="0.01" step="0.01" max="${balance}" value="${balance}"></div>
+                <div class="form-group"><label for="pay-date">วันที่รับเงินจริง</label>
+                    <input type="date" id="pay-date" value="${localDateISO(new Date())}" max="${localDateISO(new Date())}"></div>
+                <div class="form-group"><label for="pay-method">รับเงินทาง</label>
+                    <select id="pay-method" onchange="document.getElementById('pay-proof-wrap').classList.toggle('hidden', this.value === 'cash')">
+                        ${BANK_SELECT_HEAD}${cashOptionHtml()}${bankOptions}</select></div>
+                <div class="form-group"><label for="pay-note">หมายเหตุ</label>
+                    <input type="text" id="pay-note" placeholder="เช่น มัดจำงวดแรก"></div>
+            </div>
+            <div class="form-group hidden" id="pay-proof-wrap"><label for="pay-proof">${icon('clip')} แนบหลักฐานการโอน (สลิป)</label>
+                <input type="file" id="pay-proof" accept="image/*,application/pdf" multiple></div>
+            <div class="pay-form-actions">
+                <span class="text-muted">รับไม่ครบยอดได้ (มัดจำ/แบ่งจ่าย) ระบบจะออกใบเสร็จให้ทุกงวด</span>
+                <button type="button" class="btn btn-gold" id="btn-record-payment" onclick="recordInvoicePayment()">${icon('ok')} บันทึกรับเงิน</button>
+            </div>
+        </div>` : ''}`;
+}
+
+// บันทึกรับเงิน 1 งวด → ออกเลขใบเสร็จ RC-ปปปป-NNNN → อัปเดตสถานะบิล + ใบงาน
+async function recordInvoicePayment() {
+    const inv = currentInvoiceId ? invoices.find(i => i.id === currentInvoiceId) : null;
+    if (!inv || !['admin', 'manager'].includes(currentUser.role)) return;
+    const balance = invoiceBalance(inv);
+    const amount = round2(document.getElementById("pay-amount").value);
+    const paidDate = document.getElementById("pay-date").value;
+    const methodVal = document.getElementById("pay-method").value;
+    const note = document.getElementById("pay-note").value.trim();
+    const proofInput = document.getElementById("pay-proof");
+    const proofFiles = methodVal !== 'cash' && proofInput && proofInput.files ? Array.from(proofInput.files) : [];
+
+    if (!(amount > 0)) { uiAlert("กรุณากรอกจำนวนเงินที่รับมากกว่า 0 บาท"); return; }
+    if (amount > balance + 0.005) { uiAlert(`จำนวนเงินเกินยอดคงเหลือของบิล (${fmtMoney(balance)} บาท)`); return; }
+    if (!paidDate) { uiAlert("กรุณาเลือกวันที่รับเงิน"); return; }
+    if (methodVal !== 'cash' && proofFiles.length === 0) {
+        const bank = banks.find(b => b.id === methodVal);
+        if (!(await uiConfirm("ยังไม่ได้แนบหลักฐานการโอนเงิน ต้องการบันทึกรับเงินโดยไม่มีหลักฐานหรือไม่?", { okText: "บันทึกรับเงิน", card: dialogCardForBank(bank) }))) return;
+    }
+
+    const btn = document.getElementById("btn-record-payment");
+    if (btn) btn.disabled = true;
+    try {
+        const proofUrls = [];
+        for (const file of proofFiles) {
+            const dataUrl = await readFileAsDataUrl(file);
+            const up = await uploadDocumentFile(dataUrl, file.name, inv.customerId || "", "", "payment-proof");
+            if (!up) { showToast(`❌ อัปโหลดสลิป "${file.name}" ไม่สำเร็จ ยังไม่ได้บันทึกรับเงิน`, "danger"); return; }
+            proofUrls.push({ name: file.name, url: up.fileUrl });
+        }
+
+        const noRes = await callCloudAPI("nextDocNo", { prefix: "RC" });
+        if (!noRes || !noRes.docNo) return;
+        const p = {
+            id: 'pay-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+            invoiceId: inv.id,
+            receiptNo: noRes.docNo,
+            amount,
+            paidDate,
+            method: methodVal === 'cash' ? 'cash' : 'bank',
+            bankId: methodVal === 'cash' ? null : methodVal,
+            proofUrls,
+            note: note || null,
+            voided: false,
+            recordedBy: currentUser.id || null,
+            createdAt: new Date().toISOString()
+        };
+        const res = await callCloudAPI("savePayment", { paymentData: p });
+        if (!res || res.status === "error") return;
+        payments.push(p);
+
+        inv.status = deriveInvoiceStatus(inv);
+        inv.updatedAt = new Date().toISOString();
+        await callCloudAPI("saveInvoice", { invoiceData: { id: inv.id, invoiceNo: inv.invoiceNo, status: inv.status, updatedAt: inv.updatedAt } });
+        const failCount = await syncJobsWithInvoice(inv);
+
+        saveData();
+        renderBillingTab();
+        renderJobs();
+        renderDashboard();
+        renderInvoiceItemsTable();
+        renderInvoiceStatusUi();
+        showToast(failCount > 0
+            ? `⚠️ บันทึกรับเงินแล้ว แต่อัปเดตใบงานไม่สำเร็จ ${failCount} ใบ`
+            : `✅ บันทึกรับเงิน ${fmtMoney(amount)} บาท — ใบเสร็จเลขที่ ${p.receiptNo}`, failCount > 0 ? "danger" : "success");
+        if (await uiConfirm(`บันทึกรับเงินเรียบร้อยแล้ว\nใบเสร็จเลขที่ ${p.receiptNo}`, { title: 'พิมพ์ใบเสร็จเลยไหม?', okText: 'เปิดใบเสร็จ', cancelText: 'ไว้ทีหลัง', danger: false })) {
+            openReceiptModal(p.id);
+        }
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
+// ยกเลิกการรับเงิน 1 งวด (admin) — ใบเสร็จเลขเดิมถูกยกเลิก ไม่ลบทิ้ง เพื่อให้ตรวจย้อนหลังได้
+async function voidPayment(paymentId) {
+    if (currentUser.role !== 'admin') return;
+    const p = payments.find(x => x.id === paymentId);
+    const inv = p ? invoices.find(i => i.id === p.invoiceId) : null;
+    if (!p || !inv || p.voided) return;
+    const reason = await uiPrompt(`ยกเลิกการรับเงิน ${fmtMoney(p.amount)} บาท (ใบเสร็จ ${p.receiptNo || '-'})\nกรุณาระบุเหตุผล`, {
+        title: 'ยกเลิกการรับเงิน', okText: 'ยกเลิกการรับเงิน', placeholder: 'เช่น บันทึกยอดผิด, เช็คเด้ง'
+    });
+    if (reason === null) return;
+    if (!reason.trim()) { uiAlert("ต้องระบุเหตุผลในการยกเลิก"); return; }
+
+    const patch = { id: p.id, invoiceId: p.invoiceId, amount: p.amount, voided: true, voidReason: reason.trim(), voidedAt: new Date().toISOString(), voidedBy: currentUser.id || null };
+    const res = await callCloudAPI("savePayment", { paymentData: patch });
+    if (!res || res.status === "error") return;
+    Object.assign(p, patch);
+
+    inv.status = deriveInvoiceStatus(inv);
+    await callCloudAPI("saveInvoice", { invoiceData: { id: inv.id, invoiceNo: inv.invoiceNo, status: inv.status, updatedAt: new Date().toISOString() } });
+    await syncJobsWithInvoice(inv);
+    saveData();
+    renderBillingTab();
+    renderJobs();
+    renderInvoiceItemsTable();
+    renderInvoiceStatusUi();
+    showToast(`🗑️ ยกเลิกการรับเงินใบเสร็จ ${p.receiptNo || ''} แล้ว`, "success");
+}
+
+// ยกเลิกบิล (admin/manager) — ต้องยกเลิกการรับเงินทุกงวดก่อน; ใบงานกลับเป็น "ยังไม่ออกบิล" ออกบิลใหม่ได้
+async function voidCurrentInvoice() {
+    const inv = currentInvoiceId ? invoices.find(i => i.id === currentInvoiceId) : null;
+    if (!inv || !['admin', 'manager'].includes(currentUser.role)) return;
+    if (invoicePaidAmount(inv) > 0) {
+        uiAlert(`บิล ${inv.invoiceNo} มีการรับเงินแล้ว ${fmtMoney(invoicePaidAmount(inv))} บาท\nต้องยกเลิกการรับเงินทุกงวดก่อน (เฉพาะ Admin) จึงจะยกเลิกบิลได้`);
+        return;
+    }
+    const reason = await uiPrompt(`ยกเลิกบิล ${inv.invoiceNo} ยอด ${fmtMoney(inv.grandTotal)} บาท\nใบงานในบิลจะกลับเป็น "ยังไม่ออกบิล" และออกบิลใหม่ได้\nกรุณาระบุเหตุผล`, {
+        title: 'ยกเลิกบิล', okText: 'ยกเลิกบิล', placeholder: 'เช่น ราคาผิด, ลูกค้าขอแก้ชื่อบนบิล'
+    });
+    if (reason === null) return;
+    if (!reason.trim()) { uiAlert("ต้องระบุเหตุผลในการยกเลิกบิล"); return; }
+
+    const patch = { id: inv.id, invoiceNo: inv.invoiceNo, status: 'void', voidReason: reason.trim(), voidedAt: new Date().toISOString(), voidedBy: currentUser.id || null, updatedAt: new Date().toISOString() };
+    const res = await callCloudAPI("saveInvoice", { invoiceData: patch });
+    if (!res || res.status === "error") return;
+    Object.assign(inv, patch);
+    const failCount = await syncJobsWithInvoice(inv);
+
+    saveData();
+    renderBillingTab();
+    renderJobs();
+    renderDashboard();
+    renderInvoiceItemsTable();
+    renderInvoiceStatusUi();
+    showToast(failCount > 0 ? `⚠️ ยกเลิกบิลแล้ว แต่ปลดใบงานไม่สำเร็จ ${failCount} ใบ` : `ยกเลิกบิล ${inv.invoiceNo} เรียบร้อยแล้ว`, failCount > 0 ? "danger" : "success");
+}
+
+// ---------- ใบเสร็จรับเงิน (พิมพ์ได้ทุกงวด) ----------
+function openReceiptModal(paymentId) {
+    const p = payments.find(x => x.id === paymentId);
+    const inv = p ? invoices.find(i => i.id === p.invoiceId) : null;
+    if (!p || !inv) return;
+    const livePays = livePaymentsOf(inv.id).sort((a, b) => (a.paidDate || '').localeCompare(b.paidDate || '') || (a.createdAt || '').localeCompare(b.createdAt || ''));
+    const seq = livePays.findIndex(x => x.id === p.id) + 1;
+    const paidToDate = round2(livePays.slice(0, seq).reduce((s, x) => s + Number(x.amount || 0), 0));
+    const remaining = Math.max(0, round2(Number(inv.grandTotal || 0) - paidToDate));
+    const isFull = seq === 1 && remaining === 0;
+    const recorder = users.find(u => u.id === p.recordedBy);
+    const issuer = document.querySelector('#invoice-sheet-container .invoice-brand');
+
+    const itemRows = isFull
+        ? (inv.items || []).map((it, i) => `
+            <tr><td style="text-align:center;">${i + 1}</td>
+                <td><div class="inv-item-title">${escapeHtml(it.title)}</div><div class="inv-item-desc">${escapeHtml(it.desc || '')}</div></td>
+                <td class="inv-num inv-amount">${fmtMoney(it.fee)}</td></tr>`).join('')
+        : `<tr><td style="text-align:center;">1</td>
+               <td><div class="inv-item-title">รับชำระตามใบแจ้งหนี้เลขที่ ${escapeHtml(inv.invoiceNo)}${livePays.length > 1 || remaining > 0 ? ` (งวดที่ ${seq})` : ''}</div>
+                   <div class="inv-item-desc">ยอดตามใบแจ้งหนี้ ${fmtMoney(inv.grandTotal)} บาท • ชำระสะสมถึงงวดนี้ ${fmtMoney(paidToDate)} บาท • คงเหลือ ${fmtMoney(remaining)} บาท</div></td>
+               <td class="inv-num inv-amount">${fmtMoney(p.amount)}</td></tr>`;
+
+    document.getElementById("receipt-sheet").innerHTML = `
+        <div class="invoice-sheet-header">
+            ${issuer ? issuer.outerHTML : ''}
+            <div class="invoice-meta-title">
+                <h1>ใบเสร็จรับเงิน</h1>
+                <p class="invoice-meta-sub">RECEIPT</p>
+                <div class="invoice-meta-box">
+                    <div><span>เลขที่</span> <strong>${escapeHtml(p.receiptNo || '-')}</strong></div>
+                    <div><span>วันที่</span> <strong>${formatThaiDate(p.paidDate)}</strong></div>
+                    <div><span>อ้างอิงบิล</span> <strong>${escapeHtml(inv.invoiceNo)}</strong></div>
+                </div>
+            </div>
+        </div>
+        <div class="invoice-stamp is-paid">ได้รับเงินแล้ว</div>
+        <div class="invoice-addresses-row">
+            <div class="inv-addr-block">
+                <h5>ได้รับเงินจาก</h5>
+                <p><strong>${escapeHtml(inv.customerName || '-')}</strong></p>
+                <p>${escapeHtml(inv.customerAddr || '')}</p>
+                <p>${escapeHtml(inv.customerTax || '')}</p>
+            </div>
+        </div>
+        <table class="invoice-table">
+            <thead><tr><th style="width:50px; text-align:center;">ลำดับ</th><th>รายการ</th><th style="width:150px; text-align:right;">จำนวนเงิน (บาท)</th></tr></thead>
+            <tbody>${itemRows}</tbody>
+            <tfoot>
+                <tr class="inv-summary-row grand-total"><td colspan="2" class="sum-label">รวมรับเงินครั้งนี้</td><td class="sum-value">${fmtMoney(p.amount)}</td></tr>
+                <tr class="inv-words-row"><td colspan="3">(${bahtText(p.amount)})</td></tr>
+            </tfoot>
+        </table>
+        <div class="receipt-method">
+            <span>ชำระโดย</span>
+            <strong>${p.method === 'cash' ? 'เงินสด' : `โอนเข้าบัญชี ${escapeHtml(paymentMethodLabel(p))}`}</strong>
+            ${p.note ? `<span class="receipt-note">หมายเหตุ: ${escapeHtml(p.note)}</span>` : ''}
+        </div>
+        <div class="invoice-signature-row">
+            <div class="invoice-signature-block">
+                <div class="signature-line"></div>
+                <p>ผู้รับเงิน (Collector)</p>
+                <p class="signature-date">${escapeHtml(recorder ? recorder.name : '')} • วันที่ ${formatThaiDate(p.paidDate)}</p>
+            </div>
+            <div class="invoice-signature-block">
+                <div class="signature-line"></div>
+                <p>ผู้จ่ายเงิน (Payer)</p>
+                <p class="signature-date">วันที่ ....... /....... /..........</p>
+            </div>
+        </div>`;
+    setPrintPageSize(INVOICE_PAGE_CSS);
+    document.getElementById("receipt-modal").classList.remove("hidden");
+}
+
+function closeReceiptModal() {
+    document.getElementById("receipt-modal").classList.add("hidden");
+}
+
+// ==================== ACCOUNTING MODULE ส่วนที่ 2 (สรุปภายใน / ลูกหนี้ / ส่งออก / ค่าคอม / ยอดคงเหลือ / ราคามาตรฐาน) ====================
+const GOV_FEE_EXPENSE_CATEGORY = 'ค่าธรรมเนียมราชการ/กรมจัดหางาน';
+const COMMISSION_EXPENSE_CATEGORY = 'ค่าคอมมิชชั่น Agent';
+
+// ราคาประมาณของใบงานที่ยังไม่ออกบิล — ราคาในใบงาน หรือราคามาตรฐาน (ค่าธรรมเนียมรัฐ + ค่าบริการ) ถ้ายังไม่ได้ตั้งราคา
+function jobEstimatedFee(j) {
+    if (j.fee > 0) return Number(j.fee);
+    return parseJobTypeItems(j.jobType, 0).reduce((s, it) => {
+        const std = getServicePrice(it.name);
+        return s + (std ? std.govFee + std.serviceFee : 0);
+    }, 0);
+}
+
+// ส่วนแบ่งค่าธรรมเนียมรัฐในยอดที่รับมา — เฉลี่ยตามสัดส่วนของบิล (govFeeTotal / grandTotal)
+function paymentGovShare(p) {
+    const inv = invoices.find(i => i.id === p.invoiceId);
+    if (!inv || !(Number(inv.grandTotal) > 0)) return 0;
+    return round2((Number(p.amount) || 0) * Math.min(1, (Number(inv.govFeeTotal) || 0) / Number(inv.grandTotal)));
+}
+
+// แผงภายใน "รายได้จริง vs เงินเก็บแทนรัฐ" ในหน้าสรุปการเงิน
+function renderFinanceInternalSplit(periodPayments, periodExpenses) {
+    const el = document.getElementById("finance-internal-split");
+    if (!el) return;
+    const received = periodPayments.reduce((s, p) => s + (Number(p.amount) || 0), 0);
+    const govCollected = periodPayments.reduce((s, p) => s + paymentGovShare(p), 0);
+    const serviceIncome = received - govCollected;
+    const govPaid = periodExpenses.filter(x => x.category === GOV_FEE_EXPENSE_CATEGORY).reduce((s, x) => s + (Number(x.amount) || 0), 0);
+    const govPending = govCollected - govPaid;
+    el.innerHTML = `
+        <div class="fin-tile tile-service"><span>รายได้ค่าบริการจริง</span><strong>${fmtMoney(serviceIncome)}</strong><small>เงินที่รับมา − ส่วนที่เป็นค่าธรรมเนียมรัฐ</small></div>
+        <div class="fin-tile tile-gov"><span>เงินเก็บแทนรัฐที่รับมา</span><strong>${fmtMoney(govCollected)}</strong><small>ตามสัดส่วนค่าธรรมเนียมรัฐในบิลที่รับเงิน</small></div>
+        <div class="fin-tile tile-govpaid"><span>จ่ายค่าธรรมเนียมรัฐแล้ว</span><strong>${fmtMoney(govPaid)}</strong><small>รายจ่ายหมวด "${GOV_FEE_EXPENSE_CATEGORY}"</small></div>
+        <div class="fin-tile ${govPending > 0.005 ? 'tile-warn' : 'tile-ok'}"><span>${govPending >= 0 ? 'เงินเก็บแทนรัฐที่ยังไม่ได้นำจ่าย' : 'จ่ายค่าธรรมเนียมรัฐล่วงหน้าไปแล้ว'}</span><strong>${fmtMoney(Math.abs(govPending))}</strong><small>${govPending > 0.005 ? 'รับเงินลูกค้ามาแล้ว แต่ยังไม่ได้บันทึกจ่ายรัฐ' : 'ไม่มีเงินเก็บแทนค้างอยู่'}</small></div>`;
+}
+
+// ลูกหนี้ค้างชำระตามอายุหนี้ (นับจากวันออกบิล ณ วันนี้) + มูลค่างานที่ยังไม่ออกบิล แยกรายนายจ้าง
+function renderReceivablesAging() {
+    const tbody = document.getElementById("finance-aging-tbody");
+    if (!tbody) return;
+    const today = new Date();
+    const rows = {};
+    const rowOf = (custId, name) => (rows[custId || name] = rows[custId || name] || { name, b0: 0, b31: 0, b61: 0, b91: 0, unbilled: 0, unbilledCount: 0, customerId: custId });
+
+    invoices.filter(i => i.status === 'issued' || i.status === 'partial').forEach(inv => {
+        const bal = invoiceBalance(inv);
+        if (bal <= 0) return;
+        const days = Math.floor((today - (safeParseDate(inv.issueDate) || today)) / 86400000);
+        const cust = customers.find(c => c.id === inv.customerId);
+        const r = rowOf(inv.customerId, cust ? cust.companyName : (inv.customerName || 'ไม่ระบุนายจ้าง'));
+        if (days <= 30) r.b0 += bal; else if (days <= 60) r.b31 += bal; else if (days <= 90) r.b61 += bal; else r.b91 += bal;
+    });
+    jobs.filter(j => !getJobInvoice(j)).forEach(j => {
+        const cust = customers.find(c => c.id === j.customerId);
+        const r = rowOf(j.customerId, cust ? cust.companyName : 'ไม่ระบุนายจ้าง');
+        r.unbilled += jobEstimatedFee(j);
+        r.unbilledCount++;
+    });
+
+    const list = Object.values(rows).map(r => ({ ...r, total: r.b0 + r.b31 + r.b61 + r.b91 }))
+        .filter(r => r.total > 0 || r.unbilledCount > 0)
+        .sort((a, b) => b.b91 - a.b91 || b.total - a.total);
+    if (list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-muted" style="text-align:center; padding:25px;">${icon("ok")} ไม่มีลูกหนี้ค้างชำระ และไม่มีงานค้างออกบิล</td></tr>`;
+        return;
+    }
+    const cell = (v, cls = '') => `<td class="inv-num ${v > 0 ? cls : 'text-muted'}">${v > 0 ? fmtMoney(v) : '-'}</td>`;
+    const sum = k => list.reduce((s, r) => s + r[k], 0);
+    tbody.innerHTML = list.map(r => `
+        <tr>
+            <td><strong>${escapeHtml(r.name)}</strong></td>
+            ${cell(r.b0)}${cell(r.b31, 'text-warning')}${cell(r.b61, 'text-danger')}${cell(r.b91, 'text-danger aging-critical')}
+            <td class="inv-num"><strong>${fmtMoney(r.total)}</strong></td>
+            <td class="inv-num">${r.unbilledCount > 0 ? `${fmtMoney(r.unbilled)}<br><small class="text-muted">${r.unbilledCount} ใบงาน</small>` : '-'}</td>
+        </tr>`).join('') + `
+        <tr class="aging-total-row">
+            <td>รวมทั้งหมด</td>
+            <td class="inv-num">${fmtMoney(sum('b0'))}</td><td class="inv-num">${fmtMoney(sum('b31'))}</td>
+            <td class="inv-num">${fmtMoney(sum('b61'))}</td><td class="inv-num">${fmtMoney(sum('b91'))}</td>
+            <td class="inv-num">${fmtMoney(sum('total'))}</td><td class="inv-num">${fmtMoney(sum('unbilled'))}</td>
+        </tr>`;
+}
+
+// ---------- ส่งออก Excel (CSV, UTF-8 BOM ให้ Excel อ่านภาษาไทยได้) ----------
+function downloadCsv(filename, header, rows) {
+    const esc = v => {
+        const s = v === null || v === undefined ? '' : String(v);
+        return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const csv = '﻿' + [header, ...rows].map(r => r.map(esc).join(',')).join('\r\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function exportFinanceCsv(kind) {
+    const period = (document.getElementById("db-finance-period-select") || {}).value || '';
+    const inPeriod = d => !period || (d || '').startsWith(period);
+    const tag = period || 'ทั้งหมด';
+    const userName = id => (users.find(u => u.id === id) || {}).name || '';
+    const custName = id => (customers.find(c => c.id === id) || {}).companyName || '';
+    let header, rows;
+
+    if (kind === 'payments') {
+        header = ['วันที่รับเงิน', 'เลขที่ใบเสร็จ', 'เลขที่บิล', 'นายจ้าง/ลูกค้า', 'จำนวนเงิน', 'ส่วนค่าธรรมเนียมรัฐ', 'ส่วนค่าบริการ', 'ช่องทาง', 'บัญชี', 'หมายเหตุ', 'ผู้บันทึก'];
+        rows = payments.filter(p => !p.voided && inPeriod(p.paidDate)).sort((a, b) => (a.paidDate || '').localeCompare(b.paidDate || '')).map(p => {
+            const inv = invoices.find(i => i.id === p.invoiceId) || {};
+            const gov = paymentGovShare(p);
+            const b = banks.find(x => x.id === p.bankId);
+            return [formatThaiDate(p.paidDate), p.receiptNo, inv.invoiceNo, inv.customerName, round2(p.amount), gov, round2(p.amount - gov),
+                p.method === 'cash' ? 'เงินสด' : 'โอน', b ? `${b.bankName} ${b.accountNumber || ''}` : '', p.note, userName(p.recordedBy)];
+        });
+    } else if (kind === 'invoices') {
+        header = ['เลขที่บิล', 'วันที่ออกบิล', 'ประเภท', 'นายจ้าง/ลูกค้า', 'ยอดบิล', 'ค่าธรรมเนียมรัฐ (ภายใน)', 'รับแล้ว', 'คงเหลือ', 'อายุหนี้ (วัน)', 'สถานะ', 'เหตุผลยกเลิก'];
+        const today = new Date();
+        rows = invoices.filter(i => inPeriod(i.issueDate)).sort((a, b) => (a.invoiceNo || '').localeCompare(b.invoiceNo || '')).map(i => {
+            const bal = i.status === 'void' ? 0 : invoiceBalance(i);
+            const days = bal > 0 ? Math.floor((today - (safeParseDate(i.issueDate) || today)) / 86400000) : '';
+            return [i.invoiceNo, formatThaiDate(i.issueDate), { job: 'บิลใบงาน', combined: 'บิลรวม', free: 'บิลอิสระ' }[i.kind] || i.kind,
+                i.customerName, round2(i.grandTotal), round2(i.govFeeTotal), invoicePaidAmount(i), bal, days,
+                (INVOICE_STATUS_META[i.status] || {}).label || i.status, i.voidReason || ''];
+        });
+    } else if (kind === 'expenses') {
+        header = ['วันที่', 'หมวดหมู่', 'รายละเอียด', 'จำนวนเงิน', 'จ่ายจาก', 'Agent'];
+        rows = expenses.filter(x => inPeriod(x.expenseDate)).sort((a, b) => (a.expenseDate || '').localeCompare(b.expenseDate || '')).map(x => [
+            formatThaiDate(x.expenseDate), x.category, x.description, round2(x.amount), expenseSourceLabel(x),
+            x.agentId ? (agents.find(a => a.id === x.agentId) || {}).name || '' : '']);
+    } else if (kind === 'commissions') {
+        header = ['Agent', 'เลขที่ใบงาน', 'นายจ้าง', 'ประเภทงาน', 'ค่าบริการงาน', 'ค่าคอม', 'สถานะลูกค้า', 'จ่ายค่าคอมแล้วเมื่อ'];
+        rows = jobs.filter(j => j.agentId).filter(j => inPeriod(((j.paidAt || j.createdAt || '') + '').split('T')[0])).map(j => [
+            (agents.find(a => a.id === j.agentId) || {}).name || '', getJobDisplayNo(j), custName(j.customerId), getCleanJobTypeName(j.jobType),
+            round2(j.fee), jobCommissionAmount(j), j.paymentStatus || '', j.commissionPaidAt ? formatThaiDate(j.commissionPaidAt) : 'ยังไม่จ่าย']);
+    } else return;
+
+    if (rows.length === 0) { showToast("ไม่มีข้อมูลในช่วงเวลาที่เลือก", "warning"); return; }
+    const names = { payments: 'รายรับ', invoices: 'บิลและลูกหนี้', expenses: 'รายจ่าย', commissions: 'ค่าคอม-Agent' };
+    downloadCsv(`WorkerOS-${names[kind]}-${tag}.csv`, header, rows);
+    showToast(`📥 ส่งออก${names[kind]} ${rows.length} รายการแล้ว`, "success");
+}
+
+// ---------- ค่าคอมมิชชั่น Agent ----------
+// ค่าคอมของใบงาน = ยอดที่ตั้งไว้ในใบงาน (commissionAmount) หรือค่าคอมเริ่มต้นของ Agent
+function jobCommissionAmount(j) {
+    if (!j || !j.agentId) return 0;
+    if (Number(j.commissionAmount) > 0) return Number(j.commissionAmount);
+    const ag = agents.find(a => a.id === j.agentId);
+    return ag ? Number(ag.defaultCommission) || 0 : 0;
+}
+
+// งานที่ถึงกำหนดจ่ายค่าคอม = ลูกค้าชำระครบแล้ว และยังไม่ได้จ่ายค่าคอม
+function commissionDueJobs(agentId) {
+    return jobs.filter(j => j.agentId === agentId && isJobPaid(j) && !j.commissionPaidAt && jobCommissionAmount(j) > 0);
+}
+
+function agentCommissionSummary(agentId) {
+    const all = jobs.filter(j => j.agentId === agentId);
+    const due = commissionDueJobs(agentId);
+    const paidOut = all.filter(j => j.commissionPaidAt).reduce((s, j) => s + jobCommissionAmount(j), 0);
+    const waiting = all.filter(j => !isJobPaid(j) && !j.commissionPaidAt).reduce((s, j) => s + jobCommissionAmount(j), 0);
+    return { due: due.reduce((s, j) => s + jobCommissionAmount(j), 0), dueCount: due.length, paidOut, waiting };
+}
+
+let commissionModalAgentId = null;
+function openCommissionPayoutModal(agentId) {
+    if (!['admin', 'manager'].includes(currentUser.role)) return;
+    const ag = agents.find(a => a.id === agentId);
+    const due = commissionDueJobs(agentId);
+    if (!ag) return;
+    if (due.length === 0) { uiAlert(`${ag.name} ยังไม่มีค่าคอมที่ถึงกำหนดจ่าย (ต้องเป็นงานที่ลูกค้าชำระเงินครบแล้ว)`); return; }
+    commissionModalAgentId = agentId;
+    document.getElementById("commission-modal-title").innerText = `จ่ายค่าคอมมิชชั่น — ${ag.name}`;
+    document.getElementById("commission-job-list").innerHTML = due.map(j => {
+        const cust = customers.find(c => c.id === j.customerId);
+        const w = workers.find(x => x.id === j.workerId);
+        return `
+            <label class="commission-job-row">
+                <input type="checkbox" name="commission-job" value="${j.id}" checked onchange="updateCommissionPayoutTotal()">
+                <span class="commission-job-info"><strong>${getJobDisplayNo(j)} • ${escapeHtml(getCleanJobTypeName(j.jobType))}</strong>
+                    <small>${escapeHtml(cust ? cust.companyName : '-')} • ${escapeHtml(w ? `${w.firstName} ${w.lastName}` : '-')} • ชำระแล้ว ${formatThaiDate(j.paidAt)}</small></span>
+                <input type="number" class="commission-amount-input" id="commission-amt-${j.id}" min="0" step="0.01" value="${jobCommissionAmount(j)}" oninput="updateCommissionPayoutTotal()">
+            </label>`;
+    }).join('');
+    document.getElementById("commission-pay-date").value = localDateISO(new Date());
+    document.getElementById("commission-pay-bank").innerHTML = BANK_SELECT_HEAD + cashOptionHtml() +
+        banks.map(b => bankOptionHtml(b)).join('');
+    updateCommissionPayoutTotal();
+    document.getElementById("commission-modal").classList.remove("hidden");
+}
+
+function closeCommissionPayoutModal() {
+    document.getElementById("commission-modal").classList.add("hidden");
+    commissionModalAgentId = null;
+}
+
+function updateCommissionPayoutTotal() {
+    let total = 0;
+    document.querySelectorAll('input[name="commission-job"]:checked').forEach(cb => {
+        total += Number(document.getElementById(`commission-amt-${cb.value}`).value) || 0;
+    });
+    document.getElementById("commission-pay-total").innerText = fmtMoney(total);
+    document.getElementById("btn-confirm-commission").disabled = total <= 0;
+}
+
+// บันทึกจ่ายค่าคอม → สร้างรายจ่าย (หมวดค่าคอม, ผูก agent + ใบงาน + บัญชีที่จ่าย) แล้วตั้ง commissionPaidAt ให้ใบงาน
+async function confirmCommissionPayout() {
+    const ag = agents.find(a => a.id === commissionModalAgentId);
+    if (!ag) return;
+    const picked = Array.from(document.querySelectorAll('input[name="commission-job"]:checked')).map(cb => ({
+        job: jobs.find(j => j.id === cb.value),
+        amount: round2(document.getElementById(`commission-amt-${cb.value}`).value)
+    })).filter(x => x.job && x.amount > 0);
+    const total = round2(picked.reduce((s, x) => s + x.amount, 0));
+    const payDate = document.getElementById("commission-pay-date").value || localDateISO(new Date());
+    const bankVal = document.getElementById("commission-pay-bank").value;
+    const bank = banks.find(b => b.id === bankVal);
+    if (picked.length === 0 || total <= 0) return;
+
+    if (!(await uiConfirm(`จ่ายค่าคอมให้ ${ag.name} รวม ${fmtMoney(total)} บาท (${picked.length} งาน)\nระบบจะบันทึกเป็นรายจ่ายหมวด "${COMMISSION_EXPENSE_CATEGORY}"`, {
+        title: 'ยืนยันการจ่ายค่าคอม', okText: 'บันทึกการจ่าย', danger: false,
+        card: { imageIcon: 'users', imageIconColor: 'teal', title: ag.name, subtitle: ag.phone || '', rows: [['ยอดจ่าย', `${fmtMoney(total)} บาท`], ['จ่ายจาก', bank ? bank.bankName : 'เงินสด'], ['วันที่จ่าย', formatThaiDate(payDate)]] }
+    }))) return;
+
+    const btn = document.getElementById("btn-confirm-commission");
+    btn.disabled = true;
+    try {
+        const expense = {
+            id: 'expense-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+            expenseDate: payDate,
+            category: COMMISSION_EXPENSE_CATEGORY,
+            amount: total,
+            description: `ค่าคอม ${ag.name}: ${picked.map(x => getJobDisplayNo(x.job)).join(', ')}`,
+            paymentMethod: bank ? bank.bankName : 'เงินสด',
+            bankId: bank ? bank.id : null,
+            agentId: ag.id,
+            jobIds: picked.map(x => x.job.id),
+            attachment: {}
+        };
+        const res = await callCloudAPI("saveExpense", { expenseData: expense });
+        if (!res || res.status === "error") return;
+        expenses.push(expense);
+
+        let failCount = 0;
+        for (const { job, amount } of picked) {
+            const before = { ...job };
+            job.commissionAmount = amount;
+            job.commissionPaidAt = new Date(`${payDate}T12:00:00`).toISOString();
+            job.commissionExpenseId = expense.id;
+            const r = await callCloudAPI("saveJob", { jobData: job });
+            if (!r || r.status === "error") { Object.assign(job, before); failCount++; }
+        }
+        saveData();
+        closeCommissionPayoutModal();
+        renderAgentsList();
+        renderExpenses();
+        showToast(failCount > 0 ? `⚠️ บันทึกรายจ่ายแล้ว แต่อัปเดตใบงานไม่สำเร็จ ${failCount} ใบ` : `💵 บันทึกจ่ายค่าคอม ${ag.name} ${fmtMoney(total)} บาท แล้ว`, failCount > 0 ? "danger" : "success");
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+// ---------- ยอดคงเหลือรายบัญชี ----------
+// ยอดคงเหลือ = ยอดยกมา + เงินรับเข้า (payments) − รายจ่ายที่จ่ายจากบัญชีนี้ (expenses.bankId) นับตั้งแต่วันยกมา
+function expenseSourceLabel(x) {
+    if (x.bankId) { const b = banks.find(y => y.id === x.bankId); if (b) return `${b.bankName} - ${b.accountName || ''}`; }
+    return x.paymentMethod || '';
+}
+
+// รายจ่ายเก่าที่บันทึกก่อนมี bankId เก็บแค่ชื่อธนาคาร — ผูกให้ถ้ามีบัญชีของธนาคารนั้นแค่บัญชีเดียว
+function expenseBankId(x) {
+    if (x.bankId) return x.bankId;
+    if (!x.paymentMethod || x.paymentMethod === 'เงินสด') return null;
+    const same = banks.filter(b => b.bankName === x.paymentMethod);
+    return same.length === 1 ? same[0].id : null;
+}
+
+function bankAccountBalance(bankId) {
+    const b = banks.find(x => x.id === bankId);
+    const since = b && b.openingDate ? b.openingDate : '';
+    const after = d => !since || (d || '') >= since;
+    const opening = b ? Number(b.openingBalance) || 0 : 0;
+    const inflow = payments.filter(p => !p.voided && p.method === 'bank' && p.bankId === bankId && after(p.paidDate)).reduce((s, p) => s + Number(p.amount || 0), 0);
+    const outflow = expenses.filter(x => expenseBankId(x) === bankId && after(x.expenseDate)).reduce((s, x) => s + Number(x.amount || 0), 0);
+    return { opening, inflow, outflow, balance: round2(opening + inflow - outflow) };
+}
+
+function cashBalance() {
+    const inflow = payments.filter(p => !p.voided && p.method === 'cash').reduce((s, p) => s + Number(p.amount || 0), 0);
+    const outflow = expenses.filter(x => x.paymentMethod === 'เงินสด' && !x.bankId).reduce((s, x) => s + Number(x.amount || 0), 0);
+    return { inflow, outflow, balance: round2(inflow - outflow) };
+}
+
+// ---------- ราคามาตรฐาน (ภายใน): ค่าธรรมเนียมรัฐ + ค่าบริการ ต่อประเภทงาน ----------
+function renderServicePrices() {
+    const tbody = document.getElementById("service-prices-tbody");
+    if (!tbody) return;
+    const canEdit = ['admin', 'manager'].includes(currentUser.role);
+    const types = Array.from(document.querySelectorAll("input[name='job-type-checkbox']")).map(cb => cb.value);
+    servicePrices.forEach(p => { if (!types.includes(p.jobType)) types.push(p.jobType); });
+    tbody.innerHTML = types.map((t, i) => {
+        const p = getServicePrice(t) || { govFee: 0, serviceFee: 0 };
+        const dis = canEdit ? '' : 'disabled';
+        return `
+            <tr>
+                <td><strong>${escapeHtml(t)}</strong></td>
+                <td class="inv-num"><input type="number" min="0" step="0.01" class="price-input price-gov" id="sp-gov-${i}" value="${p.govFee}" ${dis} oninput="updateServicePriceTotal(${i})"></td>
+                <td class="inv-num"><input type="number" min="0" step="0.01" class="price-input" id="sp-svc-${i}" value="${p.serviceFee}" ${dis} oninput="updateServicePriceTotal(${i})"></td>
+                <td class="inv-num"><strong id="sp-total-${i}">${fmtMoney(p.govFee + p.serviceFee)}</strong></td>
+                <td class="actions-col">${canEdit ? `<button type="button" class="btn btn-sm btn-gold" onclick="saveServicePriceRow(${i}, '${escapeHtml(t).replace(/'/g, "\\'")}')">${icon('save')} บันทึก</button>` : ''}</td>
+            </tr>`;
+    }).join('');
+}
+
+function updateServicePriceTotal(i) {
+    const gov = Number(document.getElementById(`sp-gov-${i}`).value) || 0;
+    const svc = Number(document.getElementById(`sp-svc-${i}`).value) || 0;
+    document.getElementById(`sp-total-${i}`).innerText = fmtMoney(gov + svc);
+}
+
+async function saveServicePriceRow(i, jobType) {
+    const priceData = {
+        jobType,
+        govFee: round2(document.getElementById(`sp-gov-${i}`).value),
+        serviceFee: round2(document.getElementById(`sp-svc-${i}`).value),
+        updatedAt: new Date().toISOString()
+    };
+    const res = await callCloudAPI("saveServicePrice", { priceData });
+    if (!res || res.status === "error") return;
+    const idx = servicePrices.findIndex(p => p.jobType === jobType);
+    if (idx === -1) servicePrices.push(priceData); else servicePrices[idx] = priceData;
+    saveData();
+    showToast(`💾 บันทึกราคามาตรฐาน "${jobType}" แล้ว`, "success");
+}
+
+// ---------- เลือกคนงานหลายคนให้รายการในบิลอิสระ ----------
+// จำนวน = จำนวนคนที่เลือก, ราคารวม = ราคาต่อคน × จำนวน, ค่าธรรมเนียมรัฐปรับตามจำนวนคน, รายละเอียด = รายชื่อคนงาน
+let itemWorkersTargetId = null;
+let itemWorkersSelected = new Set();
+
+function itemWorkersPool() {
+    const base = workers.filter(w => w.status !== 'deleted');
+    return freeInvoiceCustomerId ? base.filter(w => w.employerId === freeInvoiceCustomerId) : base;
+}
+
+function openItemWorkersPicker(itemId) {
+    const item = currentInvoiceItems.find(x => x.id === itemId);
+    if (!item) return;
+    currentInvoiceItems.forEach(x => syncInvoiceItemTextFields(x));
+    itemWorkersTargetId = itemId;
+    itemWorkersSelected = new Set(item.workerIds || []);
+    const cust = freeInvoiceCustomerId ? customers.find(c => c.id === freeInvoiceCustomerId) : null;
+    document.getElementById("item-workers-title").innerText = `เลือกคนงาน — ${item.serviceName || stripEditHint(item.title) || 'รายการนี้'}`;
+    document.getElementById("item-workers-hint").innerText = cust
+        ? `แสดงเฉพาะคนงานของ ${cust.companyName} — จำนวนในบิลจะเท่ากับจำนวนคนที่เลือก`
+        : 'ยังไม่ได้เลือกนายจ้าง จึงแสดงคนงานทุกคน — เลือกนายจ้างด้านบนก่อนเพื่อกรองรายชื่อ';
+    document.getElementById("item-workers-search").value = '';
+    renderItemWorkersChecklist();
+    document.getElementById("item-workers-modal").classList.remove("hidden");
+    document.getElementById("item-workers-search").focus();
+}
+
+function closeItemWorkersPicker() {
+    document.getElementById("item-workers-modal").classList.add("hidden");
+    itemWorkersTargetId = null;
+}
+
+function renderItemWorkersChecklist() {
+    const pool = itemWorkersPool();
+    const q = (document.getElementById("item-workers-search").value || '').trim().toLowerCase();
+    const list = pool.filter(w => !q || `${w.firstName} ${w.lastName}`.toLowerCase().includes(q) || (w.workerUid || '').toLowerCase().includes(q));
+    const listEl = document.getElementById("item-workers-checklist");
+    listEl.innerHTML = list.length === 0
+        ? `<div class="job-worker-empty">--- ${pool.length === 0 ? 'ไม่พบคนงานของนายจ้างรายนี้' : 'ไม่พบคนงานที่ตรงกับคำค้นหา'} ---</div>`
+        : list.map(w => `
+            <label class="job-worker-row">
+                <input type="checkbox" ${itemWorkersSelected.has(w.id) ? 'checked' : ''} onchange="toggleItemWorker('${w.id}', this.checked)">
+                <span class="job-worker-row-name">${escapeHtml(workerFullName(w))}</span>
+                <span class="job-worker-row-uid">${w.workerUid ? `เลขประจำตัว ${escapeHtml(w.workerUid)}` : 'ไม่มีเลขประจำตัว'}</span>
+                <span class="job-worker-row-nat">${escapeHtml(w.nationality || '')}</span>
+            </label>`).join('');
+
+    const chipsEl = document.getElementById("item-workers-chips");
+    chipsEl.style.display = itemWorkersSelected.size ? 'flex' : 'none';
+    chipsEl.innerHTML = Array.from(itemWorkersSelected).map(id => {
+        const w = workers.find(x => x.id === id);
+        return `<span class="job-worker-chip">${escapeHtml(w ? `${w.firstName} ${w.lastName}` : id)}<button type="button" onclick="toggleItemWorker('${id}', false)">&times;</button></span>`;
+    }).join('');
+    document.getElementById("item-workers-count").innerText = `เลือกแล้ว ${itemWorkersSelected.size} คน`;
+}
+
+function toggleItemWorker(workerId, isChecked) {
+    if (isChecked) itemWorkersSelected.add(workerId); else itemWorkersSelected.delete(workerId);
+    renderItemWorkersChecklist();
+}
+
+function confirmItemWorkers() {
+    const item = currentInvoiceItems.find(x => x.id === itemWorkersTargetId);
+    if (!item) { closeItemWorkersPicker(); return; }
+    const ids = Array.from(itemWorkersSelected);
+    const oldQty = item.qty || 1;
+    const unit = item.unitPrice !== undefined ? Number(item.unitPrice) : (Number(item.fee) || 0) / oldQty;
+    const govUnit = (Number(item.govFee) || 0) / oldQty;
+    const qty = Math.max(1, ids.length);
+
+    item.workerIds = ids;
+    item.qty = qty;
+    item.unitPrice = unit;
+    item.fee = round2(unit * qty);
+    item.govFee = round2(govUnit * qty);
+    if (ids.length) {
+        item.desc = ids.map((id, i) => {
+            const w = workers.find(x => x.id === id);
+            return w ? `${i + 1}. ${invoiceWorkerLine(w)}` : '';
+        }).filter(Boolean).join('\n');
+    }
+    delete item.placeholder;
+
+    // ยังไม่ได้เลือกนายจ้าง และคนที่เลือกมีนายจ้างเดียวกันทั้งหมด → เติมนายจ้างบนบิลให้
+    if (!freeInvoiceCustomerId && ids.length) {
+        const empIds = new Set(ids.map(id => (workers.find(w => w.id === id) || {}).employerId).filter(Boolean));
+        if (empIds.size === 1) selectSearchSelectItem('free-invoice-customer', [...empIds][0]);
+    }
+    closeItemWorkersPicker();
+    renderInvoiceItemsTable();
+}

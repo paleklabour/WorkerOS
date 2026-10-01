@@ -852,6 +852,8 @@
                                         <th style="width: 140px;">เบอร์โทร</th>
                                         <th style="text-align: center; width: 160px;">นายจ้างที่แนะนำ</th>
                                         <th style="text-align: center; width: 140px;">งานที่ส่ง</th>
+                                        <th class="inv-num" style="width: 120px;">ค่าคอม/งาน</th>
+                                        <th class="inv-num" style="width: 200px;">ค่าคอมถึงกำหนดจ่าย</th>
                                         <th class="actions-col">จัดการ</th>
                                     </tr>
                                 </thead>
@@ -869,6 +871,7 @@
                             <button type="button" class="btn btn-outline" id="btn-finpage-tab-billing" onclick="switchFinancePageTab('billing')"><span class="ico" data-icon="receipt"></span> ออกบิล / รับเงิน</button>
                             <button type="button" class="btn btn-outline" id="btn-finpage-tab-expenses" onclick="switchFinancePageTab('expenses')"><span class="ico" data-icon="cash"></span> จัดการรายจ่าย</button>
                             <button type="button" class="btn btn-outline" id="btn-finpage-tab-banks" onclick="switchFinancePageTab('banks')"><span class="ico" data-icon="bank"></span> บัญชีธนาคาร</button>
+                            <button type="button" class="btn btn-outline" id="btn-finpage-tab-prices" onclick="switchFinancePageTab('prices')"><span class="ico" data-icon="settings"></span> ราคามาตรฐาน</button>
                         </div>
 
                         <!-- SUB-TAB: FINANCE OVERVIEW -->
@@ -913,21 +916,21 @@
                                     <div class="stats-icon text-gold"><span class="ico" data-icon="moneybag"></span></div>
                                     <div class="stats-info">
                                         <h3 id="stat-finance-total">0.00 บาท</h3>
-                                        <p>ประมาณการรายรับรวมทั้งหมด</p>
+                                        <p>ยอดบิล + งานยังไม่ออกบิล (ประมาณการ)</p>
                                     </div>
                                 </div>
                                 <div class="stats-card" style="border-left: 4px solid var(--success);">
                                     <div class="stats-icon text-success"><span class="ico" data-icon="ok"></span></div>
                                     <div class="stats-info">
                                         <h3 id="stat-finance-paid">0.00 บาท</h3>
-                                        <p>ชำระเงินเรียบร้อยแล้ว (Received)</p>
+                                        <p>เงินที่รับจริงในช่วงนี้ (ตามวันที่รับเงิน)</p>
                                     </div>
                                 </div>
                                 <div class="stats-card" style="border-left: 4px solid var(--danger);">
                                     <div class="stats-icon text-danger"><span class="ico" data-icon="clock"></span></div>
                                     <div class="stats-info">
                                         <h3 id="stat-finance-unpaid">0.00 บาท</h3>
-                                        <p>ยอดค้างชำระทั้งหมด (Outstanding)</p>
+                                        <p>ยอดค้างรับ (บิลค้าง + งานยังไม่ออกบิล)</p>
                                     </div>
                                 </div>
                             </div>
@@ -945,8 +948,39 @@
                                     <div class="stats-icon" style="color: var(--gold-primary);"><span class="ico" data-icon="chart"></span></div>
                                     <div class="stats-info">
                                         <h3 id="stat-finance-net-profit">0.00 บาท</h3>
-                                        <p>กำไรสุทธิ (รายรับที่ชำระแล้ว − รายจ่าย)</p>
+                                        <p>กำไรสุทธิ (เงินที่รับจริง − รายจ่าย)</p>
                                     </div>
+                                </div>
+                            </div>
+
+                            <!-- ภายใน: แยกเงินเก็บแทนรัฐออกจากรายได้ค่าบริการ (ลูกค้าไม่เห็น) — ดู renderFinanceInternalSplit() -->
+                            <div class="dashboard-panel finance-internal-panel" style="margin-bottom: 25px;">
+                                <div class="panel-header">
+                                    <h3><span class="ico" data-icon="lock"></span> รายได้จริง vs เงินเก็บแทนรัฐ <small class="text-muted">(ภายใน — ช่วงเวลาที่เลือก)</small></h3>
+                                </div>
+                                <div class="panel-content finance-internal-grid" id="finance-internal-split"></div>
+                            </div>
+
+                            <!-- ลูกหนี้ค้างชำระตามอายุหนี้ — ดู renderReceivablesAging() -->
+                            <div class="dashboard-panel" style="margin-bottom: 25px;">
+                                <div class="panel-header">
+                                    <h3><span class="ico" data-icon="clock"></span> ลูกหนี้ค้างชำระตามอายุหนี้ <small class="text-muted">(ณ วันนี้ นับจากวันออกบิล)</small></h3>
+                                </div>
+                                <div class="panel-content" style="padding: 0; overflow-x: auto;">
+                                    <table class="data-table aging-table">
+                                        <thead>
+                                            <tr>
+                                                <th>นายจ้าง / ลูกค้า</th>
+                                                <th class="inv-num">0–30 วัน</th>
+                                                <th class="inv-num">31–60 วัน</th>
+                                                <th class="inv-num">61–90 วัน</th>
+                                                <th class="inv-num">เกิน 90 วัน</th>
+                                                <th class="inv-num">รวมค้างรับ</th>
+                                                <th class="inv-num">งานยังไม่ออกบิล</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="finance-aging-tbody"></tbody>
+                                    </table>
                                 </div>
                             </div>
 
@@ -1085,6 +1119,14 @@
                                     </div>
                                 </div>
                             </div>
+                            <!-- ส่งออก Excel (CSV) ตามช่วงเวลาที่เลือกด้านบนสุดของแท็บ (อยู่ล่างสุดของหน้าสรุป) — ดู exportFinanceCsv() ใน app.js -->
+                            <div class="finance-export-bar">
+                                <span><span class="ico" data-icon="inbox"></span> ส่งออก Excel ตามช่วงเวลานี้:</span>
+                                <button type="button" class="btn btn-sm btn-outline" onclick="exportFinanceCsv('payments')">รายรับ (ตามวันที่รับเงิน)</button>
+                                <button type="button" class="btn btn-sm btn-outline" onclick="exportFinanceCsv('invoices')">บิล + ลูกหนี้คงค้าง</button>
+                                <button type="button" class="btn btn-sm btn-outline" onclick="exportFinanceCsv('expenses')">รายจ่าย</button>
+                                <button type="button" class="btn btn-sm btn-outline" onclick="exportFinanceCsv('commissions')">ค่าคอม Agent</button>
+                            </div>
                         </div>
 
                         <!-- SUB-TAB: BILLING (ออกบิล / รับเงิน — งานที่ผ่านระบบแจ้งงานที่ยังไม่ได้รับชำระ) -->
@@ -1097,8 +1139,11 @@
                                     <input type="text" id="search-billing" placeholder="ค้นหาใบสั่งงาน, นายจ้าง, คนงาน..." oninput="renderBillingTab()">
                                 </div>
                                 <select id="filter-billing-payment-status" class="select-filter" onchange="renderBillingTab()">
-                                    <option value="pending" selected>ค้างชำระ (ยังไม่จ่าย)</option>
-                                    <option value="paid">ชำระแล้ว</option>
+                                    <option value="pending" selected>ต้องดำเนินการ (ยังไม่ออกบิล + ค้างรับเงิน)</option>
+                                    <option value="unbilled">เฉพาะงานที่ยังไม่ออกบิล</option>
+                                    <option value="outstanding">เฉพาะบิลค้างรับเงิน</option>
+                                    <option value="paid">บิลที่ชำระครบแล้ว</option>
+                                    <option value="void">บิลที่ยกเลิก</option>
                                     <option value="all">ทั้งหมด</option>
                                 </select>
                                 <div class="action-buttons-group" style="display: flex; gap: 10px;">
@@ -1111,19 +1156,19 @@
                                 </div>
                             </div>
                             <p class="section-desc" style="margin: -8px 0 15px;">
-                                รายการงานที่ผ่านระบบแจ้งงานทั้งหมด (รวมงานที่ปิดไปแล้ว) — เลือก "ค้างชำระ" เพื่อดูเฉพาะที่ยังไม่ได้รับเงิน หรือ "ชำระแล้ว"/"ทั้งหมด" เพื่อดูประวัติย้อนหลัง
+                                ใบงานที่ยังไม่ออกบิล กด <strong>ออกบิล</strong> เพื่อดูร่างและรับเลขที่บิล — บิลที่ออกแล้วกด <strong>เปิดบิล</strong> เพื่อรับเงิน (รับหลายงวด/มัดจำได้) พิมพ์ใบเสร็จ หรือยกเลิกบิล
                             </p>
                             <div class="table-container">
                                 <table class="data-table" id="billing-table">
                                     <thead>
                                         <tr>
-                                            <th>เลขที่แจ้งงาน</th>
-                                            <th>ประเภทงาน</th>
+                                            <th>เลขที่บิล / ใบงาน</th>
+                                            <th>ประเภท</th>
                                             <th>นายจ้าง/ผู้ว่าจ้าง</th>
-                                            <th>คนงานต่างด้าว</th>
-                                            <th>ค่าบริการ</th>
-                                            <th>สถานะดำเนินการ</th>
-                                            <th>สถานะการเงิน</th>
+                                            <th>รายละเอียด</th>
+                                            <th class="inv-num">ยอดเงิน</th>
+                                            <th class="inv-num">รับแล้ว / คงเหลือ</th>
+                                            <th>สถานะ</th>
                                             <th class="actions-col">จัดการ</th>
                                         </tr>
                                     </thead>
@@ -1195,6 +1240,29 @@
 
                             <div class="bank-accounts-grid" id="banks-list-grid">
                                 <!-- Dynamic Bank Cards -->
+                            </div>
+                        </div>
+
+                        <!-- SUB-TAB: ราคามาตรฐาน (ภายใน) — ค่าธรรมเนียมรัฐ + ค่าบริการต่อประเภทงาน ดู renderServicePrices() -->
+                        <div id="finpage-tab-prices" class="db-tab-content hidden">
+                            <p class="section-desc" style="margin: 0 0 15px;">
+                                ตั้งราคามาตรฐานต่อประเภทงานครั้งเดียว — ตอนออกบิลระบบเติมราคาให้อัตโนมัติ (แก้ในบิลได้)
+                                และแยก <strong>ค่าธรรมเนียมรัฐ (เก็บแทน)</strong> ออกจาก <strong>ค่าบริการ</strong> เพื่อให้หน้าสรุปการเงินแสดงรายได้จริง
+                                — ข้อมูลส่วนนี้ใช้ภายใน ไม่ถูกพิมพ์ลงบิลที่ให้ลูกค้า
+                            </p>
+                            <div class="table-container">
+                                <table class="data-table prices-table">
+                                    <thead>
+                                        <tr>
+                                            <th>ประเภทงาน</th>
+                                            <th class="inv-num" style="width: 190px;">ค่าธรรมเนียมรัฐ (เก็บแทน)</th>
+                                            <th class="inv-num" style="width: 170px;">ค่าบริการ</th>
+                                            <th class="inv-num" style="width: 150px;">ราคารวมบนบิล</th>
+                                            <th class="actions-col"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="service-prices-tbody"></tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
@@ -1362,6 +1430,11 @@
                         <div class="form-group">
                             <label for="agent-phone">เบอร์โทร</label>
                             <input type="tel" id="agent-phone">
+                        </div>
+                        <div class="form-group">
+                            <label for="agent-default-commission">ค่าคอมเริ่มต้นต่องาน (บาท)</label>
+                            <input type="number" id="agent-default-commission" min="0" step="0.01" placeholder="0">
+                            <small class="text-muted">ใช้คำนวณค่าคอมค้างจ่ายของงานที่ Agent ส่งมา ตอนจ่ายจริงแก้ยอดรายงานได้</small>
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-outline" onclick="closeAgentModal()">ยกเลิก</button>
@@ -2390,6 +2463,19 @@
                             </div>
                         </div>
 
+                        <!-- ยอดยกมา: ใช้คำนวณยอดคงเหลือของบัญชี (ยอดยกมา + เงินรับเข้า − รายจ่าย นับตั้งแต่วันที่ยกมา) -->
+                        <div class="form-row">
+                            <div class="form-group col-6">
+                                <label for="bank-opening-balance">ยอดยกมา (บาท)</label>
+                                <input type="number" id="bank-opening-balance" step="0.01" placeholder="0.00">
+                            </div>
+                            <div class="form-group col-6">
+                                <label for="bank-opening-date">ยอดยกมา ณ วันที่</label>
+                                <input type="date" id="bank-opening-date">
+                            </div>
+                        </div>
+                        <small class="text-muted" style="display:block; margin: -8px 0 14px;">ใส่ยอดเงินจริงในบัญชี ณ วันที่เริ่มใช้ระบบ — ระบบจะนับรับเข้า/จ่ายออกตั้งแต่วันนั้นเป็นต้นไป</small>
+
                         <div class="modal-footer">
                             <button type="button" class="btn btn-outline" onclick="closeBankModal()">ยกเลิก</button>
                             <button type="submit" class="btn btn-gold">บันทึกบัญชี</button>
@@ -2410,7 +2496,7 @@
                     <!-- Invoice Custom Selector Header (No print) -->
                     <div class="invoice-selector-bar no-print">
                         <div class="form-group" style="margin-bottom: 0; width: 100%; max-width: 400px;">
-                            <label for="invoice-bank-select" style="font-weight: 600; color: var(--gold-primary);">เลือกบัญชีธนาคารผู้รับเงิน:</label>
+                            <label for="invoice-bank-select" style="font-weight: 600; color: var(--gold-primary);">บัญชีที่แสดงบนบิลให้ลูกค้าโอน:</label>
                             <select id="invoice-bank-select" onchange="updateInvoiceBankDetails()" style="border-color: var(--gold-primary); font-weight: 500;">
                                 <!-- Dynamic Banks Dropdown -->
                             </select>
@@ -2466,7 +2552,7 @@
                         <!-- Head -->
                         <div class="invoice-sheet-header">
                             <div class="invoice-brand">
-                                <div class="invoice-logo">AG</div>
+                                <img src="assets/logo.png" alt="NKT Service" class="invoice-logo-img">
                                 <div>
                                     <h2>นาย ศรุต คุณารักษ์</h2>
                                     <p>เลขที่ 14 หมู่ 2 ถ.เลียบคลอง ร.5 ต.คอหงส์ อ.หาดใหญ่ จ.สงขลา 90110 โทร 098-7415888</p>
@@ -2474,15 +2560,17 @@
                                 </div>
                             </div>
                             <div class="invoice-meta-title">
-                                <h1>ใบวางบิล</h1>
-                                <p class="text-gold" style="font-weight: 600;">BILLING NOTE / INVOICE</p>
-                                <div style="margin-top: 15px; font-size: 13px; line-height: 1.5;">
-                                    <div><strong>เลขที่:</strong> <span id="inv-no">INV-202607001</span></div>
-                                    <div><strong>วันที่:</strong> <span id="inv-date">10 กรกฎาคม 2026</span></div>
-                                    <div><strong>กำหนดชำระ:</strong> <span id="inv-due-date" contenteditable="true" style="outline: none; border-bottom: 1px dashed transparent;" title="คลิกเพื่อแก้ไขกำหนดชำระ">ชำระทันทีเมื่อได้รับบิล</span></div>
+                                <h1>ใบวางบิล / ใบแจ้งหนี้</h1>
+                                <p class="invoice-meta-sub">BILLING NOTE / INVOICE</p>
+                                <div class="invoice-meta-box">
+                                    <div><span>เลขที่</span> <strong id="inv-no">INV-202607001</strong></div>
+                                    <div><span>วันที่</span> <strong id="inv-date">01/10/2569</strong></div>
+                                    <div><span>กำหนดชำระ</span> <strong id="inv-due-date" contenteditable="true" class="inv-editable" title="คลิกเพื่อแก้ไขกำหนดชำระ"></strong></div>
                                 </div>
                             </div>
                         </div>
+                        <!-- ตราประทับสถานะบนบิล (ชำระครบแล้ว / ยกเลิกแล้ว) — พิมพ์ติดไปด้วย ดู renderInvoiceStatusUi() -->
+                        <div class="invoice-stamp hidden" id="inv-stamp"></div>
 
                         <hr class="invoice-hr">
 
@@ -2490,8 +2578,8 @@
                         <div class="invoice-addresses-row">
                             <div class="inv-addr-block">
                                 <h5>ลูกค้า / นายจ้างผู้รับบริการ:</h5>
-                                <p><strong id="inv-cust-name" contenteditable="true" style="outline: none; border-bottom: 1px dashed transparent;" title="คลิกเพื่อแก้ไขชื่อลูกค้า">บริษัท แปรรูปทะเลสงขลา จำกัด</strong></p>
-                                <p id="inv-cust-addr" contenteditable="true" style="outline: none; border-bottom: 1px dashed transparent;" title="คลิกเพื่อแก้ไขที่อยู่">เลขที่ 45/12 ม.3 ต.คอหงส์ อ.หาดใหญ่ จ.สงขลา 90110</p>
+                                <p><strong id="inv-cust-name" data-placeholder="ชื่อบริษัทลูกค้า/ผู้ว่าจ้าง (คลิกเพื่อพิมพ์)" contenteditable="true" style="outline: none; border-bottom: 1px dashed transparent;" title="คลิกเพื่อแก้ไขชื่อลูกค้า">บริษัท แปรรูปทะเลสงขลา จำกัด</strong></p>
+                                <p id="inv-cust-addr" data-placeholder="ที่อยู่ลูกค้า (คลิกเพื่อพิมพ์)" contenteditable="true" style="outline: none; border-bottom: 1px dashed transparent;" title="คลิกเพื่อแก้ไขที่อยู่">เลขที่ 45/12 ม.3 ต.คอหงส์ อ.หาดใหญ่ จ.สงขลา 90110</p>
                                 <p id="inv-cust-tax" contenteditable="true" style="outline: none; border-bottom: 1px dashed transparent;" title="คลิกเพื่อแก้ไขเลขผู้เสียภาษี">เลขผู้เสียภาษี: 0105563024859</p>
                             </div>
                         </div>
@@ -2500,28 +2588,49 @@
                         <table class="invoice-table">
                             <thead>
                                 <tr>
-                                    <th style="width: 50px; text-align: center;">ลำดับ</th>
-                                    <th style="white-space: nowrap;">รายการคำขอแจ้งงานต่างด้าว (Services Description)</th>
-                                    <th style="width: 80px; text-align: center;">จำนวน</th>
-                                    <th style="width: 130px; text-align: right; white-space: nowrap;">ราคาต่อหน่วย (บาท)</th>
-                                    <th style="width: 130px; text-align: right; white-space: nowrap;">จำนวนเงิน (บาท)</th>
+                                    <th class="inv-col-no">ลำดับ</th>
+                                    <th>รายการ (Services Description)</th>
+                                    <th class="inv-col-qty">จำนวน</th>
+                                    <th class="inv-col-money">ราคา/หน่วย</th>
+                                    <th class="inv-col-money">จำนวนเงิน (บาท)</th>
+                                    <!-- ภายในเท่านั้น (no-print): ส่วนที่เป็นค่าธรรมเนียมรัฐในยอดของแต่ละรายการ — ลูกค้าไม่เห็น -->
+                                    <th class="no-print inv-gov-col" title="เห็นเฉพาะเจ้าหน้าที่ ไม่ถูกพิมพ์ลงบิล">ค่าธรรมเนียมรัฐ<br><small>(ภายใน)</small></th>
                                 </tr>
                             </thead>
                             <tbody id="invoice-items-tbody">
                                 <!-- Dynamic rows generated by JS -->
                             </tbody>
                             <tfoot>
-                                <tr class="inv-summary-row">
+                                <tr class="inv-summary-row no-print"><!-- ไม่มี VAT = ยอดเท่ายอดรวม จึงพิมพ์แค่ยอดรวม; บนจอยังโชว์ค่าธรรมเนียมรัฐรวม (ภายใน) -->
                                     <td colspan="4" class="sum-label">รวมเงินค่าบริการ (Subtotal)</td>
                                     <td class="sum-value" id="inv-subtotal">0.00</td>
+                                    <td class="no-print inv-gov-col inv-gov-total" id="inv-gov-total">0.00</td>
                                 </tr>
-                                <tr class="inv-summary-row">
+                                <!-- กิจการไม่ได้จด VAT — ซ่อนแถวนี้ไว้ (ยังเก็บ id inv-vat ให้ calculateInvoiceTotals) ถ้าจดทะเบียน VAT เมื่อไรค่อยเอา hidden ออกและคิด 7% -->
+                                <tr class="inv-summary-row hidden">
                                     <td colspan="4" class="sum-label">ภาษีมูลค่าเพิ่ม (VAT)</td>
                                     <td class="sum-value" id="inv-vat">0.00</td>
+                                    <td class="no-print inv-gov-col"></td>
                                 </tr>
                                 <tr class="inv-summary-row grand-total">
                                     <td colspan="4" class="sum-label">จำนวนเงินรวมทั้งสิ้น (Grand Total)</td>
                                     <td class="sum-value" id="inv-grand-total">0.00</td>
+                                    <td class="no-print inv-gov-col"></td>
+                                </tr>
+                                <!-- ชำระแล้ว / คงเหลือ — แสดงเฉพาะบิลที่รับเงินไปบางส่วนแล้ว (พิมพ์ซ้ำให้ลูกค้าเห็นยอดค้าง) -->
+                                <tr class="inv-summary-row inv-paid-row hidden" id="inv-paid-row">
+                                    <td colspan="4" class="sum-label">หัก ชำระแล้ว</td>
+                                    <td class="sum-value" id="inv-paid-amount">0.00</td>
+                                    <td class="no-print inv-gov-col"></td>
+                                </tr>
+                                <tr class="inv-summary-row inv-balance-row hidden" id="inv-balance-row">
+                                    <td colspan="4" class="sum-label">คงเหลือที่ต้องชำระ</td>
+                                    <td class="sum-value" id="inv-balance-amount">0.00</td>
+                                    <td class="no-print inv-gov-col"></td>
+                                </tr>
+                                <tr class="inv-words-row">
+                                    <td colspan="5" id="inv-amount-words">(ศูนย์บาทถ้วน)</td>
+                                    <td class="no-print inv-gov-col"></td>
                                 </tr>
                             </tfoot>
                         </table>
@@ -2561,24 +2670,98 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- ===== ส่วนภายใน (ไม่พิมพ์) — ดู ACCOUNTING MODULE ใน app.js ===== -->
+                    <!-- แยกค่าธรรมเนียมรัฐ (เก็บแทน) ออกจากค่าบริการ — เห็นเฉพาะเจ้าหน้าที่ -->
+                    <div class="no-print invoice-internal-split" id="invoice-internal-split"></div>
+                    <!-- ประวัติการรับเงิน + ฟอร์มรับเงิน (รับได้หลายงวด) — แสดงเฉพาะบิลที่ออกเลขที่แล้ว -->
+                    <div class="no-print invoice-payments-panel hidden" id="invoice-payments-panel"></div>
                 </div>
-                <div class="modal-footer no-print" style="flex-direction: column; align-items: stretch; gap: 10px;">
-                    <div id="invoice-payment-proof-row" class="form-group" style="margin: 0; display: none;">
-                        <label for="invoice-payment-proof-input"><span class="ico" data-icon="clip"></span> แนบหลักฐานการโอนเงิน (สลิป/ภาพถ่ายการโอน)</label>
-                        <input type="file" id="invoice-payment-proof-input" accept="image/*,application/pdf" multiple>
-                    </div>
-                    <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <div class="modal-footer no-print invoice-footer">
+                    <div class="invoice-footer-status" id="invoice-footer-status"></div>
+                    <div class="invoice-footer-actions">
                         <button class="btn btn-outline" onclick="closeInvoiceModal()">ปิดหน้าต่าง</button>
-                        <button class="btn btn-outline" id="btn-save-invoice-edits" onclick="saveInvoiceFeeEdits()" style="border-color: var(--gold-primary); color: var(--gold-primary);">
-                            <span class="ico" data-icon="save"></span> บันทึกการแก้ไขราคาบิล
+                        <button class="btn btn-outline btn-danger-outline hidden" id="btn-void-invoice" onclick="voidCurrentInvoice()">
+                            <span class="ico" data-icon="ban"></span> ยกเลิกบิล
                         </button>
-                        <button class="btn btn-outline" id="btn-issue-free-invoice" onclick="issueFreeInvoice()" style="display:none; border-color: var(--gold-primary); color: var(--gold-primary);">
-                            <span class="ico" data-icon="receipt"></span> วางบิล
+                        <button class="btn btn-outline btn-gold-outline hidden" id="btn-save-invoice-edits" onclick="saveInvoiceFeeEdits()">
+                            <span class="ico" data-icon="save"></span> บันทึกการแก้ไขบิล
                         </button>
-                        <button class="btn btn-gold" id="btn-mark-paid" onclick="markJobPaidFromInvoice()">
-                            <span class="ico" data-icon="ok"></span> ยืนยันการรับชำระเงิน (Mark as Paid)
+                        <button class="btn btn-gold hidden" id="btn-issue-invoice" onclick="issueCurrentInvoice()">
+                            <span class="ico" data-icon="receipt"></span> ออกบิล (รับเลขที่)
                         </button>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== RECEIPT MODAL (ใบเสร็จรับเงิน) — พิมพ์จากประวัติการรับเงินในบิล ดู openReceiptModal() ==================== -->
+        <div id="receipt-modal" class="modal-backdrop hidden" style="z-index: 1080;">
+            <div class="modal-content large printable-modal-content" style="max-width: 900px;">
+                <div class="modal-header no-print">
+                    <h3>ใบเสร็จรับเงิน (Receipt)</h3>
+                    <button class="close-btn" onclick="closeReceiptModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="invoice-sheet receipt-sheet" id="receipt-sheet"></div>
+                </div>
+                <div class="modal-footer no-print">
+                    <button class="btn btn-outline" onclick="closeReceiptModal()">ปิดหน้าต่าง</button>
+                    <button class="btn btn-gold" onclick="window.print()"><span class="ico" data-icon="print"></span> พิมพ์ใบเสร็จ</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== เลือกคนงานให้รายการในบิลอิสระ (หลายคน) ดู openItemWorkersPicker() ====================
+             ใช้ pattern checklist (ค้นหา + ช่องติ๊ก + ชิปรายชื่อ) แบบเดียวกับการเลือกคนงานในฟอร์มแจ้งงาน -->
+        <div id="item-workers-modal" class="modal-backdrop hidden" style="z-index: 1075;">
+            <div class="modal-content" style="max-width: 580px;">
+                <div class="modal-header">
+                    <h3 id="item-workers-title">เลือกคนงานสำหรับรายการ</h3>
+                    <button class="close-btn" onclick="closeItemWorkersPicker()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p class="section-desc" id="item-workers-hint" style="margin-top: 0;"></p>
+                    <div class="job-worker-picker">
+                        <div id="item-workers-chips" class="job-worker-chips" style="display:none;"></div>
+                        <input type="text" id="item-workers-search" class="job-worker-search-input"
+                            placeholder="ค้นหาชื่อ หรือเลขประจำตัวคนงาน 13 หลัก..." oninput="renderItemWorkersChecklist()" autocomplete="off">
+                        <div id="item-workers-checklist" class="job-worker-checklist"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <span class="item-workers-count" id="item-workers-count">เลือกแล้ว 0 คน</span>
+                    <button class="btn btn-outline" onclick="closeItemWorkersPicker()">ยกเลิก</button>
+                    <button class="btn btn-gold" onclick="confirmItemWorkers()"><span class="ico" data-icon="ok"></span> ใช้รายชื่อนี้</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== COMMISSION PAYOUT MODAL (จ่ายค่าคอม Agent) ดู openCommissionPayoutModal() ==================== -->
+        <div id="commission-modal" class="modal-backdrop hidden" style="z-index: 1070;">
+            <div class="modal-content" style="max-width: 640px;">
+                <div class="modal-header">
+                    <h3 id="commission-modal-title">จ่ายค่าคอมมิชชั่น Agent</h3>
+                    <button class="close-btn" onclick="closeCommissionPayoutModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p class="section-desc" style="margin-top: 0;">เลือกงานที่จะจ่ายค่าคอมรอบนี้ (เฉพาะงานที่ลูกค้าชำระเงินครบแล้ว) แก้ยอดต่องานได้ ระบบจะบันทึกเป็นรายจ่ายหมวด "ค่าคอมมิชชั่น Agent" ให้อัตโนมัติ</p>
+                    <div class="commission-job-list" id="commission-job-list"></div>
+                    <div class="form-row" style="margin-top: 14px;">
+                        <div class="form-group col-6">
+                            <label for="commission-pay-date">วันที่จ่าย</label>
+                            <input type="date" id="commission-pay-date">
+                        </div>
+                        <div class="form-group col-6">
+                            <label for="commission-pay-bank">จ่ายจาก</label>
+                            <select id="commission-pay-bank"></select>
+                        </div>
+                    </div>
+                    <div class="commission-total-row">ยอดจ่ายรวม <strong id="commission-pay-total">0.00</strong> บาท</div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline" onclick="closeCommissionPayoutModal()">ยกเลิก</button>
+                    <button class="btn btn-gold" id="btn-confirm-commission" onclick="confirmCommissionPayout()"><span class="ico" data-icon="cash"></span> บันทึกการจ่ายค่าคอม</button>
                 </div>
             </div>
         </div>
