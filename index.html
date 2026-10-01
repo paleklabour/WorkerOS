@@ -150,7 +150,7 @@
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="20">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
                         </svg>
-                        <span>💾 สำรองและกู้คืนข้อมูล</span>
+                        <span>สำรองและกู้คืนข้อมูล</span>
                     </a>
                 </nav>
 
@@ -209,13 +209,13 @@
                         <!-- Dashboard Tabs -->
                         <div class="dashboard-tabs" style="display: flex; gap: 15px; margin-bottom: 25px; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px;">
                             <button class="btn btn-gold" id="btn-tab-overview" onclick="switchDashboardTab('overview')" style="padding: 8px 18px; border-radius: var(--radius-sm); font-weight: 600;">
-                                🏠 ภาพรวมและการแจ้งเตือนรายนายจ้าง
+                                <span class="ico" data-icon="home"></span> ภาพรวมและการแจ้งเตือนรายนายจ้าง
                             </button>
                             <button class="btn btn-outline" id="btn-tab-monthly" onclick="switchDashboardTab('monthly')" style="padding: 8px 18px; border-radius: var(--radius-sm); font-weight: 600;">
-                                📊 สถิติการเพิ่มนายจ้าง/ลูกจ้างรายเดือน
+                                <span class="ico" data-icon="chart"></span> สถิติการเพิ่มนายจ้าง/ลูกจ้างรายเดือน
                             </button>
                             <button class="btn btn-outline" id="btn-tab-completed" onclick="switchDashboardTab('completed')" style="padding: 8px 18px; border-radius: var(--radius-sm); font-weight: 600;">
-                                ✅ สรุปงานที่แจ้งสำเร็จ
+                                <span class="ico" data-icon="ok"></span> สรุปงานที่แจ้งสำเร็จ
                             </button>
                         </div>
 
@@ -274,7 +274,7 @@
                                 <!-- Left: Expiration Notifications Grouped by Employer (Critical) -->
                                 <div class="dashboard-panel panel-alerts" style="flex: 1.8;">
                                     <div class="panel-header">
-                                        <h3>⚠️ แจ้งเตือนวันหมดอายุเอกสารแยกรายนายจ้าง (Passport < 180 วัน / WP < 60 วัน)</h3>
+                                        <h3><span class="ico" data-icon="warn"></span> แจ้งเตือนวันหมดอายุเอกสารแยกรายนายจ้าง (Passport < 180 วัน / WP < 60 วัน)</h3>
                                         <span class="badge badge-danger" id="alert-employer-count-badge">0 บริษัท</span>
                                     </div>
                                     <div style="padding: 10px 14px 0;">
@@ -290,8 +290,8 @@
                                             <thead>
                                                 <tr>
                                                     <th>ชื่อบริษัท / นายจ้าง</th>
-                                                    <th>ใกล้หมดอายุ (⚠️)</th>
-                                                    <th>หมดอายุแล้ว (❌)</th>
+                                                    <th>ใกล้หมดอายุ (<span class="ico" data-icon="warn"></span>)</th>
+                                                    <th>หมดอายุแล้ว (<span class="ico" data-icon="bad"></span>)</th>
                                                     <th>หนังสือรับรองบริษัท</th>
                                                     <th style="text-align: center; width: 140px;">จัดการ</th>
                                                 </tr>
@@ -329,7 +329,7 @@
                             <div class="dashboard-grid" style="margin-top: 25px;">
                                 <div class="dashboard-panel" style="flex: 1;">
                                     <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center;">
-                                        <h3>⚠️ รายชื่อคนงานต่างด้าวที่ยังไม่ได้แนบเอกสาร (ป้องกันการตกหล่น)</h3>
+                                        <h3><span class="ico" data-icon="warn"></span> รายชื่อคนงานต่างด้าวที่ยังไม่ได้แนบเอกสาร (ป้องกันการตกหล่น)</h3>
                                         <span class="badge" style="background-color:#f97316; color:white; font-weight: 600;" id="missing-docs-count-badge">0 คน</span>
                                     </div>
                                     <div style="padding: 10px 14px 0;">
@@ -371,7 +371,7 @@
                                 <!-- Left panel: Employers Added Monthly -->
                                 <div class="dashboard-panel">
                                     <div class="panel-header">
-                                        <h3>🏢 สถิติการลงทะเบียนนายจ้างประจำเดือน (Employer Registrations)</h3>
+                                        <h3><span class="ico" data-icon="building"></span> สถิติการลงทะเบียนนายจ้างประจำเดือน (Employer Registrations)</h3>
                                     </div>
                                     <div class="panel-content" style="padding: 0; overflow-x: auto;">
                                         <table class="data-table" style="box-shadow: none; border: none; border-radius: 0;">
@@ -391,7 +391,7 @@
                                 <!-- Right panel: Workers Added Monthly -->
                                 <div class="dashboard-panel">
                                     <div class="panel-header">
-                                        <h3>👷 สถิติการขึ้นทะเบียนลูกจ้างประจำเดือน (Worker Registrations)</h3>
+                                        <h3><span class="ico" data-icon="worker"></span> สถิติการขึ้นทะเบียนลูกจ้างประจำเดือน (Worker Registrations)</h3>
                                     </div>
                                     <div class="panel-content" style="padding: 0; overflow-x: auto;">
                                         <table class="data-table" style="box-shadow: none; border: none; border-radius: 0;">
@@ -412,20 +412,20 @@
                             <!-- Detailed Registered List for Selected Month -->
                             <div class="dashboard-panel" style="margin-top: 25px;">
                                 <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
-                                    <h3 id="db-monthly-details-title" style="margin: 0;">📋 รายชื่อข้อมูลผู้ลงทะเบียนประจำเดือน</h3>
+                                    <h3 id="db-monthly-details-title" style="margin: 0;"><span class="ico" data-icon="clipboard"></span> รายชื่อข้อมูลผู้ลงทะเบียนประจำเดือน</h3>
                                     <select id="db-monthly-select-month" onchange="renderMonthlyDetails()" style="padding: 8px 14px; border-radius: var(--radius-sm); border: 1px solid #cbd5e1; outline: none; font-size: 13.5px;">
                                         <!-- Month Options -->
                                     </select>
                                 </div>
                                 <div class="panel-content" style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; padding: 25px;">
                                     <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); padding: 18px;">
-                                        <h5 style="font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--navy-dark); border-bottom: 2px solid var(--navy-light); padding-bottom: 6px;">🏢 รายชื่อนายจ้างจดทะเบียนใหม่:</h5>
+                                        <h5 style="font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--navy-dark); border-bottom: 2px solid var(--navy-light); padding-bottom: 6px;"><span class="ico" data-icon="building"></span> รายชื่อนายจ้างจดทะเบียนใหม่:</h5>
                                         <ul id="db-monthly-details-customers" style="list-style-type: none; padding-left: 0; display: flex; flex-direction: column; gap: 8px; max-height: 250px; overflow-y: auto;">
                                             <!-- List -->
                                         </ul>
                                     </div>
                                     <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); padding: 18px;">
-                                        <h5 style="font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--navy-dark); border-bottom: 2px solid var(--navy-light); padding-bottom: 6px;">👷 รายชื่อลูกจ้างขึ้นทะเบียนใหม่:</h5>
+                                        <h5 style="font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--navy-dark); border-bottom: 2px solid var(--navy-light); padding-bottom: 6px;"><span class="ico" data-icon="worker"></span> รายชื่อลูกจ้างขึ้นทะเบียนใหม่:</h5>
                                         <ul id="db-monthly-details-workers" style="list-style-type: none; padding-left: 0; display: flex; flex-direction: column; gap: 8px; max-height: 250px; overflow-y: auto;">
                                             <!-- List -->
                                         </ul>
@@ -438,7 +438,7 @@
                         <div id="db-tab-completed" class="db-tab-content hidden">
                             <div class="dashboard-panel" style="margin-bottom: 20px;">
                                 <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-                                    <h3 style="margin: 0;">🔍 ค้นหางานที่แจ้งสำเร็จ</h3>
+                                    <h3 style="margin: 0;"><span class="ico" data-icon="search"></span> ค้นหางานที่แจ้งสำเร็จ</h3>
                                     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                                         <select id="db-completed-select-employer" onchange="renderCompletedJobsStats()" style="padding: 8px 14px; border-radius: var(--radius-sm); border: 1px solid #cbd5e1; outline: none; font-size: 13.5px; min-width: 260px;">
                                             <option value="">🌐 ภาพรวมทั้งหมด (ทุกนายจ้าง)</option>
@@ -454,14 +454,14 @@
 
                             <div class="stats-grid" style="grid-template-columns: repeat(2, 1fr); margin-bottom: 20px;">
                                 <div class="stats-card" style="border-left: 4px solid var(--success);">
-                                    <div class="stats-icon text-success">✅</div>
+                                    <div class="stats-icon text-success"><span class="ico" data-icon="ok"></span></div>
                                     <div class="stats-info">
                                         <h3 id="stat-completed-total">0</h3>
                                         <p>งานที่แจ้งสำเร็จทั้งหมด (ตามตัวกรอง)</p>
                                     </div>
                                 </div>
                                 <div class="stats-card" style="border-left: 4px solid var(--navy-medium);">
-                                    <div class="stats-icon text-gold">📅</div>
+                                    <div class="stats-icon text-gold"><span class="ico" data-icon="calendar"></span></div>
                                     <div class="stats-info">
                                         <h3 id="stat-completed-this-month">0</h3>
                                         <p>งานที่แจ้งสำเร็จเดือนนี้</p>
@@ -473,7 +473,7 @@
                                 <!-- Left panel: Completed Jobs by Month -->
                                 <div class="dashboard-panel">
                                     <div class="panel-header">
-                                        <h3>📆 สรุปงานที่แจ้งสำเร็จรายเดือน</h3>
+                                        <h3><span class="ico" data-icon="calendar"></span> สรุปงานที่แจ้งสำเร็จรายเดือน</h3>
                                     </div>
                                     <div class="panel-content" style="padding: 0; overflow-x: auto; max-height: 400px;">
                                         <table class="data-table" style="box-shadow: none; border: none; border-radius: 0;">
@@ -493,7 +493,7 @@
                                 <!-- Right panel: Completed Jobs by Job Type -->
                                 <div class="dashboard-panel">
                                     <div class="panel-header">
-                                        <h3>🗂️ สรุปงานที่แจ้งสำเร็จแยกประเภทงาน</h3>
+                                        <h3><span class="ico" data-icon="folder"></span> สรุปงานที่แจ้งสำเร็จแยกประเภทงาน</h3>
                                     </div>
                                     <div class="panel-content" style="padding: 0; overflow-x: auto; max-height: 400px;">
                                         <table class="data-table" style="box-shadow: none; border: none; border-radius: 0;">
@@ -612,7 +612,7 @@
                         <div id="worker-bulk-status-bar" class="worker-bulk-bar hidden">
                             <label><input type="checkbox" id="worker-bulk-select-all" onchange="toggleSelectAllPendingWorkers(this.checked)"> เลือกทั้งหมด (<span id="worker-bulk-total">0</span> คนตามตัวกรอง)</label>
                             <span id="worker-bulk-count" class="text-muted">เลือกแล้ว 0 คน</span>
-                            <button class="btn btn-sm btn-gold" id="btn-bulk-activate-workers" onclick="bulkActivateSelectedWorkers()" disabled>✅ เปลี่ยนเป็นปกติ</button>
+                            <button class="btn btn-sm btn-gold" id="btn-bulk-activate-workers" onclick="bulkActivateSelectedWorkers()" disabled><span class="ico" data-icon="ok"></span> เปลี่ยนเป็นปกติ</button>
                         </div>
 
                         <div class="table-container">
@@ -691,10 +691,10 @@
                         <!-- View Toggle for Kanban -->
                         <div class="view-toggle-bar" style="display: flex; gap: 10px; margin-bottom: 20px; background: #f1f5f9; padding: 6px; border-radius: var(--radius-md); width: fit-content;">
                             <button class="btn btn-gold btn-sm" id="btn-job-view-table" onclick="switchJobView('table')" style="padding: 6px 16px; border-radius: var(--radius-sm); font-size: 12px; font-weight: 600;">
-                                📊 ตารางใบงาน (Table)
+                                <span class="ico" data-icon="chart"></span> ตารางใบงาน (Table)
                             </button>
                             <button class="btn btn-outline btn-sm" id="btn-job-view-kanban" onclick="switchJobView('kanban')" style="padding: 6px 16px; border-radius: var(--radius-sm); font-size: 12px; font-weight: 600; border-color: transparent; color: var(--text-dark); background: transparent;">
-                                📋 คัมบังบอร์ด (Kanban)
+                                <span class="ico" data-icon="clipboard"></span> คัมบังบอร์ด (Kanban)
                             </button>
                         </div>
 
@@ -725,7 +725,7 @@
                                 <!-- Column: Waiting for Docs -->
                                 <div class="kanban-column" style="flex: 1; min-width: 250px; background: #f8fafc; border-radius: var(--radius-md); border: 1px solid #e2e8f0; display: flex; flex-direction: column; height: fit-content; max-height: calc(100vh - 260px);">
                                     <div class="kanban-column-header" style="padding: 12px; border-bottom: 2px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f1f5f9; border-top-left-radius: var(--radius-md); border-top-right-radius: var(--radius-md);">
-                                        <h4 style="font-weight: 600; font-size: 13px; color: #475569; margin: 0;">📂 รอเอกสาร</h4>
+                                        <h4 style="font-weight: 600; font-size: 13px; color: #475569; margin: 0;"><span class="ico" data-icon="folder"></span> รอเอกสาร</h4>
                                         <span class="badge badge-danger" id="count-kanban-docs" style="font-size: 11px; padding: 2px 8px;">0</span>
                                     </div>
                                     <div class="kanban-cards-container" id="kanban-docs" ondragover="onKanbanDragOver(event)" ondrop="onKanbanDrop(event, 'รอเอกสารเพิ่มเติม')" style="padding: 12px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-height: 200px; flex-grow: 1;">
@@ -735,7 +735,7 @@
                                 <!-- Column: Pending -->
                                 <div class="kanban-column" style="flex: 1; min-width: 250px; background: #f8fafc; border-radius: var(--radius-md); border: 1px solid #e2e8f0; display: flex; flex-direction: column; height: fit-content; max-height: calc(100vh - 260px);">
                                     <div class="kanban-column-header" style="padding: 12px; border-bottom: 2px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f1f5f9; border-top-left-radius: var(--radius-md); border-top-right-radius: var(--radius-md);">
-                                        <h4 style="font-weight: 600; font-size: 13px; color: #475569; margin: 0;">⏳ รอดำเนินการ</h4>
+                                        <h4 style="font-weight: 600; font-size: 13px; color: #475569; margin: 0;"><span class="ico" data-icon="hourglass"></span> รอดำเนินการ</h4>
                                         <span class="badge badge-warning" id="count-kanban-pending" style="font-size: 11px; padding: 2px 8px;">0</span>
                                     </div>
                                     <div class="kanban-cards-container" id="kanban-pending" ondragover="onKanbanDragOver(event)" ondrop="onKanbanDrop(event, 'รอดำเนินการ')" style="padding: 12px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-height: 200px; flex-grow: 1;">
@@ -745,7 +745,7 @@
                                 <!-- Column: In Progress -->
                                 <div class="kanban-column" style="flex: 1; min-width: 250px; background: #f8fafc; border-radius: var(--radius-md); border: 1px solid #e2e8f0; display: flex; flex-direction: column; height: fit-content; max-height: calc(100vh - 260px);">
                                     <div class="kanban-column-header" style="padding: 12px; border-bottom: 2px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f1f5f9; border-top-left-radius: var(--radius-md); border-top-right-radius: var(--radius-md);">
-                                        <h4 style="font-weight: 600; font-size: 13px; color: #475569; margin: 0;">⚙️ กำลังดำเนินการ</h4>
+                                        <h4 style="font-weight: 600; font-size: 13px; color: #475569; margin: 0;"><span class="ico" data-icon="settings"></span> กำลังดำเนินการ</h4>
                                         <span class="badge badge-gold" id="count-kanban-progress" style="font-size: 11px; padding: 2px 8px;">0</span>
                                     </div>
                                     <div class="kanban-cards-container" id="kanban-progress" ondragover="onKanbanDragOver(event)" ondrop="onKanbanDrop(event, 'กำลังดำเนินการ')" style="padding: 12px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-height: 200px; flex-grow: 1;">
@@ -755,9 +755,9 @@
                                 <!-- Column: Closed (ปิดงานแล้ว — เข้าได้เฉพาะผ่านปุ่ม "ปิดงาน" ที่แนบเอกสาร ลากเข้ามาตรงๆ ไม่ได้) -->
                                 <div class="kanban-column" style="flex: 1; min-width: 250px; background: #f8fafc; border-radius: var(--radius-md); border: 1px solid #e2e8f0; display: flex; flex-direction: column; height: fit-content; max-height: calc(100vh - 260px);">
                                     <div class="kanban-column-header" style="padding: 12px; border-bottom: 2px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f1f5f9; border-top-left-radius: var(--radius-md); border-top-right-radius: var(--radius-md);">
-                                        <h4 style="font-weight: 600; font-size: 13px; color: #475569; margin: 0;" title="เข้าคอลัมน์นี้ได้เฉพาะผ่านปุ่ม 📎 ปิดงาน (ต้องแนบเอกสารก่อน) — งานที่ปิดแล้วและลูกค้าชำระเงินครบแล้วจะถูกซ่อนออกจากคอลัมน์นี้อัตโนมัติ (ดูย้อนหลังได้ที่หน้ารายการหรือแท็บออกบิล/รับเงิน)">🔒 ปิดงานแล้ว</h4>
+                                        <h4 style="font-weight: 600; font-size: 13px; color: #475569; margin: 0;" title="เข้าคอลัมน์นี้ได้เฉพาะผ่านปุ่ม 📎 ปิดงาน (ต้องแนบเอกสารก่อน) — งานที่ปิดแล้วและลูกค้าชำระเงินครบแล้วจะถูกซ่อนออกจากคอลัมน์นี้อัตโนมัติ (ดูย้อนหลังได้ที่หน้ารายการหรือแท็บออกบิล/รับเงิน)"><span class="ico" data-icon="lock"></span> ปิดงานแล้ว</h4>
                                         <div style="display: flex; gap: 4px; align-items: center;">
-                                            <span class="badge badge-danger" id="count-kanban-completed-unbilled" style="font-size: 10px; padding: 2px 6px; display: none;" title="ปิดงานแล้วแต่ยังไม่ได้รับชำระเงิน (ไม่ว่าจะออกบิลไปแล้วหรือยัง) — หายไปเมื่อลูกค้าชำระครบแล้ว">⚠️ 0 ยังไม่ได้ชำระ</span>
+                                            <span class="badge badge-danger" id="count-kanban-completed-unbilled" style="font-size: 10px; padding: 2px 6px; display: none;" title="ปิดงานแล้วแต่ยังไม่ได้รับชำระเงิน (ไม่ว่าจะออกบิลไปแล้วหรือยัง) — หายไปเมื่อลูกค้าชำระครบแล้ว"><span class="ico" data-icon="warn"></span> 0 ยังไม่ได้ชำระ</span>
                                             <span class="badge badge-success" id="count-kanban-completed" style="font-size: 11px; padding: 2px 8px;">0</span>
                                         </div>
                                     </div>
@@ -834,17 +834,17 @@
                     <!-- ==================== FINANCE / EXPENSES / BANKS (MERGED) VIEW ==================== -->
                     <div id="view-expenses" class="content-section hidden">
                         <div class="dashboard-tabs" style="margin-bottom: 18px;">
-                            <button type="button" class="btn btn-gold" id="btn-finpage-tab-overview" onclick="switchFinancePageTab('overview')">📊 สรุปการเงิน</button>
-                            <button type="button" class="btn btn-outline" id="btn-finpage-tab-billing" onclick="switchFinancePageTab('billing')">🧾 ออกบิล / รับเงิน</button>
-                            <button type="button" class="btn btn-outline" id="btn-finpage-tab-expenses" onclick="switchFinancePageTab('expenses')">💸 จัดการรายจ่าย</button>
-                            <button type="button" class="btn btn-outline" id="btn-finpage-tab-banks" onclick="switchFinancePageTab('banks')">🏦 บัญชีธนาคาร</button>
+                            <button type="button" class="btn btn-gold" id="btn-finpage-tab-overview" onclick="switchFinancePageTab('overview')"><span class="ico" data-icon="chart"></span> สรุปการเงิน</button>
+                            <button type="button" class="btn btn-outline" id="btn-finpage-tab-billing" onclick="switchFinancePageTab('billing')"><span class="ico" data-icon="receipt"></span> ออกบิล / รับเงิน</button>
+                            <button type="button" class="btn btn-outline" id="btn-finpage-tab-expenses" onclick="switchFinancePageTab('expenses')"><span class="ico" data-icon="cash"></span> จัดการรายจ่าย</button>
+                            <button type="button" class="btn btn-outline" id="btn-finpage-tab-banks" onclick="switchFinancePageTab('banks')"><span class="ico" data-icon="bank"></span> บัญชีธนาคาร</button>
                         </div>
 
                         <!-- SUB-TAB: FINANCE OVERVIEW -->
                         <div id="finpage-tab-overview" class="db-tab-content">
                             <!-- Period Filter -->
                             <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; padding: 0;">
-                                <h4 style="font-size: 14.5px; font-weight: 700; color: var(--navy-dark); margin: 0;">📅 ช่วงเวลาที่ต้องการดูสรุป</h4>
+                                <h4 style="font-size: 14.5px; font-weight: 700; color: var(--navy-dark); margin: 0;"><span class="ico" data-icon="calendar"></span> ช่วงเวลาที่ต้องการดูสรุป</h4>
                                 <select id="db-finance-period-select" onchange="renderFinanceStats()" style="padding: 8px 14px; border-radius: var(--radius-sm); border: 1px solid #cbd5e1; outline: none; font-size: 13.5px; min-width: 220px;">
                                     <option value="">ทั้งหมด (All Time)</option>
                                     <!-- Dynamic ปี/เดือน options -->
@@ -854,21 +854,21 @@
                             <!-- Top Highlight Cards -->
                             <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 15px;">
                                 <div class="stats-card" style="border-left: 4px solid var(--gold-primary);">
-                                    <div class="stats-icon text-gold">🏆</div>
+                                    <div class="stats-icon text-gold"><span class="ico" data-icon="trophy"></span></div>
                                     <div class="stats-info">
                                         <h3 id="stat-top-jobtype-count" style="font-size: 15px;">-</h3>
                                         <p>บริการขายดีที่สุด (จำนวนงาน)</p>
                                     </div>
                                 </div>
                                 <div class="stats-card" style="border-left: 4px solid var(--success);">
-                                    <div class="stats-icon text-success">💎</div>
+                                    <div class="stats-icon text-success"><span class="ico" data-icon="gem"></span></div>
                                     <div class="stats-info">
                                         <h3 id="stat-top-jobtype-revenue" style="font-size: 15px;">-</h3>
                                         <p>บริการทำรายได้สูงสุด</p>
                                     </div>
                                 </div>
                                 <div class="stats-card" style="border-left: 4px solid var(--navy-medium);">
-                                    <div class="stats-icon" style="color: var(--navy-dark);">👑</div>
+                                    <div class="stats-icon" style="color: var(--navy-dark);"><span class="ico" data-icon="crown"></span></div>
                                     <div class="stats-info">
                                         <h3 id="stat-top-customer" style="font-size: 15px;">-</h3>
                                         <p>ลูกค้าที่ทำรายได้ให้มากที่สุด</p>
@@ -879,21 +879,21 @@
                             <!-- Finance Mini-Stats Cards -->
                             <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 25px;">
                                 <div class="stats-card" style="border-left: 4px solid var(--navy-medium);">
-                                    <div class="stats-icon text-gold">💰</div>
+                                    <div class="stats-icon text-gold"><span class="ico" data-icon="moneybag"></span></div>
                                     <div class="stats-info">
                                         <h3 id="stat-finance-total">0.00 บาท</h3>
                                         <p>ประมาณการรายรับรวมทั้งหมด</p>
                                     </div>
                                 </div>
                                 <div class="stats-card" style="border-left: 4px solid var(--success);">
-                                    <div class="stats-icon text-success">✅</div>
+                                    <div class="stats-icon text-success"><span class="ico" data-icon="ok"></span></div>
                                     <div class="stats-info">
                                         <h3 id="stat-finance-paid">0.00 บาท</h3>
                                         <p>ชำระเงินเรียบร้อยแล้ว (Received)</p>
                                     </div>
                                 </div>
                                 <div class="stats-card" style="border-left: 4px solid var(--danger);">
-                                    <div class="stats-icon text-danger">⏰</div>
+                                    <div class="stats-icon text-danger"><span class="ico" data-icon="clock"></span></div>
                                     <div class="stats-info">
                                         <h3 id="stat-finance-unpaid">0.00 บาท</h3>
                                         <p>ยอดค้างชำระทั้งหมด (Outstanding)</p>
@@ -904,14 +904,14 @@
                             <!-- Expense & Net Profit Cards -->
                             <div class="stats-grid" style="grid-template-columns: repeat(2, 1fr); margin-bottom: 25px;">
                                 <div class="stats-card" style="border-left: 4px solid var(--danger);">
-                                    <div class="stats-icon text-danger">📉</div>
+                                    <div class="stats-icon text-danger"><span class="ico" data-icon="trenddown"></span></div>
                                     <div class="stats-info">
                                         <h3 id="stat-finance-expenses">0.00 บาท</h3>
                                         <p>รายจ่ายรวมทั้งหมด</p>
                                     </div>
                                 </div>
                                 <div class="stats-card" style="border-left: 4px solid var(--gold-primary);">
-                                    <div class="stats-icon" style="color: var(--gold-primary);">📊</div>
+                                    <div class="stats-icon" style="color: var(--gold-primary);"><span class="ico" data-icon="chart"></span></div>
                                     <div class="stats-info">
                                         <h3 id="stat-finance-net-profit">0.00 บาท</h3>
                                         <p>กำไรสุทธิ (รายรับที่ชำระแล้ว − รายจ่าย)</p>
@@ -921,10 +921,10 @@
 
                             <!-- Bank & Cash Account Cards -->
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px; margin-bottom: 12px;">
-                                <h4 style="font-size: 14.5px; font-weight: 700; color: var(--navy-dark); margin: 0;">🏦 ยอดรายรับแยกตามบัญชีธนาคารและเงินสด (Received by Accounts)</h4>
+                                <h4 style="font-size: 14.5px; font-weight: 700; color: var(--navy-dark); margin: 0;"><span class="ico" data-icon="bank"></span> ยอดรายรับแยกตามบัญชีธนาคารและเงินสด (Received by Accounts)</h4>
                                 <div style="display: flex; gap: 4px;">
-                                    <button type="button" class="btn btn-sm btn-gold" id="btn-accounts-view-table" onclick="toggleChartView('accounts', 'table')" style="font-size: 11px; padding: 4px 10px;">📋 การ์ด</button>
-                                    <button type="button" class="btn btn-sm btn-outline" id="btn-accounts-view-chart" onclick="toggleChartView('accounts', 'chart')" style="font-size: 11px; padding: 4px 10px;">🥧 กราฟวงกลม</button>
+                                    <button type="button" class="btn btn-sm btn-gold" id="btn-accounts-view-table" onclick="toggleChartView('accounts', 'table')" style="font-size: 11px; padding: 4px 10px;"><span class="ico" data-icon="clipboard"></span> การ์ด</button>
+                                    <button type="button" class="btn btn-sm btn-outline" id="btn-accounts-view-chart" onclick="toggleChartView('accounts', 'chart')" style="font-size: 11px; padding: 4px 10px;"><span class="ico" data-icon="pie"></span> กราฟวงกลม</button>
                                 </div>
                             </div>
                             <div id="db-finance-accounts-table-wrap" style="margin-bottom: 25px;">
@@ -944,10 +944,10 @@
                                 <!-- Panel 1: Revenue by Job Type -->
                                 <div class="dashboard-panel">
                                     <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
-                                        <h3>📊 สรุปรายรับแยกตามประเภทงานที่แจ้ง (Revenue by Job Type)</h3>
+                                        <h3><span class="ico" data-icon="chart"></span> สรุปรายรับแยกตามประเภทงานที่แจ้ง (Revenue by Job Type)</h3>
                                         <div style="display: flex; gap: 4px;">
-                                            <button type="button" class="btn btn-sm btn-gold" id="btn-jobtypes-view-table" onclick="toggleChartView('jobtypes', 'table')" style="font-size: 11px; padding: 4px 10px;">📋 ตาราง</button>
-                                            <button type="button" class="btn btn-sm btn-outline" id="btn-jobtypes-view-chart" onclick="toggleChartView('jobtypes', 'chart')" style="font-size: 11px; padding: 4px 10px;">🥧 กราฟวงกลม</button>
+                                            <button type="button" class="btn btn-sm btn-gold" id="btn-jobtypes-view-table" onclick="toggleChartView('jobtypes', 'table')" style="font-size: 11px; padding: 4px 10px;"><span class="ico" data-icon="clipboard"></span> ตาราง</button>
+                                            <button type="button" class="btn btn-sm btn-outline" id="btn-jobtypes-view-chart" onclick="toggleChartView('jobtypes', 'chart')" style="font-size: 11px; padding: 4px 10px;"><span class="ico" data-icon="pie"></span> กราฟวงกลม</button>
                                         </div>
                                     </div>
                                     <div class="panel-content" id="db-finance-jobtypes-table-wrap" style="padding: 0; overflow-x: auto; max-height: 320px;">
@@ -974,7 +974,7 @@
                                 <!-- Panel 2: Job Status & Payment Breakdown -->
                                 <div class="dashboard-panel">
                                     <div class="panel-header">
-                                        <h3>📈 สัดส่วนความคืบหน้าและการชำระเงิน</h3>
+                                        <h3><span class="ico" data-icon="trendup"></span> สัดส่วนความคืบหน้าและการชำระเงิน</h3>
                                     </div>
                                     <div class="panel-content" style="padding: 20px; display: flex; flex-direction: column; gap: 15px;">
                                         <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); padding: 16px;">
@@ -996,10 +996,10 @@
                             <!-- Panel 3: Revenue & Outstanding by Customer -->
                             <div class="dashboard-panel" style="margin-bottom: 20px;">
                                 <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
-                                    <h3>🏢 สรุปรายรับและยอดเงินค้างชำระแยกตามลูกค้า/นายจ้าง (Revenue by Customer)</h3>
+                                    <h3><span class="ico" data-icon="building"></span> สรุปรายรับและยอดเงินค้างชำระแยกตามลูกค้า/นายจ้าง (Revenue by Customer)</h3>
                                     <div style="display: flex; gap: 4px;">
-                                        <button type="button" class="btn btn-sm btn-gold" id="btn-customers-view-table" onclick="toggleChartView('customers', 'table')" style="font-size: 11px; padding: 4px 10px;">📋 ตาราง</button>
-                                        <button type="button" class="btn btn-sm btn-outline" id="btn-customers-view-chart" onclick="toggleChartView('customers', 'chart')" style="font-size: 11px; padding: 4px 10px;">🥧 กราฟวงกลม</button>
+                                        <button type="button" class="btn btn-sm btn-gold" id="btn-customers-view-table" onclick="toggleChartView('customers', 'table')" style="font-size: 11px; padding: 4px 10px;"><span class="ico" data-icon="clipboard"></span> ตาราง</button>
+                                        <button type="button" class="btn btn-sm btn-outline" id="btn-customers-view-chart" onclick="toggleChartView('customers', 'chart')" style="font-size: 11px; padding: 4px 10px;"><span class="ico" data-icon="pie"></span> กราฟวงกลม</button>
                                     </div>
                                 </div>
                                 <div class="panel-content" id="db-finance-customers-table-wrap" style="padding: 0; overflow-x: auto;">
@@ -1028,10 +1028,10 @@
                             <!-- Panel 4: Expenses by Category -->
                             <div class="dashboard-panel" style="margin-bottom: 20px;">
                                 <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
-                                    <h3>📉 สรุปรายจ่ายแยกตามหมวดหมู่ (Expenses by Category)</h3>
+                                    <h3><span class="ico" data-icon="trenddown"></span> สรุปรายจ่ายแยกตามหมวดหมู่ (Expenses by Category)</h3>
                                     <div style="display: flex; gap: 4px;">
-                                        <button type="button" class="btn btn-sm btn-gold" id="btn-expensecat-view-table" onclick="toggleChartView('expensecat', 'table')" style="font-size: 11px; padding: 4px 10px;">📋 ตาราง</button>
-                                        <button type="button" class="btn btn-sm btn-outline" id="btn-expensecat-view-chart" onclick="toggleChartView('expensecat', 'chart')" style="font-size: 11px; padding: 4px 10px;">🥧 กราฟวงกลม</button>
+                                        <button type="button" class="btn btn-sm btn-gold" id="btn-expensecat-view-table" onclick="toggleChartView('expensecat', 'table')" style="font-size: 11px; padding: 4px 10px;"><span class="ico" data-icon="clipboard"></span> ตาราง</button>
+                                        <button type="button" class="btn btn-sm btn-outline" id="btn-expensecat-view-chart" onclick="toggleChartView('expensecat', 'chart')" style="font-size: 11px; padding: 4px 10px;"><span class="ico" data-icon="pie"></span> กราฟวงกลม</button>
                                     </div>
                                 </div>
                                 <div class="panel-content" id="db-finance-expensecat-table-wrap" style="padding: 0; overflow-x: auto;">
@@ -1072,7 +1072,7 @@
                                 </select>
                                 <div class="action-buttons-group" style="display: flex; gap: 10px;">
                                     <button class="btn btn-outline" id="btn-combine-bills" onclick="openCombineBillsModal()" style="border-color: var(--gold-primary); color: var(--gold-primary);">
-                                        <span>🧾 รวมบิลนายจ้าง (Combine Invoice)</span>
+                                        <span><span class="ico" data-icon="receipt"></span> รวมบิลนายจ้าง (Combine Invoice)</span>
                                     </button>
                                     <button class="btn btn-outline" id="btn-quick-invoice" onclick="openInvoiceModal(null)" style="border-color: var(--gold-primary); color: var(--gold-primary);">
                                         <span>สร้างบิลอิสระ (Quick Invoice)</span>
@@ -1254,7 +1254,7 @@
                     <div id="view-backup" class="content-section hidden">
                         <div class="dashboard-panel" style="max-width: 700px; margin: 0 auto; padding: 30px;">
                             <div class="panel-header" style="padding-bottom: 20px; border-bottom: 1px solid #e2e8f0; margin-bottom: 25px;">
-                                <h3 style="font-size: 18px; font-weight: 600; color: var(--navy-dark);">💾 จัดการและสำรองข้อมูลระบบ (Data Backup & Sync)</h3>
+                                <h3 style="font-size: 18px; font-weight: 600; color: var(--navy-dark);"><span class="ico" data-icon="save"></span> จัดการและสำรองข้อมูลระบบ (Data Backup & Sync)</h3>
                                 <p style="font-size: 13px; color: var(--text-muted); margin-top: 5px;">
                                     ข้อมูลจริงเก็บอยู่บนคลาวด์ (Supabase แพ็กเกจฟรี ซึ่งไม่มีระบบสำรองอัตโนมัติให้) — ควรกดสำรองทั้งระบบอย่างน้อยสัปดาห์ละครั้ง แล้วเซฟไฟล์เก็บไว้ใน Google Drive หรือแฟลชไดรฟ์
                                 </p>
@@ -1270,10 +1270,10 @@
                                     </p>
                                     <div class="backup-actions">
                                         <button class="btn btn-gold" id="btn-full-backup" onclick="exportFullBackup()">
-                                            📦 สำรองทั้งระบบ (ข้อมูล + เอกสาร/รูป .zip)
+                                            <span class="ico" data-icon="box"></span> สำรองทั้งระบบ (ข้อมูล + เอกสาร/รูป .zip)
                                         </button>
                                         <button class="btn btn-outline" onclick="exportSystemData()">
-                                            📥 เฉพาะข้อมูล (.json)
+                                            <span class="ico" data-icon="inbox"></span> เฉพาะข้อมูล (.json)
                                         </button>
                                     </div>
                                     <div id="backup-last-info" class="backup-last-info"></div>
@@ -1288,7 +1288,7 @@
                                     </p>
                                     <div style="display: flex; align-items: center; gap: 15px;">
                                         <button class="btn btn-outline" onclick="document.getElementById('import-file-input').click()" style="padding: 10px 20px;">
-                                            📁 เลือกไฟล์เพื่อกู้คืน (.zip / .json)
+                                            <span class="ico" data-icon="folder"></span> เลือกไฟล์เพื่อกู้คืน (.zip / .json)
                                         </button>
                                         <input type="file" id="import-file-input" accept=".json,.zip" onchange="importSystemData(event)" class="hidden" style="display: none;">
                                         <span id="import-file-name" class="text-muted" style="font-size: 13px;">ยังไม่ได้เลือกไฟล์</span>
@@ -1318,7 +1318,7 @@
         <div id="agent-modal" class="modal-backdrop hidden" style="z-index: 1060;">
             <div class="modal-content" style="max-width: 420px;">
                 <div class="modal-header">
-                    <h3 id="agent-modal-title">➕ เพิ่ม Agent ใหม่</h3>
+                    <h3 id="agent-modal-title"><span class="ico" data-icon="plus"></span> เพิ่ม Agent ใหม่</h3>
                     <button class="close-btn" onclick="closeAgentModal()">&times;</button>
                 </div>
                 <div class="modal-body">
@@ -1345,7 +1345,7 @@
         <div id="expense-modal" class="modal-backdrop hidden" style="z-index: 1060;">
             <div class="modal-content" style="max-width: 480px;">
                 <div class="modal-header">
-                    <h3 id="expense-modal-title">➕ เพิ่มรายจ่ายใหม่</h3>
+                    <h3 id="expense-modal-title"><span class="ico" data-icon="plus"></span> เพิ่มรายจ่ายใหม่</h3>
                     <button class="close-btn" onclick="closeExpenseModal()">&times;</button>
                 </div>
                 <div class="modal-body">
@@ -1357,14 +1357,14 @@
                             <div class="upload-box highlight-box" id="drop-expense-slip" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropExpenseSlipHandler(event)" style="padding: 14px;">
                                 <div class="upload-box-trigger">
                                     <input type="file" id="file-expense-slip" class="file-input" accept="image/*,application/pdf" onchange="expenseSlipFileSelectHandler(event)">
-                                <div class="upload-icon">🧾</div>
+                                <div class="upload-icon"><span class="ico" data-icon="receipt"></span></div>
                                 <span class="doc-title">สลิปโอนเงิน / ใบเสร็จ</span>
                                 <span class="upload-hint">ลากไฟล์วางที่นี่ หรือคลิกเพื่ออัปโหลด</span>
                                 </div>
                                 <div class="ocr-status" id="status-expense-slip"></div>
                             </div>
                             <div id="expense-slip-attached" class="hidden" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; padding: 8px 12px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); font-size: 12.5px;">
-                                <a id="expense-slip-link" href="#" target="_blank" rel="noopener" style="color: var(--navy-dark); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">📎 ไฟล์แนบ</a>
+                                <a id="expense-slip-link" href="#" target="_blank" rel="noopener" style="color: var(--navy-dark); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><span class="ico" data-icon="clip"></span> ไฟล์แนบ</a>
                                 <button type="button" class="btn btn-sm btn-outline delete-btn" onclick="removeExpenseSlip()" style="padding: 3px 8px; font-size: 11px; flex-shrink: 0;">ลบไฟล์แนบ</button>
                             </div>
                         </div>
@@ -1427,10 +1427,10 @@
 
                         <div class="dashboard-tabs" style="display: flex; gap: 15px; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px;">
                             <button type="button" class="btn btn-gold" id="btn-cust-tab-general" onclick="switchCustomerModalTab('general')" style="padding: 8px 18px; border-radius: var(--radius-sm); font-weight: 600;">
-                                📋 ข้อมูลทั่วไป
+                                <span class="ico" data-icon="clipboard"></span> ข้อมูลทั่วไป
                             </button>
                             <button type="button" class="btn btn-outline" id="btn-cust-tab-delivery" onclick="switchCustomerModalTab('delivery')" style="padding: 8px 18px; border-radius: var(--radius-sm); font-weight: 600;">
-                                📦 ที่อยู่จัดส่งเอกสาร
+                                <span class="ico" data-icon="box"></span> ที่อยู่จัดส่งเอกสาร
                             </button>
                         </div>
 
@@ -1515,7 +1515,7 @@
                             <div class="form-group col-12">
                                 <label style="display: flex; align-items: center; gap: 8px; font-weight: 600; cursor: pointer;">
                                     <input type="checkbox" id="cust-require-prepayment" style="width: 16px; height: 16px; cursor: pointer;">
-                                    💰 ต้องชำระเงินก่อนเริ่มดำเนินการ (บล็อกไม่ให้ย้ายใบงานของนายจ้างรายนี้เข้าสถานะ "กำลังดำเนินการ" จนกว่าจะออกบิลและรับชำระแล้ว)
+                                    <span class="ico" data-icon="moneybag"></span> ต้องชำระเงินก่อนเริ่มดำเนินการ (บล็อกไม่ให้ย้ายใบงานของนายจ้างรายนี้เข้าสถานะ "กำลังดำเนินการ" จนกว่าจะออกบิลและรับชำระแล้ว)
                                 </label>
                             </div>
                         </div>
@@ -1543,7 +1543,7 @@
                                 <div class="upload-box" id="drop-cust-id-card" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropCustomerDocHandler(event, 'cust-id-card')">
                                     <div class="upload-box-trigger">
                                         <input type="file" id="file-cust-id-card" class="file-input" multiple onchange="customerFileSelectHandler(event, 'cust-id-card')">
-                                    <div class="upload-icon">🪪</div>
+                                    <div class="upload-icon"><span class="ico" data-icon="wp"></span></div>
                                     <span class="doc-title">บัตรประชาชนนายจ้าง</span>
                                     <span class="upload-hint">ลากไฟล์วาง, คลิกอัปโหลด หรือชี้แล้วกด Ctrl+V วางภาพ (แนบเพิ่มได้หลายไฟล์)</span>
                                     </div>
@@ -1554,7 +1554,7 @@
                                 <div class="upload-box highlight-box" id="drop-cust-cert" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropCustomerDocHandler(event, 'cust-cert')">
                                     <div class="upload-box-trigger">
                                         <input type="file" id="file-cust-cert" class="file-input" multiple onchange="customerFileSelectHandler(event, 'cust-cert')">
-                                    <div class="upload-icon">📜</div>
+                                    <div class="upload-icon"><span class="ico" data-icon="cert"></span></div>
                                     <span class="doc-title">หนังสือรับรองบริษัท</span>
                                     <span class="upload-hint">ลากไฟล์วาง, คลิกอัปโหลด หรือชี้แล้วกด Ctrl+V วางภาพ (แนบเพิ่มได้หลายไฟล์)</span>
                                     </div>
@@ -1565,7 +1565,7 @@
                                 <div class="upload-box" id="drop-cust-house" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropCustomerDocHandler(event, 'cust-house')">
                                     <div class="upload-box-trigger">
                                         <input type="file" id="file-cust-house" class="file-input" multiple onchange="customerFileSelectHandler(event, 'cust-house')">
-                                    <div class="upload-icon">🏠</div>
+                                    <div class="upload-icon"><span class="ico" data-icon="building"></span></div>
                                     <span class="doc-title">ทะเบียนบ้านบริษัท</span>
                                     <span class="upload-hint">ลากไฟล์วาง, คลิกอัปโหลด หรือชี้แล้วกด Ctrl+V วางภาพ (แนบเพิ่มได้หลายไฟล์)</span>
                                     </div>
@@ -1576,7 +1576,7 @@
                                 <div class="upload-box" id="drop-employer-house" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropCustomerDocHandler(event, 'employer-house')">
                                     <div class="upload-box-trigger">
                                         <input type="file" id="file-employer-house" class="file-input" multiple onchange="customerFileSelectHandler(event, 'employer-house')">
-                                    <div class="upload-icon">🏡</div>
+                                    <div class="upload-icon"><span class="ico" data-icon="home"></span></div>
                                     <span class="doc-title">ทะเบียนบ้านนายจ้าง</span>
                                     <span class="upload-hint">ลากไฟล์วาง, คลิกอัปโหลด หรือชี้แล้วกด Ctrl+V วางภาพ (แนบเพิ่มได้หลายไฟล์)</span>
                                     </div>
@@ -1587,7 +1587,7 @@
                                 <div class="upload-box" id="drop-cust-photos" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropCustomerDocHandler(event, 'cust-photos')">
                                     <div class="upload-box-trigger">
                                         <input type="file" id="file-cust-photos" class="file-input" multiple onchange="customerFileSelectHandler(event, 'cust-photos')">
-                                    <div class="upload-icon">📸</div>
+                                    <div class="upload-icon"><span class="ico" data-icon="photo"></span></div>
                                     <span class="doc-title">รูปถ่ายกิจการ</span>
                                     <span class="upload-hint">ลากไฟล์วาง, คลิกอัปโหลด หรือชี้แล้วกด Ctrl+V วางภาพ (แนบเพิ่มได้หลายไฟล์)</span>
                                     </div>
@@ -1598,7 +1598,7 @@
                                 <div class="upload-box" id="drop-cust-commerce" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropCustomerDocHandler(event, 'cust-commerce')">
                                     <div class="upload-box-trigger">
                                         <input type="file" id="file-cust-commerce" class="file-input" multiple onchange="customerFileSelectHandler(event, 'cust-commerce')">
-                                    <div class="upload-icon">💼</div>
+                                    <div class="upload-icon"><span class="ico" data-icon="briefcase"></span></div>
                                     <span class="doc-title">ทะเบียนพาณิชย์ (ถ้ามี)</span>
                                     <span class="upload-hint">ลากไฟล์วาง, คลิกอัปโหลด หรือชี้แล้วกด Ctrl+V วางภาพ (แนบเพิ่มได้หลายไฟล์)</span>
                                     </div>
@@ -1609,7 +1609,7 @@
                                 <div class="upload-box" id="drop-cust-other" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropCustomerDocHandler(event, 'cust-other')">
                                     <div class="upload-box-trigger">
                                         <input type="file" id="file-cust-other" class="file-input" multiple onchange="customerFileSelectHandler(event, 'cust-other')">
-                                    <div class="upload-icon">📎</div>
+                                    <div class="upload-icon"><span class="ico" data-icon="clip"></span></div>
                                     <span class="doc-title">เอกสารอื่นๆ</span>
                                     <span class="upload-hint">ลากไฟล์วาง, คลิกอัปโหลด หรือชี้แล้วกด Ctrl+V วางภาพ (แนบเพิ่มได้หลายไฟล์)</span>
                                     </div>
@@ -1635,7 +1635,7 @@
                         <!-- ==================== TAB: DOCUMENT DELIVERY ADDRESS ==================== -->
                         <div id="cust-tab-delivery" class="hidden">
                             <p class="section-desc" style="margin-top: -5px;">
-                                💾 ข้อมูลในแท็บนี้จะถูกบันทึกพร้อมกับปุ่ม "บันทึกข้อมูล" ด้านล่างของฟอร์ม (ใช้ปุ่มเดียวกับแท็บ "ข้อมูลทั่วไป") — ไม่ต้องกดบันทึกแยก ครั้งหน้าที่เปิดแก้ไขนายจ้างรายนี้จะดึงค่าที่เคยกรอกไว้กลับมาให้อัตโนมัติ
+                                <span class="ico" data-icon="save"></span> ข้อมูลในแท็บนี้จะถูกบันทึกพร้อมกับปุ่ม "บันทึกข้อมูล" ด้านล่างของฟอร์ม (ใช้ปุ่มเดียวกับแท็บ "ข้อมูลทั่วไป") — ไม่ต้องกดบันทึกแยก ครั้งหน้าที่เปิดแก้ไขนายจ้างรายนี้จะดึงค่าที่เคยกรอกไว้กลับมาให้อัตโนมัติ
                             </p>
                             <div class="form-row">
                                 <div class="form-group col-12">
@@ -1704,7 +1704,7 @@
                             <div class="form-row" style="margin-top: 10px;">
                                 <div class="form-group col-12">
                                     <button type="button" class="btn btn-outline" onclick="openDeliveryLabelModal()">
-                                        🖨️ พิมพ์ใบปะหน้า A5 สำหรับจัดส่งเอกสาร
+                                        <span class="ico" data-icon="print"></span> พิมพ์ใบปะหน้า A5 สำหรับจัดส่งเอกสาร
                                     </button>
                                 </div>
                             </div>
@@ -1729,7 +1729,7 @@
                 </div>
                 <div class="modal-body">
                     <div class="no-print" style="margin-bottom: 15px; text-align: right;">
-                        <button class="btn btn-gold" onclick="window.print()">🖨️ พิมพ์ (Print)</button>
+                        <button class="btn btn-gold" onclick="window.print()"><span class="ico" data-icon="print"></span> พิมพ์ (Print)</button>
                     </div>
                     <div class="delivery-label-sheet" id="delivery-label-sheet">
                         <div class="delivery-label-from">
@@ -1773,7 +1773,7 @@
                             <div class="form-group" style="width: 140px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; margin-bottom: 0;">
                                 <label style="font-weight: 600; font-size: 13px; text-align: center; width: 100%; color: var(--navy-dark);">รูปถ่ายคนงาน</label>
                                 <div style="width: 110px; height: 110px; border: 2px dashed #cbd5e1; border-radius: 50%; display: flex; align-items: center; justify-content: center; background-color: #f8fafc; position: relative;" id="worker-photo-preview-container">
-                                    <span style="font-size: 32px; color: #94a3b8;" id="worker-photo-icon">👤</span>
+                                    <span style="font-size: 32px; color: #94a3b8;" id="worker-photo-icon"><span class="ico" data-icon="user"></span></span>
                                     <img id="worker-photo-preview" src="" alt="Worker Photo" class="hidden" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
                                     <input type="file" id="worker-photo-input" accept="image/*" onchange="handleWorkerPhotoUpload(event)" style="position: absolute; width: 100%; height: 100%; opacity: 0; cursor: pointer;">
                                     <button type="button" class="remove-photo-btn" onclick="removeWorkerPhoto(event)" title="ลบรูปถ่าย">&times;</button>
@@ -1826,7 +1826,7 @@
                             <div class="form-group col-12">
                                 <label style="display: flex; align-items: center; gap: 8px; font-weight: 600; cursor: pointer;">
                                     <input type="checkbox" id="worker-skip-notify" style="width: 16px; height: 16px;">
-                                    ⚙️ (เฉพาะแอดมิน) เพิ่มเข้าระบบโดยไม่ต้องแจ้งเข้า — ให้ถือว่าคนงานอยู่ภายใต้นายจ้างนี้แล้วทันที ไม่ต้องขึ้น badge "รอแจ้งเข้า"
+                                    <span class="ico" data-icon="settings"></span> (เฉพาะแอดมิน) เพิ่มเข้าระบบโดยไม่ต้องแจ้งเข้า — ให้ถือว่าคนงานอยู่ภายใต้นายจ้างนี้แล้วทันที ไม่ต้องขึ้น badge "รอแจ้งเข้า"
                                 </label>
                             </div>
                         </div>
@@ -1992,7 +1992,7 @@
                                 <div class="upload-box highlight-box" id="drop-worker-wp-doc" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropDocHandler(event, 'worker-wp-doc')">
                                     <div class="upload-box-trigger">
                                         <input type="file" id="file-worker-wp-doc" class="file-input" multiple onchange="fileSelectHandler(event, 'worker-wp-doc')">
-                                    <div class="upload-icon">🪪</div>
+                                    <div class="upload-icon"><span class="ico" data-icon="wp"></span></div>
                                     <span class="doc-title">เอกสารใบอนุญาตทำงาน (1.1)</span>
                                     <span class="upload-hint">ลากไฟล์วาง, คลิกอัปโหลด หรือชี้แล้วกด Ctrl+V วางภาพ (แนบเพิ่มได้หลายไฟล์)</span>
                                     </div>
@@ -2003,7 +2003,7 @@
                                 <div class="upload-box highlight-box" id="drop-worker-passport" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropDocHandler(event, 'worker-passport')">
                                     <div class="upload-box-trigger">
                                         <input type="file" id="file-worker-passport" class="file-input" multiple onchange="fileSelectHandler(event, 'worker-passport')">
-                                    <div class="upload-icon">✈️</div>
+                                    <div class="upload-icon"><span class="ico" data-icon="passport"></span></div>
                                     <span class="doc-title">พาสปอร์ต / CI (1.2)</span>
                                     <span class="upload-hint">ลากไฟล์วาง, คลิกอัปโหลด หรือชี้แล้วกด Ctrl+V วางภาพ (แนบเพิ่มได้หลายไฟล์)</span>
                                     </div>
@@ -2014,7 +2014,7 @@
                                 <div class="upload-box" id="drop-worker-myanmar-id" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropDocHandler(event, 'worker-myanmar-id')">
                                     <div class="upload-box-trigger">
                                         <input type="file" id="file-worker-myanmar-id" class="file-input" multiple onchange="fileSelectHandler(event, 'worker-myanmar-id')">
-                                    <div class="upload-icon">🏡</div>
+                                    <div class="upload-icon"><span class="ico" data-icon="home"></span></div>
                                     <span class="doc-title">บัตรประชาชน/ทะเบียนบ้านพม่า</span>
                                     <span class="upload-hint">ลากไฟล์วาง, คลิกอัปโหลด หรือชี้แล้วกด Ctrl+V วางภาพ (แนบเพิ่มได้หลายไฟล์)</span>
                                     </div>
@@ -2025,7 +2025,7 @@
                                 <div class="upload-box" id="drop-worker-pink-card" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropDocHandler(event, 'worker-pink-card')">
                                     <div class="upload-box-trigger">
                                         <input type="file" id="file-worker-pink-card" class="file-input" multiple onchange="fileSelectHandler(event, 'worker-pink-card')">
-                                    <div class="upload-icon">🌸</div>
+                                    <div class="upload-icon"><span class="ico" data-icon="pink"></span></div>
                                     <span class="doc-title">บัตรชมพู (Pink Card)</span>
                                     <span class="upload-hint">ลากไฟล์วาง, คลิกอัปโหลด หรือชี้แล้วกด Ctrl+V วางภาพ (แนบเพิ่มได้หลายไฟล์)</span>
                                     </div>
@@ -2036,7 +2036,7 @@
                                 <div class="upload-box" id="drop-worker-receipt" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropDocHandler(event, 'worker-receipt')">
                                     <div class="upload-box-trigger">
                                         <input type="file" id="file-worker-receipt" class="file-input" multiple onchange="fileSelectHandler(event, 'worker-receipt')">
-                                    <div class="upload-icon">🧾</div>
+                                    <div class="upload-icon"><span class="ico" data-icon="receipt"></span></div>
                                     <span class="doc-title">ใบเสร็จ (Receipt)</span>
                                     <span class="upload-hint">ลากไฟล์วาง, คลิกอัปโหลด หรือชี้แล้วกด Ctrl+V วางภาพ (แนบเพิ่มได้หลายไฟล์)</span>
                                     </div>
@@ -2047,7 +2047,7 @@
                                 <div class="upload-box" id="drop-worker-other" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropDocHandler(event, 'worker-other')">
                                     <div class="upload-box-trigger">
                                         <input type="file" id="file-worker-other" class="file-input" multiple onchange="fileSelectHandler(event, 'worker-other')">
-                                    <div class="upload-icon">📎</div>
+                                    <div class="upload-icon"><span class="ico" data-icon="clip"></span></div>
                                     <span class="doc-title">เอกสารอื่นๆ</span>
                                     <span class="upload-hint">ลากไฟล์วาง, คลิกอัปโหลด หรือชี้แล้วกด Ctrl+V วางภาพ (แนบเพิ่มได้หลายไฟล์)</span>
                                     </div>
@@ -2058,7 +2058,7 @@
                                 <div class="upload-box" id="drop-worker-medical" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropDocHandler(event, 'worker-medical')">
                                     <div class="upload-box-trigger">
                                         <input type="file" id="file-worker-medical" class="file-input" multiple onchange="fileSelectHandler(event, 'worker-medical')">
-                                    <div class="upload-icon">🩺</div>
+                                    <div class="upload-icon"><span class="ico" data-icon="medical"></span></div>
                                     <span class="doc-title">ใบรับรองแพทย์</span>
                                     <span class="upload-hint">ลากไฟล์วาง, คลิกอัปโหลด หรือชี้แล้วกด Ctrl+V วางภาพ (แนบเพิ่มได้หลายไฟล์)</span>
                                     </div>
@@ -2069,7 +2069,7 @@
                                 <div class="upload-box" id="drop-worker-insurance-doc" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropDocHandler(event, 'worker-insurance-doc')">
                                     <div class="upload-box-trigger">
                                         <input type="file" id="file-worker-insurance-doc" class="file-input" multiple onchange="fileSelectHandler(event, 'worker-insurance-doc')">
-                                    <div class="upload-icon">🛡️</div>
+                                    <div class="upload-icon"><span class="ico" data-icon="shield"></span></div>
                                     <span class="doc-title">ประกัน (เอกชน/รัฐ/ประกันสังคม)</span>
                                     <span class="upload-hint">ลากไฟล์วาง, คลิกอัปโหลด หรือชี้แล้วกด Ctrl+V วางภาพ (แนบเพิ่มได้หลายไฟล์)</span>
                                     </div>
@@ -2215,7 +2215,7 @@
 
                         <div id="job-closed-banner" style="display:none; background:#f0fdf4; border:1px solid #bbf7d0; color:#166534; border-radius:var(--radius-sm); padding:10px 12px; font-size:12.5px; margin-bottom:12px;">
                             <div id="job-closed-banner-text"></div>
-                            <button type="button" class="btn btn-outline btn-sm" style="margin-top:6px;" onclick="reopenJobFromModal()">🔓 เปิดงานอีกครั้ง</button>
+                            <button type="button" class="btn btn-outline btn-sm" style="margin-top:6px;" onclick="reopenJobFromModal()"><span class="ico" data-icon="unlock"></span> เปิดงานอีกครั้ง</button>
                         </div>
 
                         <div class="form-group" id="job-status-group">
@@ -2225,7 +2225,7 @@
                                 <option value="กำลังดำเนินการ">กำลังดำเนินการ (In Progress)</option>
                                 <option value="รอเอกสารเพิ่มเติม">รอเอกสารเพิ่มเติม (Waiting for Docs)</option>
                             </select>
-                            <small class="text-muted" style="display:block; margin-top:4px;">การปิดงาน (แนบเอกสาร) ทำได้จากปุ่ม "📎 ปิดงาน" ที่ใบงานในหน้ารายการ/Kanban เท่านั้น</small>
+                            <small class="text-muted" style="display:block; margin-top:4px;">การปิดงาน (แนบเอกสาร) ทำได้จากปุ่ม "<span class="ico" data-icon="clip"></span> ปิดงาน" ที่ใบงานในหน้ารายการ/Kanban เท่านั้น</small>
                         </div>
 
                         <div id="job-appointment-section" style="display:none;">
@@ -2234,7 +2234,7 @@
                                 <div class="upload-box" id="drop-job-appointment" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropJobAppointmentFile(event)">
                                     <div class="upload-box-trigger">
                                         <input type="file" id="file-job-appointment" class="file-input" onchange="jobAppointmentFileSelected(event)">
-                                    <div class="upload-icon">📅</div>
+                                    <div class="upload-icon"><span class="ico" data-icon="calendar"></span></div>
                                     <span class="doc-title">ใบนัดหมาย</span>
                                     <span class="upload-hint">ลากวางไฟล์ หรือคลิกเพื่ออัปโหลด (แนบได้ 1 ไฟล์ต่อใบงาน แนบใหม่จะแทนที่ไฟล์เดิม)</span>
                                     </div>
@@ -2279,7 +2279,7 @@
         <div id="job-close-modal" class="modal-backdrop hidden">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h3>📎 แนบเอกสารและปิดงาน</h3>
+                    <h3><span class="ico" data-icon="clip"></span> แนบเอกสารและปิดงาน</h3>
                     <button class="close-btn" onclick="closeJobCloseModal()">&times;</button>
                 </div>
                 <div class="modal-body">
@@ -2296,7 +2296,7 @@
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-outline" onclick="closeJobCloseModal()">ยกเลิก</button>
-                            <button type="submit" class="btn btn-gold" id="btn-confirm-close-job">✅ ยืนยันปิดงาน</button>
+                            <button type="submit" class="btn btn-gold" id="btn-confirm-close-job"><span class="ico" data-icon="ok"></span> ยืนยันปิดงาน</button>
                         </div>
                     </form>
                 </div>
@@ -2385,7 +2385,7 @@
                             </select>
                         </div>
                         <button class="btn btn-gold" onclick="window.print()" style="margin-top: 20px;">
-                            🖨️ พิมพ์ใบวางบิล (Print)
+                            <span class="ico" data-icon="print"></span> พิมพ์ใบวางบิล (Print)
                         </button>
                     </div>
 
@@ -2395,7 +2395,7 @@
                     <div class="no-print hidden" id="invoice-free-picker-wrap" style="margin-bottom: 15px;">
                         <div class="form-row">
                             <div class="form-group col-6" style="margin-bottom: 0;">
-                                <label style="font-weight: 600; color: var(--gold-primary);">🔍 ค้นหาเลือกนายจ้าง/ลูกค้าจากระบบ (ไม่บังคับ)</label>
+                                <label style="font-weight: 600; color: var(--gold-primary);"><span class="ico" data-icon="search"></span> ค้นหาเลือกนายจ้าง/ลูกค้าจากระบบ (ไม่บังคับ)</label>
                                 <div class="search-box" style="max-width: 100%;">
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -2404,7 +2404,7 @@
                                 </div>
                             </div>
                             <div class="form-group col-6" style="margin-bottom: 0;">
-                                <label style="font-weight: 600; color: var(--gold-primary);">🔍 ค้นหาเลือกลูกจ้าง/คนงานจากระบบ (ไม่บังคับ)</label>
+                                <label style="font-weight: 600; color: var(--gold-primary);"><span class="ico" data-icon="search"></span> ค้นหาเลือกลูกจ้าง/คนงานจากระบบ (ไม่บังคับ)</label>
                                 <div class="search-box" style="max-width: 100%;">
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -2415,7 +2415,7 @@
                         </div>
                         <!-- เลือกประเภทงานที่แจ้ง -> เพิ่มเป็นรายการในบิลทันที เลือกซ้ำได้เรื่อย ๆ (ตัวเลือกดึงจากเช็กบ็อกซ์ในฟอร์มแจ้งสั่งงาน ดู populateFreeInvoiceJobTypeSelect) -->
                         <div class="form-group" style="margin: 12px 0 0;">
-                            <label for="invoice-free-jobtype-select" style="font-weight: 600; color: var(--gold-primary);">➕ เพิ่มรายการประเภทงานที่แจ้ง (เลือกได้หลายรายการ)</label>
+                            <label for="invoice-free-jobtype-select" style="font-weight: 600; color: var(--gold-primary);"><span class="ico" data-icon="plus"></span> เพิ่มรายการประเภทงานที่แจ้ง (เลือกได้หลายรายการ)</label>
                             <select id="invoice-free-jobtype-select" onchange="addFreeInvoiceJobTypeItem(this)">
                                 <!-- Dynamic job type options -->
                             </select>
@@ -2425,7 +2425,7 @@
                     <!-- Note สำหรับวางบิล: แสดงให้เจ้าหน้าที่เห็นก่อนออกบิลเท่านั้น ไม่ถูกพิมพ์ลงในใบแจ้งหนี้ที่ให้ลูกค้า -->
                     <div class="no-print hidden" id="invoice-billing-note-wrap" style="margin-bottom: 15px;">
                         <div style="background-color: #fffbeb; border: 1px solid #fde68a; border-radius: var(--radius-sm); padding: 12px 14px; font-size: 13px; color: #92400e;">
-                            <strong>📌 Note วางบิลของนายจ้างรายนี้:</strong>
+                            <strong><span class="ico" data-icon="pin"></span> Note วางบิลของนายจ้างรายนี้:</strong>
                             <p id="invoice-billing-note-text" style="margin: 6px 0 0; white-space: pre-line; line-height: 1.5;"></p>
                         </div>
                     </div>
@@ -2533,19 +2533,19 @@
                 </div>
                 <div class="modal-footer no-print" style="flex-direction: column; align-items: stretch; gap: 10px;">
                     <div id="invoice-payment-proof-row" class="form-group" style="margin: 0; display: none;">
-                        <label for="invoice-payment-proof-input">📎 แนบหลักฐานการโอนเงิน (สลิป/ภาพถ่ายการโอน)</label>
+                        <label for="invoice-payment-proof-input"><span class="ico" data-icon="clip"></span> แนบหลักฐานการโอนเงิน (สลิป/ภาพถ่ายการโอน)</label>
                         <input type="file" id="invoice-payment-proof-input" accept="image/*,application/pdf" multiple>
                     </div>
                     <div style="display: flex; gap: 10px; justify-content: flex-end;">
                         <button class="btn btn-outline" onclick="closeInvoiceModal()">ปิดหน้าต่าง</button>
                         <button class="btn btn-outline" id="btn-save-invoice-edits" onclick="saveInvoiceFeeEdits()" style="border-color: var(--gold-primary); color: var(--gold-primary);">
-                            💾 บันทึกการแก้ไขราคาบิล
+                            <span class="ico" data-icon="save"></span> บันทึกการแก้ไขราคาบิล
                         </button>
                         <button class="btn btn-outline" id="btn-issue-free-invoice" onclick="issueFreeInvoice()" style="display:none; border-color: var(--gold-primary); color: var(--gold-primary);">
-                            🧾 วางบิล
+                            <span class="ico" data-icon="receipt"></span> วางบิล
                         </button>
                         <button class="btn btn-gold" id="btn-mark-paid" onclick="markJobPaidFromInvoice()">
-                            ✅ ยืนยันการรับชำระเงิน (Mark as Paid)
+                            <span class="ico" data-icon="ok"></span> ยืนยันการรับชำระเงิน (Mark as Paid)
                         </button>
                     </div>
                 </div>
@@ -2568,7 +2568,7 @@
                     </div>
                     <div class="form-group hidden" id="combine-billing-note-wrap">
                         <div style="background-color: #fffbeb; border: 1px solid #fde68a; border-radius: var(--radius-sm); padding: 12px 14px; font-size: 13px; color: #92400e;">
-                            <strong>📌 Note วางบิลของนายจ้างรายนี้:</strong>
+                            <strong><span class="ico" data-icon="pin"></span> Note วางบิลของนายจ้างรายนี้:</strong>
                             <p id="combine-billing-note-text" style="margin: 6px 0 0; white-space: pre-line; line-height: 1.5;"></p>
                         </div>
                     </div>
@@ -2576,7 +2576,7 @@
                         <label>เลือกรายการใบสั่งงานที่ต้องการรวมบิล:</label>
                         <div id="combine-jobs-list" style="max-height: 250px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); padding: 12px; display: flex; flex-direction: column; gap: 10px; background-color: #f8fafc;">
                             <span class="text-muted" style="font-size: 13px; text-align: center; display: block; padding: 20px 0;">
-                                💡 กรุณาเลือกนายจ้างด้านบนเพื่อดึงข้อมูลใบสั่งงานที่ค้างจ่าย
+                                <span class="ico" data-icon="idea"></span> กรุณาเลือกนายจ้างด้านบนเพื่อดึงข้อมูลใบสั่งงานที่ค้างจ่าย
                             </span>
                         </div>
                     </div>
@@ -2587,7 +2587,7 @@
                 <div class="modal-footer">
                     <button class="btn btn-outline" onclick="closeCombineBillsModal()">ยกเลิก</button>
                     <button class="btn btn-gold" id="btn-generate-combined" onclick="generateCombinedInvoice()" disabled>
-                        🧾 สร้างใบแจ้งหนี้รวม (Generate Bill)
+                        <span class="ico" data-icon="receipt"></span> สร้างใบแจ้งหนี้รวม (Generate Bill)
                     </button>
                 </div>
             </div>
@@ -2598,7 +2598,7 @@
         <div id="customer-folder-modal" class="modal-backdrop hidden" style="z-index: 1050;">
             <div class="modal-content" style="max-width: 1100px;">
                 <div class="modal-header">
-                    <h3>📁 แฟ้มเอกสารของนายจ้าง / ลูกค้าผู้ว่าจ้าง</h3>
+                    <h3><span class="ico" data-icon="folder"></span> แฟ้มเอกสารของนายจ้าง / ลูกค้าผู้ว่าจ้าง</h3>
                     <button class="close-btn" onclick="closeCustomerFolderModal()">&times;</button>
                 </div>
                 <div class="modal-body" style="padding-top: 10px;">
@@ -2620,8 +2620,8 @@
                     </div>
                 </div>
                 <div class="modal-footer" style="display:flex; gap:8px; flex-wrap:wrap;">
-                    <button type="button" class="btn btn-outline" style="flex:1; min-width:200px;" onclick="shareCustomerFolder(activeFolderCustomerId)">🔗 คัดลอกลิงก์แชร์ทั้งโฟลเดอร์ (ไม่ต้องล็อกอิน)</button>
-                    <button type="button" class="btn btn-outline" style="flex:0 0 auto; color:#b91c1c; border-color:#fca5a5;" onclick="revokeCustomerShareLink(activeFolderCustomerId)">🚫 ยกเลิกลิงก์</button>
+                    <button type="button" class="btn btn-outline" style="flex:1; min-width:200px;" onclick="shareCustomerFolder(activeFolderCustomerId)"><span class="ico" data-icon="link"></span> คัดลอกลิงก์แชร์ทั้งโฟลเดอร์ (ไม่ต้องล็อกอิน)</button>
+                    <button type="button" class="btn btn-outline" style="flex:0 0 auto; color:#b91c1c; border-color:#fca5a5;" onclick="revokeCustomerShareLink(activeFolderCustomerId)"><span class="ico" data-icon="ban"></span> ยกเลิกลิงก์</button>
                     <button type="button" class="btn btn-gold" style="width:100%;" onclick="closeCustomerFolderModal()">ปิดหน้าต่าง</button>
                 </div>
             </div>
@@ -2630,7 +2630,7 @@
         <div id="worker-folder-modal" class="modal-backdrop hidden" style="z-index: 1050;">
             <div class="modal-content" style="max-width: 1100px;">
                 <div class="modal-header">
-                    <h3 id="worker-folder-title">📁 แฟ้มเอกสารของคนงานต่างด้าว</h3>
+                    <h3 id="worker-folder-title"><span class="ico" data-icon="folder"></span> แฟ้มเอกสารของคนงานต่างด้าว</h3>
                     <button class="close-btn" onclick="closeWorkerFolderModal()">&times;</button>
                 </div>
                 <div class="modal-body" style="padding-top: 10px;">
@@ -2657,16 +2657,16 @@
                     </div>
 
                     <div id="worker-folder-expired-section" class="hidden" style="margin-top: 24px;">
-                        <h4 style="margin: 0 0 10px 0; color: var(--text-muted); font-size: 14px; font-weight: 600;">📁 ไฟล์ที่หมดอายุ (เอกสารเก่าที่ถูกแทนที่ แต่ยังเก็บไว้ในระบบ — ลากไฟล์มาวางที่นี่ได้)</h4>
+                        <h4 style="margin: 0 0 10px 0; color: var(--text-muted); font-size: 14px; font-weight: 600;"><span class="ico" data-icon="folder"></span> ไฟล์ที่หมดอายุ (เอกสารเก่าที่ถูกแทนที่ แต่ยังเก็บไว้ในระบบ — ลากไฟล์มาวางที่นี่ได้)</h4>
                         <div class="drive-grid" id="worker-folder-expired-files-list" ondragover="onWorkerFileDragOver(event)" ondrop="onWorkerFileDropToExpired(event)">
                             <!-- Dynamic expired files will be rendered here -->
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer" style="display: flex; gap: 10px; flex-wrap: wrap;">
-                    <button type="button" class="btn btn-outline" style="flex:1; min-width:150px;" onclick="copyWorkerFolderLink()" id="btn-copy-worker-folder">🔗 คัดลอกลิงก์เปิดแฟ้มนี้</button>
-                    <button type="button" class="btn btn-outline" style="flex:1; min-width:200px;" onclick="shareWorkerFolder(activeFolderWorkerId)">🔗 คัดลอกลิงก์แชร์ทั้งโฟลเดอร์ (ไม่ต้องล็อกอิน)</button>
-                    <button type="button" class="btn btn-outline" style="flex:0 0 auto; color:#b91c1c; border-color:#fca5a5;" onclick="revokeWorkerShareLink(activeFolderWorkerId)">🚫 ยกเลิกลิงก์</button>
+                    <button type="button" class="btn btn-outline" style="flex:1; min-width:150px;" onclick="copyWorkerFolderLink()" id="btn-copy-worker-folder"><span class="ico" data-icon="link"></span> คัดลอกลิงก์เปิดแฟ้มนี้</button>
+                    <button type="button" class="btn btn-outline" style="flex:1; min-width:200px;" onclick="shareWorkerFolder(activeFolderWorkerId)"><span class="ico" data-icon="link"></span> คัดลอกลิงก์แชร์ทั้งโฟลเดอร์ (ไม่ต้องล็อกอิน)</button>
+                    <button type="button" class="btn btn-outline" style="flex:0 0 auto; color:#b91c1c; border-color:#fca5a5;" onclick="revokeWorkerShareLink(activeFolderWorkerId)"><span class="ico" data-icon="ban"></span> ยกเลิกลิงก์</button>
                     <button type="button" class="btn btn-gold" style="width:100%;" onclick="closeWorkerFolderModal()">ปิดหน้าต่าง</button>
                 </div>
             </div>
@@ -2676,7 +2676,7 @@
         <div id="confirm-delete-attachment-modal" class="modal-backdrop hidden" style="z-index: 1070;">
             <div class="modal-content" style="max-width: 440px;">
                 <div class="modal-header">
-                    <h3>⚠️ ยืนยันการลบไฟล์</h3>
+                    <h3><span class="ico" data-icon="warn"></span> ยืนยันการลบไฟล์</h3>
                     <button class="close-btn" onclick="closeConfirmDeleteAttachmentModal()">&times;</button>
                 </div>
                 <div class="modal-body">
@@ -2684,14 +2684,14 @@
                         <div id="confirm-delete-attachment-thumb" style="flex-shrink:0;"></div>
                         <div style="min-width:0; overflow:hidden;">
                             <div id="confirm-delete-attachment-filename" style="font-weight:600; font-size:13.5px; word-break:break-all; color:var(--navy-dark);"></div>
-                            <a href="#" id="confirm-delete-attachment-viewlink" target="_blank" rel="noopener" style="font-size:12px;">🔍 เปิดดูไฟล์ก่อนลบ</a>
+                            <a href="#" id="confirm-delete-attachment-viewlink" target="_blank" rel="noopener" style="font-size:12px;"><span class="ico" data-icon="search"></span> เปิดดูไฟล์ก่อนลบ</a>
                         </div>
                     </div>
                     <p style="font-size:13px; color:var(--text-muted); margin:0;">ไฟล์นี้จะถูกลบออกจากระบบอย่างถาวร ไม่สามารถกู้คืนได้</p>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline" onclick="closeConfirmDeleteAttachmentModal()">ยกเลิก</button>
-                    <button type="button" class="btn btn-danger" onclick="confirmPendingAttachmentDelete()">🗑️ ยืนยันลบไฟล์ถาวร</button>
+                    <button type="button" class="btn btn-danger" onclick="confirmPendingAttachmentDelete()"><span class="ico" data-icon="trash"></span> ยืนยันลบไฟล์ถาวร</button>
                 </div>
             </div>
         </div>
@@ -2700,7 +2700,7 @@
         <div id="bulk-import-modal" class="modal-backdrop hidden" style="z-index: 1050;">
             <div class="modal-content" style="max-width: 900px;">
                 <div class="modal-header">
-                    <h3>📥 นำเข้าเอกสารหลายไฟล์พร้อมกัน (Bulk Import)</h3>
+                    <h3><span class="ico" data-icon="inbox"></span> นำเข้าเอกสารหลายไฟล์พร้อมกัน (Bulk Import)</h3>
                     <button class="close-btn" onclick="closeBulkImportModal()">&times;</button>
                 </div>
                 <div class="modal-body" style="padding-top: 10px; max-height: 70vh; overflow-y: auto;">
@@ -2716,7 +2716,7 @@
                          style="border: 2px dashed #cbd5e1; border-radius: var(--radius-sm); padding: 24px; text-align: center; margin-bottom: 16px; background: #f8fafc; cursor: pointer;"
                          onclick="document.getElementById('bulk-import-file-input').click()">
                         <input type="file" id="bulk-import-file-input" multiple accept="image/*,application/pdf" style="display:none;" onchange="handleBulkImportFilesSelected(event.target.files)">
-                        <div style="font-size: 28px;">📂</div>
+                        <div style="font-size: 28px;"><span class="ico" data-icon="folder"></span></div>
                         <div style="font-size: 13px; color: var(--text-dark); margin-top: 6px;">คลิกเพื่อเลือกไฟล์ ลากไฟล์/โฟลเดอร์มาวางตรงนี้ หรือกด Ctrl+V วางภาพที่แคปหน้าจอไว้</div>
                     </div>
 
@@ -2724,7 +2724,7 @@
 
                     <!-- คนงานใหม่ที่ AI เจอจากเอกสารแต่ยังไม่มีในระบบ (ดู matchBulkRowsFromOcr / renderBulkNewWorkers ใน app.js) -->
                     <div id="bulk-import-new-workers-wrap" class="bulk-new-workers-wrap hidden">
-                        <div class="bulk-new-workers-title">🆕 คนงานใหม่ที่จะสร้างให้ตอนกดนำเข้า — ตรวจ/แก้ข้อมูลที่ AI อ่านมาก่อน (ช่องขอบแดง = ต้องกรอก)</div>
+                        <div class="bulk-new-workers-title"><span class="ico" data-icon="sparkles" data-color="blue"></span> คนงานใหม่ที่จะสร้างให้ตอนกดนำเข้า — ตรวจ/แก้ข้อมูลที่ AI อ่านมาก่อน (ช่องขอบแดง = ต้องกรอก)</div>
                         <div class="form-group" style="margin-bottom: 10px;">
                             <label for="bulk-import-employer-search">นายจ้างของคนงานใหม่ทุกคนในรอบนี้ <span class="required">*</span></label>
                             <div class="search-box" style="max-width: 100%;">
@@ -2761,8 +2761,8 @@
                 </div>
                 <div class="modal-footer" style="display: flex; gap: 10px;">
                     <button type="button" class="btn btn-outline" style="flex:1;" onclick="closeBulkImportModal()">ยกเลิก</button>
-                    <button type="button" class="btn btn-outline" style="flex:1; border-color: var(--gold-primary); color: var(--gold-primary);" id="btn-bulk-ai-analyze" onclick="analyzeBulkImportWithAi()" title="ให้ AI อ่านทุกไฟล์ก่อน แล้วจับคู่คนงานเดิม/ประเภทเอกสารจากเนื้อหาในเอกสาร และรวมไฟล์ของคนที่ยังไม่มีในระบบเป็นคนงานใหม่">🤖 ให้ AI อ่านและจับคู่</button>
-                    <button type="button" class="btn btn-gold" style="flex:1;" id="btn-run-bulk-import" onclick="runBulkImport()">📥 นำเข้าที่เลือกทั้งหมด</button>
+                    <button type="button" class="btn btn-outline" style="flex:1; border-color: var(--gold-primary); color: var(--gold-primary);" id="btn-bulk-ai-analyze" onclick="analyzeBulkImportWithAi()" title="ให้ AI อ่านทุกไฟล์ก่อน แล้วจับคู่คนงานเดิม/ประเภทเอกสารจากเนื้อหาในเอกสาร และรวมไฟล์ของคนที่ยังไม่มีในระบบเป็นคนงานใหม่"><span class="ico" data-icon="bot"></span> ให้ AI อ่านและจับคู่</button>
+                    <button type="button" class="btn btn-gold" style="flex:1;" id="btn-run-bulk-import" onclick="runBulkImport()"><span class="ico" data-icon="inbox"></span> นำเข้าที่เลือกทั้งหมด</button>
                 </div>
             </div>
         </div>
@@ -2771,22 +2771,22 @@
         <div id="ai-rejected-modal" class="modal-backdrop hidden ai-rejected-backdrop">
             <div class="modal-content ai-rejected-content">
                 <div class="modal-header">
-                    <h3 id="ai-rejected-title">⚠️ AI ไม่ว่าง</h3>
+                    <h3 id="ai-rejected-title"><span class="ico" data-icon="warn"></span> AI ไม่ว่าง</h3>
                 </div>
                 <div class="modal-body">
                     <p class="ai-rejected-file" id="ai-rejected-filename"></p>
                     <p class="ai-rejected-text" id="ai-rejected-text"></p>
                     <div class="ai-rejected-options">
-                        <div><strong>✍️ บันทึกไฟล์ แล้วกรอกข้อมูลเอง</strong> — ไฟล์เข้าระบบทันที แต่ข้อมูล (เลข/ชื่อ/วันหมดอายุ) ต้องพิมพ์เอง</div>
-                        <div><strong>⏳ ยังไม่บันทึก รอแนบใหม่</strong> — ไฟล์ไม่เข้าระบบ แนบไฟล์เดิมอีกครั้งทีหลังให้ AI อ่านให้</div>
+                        <div><strong><span class="ico" data-icon="sign"></span> บันทึกไฟล์ แล้วกรอกข้อมูลเอง</strong> — ไฟล์เข้าระบบทันที แต่ข้อมูล (เลข/ชื่อ/วันหมดอายุ) ต้องพิมพ์เอง</div>
+                        <div><strong><span class="ico" data-icon="hourglass"></span> ยังไม่บันทึก รอแนบใหม่</strong> — ไฟล์ไม่เข้าระบบ แนบไฟล์เดิมอีกครั้งทีหลังให้ AI อ่านให้</div>
                     </div>
                     <label class="ai-rejected-remember hidden" id="ai-rejected-remember-wrap">
                         <input type="checkbox" id="ai-rejected-remember"> ใช้คำตอบนี้กับไฟล์ที่เหลือในรอบนี้ด้วย
                     </label>
                 </div>
                 <div class="modal-footer ai-rejected-footer">
-                    <button type="button" class="btn btn-outline" onclick="resolveAiRejectedChoice('retry')">⏳ รอแนบใหม่</button>
-                    <button type="button" class="btn btn-gold" onclick="resolveAiRejectedChoice('manual')">✍️ บันทึกไฟล์ กรอกเอง</button>
+                    <button type="button" class="btn btn-outline" onclick="resolveAiRejectedChoice('retry')"><span class="ico" data-icon="hourglass"></span> รอแนบใหม่</button>
+                    <button type="button" class="btn btn-gold" onclick="resolveAiRejectedChoice('manual')"><span class="ico" data-icon="sign"></span> บันทึกไฟล์ กรอกเอง</button>
                 </div>
             </div>
         </div>

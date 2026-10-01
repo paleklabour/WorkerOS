@@ -70,6 +70,7 @@ try {
                 elseif ($ext -eq ".png") { $contentType = "image/png" }
                 elseif ($ext -eq ".jpg" -or $ext -eq ".jpeg") { $contentType = "image/jpeg" }
                 elseif ($ext -eq ".gif") { $contentType = "image/gif" }
+                elseif ($ext -eq ".svg") { $contentType = "image/svg+xml" }
                 elseif ($ext -eq ".pdf") { $contentType = "application/pdf" }
                 
                 # Disable caching for hot-reloading changes in browser

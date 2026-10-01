@@ -136,6 +136,39 @@ h1, h2, h3, h4, h5, h6 {
     font-size: 12px;
 }
 
+/* ป้าย "รอแจ้งเข้า" ใต้บรรทัดเพศ ในช่องชื่อคนงาน (ตารางคนงาน) */
+.worker-notify-badge {
+    margin-top: 4px;
+}
+
+/* ปุ่ม "เปิดแฟ้มเอกสาร" ในตารางนายจ้าง/คนงาน/แดชบอร์ด — ปุ่มหลักของแถว ให้ใหญ่กดง่าย */
+.btn-open-folder {
+    font-size: 13px;
+    padding: 8px 16px;
+    gap: 7px;
+    white-space: nowrap;
+}
+
+.btn-open-folder .ico {
+    width: 17px;
+    height: 17px;
+}
+
+/* ปุ่ม "ตรวจสอบรายชื่อ / แก้ไขนายจ้าง" ในตารางแจ้งเตือนวันหมดอายุบนแดชบอร์ด —
+   เรียงซ้อนกัน กว้างเท่ากัน และห้ามตัดคำขึ้นบรรทัดใหม่ (คอลัมน์จัดการแคบ) */
+.alert-row-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: stretch;
+}
+
+.alert-row-actions .btn {
+    white-space: nowrap;
+    font-size: 11.5px;
+    padding: 5px 12px;
+}
+
 /* Status Badges - Clean Pill Design */
 .badge {
     display: inline-flex;
@@ -146,6 +179,14 @@ h1, h2, h3, h4, h5, h6 {
     font-weight: 500;
     white-space: nowrap;
     border: 1px solid transparent;
+}
+
+/* ป้ายขนาดใหญ่ — ใช้ในตารางที่ป้ายเป็นข้อมูลหลักของช่อง (เช่น จำนวนคนงานใกล้หมดอายุ, ประเภทกิจการ, วันหมดอายุหนังสือรับรอง) */
+.badge-lg {
+    padding: 5px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    gap: 5px;
 }
 
 .badge-gold {
@@ -713,17 +754,22 @@ h1, h2, h3, h4, h5, h6 {
     height: 20px;
 }
 
+/* ตัวเลขแจ้งเตือนบนกระดิ่ง — ใหญ่พอให้อ่านเลข 2-3 หลักได้ (ยืดเป็นแคปซูลตามจำนวนหลัก) */
 .bell-badge {
     position: absolute;
-    top: -4px;
-    right: -4px;
-    width: 16px;
-    height: 16px;
+    top: -8px;
+    right: -10px;
+    box-sizing: border-box;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 5px;
     background-color: var(--danger);
     color: white;
-    border-radius: 50%;
-    font-size: 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    line-height: 1;
     font-weight: 700;
+    font-variant-numeric: tabular-nums;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1859,7 +1905,59 @@ h1, h2, h3, h4, h5, h6 {
 
 .upload-icon {
     font-size: 28px;
+    line-height: 1;
 }
+
+.upload-icon .ico {
+    width: 34px;
+    height: 34px;
+}
+
+/* ==================== ไอคอนสองโทน (ดู icon()/hydrateIcons() ใน app.js) ====================
+   ขนาดตั้งต้น = ตามตัวหนังสือรอบข้าง (1.15em) — ใส่ในปุ่ม/ป้าย/ข้อความได้เลย
+   สีมาจาก class ico-<สี> → ตัวแปร --ic ใช้ทั้งเส้น และสีอ่อนเติมด้านใน (.fl) */
+.ico {
+    --ic: var(--gold-primary);
+    display: inline-flex;
+    width: 1.15em;
+    height: 1.15em;
+    vertical-align: -0.2em;
+    color: var(--ic);
+    flex-shrink: 0;
+}
+
+.ico svg {
+    width: 100%;
+    height: 100%;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.ico svg .fl {
+    fill: color-mix(in srgb, var(--ic) 20%, transparent);
+}
+
+.ico-blue   { --ic: #2d6fd6; }
+.ico-indigo { --ic: #5b5bd6; }
+.ico-amber  { --ic: #c27c0e; }
+.ico-pink   { --ic: #d6407f; }
+.ico-green  { --ic: #1f9254; }
+.ico-red    { --ic: #d13b3b; }
+.ico-teal   { --ic: #0f8a83; }
+.ico-violet { --ic: #7c4fd6; }
+.ico-slate  { --ic: #5f6b80; }
+
+/* ไอคอนเดี่ยว ๆ ในช่องตาราง (เช่น ✓/✗ เอกสารครบ/ขาด) ให้ใหญ่พอมองเห็นชัด */
+td > .ico {
+    width: 20px;
+    height: 20px;
+}
+
+/* ในปุ่มสีทึบ (เช่น btn-danger ตอน hover) ให้ไอคอนเป็นสีเดียวกับตัวหนังสือ */
+.btn .ico { --ic: currentColor; }
 
 .doc-title {
     font-size: 13px;
