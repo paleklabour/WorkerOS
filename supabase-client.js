@@ -200,6 +200,8 @@
 
         const customers = toCamelList(customersRes.data, CUSTOMER_MAP);
         const workers = toCamelList(workersRes.data, WORKER_MAP);
+        // โน้ตจากนายจ้าง: อ่านอย่างเดียว (ไม่อยู่ใน WORKER_MAP → ฟอร์มคนงานไม่เขียนทับ) — เขียนผ่าน set_my_worker_note() เท่านั้น
+        (workersRes.data || []).forEach((row, i) => { workers[i].clientNote = row.client_note || ""; workers[i].clientNoteUpdatedAt = row.client_note_updated_at || null; });
         const jobs = toCamelList(jobsRes.data, JOB_MAP);
         customers.forEach((c) => { c.branches = c.branches || []; });
         workers.forEach((w) => { w.attachments = w.attachments || {}; });
@@ -603,6 +605,12 @@
                     const { error } = await sb.from("banks").update({ sort_order: sortOrder }).eq("id", id);
                     if (error) return { status: "error", message: error.message };
                 }
+                return { status: "success" };
+            }
+            case "setMyWorkerNote": {
+                // บัญชีนายจ้างเขียนโน้ตให้คนงานของตัวเอง — ดู 20261002102002_worker_client_note.sql
+                const { error } = await sb.rpc("set_my_worker_note", { p_worker_id: payload.workerId, p_note: payload.note || "" });
+                if (error) return { status: "error", message: error.message };
                 return { status: "success" };
             }
             case "setMyUiLayout": {

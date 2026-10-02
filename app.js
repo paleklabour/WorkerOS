@@ -1349,7 +1349,7 @@ function renderClientWorkersTab(list) {
             <div class="cp-toolbar"><div class="search-box"><input type="text" id="cp-worker-search" placeholder="ค้นหาชื่อ / เลขประจำตัว / พาสปอร์ต..." value="${escapeHtml(q)}" oninput="renderClientPortalKeepFocus('cp-worker-search')"></div>
                 <span class="text-muted">${shown.length} คน • กด "เอกสาร" เพื่อดู/ดาวน์โหลดเอกสารของคนงาน</span></div>
             <div class="table-container"><table class="data-table">
-                <thead><tr><th>ชื่อ-สกุล</th><th>สัญชาติ</th><th>เลขประจำตัว</th><th>พาสปอร์ต/CI หมดอายุ</th><th>ใบอนุญาตทำงานหมดอายุ</th><th>สถานะ</th><th></th></tr></thead>
+                <thead><tr><th>ชื่อ-สกุล</th><th>สัญชาติ</th><th>เลขประจำตัว</th><th>พาสปอร์ต/CI หมดอายุ</th><th>ใบอนุญาตทำงานหมดอายุ</th><th>สถานะ</th><th>โน้ตถึงเจ้าหน้าที่</th><th></th></tr></thead>
                 <tbody>${shown.length ? shown.map(w => `
                     <tr class="${w.status === 'archived' ? 'is-voided-row' : ''}">
                         <td><strong>${escapeHtml(`${w.title || ''} ${w.firstName || ''} ${w.lastName || ''}`.trim())}</strong></td>
@@ -1358,8 +1358,9 @@ function renderClientWorkersTab(list) {
                         <td>${expiryCell(w.passportExpiry)}</td>
                         <td>${expiryCell(w.permitExpiry)}</td>
                         <td><span class="badge">${escapeHtml(WORKER_STATUS_LABELS[w.status] || w.status || '-')}</span></td>
-                        <td class="actions-col"><button type="button" class="btn btn-sm btn-gold btn-open-folder" onclick="openWorkerFolderModal('${w.id}')">${icon('folder')} เอกสาร</button></td>
-                    </tr>`).join('') : `<tr><td colspan="7" class="text-muted" style="text-align:center; padding:24px;">ไม่พบคนงาน</td></tr>`}</tbody>
+                        <td class="cp-note-cell">${w.clientNote ? `<span class="cp-note-text" title="${escapeHtml(w.clientNote)}">${escapeHtml(w.clientNote)}</span>` : '<span class="text-muted">-</span>'}</td>
+                        <td class="actions-col"><button type="button" class="btn btn-sm btn-outline" onclick="openClientWorkerNote('${w.id}')">${icon('edit')} ${w.clientNote ? 'แก้โน้ต' : 'เขียนโน้ต'}</button> <button type="button" class="btn btn-sm btn-gold btn-open-folder" onclick="openWorkerFolderModal('${w.id}')">${icon('folder')} เอกสาร</button></td>
+                    </tr>`).join('') : `<tr><td colspan="8" class="text-muted" style="text-align:center; padding:24px;">ไม่พบคนงาน</td></tr>`}</tbody>
             </table></div>
         </div>`;
 }
@@ -3324,6 +3325,8 @@ function renderWorkers() {
         const pendingNotifyBadge = !needsNotify ? '' : currentUser.role === 'admin'
             ? `<div class="worker-notify-badge"><button type="button" class="badge badge-warning notify-skip-btn" onclick="event.stopPropagation(); markWorkerNotifySkipped('${w.id}', this)" title="ยังไม่เคยแจ้งงาน/แจ้งเข้าให้คนงานคนนี้เลย — กดเพื่อทำเครื่องหมายว่าไม่ต้องแจ้งเข้า (ยกเลิกได้ในฟอร์มแก้ไขคนงาน)">${icon("hourglass")} รอแจ้งเข้า <span class="notify-skip-action">${icon("ok", "green")} ผ่าน</span></button></div>`
             : `<div class="worker-notify-badge"><span class="badge badge-warning" title="ยังไม่เคยแจ้งงาน/แจ้งเข้าให้คนงานคนนี้เลย">${icon("hourglass")} รอแจ้งเข้า</span></div>`;
+        // นายจ้างเขียนโน้ตไว้จากพอร์ทัล (set_my_worker_note) → ป้ายเล็ก ชี้เมาส์อ่านข้อความเต็ม
+        const clientNoteBadge = w.clientNote ? `<div class="worker-notify-badge"><span class="badge badge-gold client-note-badge" title="โน้ตจากนายจ้าง: ${escapeHtml(w.clientNote)}">${icon("chat")} โน้ตจากนายจ้าง</span></div>` : '';
 
         // Status badges logic
         const pExpDate = safeParseDate(w.passportExpiry);
@@ -3382,7 +3385,7 @@ function renderWorkers() {
                             <strong>${w.title ? w.title + ' ' : ''}${w.firstName || '-'} ${w.lastName || ''}</strong>
                             ${w.thaiName ? `<div><small class="text-muted">ชื่อไทย (บัตรชมพู): ${w.thaiName}</small></div>` : ''}
                             <div><small class="text-muted">เพศ: ${w.gender || '-'}</small></div>
-                            ${pendingNotifyBadge}
+                            ${pendingNotifyBadge}${clientNoteBadge}
                             ${(w.fatherName || w.motherName) ? `<div style="font-size:11.5px; color:var(--text-muted); margin-top:2px;">พ่อ: ${w.fatherName || '-'} / แม่: ${w.motherName || '-'}</div>` : ''}
                         </div>
                     </div>
@@ -4803,6 +4806,15 @@ function openWorkerModal(id = null) {
     document.getElementById("worker-form").reset();
     updateEmployerDropdownOptions();
 
+    // โน้ตจากนายจ้าง (พอร์ทัล) — แสดงให้เจ้าหน้าที่อ่าน แก้ไม่ได้จากฟอร์มนี้
+    const noteBox = document.getElementById("worker-client-note-box");
+    const noteWorker = id ? workers.find(x => x.id === id) : null;
+    if (noteBox) {
+        const hasNote = !!(noteWorker && noteWorker.clientNote);
+        noteBox.classList.toggle("hidden", !hasNote);
+        noteBox.innerHTML = hasNote ? `<div class="client-note-head">${icon("chat")} โน้ตจากนายจ้าง${noteWorker.clientNoteUpdatedAt ? ` <small>แก้ล่าสุด ${formatThaiDate(noteWorker.clientNoteUpdatedAt, true)}</small>` : ""}</div><div class="client-note-text">${escapeHtml(noteWorker.clientNote)}</div>` : "";
+    }
+
     const modalTitle = document.getElementById("worker-modal-title");
     const editIdInput = document.getElementById("worker-edit-id");
 
@@ -5032,7 +5044,8 @@ async function saveWorker(e) {
         skipNotifyEntry
     };
 
-    const finalWorkerData = editId ? { ...workerData, createdAt: workers.find(item => item.id === editId).createdAt || new Date().toISOString().split('T')[0] } : { ...workerData, createdAt: new Date().toISOString().split('T')[0] };
+    // โน้ตจากนายจ้างไม่ได้อยู่ในฟอร์ม (อ่านอย่างเดียว) — ติดค่าเดิมไว้ ไม่ให้หายจากหน้าจอหลังบันทึก
+    const finalWorkerData = editId ? { ...workerData, clientNote: (existingWorker || {}).clientNote || "", clientNoteUpdatedAt: (existingWorker || {}).clientNoteUpdatedAt || null, createdAt: workers.find(item => item.id === editId).createdAt || new Date().toISOString().split('T')[0] } : { ...workerData, createdAt: new Date().toISOString().split('T')[0] };
 
     if (!(await confirmBeforeSave(e.target.closest("form") || e.target, "ตรวจสอบข้อมูลคนงาน"))) return;
     showToast("💾 กำลังบันทึกข้อมูลคนงานเข้าคลาวด์...", "warning");
@@ -14238,3 +14251,51 @@ function setupCameraButtons() {
 document.addEventListener('DOMContentLoaded', () => {
     try { setupCameraButtons(); } catch (err) { console.error('Camera setup failed:', err); }
 });
+
+// ==================== พอร์ทัลนายจ้าง: โน้ตถึงเจ้าหน้าที่ต่อคนงาน 1 คน ====================
+// ข้อความเดียวต่อคนงาน นายจ้างแก้ทับได้ (ไม่มีแจ้งเตือนในกระดิ่ง — ยืนยันกับเจ้าของระบบ 2026-10-02)
+// บันทึกผ่าน set_my_worker_note() ซึ่งแก้ได้เฉพาะโน้ตของคนงานในบริษัทตัวเอง (ดู migration 20261002102002)
+function openClientWorkerNote(workerId) {
+    const w = workers.find(x => x.id === workerId);
+    if (!w) return;
+    const backdrop = document.createElement('div');
+    backdrop.className = 'ui-dialog-backdrop';
+    backdrop.innerHTML = `
+        <div class="ui-dialog client-note-dialog" role="dialog" aria-modal="true">
+            <div class="ui-dialog-icon ui-dialog-icon-blue">${icon('chat', 'blue')}</div>
+            <h3 class="ui-dialog-title"></h3>
+            <p class="ui-dialog-message">เจ้าหน้าที่จะเห็นข้อความนี้ในข้อมูลคนงาน เช่น ย้ายไปทำงานสาขาอื่น, ลาออก, ขอต่อเอกสาร</p>
+            <textarea class="client-note-input" rows="5" maxlength="2000" placeholder="พิมพ์โน้ตถึงเจ้าหน้าที่..."></textarea>
+            <div class="ui-dialog-actions">
+                <button type="button" class="btn btn-gold ui-dialog-ok">บันทึกโน้ต</button>
+                <button type="button" class="btn btn-outline ui-dialog-cancel">ยกเลิก</button>
+            </div>
+        </div>`;
+    backdrop.querySelector('.ui-dialog-title').textContent = `โน้ต: ${`${w.title || ''} ${w.firstName || ''} ${w.lastName || ''}`.trim()}`;
+    const input = backdrop.querySelector('.client-note-input');
+    input.value = w.clientNote || '';
+    const close = () => { document.removeEventListener('keydown', onKey, true); backdrop.remove(); };
+    const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); close(); } };
+    const okBtn = backdrop.querySelector('.ui-dialog-ok');
+    okBtn.addEventListener('click', async () => {
+        const note = input.value.trim();
+        okBtn.disabled = true;
+        const res = await callCloudAPI('setMyWorkerNote', { workerId, note });
+        if (!res || res.status === 'error') {
+            okBtn.disabled = false;
+            showToast('❌ บันทึกโน้ตไม่สำเร็จ: ' + (res && res.message ? res.message : 'กรุณาลองใหม่'), 'danger');
+            return;
+        }
+        w.clientNote = note;
+        w.clientNoteUpdatedAt = new Date().toISOString();
+        saveData();
+        close();
+        renderClientPortal();
+        showToast(note ? 'บันทึกโน้ตเรียบร้อยแล้ว' : 'ลบโน้ตเรียบร้อยแล้ว', 'success');
+    });
+    backdrop.querySelector('.ui-dialog-cancel').addEventListener('click', close);
+    backdrop.addEventListener('mousedown', (e) => { if (e.target === backdrop) close(); });
+    document.addEventListener('keydown', onKey, true);
+    document.body.appendChild(backdrop);
+    input.focus();
+}
