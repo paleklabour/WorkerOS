@@ -80,6 +80,14 @@
         id: "id", invoiceId: "invoice_id", receiptNo: "receipt_no", amount: "amount", paidDate: "paid_date",
         method: "method", bankId: "bank_id", proofUrls: "proof_urls", note: "note",
         voided: "voided", voidReason: "void_reason", voidedAt: "voided_at", voidedBy: "voided_by",
+        recordedBy: "recorded_by", createdAt: "created_at", receiptId: "receipt_id"
+    };
+    // ใบเสร็จ = เงินเข้า 1 ก้อน (ตัดได้หลายบิล ส่วนที่เหลือเป็นมัดจำ) — ดู 20261002032303_receipts_and_customer_credit.sql
+    const RECEIPT_MAP = {
+        id: "id", receiptNo: "receipt_no", customerId: "customer_id", customerName: "customer_name",
+        customerAddr: "customer_addr", customerTax: "customer_tax", amount: "amount", paidDate: "paid_date",
+        method: "method", bankId: "bank_id", proofUrls: "proof_urls", note: "note",
+        voided: "voided", voidReason: "void_reason", voidedAt: "voided_at", voidedBy: "voided_by",
         recordedBy: "recorded_by", createdAt: "created_at"
     };
     const SERVICE_PRICE_MAP = { jobType: "job_type", govFee: "gov_fee", serviceFee: "service_fee", updatedAt: "updated_at" };
@@ -166,7 +174,7 @@
     // -------------------- getData --------------------
     async function handleGetData() {
         const [customersRes, workersRes, jobsRes, banksRes, profilesRes, agentsRes, expensesRes, freeInvoicesRes,
-               invoicesRes, paymentsRes, servicePricesRes] = await Promise.all([
+               invoicesRes, paymentsRes, servicePricesRes, receiptsRes] = await Promise.all([
             sb.from("customers").select("*"),
             sb.from("workers").select("*"),
             sb.from("jobs").select("*"),
@@ -177,7 +185,8 @@
             sb.from("free_invoices").select("*"),
             sb.from("invoices").select("*"),
             sb.from("payments").select("*"),
-            sb.from("service_prices").select("*")
+            sb.from("service_prices").select("*"),
+            sb.from("receipts").select("*")
         ]);
         // RLS กรองแถวให้อัตโนมัติตาม role/customer_id ของผู้ใช้ที่ล็อกอินอยู่แล้ว
         // (ไม่ต้อง filter ซ้ำฝั่ง client เหมือนโค้ด Code.gs เดิม)
@@ -203,6 +212,7 @@
             expenses: expensesRes.error ? [] : normalizeNumbers(toCamelList(expensesRes.data, EXPENSE_MAP), ["amount"]),
             invoices: invoicesRes.error ? [] : normalizeNumbers(toCamelList(invoicesRes.data, INVOICE_MAP), ["subtotal", "grandTotal", "govFeeTotal"]),
             payments: paymentsRes.error ? [] : normalizeNumbers(toCamelList(paymentsRes.data, PAYMENT_MAP), ["amount"]),
+            receipts: receiptsRes.error ? [] : normalizeNumbers(toCamelList(receiptsRes.data, RECEIPT_MAP), ["amount"]),
             servicePrices: servicePricesRes.error ? [] : normalizeNumbers(toCamelList(servicePricesRes.data, SERVICE_PRICE_MAP), ["govFee", "serviceFee"]),
             freeInvoices: freeInvoicesRes.error ? [] : toCamelList(freeInvoicesRes.data, FREE_INVOICE_MAP),
             users: profilesRes.error ? [] : (profilesRes.data || []).map((p) => ({
@@ -572,6 +582,8 @@
                 return await upsertOne("invoices", INVOICE_MAP, payload.invoiceData);
             case "savePayment":
                 return await upsertOne("payments", PAYMENT_MAP, payload.paymentData);
+            case "saveReceipt":
+                return await upsertOne("receipts", RECEIPT_MAP, payload.receiptData);
             case "saveServicePrice":
                 return await upsertOne("service_prices", SERVICE_PRICE_MAP, payload.priceData, "job_type");
             case "deleteServicePrice": {

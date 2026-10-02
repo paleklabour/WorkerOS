@@ -12,6 +12,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script>
         window.GAS_WEB_APP_URL = "<?!= webAppUrl ?>";
+        // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู toggleTheme() ใน app.js
+        try { if (localStorage.getItem("mw_theme") === "dark") document.documentElement.setAttribute("data-theme", "dark"); } catch (e) {}
     </script>
     <link rel="stylesheet" href="styles.css">
 </head>
@@ -199,6 +201,15 @@
                             <span class="bell-badge" id="bell-alert-badge" style="display: none;">0</span>
                         </div>
                         <div class="current-date" id="header-date">10 กรกฎาคม 2026</div>
+                        <!-- สลับธีมสว่าง/มืด — ไอคอนพระจันทร์ตอนสว่าง, พระอาทิตย์ตอนมืด ดู toggleTheme() -->
+                        <button type="button" class="topbar-refresh-btn theme-toggle-btn" id="theme-toggle-btn" onclick="toggleTheme()" title="โหมดมืด" aria-label="สลับโหมดมืด">
+                            <svg class="theme-icon-moon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                            </svg>
+                            <svg class="theme-icon-sun" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                            </svg>
+                        </button>
                     </div>
                 </header>
 
@@ -1147,6 +1158,9 @@
                                     <option value="all">ทั้งหมด</option>
                                 </select>
                                 <div class="action-buttons-group" style="display: flex; gap: 10px;">
+                                    <button class="btn btn-gold" id="btn-receive-money" onclick="openReceiveMoneyModal()">
+                                        <span><span class="ico" data-icon="cash"></span> รับเงิน / มัดจำ</span>
+                                    </button>
                                     <button class="btn btn-outline" id="btn-combine-bills" onclick="openCombineBillsModal()" style="border-color: var(--gold-primary); color: var(--gold-primary);">
                                         <span><span class="ico" data-icon="receipt"></span> รวมบิลนายจ้าง (Combine Invoice)</span>
                                     </button>
@@ -1156,8 +1170,9 @@
                                 </div>
                             </div>
                             <p class="section-desc" style="margin: -8px 0 15px;">
-                                ใบงานที่ยังไม่ออกบิล กด <strong>ออกบิล</strong> เพื่อดูร่างและรับเลขที่บิล — บิลที่ออกแล้วกด <strong>เปิดบิล</strong> เพื่อรับเงิน (รับหลายงวด/มัดจำได้) พิมพ์ใบเสร็จ หรือยกเลิกบิล
+                                ใบงานที่ยังไม่ออกบิล กด <strong>ออกบิล</strong> เพื่อดูร่างและรับเลขที่บิล — บิลที่ออกแล้วกด <strong>เปิดบิล</strong> เพื่อรับเงิน (รับหลายงวดได้) พิมพ์ใบเสร็จ หรือยกเลิกบิล — ลูกค้าโอนก้อนเดียวจ่ายหลายบิล หรือจ่ายมัดจำก่อนออกบิล กด <strong>รับเงิน / มัดจำ</strong>
                             </p>
+                            <div id="billing-credit-panel" class="billing-credit-panel hidden"></div>
                             <div class="table-container">
                                 <table class="data-table" id="billing-table">
                                     <thead>
@@ -2733,6 +2748,63 @@
                     <span class="item-workers-count" id="item-workers-count">เลือกแล้ว 0 คน</span>
                     <button class="btn btn-outline" onclick="closeItemWorkersPicker()">ยกเลิก</button>
                     <button class="btn btn-gold" onclick="confirmItemWorkers()"><span class="ico" data-icon="ok"></span> ใช้รายชื่อนี้</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== RECEIVE MONEY MODAL (รับเงินรวมหลายบิล / รับมัดจำ) ดู openReceiveMoneyModal() ====================
+             เงินเข้า 1 ก้อน + สลิป 1 ชุด → ใบเสร็จ 1 ใบ ตัดยอดเข้าบิลที่ติ๊ก ส่วนที่เหลือเก็บเป็นมัดจำของนายจ้าง -->
+        <div id="receive-money-modal" class="modal-backdrop hidden" style="z-index: 1070;">
+            <div class="modal-content" style="max-width: 720px;">
+                <div class="modal-header">
+                    <h3>รับเงิน / มัดจำ</h3>
+                    <button class="close-btn" onclick="closeReceiveMoneyModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p class="section-desc" style="margin-top: 0;">ลูกค้าโอนครั้งเดียวจ่ายหลายบิล หรือจ่ายมัดจำก่อนออกบิล — แนบสลิปครั้งเดียว ได้ใบเสร็จใบเดียว ยอดที่ไม่ได้ตัดเข้าบิลจะเก็บเป็นมัดจำไว้หักบิลถัดไป</p>
+                    <div class="form-group">
+                        <label for="receive-cust-search">นายจ้าง / ลูกค้า <span class="required">*</span></label>
+                        <div class="search-box" style="max-width: 100%;">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                            <input type="text" id="receive-cust-search" placeholder="พิมพ์ชื่อบริษัท/นายจ้างเพื่อค้นหา..." autocomplete="off">
+                        </div>
+                    </div>
+                    <div id="receive-body" class="hidden">
+                        <div class="receive-credit-note hidden" id="receive-credit-note"></div>
+                        <label class="receive-list-label">บิลค้างชำระ — ติ๊กบิลที่ลูกค้าจ่ายรอบนี้ (ไม่ติ๊กเลย = รับเป็นมัดจำทั้งหมด)</label>
+                        <div class="commission-job-list" id="receive-invoice-list"></div>
+                        <div class="form-row" style="margin-top: 14px;">
+                            <div class="form-group col-6">
+                                <label for="receive-amount">ยอดเงินที่ได้รับจริง (บาท) <span class="required">*</span></label>
+                                <input type="number" id="receive-amount" min="0.01" step="0.01" oninput="distributeReceiveAmount()">
+                            </div>
+                            <div class="form-group col-6">
+                                <label for="receive-date">วันที่เงินเข้า</label>
+                                <input type="date" id="receive-date">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group col-6">
+                                <label for="receive-method">รับเงินทาง (แบงค์ที่เงินเข้าจริง)</label>
+                                <select id="receive-method" onchange="document.getElementById('receive-proof-wrap').classList.toggle('hidden', this.value === 'cash')"></select>
+                            </div>
+                            <div class="form-group col-6">
+                                <label for="receive-note">หมายเหตุ</label>
+                                <input type="text" id="receive-note" placeholder="เช่น โอนรวม 3 บิล, มัดจำงานต่อวีซ่า">
+                            </div>
+                        </div>
+                        <div class="form-group hidden" id="receive-proof-wrap">
+                            <label for="receive-proof"><span class="ico" data-icon="clip"></span> แนบสลิปการโอน (ครั้งเดียว ใช้กับทุกบิลที่ตัดยอด)</label>
+                            <input type="file" id="receive-proof" accept="image/*,application/pdf" multiple>
+                        </div>
+                        <div class="receive-summary" id="receive-summary"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline" onclick="closeReceiveMoneyModal()">ยกเลิก</button>
+                    <button class="btn btn-gold" id="btn-confirm-receive" onclick="confirmReceiveMoney()" disabled><span class="ico" data-icon="ok"></span> บันทึกรับเงิน</button>
                 </div>
             </div>
         </div>

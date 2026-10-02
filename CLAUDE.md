@@ -113,6 +113,30 @@ Don't use this pattern for:
   instead (search input + always-visible checkbox list + removable chips),
   see `job-worker-search`/`job-worker-checklist` (picking workers for a job).
 
+## Money-in model: receipts vs payments
+
+`receipts` = one actual money-in (one transfer/cash amount, one slip set, one
+`RC-` number). `payments` = how that money is applied to invoices
+(`payments.receipt_id`). Whatever isn't applied yet is the customer's deposit
+or credit (`customerCredit()`), and it can be applied to later invoices
+(`applyCustomerCredit`). Bank and cash balances count money-in
+(`moneyInEntries()`), while revenue and invoice status count `payments`. Old
+`payments` rows with no `receipt_id` are their own money-in and carry their own
+`receipt_no`. The bank printed on an invoice is only a suggestion to the
+customer; the real account is the one picked when recording the money. Schema:
+`supabase/migrations/20261002032303_receipts_and_customer_credit.sql`.
+
+## Dark mode (standing rule)
+
+The moon button in the top bar toggles `<html data-theme="dark">`, saved in
+localStorage `mw_theme`. When adding CSS, don't hard-code light-only colors.
+Use existing variables (`--gray-card`, `--text-dark`, …), or write
+`var(--dk-card, #ffffff)` / `--dk-subtle` / `--dk-line` / `--dk-head` /
+`--dk-muted` / `--dk-ok|bad|warn(-bg)`. Light mode leaves `--dk-*` undefined,
+so it uses the fallback; dark mode defines them at the end of `styles.css`.
+Printed sheets (`.invoice-sheet`, `.delivery-label-sheet`) always stay
+white-paper.
+
 ## Running locally
 
 ```powershell
