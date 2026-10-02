@@ -12,8 +12,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script>
         window.GAS_WEB_APP_URL = "<?!= webAppUrl ?>";
-        // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู toggleTheme() ใน app.js
-        try { if (localStorage.getItem("mw_theme") === "dark") document.documentElement.setAttribute("data-theme", "dark"); } catch (e) {}
+        // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
+        try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
     <link rel="stylesheet" href="styles.css">
 </head>
@@ -201,8 +201,9 @@
                             <span class="bell-badge" id="bell-alert-badge" style="display: none;">0</span>
                         </div>
                         <div class="current-date" id="header-date">10 กรกฎาคม 2026</div>
-                        <!-- สลับธีมสว่าง/มืด — ไอคอนพระจันทร์ตอนสว่าง, พระอาทิตย์ตอนมืด ดู toggleTheme() -->
-                        <button type="button" class="topbar-refresh-btn theme-toggle-btn" id="theme-toggle-btn" onclick="toggleTheme()" title="โหมดมืด" aria-label="สลับโหมดมืด">
+                        <!-- เลือกธีม (สว่าง / ชมพู / มืด) — ไอคอนพระจันทร์, พระอาทิตย์ตอนมืด ดู toggleThemeMenu() / setTheme() -->
+                        <div class="theme-picker" id="theme-picker">
+                        <button type="button" class="topbar-refresh-btn theme-toggle-btn" id="theme-toggle-btn" onclick="toggleThemeMenu()" title="เลือกธีม" aria-label="เลือกธีม" aria-haspopup="menu" aria-expanded="false">
                             <svg class="theme-icon-moon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
                             </svg>
@@ -210,6 +211,12 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
                             </svg>
                         </button>
+                        <div class="theme-menu hidden" id="theme-menu" role="menu">
+                            <button type="button" role="menuitem" data-theme-option="light" onclick="setTheme('light')"><span class="theme-swatch theme-swatch-light"></span> สว่าง (กรมท่า)</button>
+                            <button type="button" role="menuitem" data-theme-option="pink" onclick="setTheme('pink')"><span class="theme-swatch theme-swatch-pink"></span> ชมพู (โรสอ่อน)</button>
+                            <button type="button" role="menuitem" data-theme-option="dark" onclick="setTheme('dark')"><span class="theme-swatch theme-swatch-dark"></span> มืด (กรมท่าหม่น)</button>
+                        </div>
+                        </div>
                     </div>
                 </header>
 
@@ -1263,6 +1270,7 @@
                             <p class="section-desc" style="margin: 0 0 15px;">
                                 ตั้งราคามาตรฐานต่อประเภทงานครั้งเดียว — ตอนออกบิลระบบเติมราคาให้อัตโนมัติ (แก้ในบิลได้)
                                 และแยก <strong>ค่าธรรมเนียมรัฐ (เก็บแทน)</strong> ออกจาก <strong>ค่าบริการ</strong> เพื่อให้หน้าสรุปการเงินแสดงรายได้จริง
+                                — ใส่ <strong>ต้นทุน</strong> ต่องาน (ค่าตรวจโรค ค่าแปล ค่าเดินทาง ฯลฯ) เพื่อดูกำไรต่องานโดยประมาณ = ค่าบริการ − ต้นทุน
                                 — ข้อมูลส่วนนี้ใช้ภายใน ไม่ถูกพิมพ์ลงบิลที่ให้ลูกค้า
                             </p>
                             <div class="table-container">
@@ -1273,12 +1281,15 @@
                                             <th class="inv-num" style="width: 190px;">ค่าธรรมเนียมรัฐ (เก็บแทน)</th>
                                             <th class="inv-num" style="width: 170px;">ค่าบริการ</th>
                                             <th class="inv-num" style="width: 150px;">ราคารวมบนบิล</th>
+                                            <th class="inv-num" style="width: 150px;">ต้นทุน (กดดูรายการ)</th>
+                                            <th class="inv-num" style="width: 130px;">กำไรต่องาน</th>
                                             <th class="actions-col"></th>
                                         </tr>
                                     </thead>
                                     <tbody id="service-prices-tbody"></tbody>
                                 </table>
                             </div>
+                            <datalist id="cost-item-suggestions"></datalist>
                         </div>
                     </div>
 
@@ -2502,7 +2513,7 @@
 
         <!-- ==================== MODAL: INVOICE BILLING PREVIEW ==================== -->
         <div id="invoice-modal" class="modal-backdrop hidden">
-            <div class="modal-content large printable-modal-content" style="max-width: 1100px;">
+            <div class="modal-content large printable-modal-content modal-sheet">
                 <div class="modal-header no-print">
                     <h3>ใบวางบิล / ใบแจ้งหนี้ (Billing Note Preview)</h3>
                     <button class="close-btn" onclick="closeInvoiceModal()">&times;</button>
@@ -2712,7 +2723,7 @@
 
         <!-- ==================== RECEIPT MODAL (ใบเสร็จรับเงิน) — พิมพ์จากประวัติการรับเงินในบิล ดู openReceiptModal() ==================== -->
         <div id="receipt-modal" class="modal-backdrop hidden" style="z-index: 1080;">
-            <div class="modal-content large printable-modal-content" style="max-width: 900px;">
+            <div class="modal-content large printable-modal-content modal-sheet">
                 <div class="modal-header no-print">
                     <h3>ใบเสร็จรับเงิน (Receipt)</h3>
                     <button class="close-btn" onclick="closeReceiptModal()">&times;</button>

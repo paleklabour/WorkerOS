@@ -1601,18 +1601,48 @@ document.addEventListener("DOMContentLoaded", () => {
 // ==================== โหมดมืด (ธีม "มืดนุ่ม B — กรมท่าหม่น") ====================
 // <html data-theme="dark"> + จำใน localStorage "mw_theme" — สคริปต์ใน <head> ของ index.html ตั้งค่าก่อนหน้าเว็บแสดง
 // สีทั้งหมดอยู่ท้าย styles.css หัวข้อ DARK MODE
-function updateThemeToggleTitle() {
-    const btn = document.getElementById("theme-toggle-btn");
-    if (btn) btn.title = document.documentElement.getAttribute("data-theme") === "dark" ? "โหมดสว่าง" : "โหมดมืด";
+// ธีมชมพู ("ชมพู 1 — โรสอ่อน") ก็ใช้ data-theme="pink" แบบเดียวกัน — ปุ่มพระจันทร์เปิดเมนูเลือก สว่าง / ชมพู / มืด
+const THEME_LABELS = { light: 'สว่าง (กรมท่า)', pink: 'ชมพู (โรสอ่อน)', dark: 'มืด (กรมท่าหม่น)' };
+
+function currentTheme() {
+    return document.documentElement.getAttribute("data-theme") || 'light';
 }
 
-function toggleTheme() {
-    const dark = document.documentElement.getAttribute("data-theme") !== "dark";
-    if (dark) document.documentElement.setAttribute("data-theme", "dark");
+function updateThemeToggleTitle() {
+    const btn = document.getElementById("theme-toggle-btn");
+    if (btn) btn.title = `เลือกธีม — ตอนนี้: ${THEME_LABELS[currentTheme()]}`;
+    document.querySelectorAll('#theme-menu [data-theme-option]').forEach(b => b.classList.toggle('is-active', b.dataset.themeOption === currentTheme()));
+}
+
+function setTheme(name) {
+    if (name === 'dark' || name === 'pink') document.documentElement.setAttribute("data-theme", name);
     else document.documentElement.removeAttribute("data-theme");
-    try { localStorage.setItem("mw_theme", dark ? "dark" : "light"); } catch (e) { /* ไม่เป็นไร แค่จำค่าไม่ได้ */ }
+    try { localStorage.setItem("mw_theme", name); } catch (e) { /* ไม่เป็นไร แค่จำค่าไม่ได้ */ }
+    closeThemeMenu();
     updateThemeToggleTitle();
 }
+
+function toggleThemeMenu() {
+    const menu = document.getElementById("theme-menu");
+    if (!menu) return;
+    const open = menu.classList.toggle('hidden') === false;
+    document.getElementById("theme-toggle-btn").setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) updateThemeToggleTitle();
+}
+
+function closeThemeMenu() {
+    const menu = document.getElementById("theme-menu");
+    if (menu) menu.classList.add('hidden');
+    const btn = document.getElementById("theme-toggle-btn");
+    if (btn) btn.setAttribute('aria-expanded', 'false');
+}
+
+// คลิกนอกเมนู / กด Esc → ปิดเมนูธีม
+document.addEventListener('mousedown', (e) => {
+    const picker = document.getElementById("theme-picker");
+    if (picker && !picker.contains(e.target)) closeThemeMenu();
+});
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeThemeMenu(); });
 
 // ถ้าหมุนจอ/ปรับขนาดหน้าต่างจนกว้างเกินเบรกพอยต์แล้ว ให้ล้างสถานะลิ้นชักทิ้ง กันเมนูค้างเปิดตอนสลับกลับเป็นจอกว้าง
 window.addEventListener("resize", () => {
@@ -11736,38 +11766,127 @@ function cashBalance() {
     return { inflow, outflow, balance: round2(inflow - outflow) };
 }
 
-// ---------- ราคามาตรฐาน (ภายใน): ค่าธรรมเนียมรัฐ + ค่าบริการ ต่อประเภทงาน ----------
+// ---------- ราคามาตรฐาน (ภายใน): ค่าธรรมเนียมรัฐ + ค่าบริการ + ต้นทุน ต่อประเภทงาน ----------
+// ต้นทุน (costItems) = รายจ่ายของบริษัทต่องาน ที่ไม่ใช่ค่าธรรมเนียมรัฐ เช่น ค่าตรวจโรค ค่าแปล ค่าเดินทาง
+// กำไรต่องานโดยประมาณ = ค่าบริการ − ต้นทุนรวม (ค่าธรรมเนียมรัฐเป็นเงินเก็บแทน ไม่นับเป็นรายได้/ต้นทุน)
+const COST_ITEM_SUGGESTIONS = ['ค่าตรวจโรค/ใบรับรองแพทย์', 'ค่าแปลเอกสาร', 'ค่าเดินทาง', 'ค่าส่งเอกสาร/ไปรษณีย์', 'ค่าถ่ายเอกสาร/ปริ้น', 'ค่ารูปถ่าย', 'ค่าประกันสุขภาพ', 'ค่าคอม Agent', 'ค่านายหน้า/ผู้ประสานงาน'];
+
+function costItemsTotal(items) {
+    return round2((items || []).reduce((s, c) => s + (Number(c.amount) || 0), 0));
+}
+
 function renderServicePrices() {
     const tbody = document.getElementById("service-prices-tbody");
     if (!tbody) return;
     const canEdit = ['admin', 'manager'].includes(currentUser.role);
     const types = Array.from(document.querySelectorAll("input[name='job-type-checkbox']")).map(cb => cb.value);
     servicePrices.forEach(p => { if (!types.includes(p.jobType)) types.push(p.jobType); });
+
+    // ชื่อต้นทุนที่แนะนำ = รายการสำเร็จรูป + ชื่อที่เคยพิมพ์ไว้ในประเภทงานอื่น
+    const names = new Set(COST_ITEM_SUGGESTIONS);
+    servicePrices.forEach(p => (p.costItems || []).forEach(c => c.name && names.add(c.name)));
+    const datalist = document.getElementById("cost-item-suggestions");
+    if (datalist) datalist.innerHTML = [...names].map(n => `<option value="${escapeHtml(n)}"></option>`).join('');
+
     tbody.innerHTML = types.map((t, i) => {
-        const p = getServicePrice(t) || { govFee: 0, serviceFee: 0 };
+        const p = getServicePrice(t) || { govFee: 0, serviceFee: 0, costItems: [] };
         const dis = canEdit ? '' : 'disabled';
+        const costs = p.costItems || [];
         return `
-            <tr>
+            <tr data-job-type="${escapeHtml(t)}">
                 <td><strong>${escapeHtml(t)}</strong></td>
                 <td class="inv-num"><input type="number" min="0" step="0.01" class="price-input price-gov" id="sp-gov-${i}" value="${p.govFee}" ${dis} oninput="updateServicePriceTotal(${i})"></td>
                 <td class="inv-num"><input type="number" min="0" step="0.01" class="price-input" id="sp-svc-${i}" value="${p.serviceFee}" ${dis} oninput="updateServicePriceTotal(${i})"></td>
                 <td class="inv-num"><strong id="sp-total-${i}">${fmtMoney(p.govFee + p.serviceFee)}</strong></td>
+                <td class="inv-num">
+                    <button type="button" class="btn btn-sm btn-outline price-cost-toggle" id="sp-cost-btn-${i}" onclick="toggleServicePriceCosts(${i})">${icon('cash')} <span id="sp-cost-total-${i}">${fmtMoney(costItemsTotal(costs))}</span> <small id="sp-cost-count-${i}">(${costs.length})</small></button>
+                </td>
+                <td class="inv-num"><strong id="sp-profit-${i}"></strong></td>
                 <td class="actions-col">${canEdit ? `<button type="button" class="btn btn-sm btn-gold" onclick="saveServicePriceRow(${i}, '${escapeHtml(t).replace(/'/g, "\\'")}')">${icon('save')} บันทึก</button>` : ''}</td>
+            </tr>
+            <tr class="price-cost-row hidden" id="sp-cost-row-${i}">
+                <td colspan="7"><div class="price-cost-panel" id="sp-cost-panel-${i}" data-can-edit="${canEdit ? 1 : 0}">${renderCostItemsEditor(i, costs, canEdit)}</div></td>
             </tr>`;
     }).join('');
+    types.forEach((t, i) => updateServicePriceTotal(i));
+}
+
+function renderCostItemsEditor(i, costs, canEdit) {
+    const dis = canEdit ? '' : 'disabled';
+    const rows = costs.map((c, k) => `
+        <div class="price-cost-item">
+            <input type="text" class="price-cost-name" id="sp-cost-name-${i}-${k}" list="cost-item-suggestions" placeholder="ชื่อต้นทุน เช่น ค่าตรวจโรค" value="${escapeHtml(c.name || '')}" ${dis}>
+            <input type="number" min="0" step="0.01" class="price-input" id="sp-cost-amt-${i}-${k}" value="${Number(c.amount) || 0}" ${dis} oninput="updateServicePriceTotal(${i})">
+            ${canEdit ? `<button type="button" class="btn btn-sm btn-outline btn-danger-outline" onclick="removeServicePriceCost(${i}, ${k})" title="ลบรายการนี้">${icon('trash')}</button>` : ''}
+        </div>`).join('');
+    return `
+        <div class="price-cost-head">${icon('cash')} ต้นทุนต่องาน (ภายใน — ไม่ใช่ค่าธรรมเนียมรัฐ และไม่พิมพ์ลงบิล)</div>
+        ${rows || '<p class="text-muted pay-empty">ยังไม่มีรายการต้นทุน</p>'}
+        ${canEdit ? `<button type="button" class="btn btn-sm btn-outline" onclick="addServicePriceCost(${i})">${icon('plus')} เพิ่มรายการต้นทุน</button>
+            <span class="text-muted price-cost-hint">แก้แล้วกด "บันทึก" ที่แถวของประเภทงานนี้</span>` : ''}`;
+}
+
+// อ่านรายการต้นทุนจากช่องกรอกของแถว i (ตัดแถวที่ไม่มีทั้งชื่อและยอดทิ้ง)
+function readServicePriceCosts(i, keepEmpty) {
+    const out = [];
+    for (let k = 0; ; k++) {
+        const nameEl = document.getElementById(`sp-cost-name-${i}-${k}`);
+        if (!nameEl) break;
+        const name = nameEl.value.trim();
+        const amount = round2(document.getElementById(`sp-cost-amt-${i}-${k}`).value);
+        if (keepEmpty || name || amount > 0) out.push({ name, amount });
+    }
+    return out;
+}
+
+function rerenderServicePriceCosts(i, costs) {
+    const panel = document.getElementById(`sp-cost-panel-${i}`);
+    panel.innerHTML = renderCostItemsEditor(i, costs, panel.dataset.canEdit === '1');
+    updateServicePriceTotal(i);
+}
+
+function toggleServicePriceCosts(i) {
+    const row = document.getElementById(`sp-cost-row-${i}`);
+    row.classList.toggle('hidden');
+    document.getElementById(`sp-cost-btn-${i}`).classList.toggle('is-open', !row.classList.contains('hidden'));
+}
+
+function addServicePriceCost(i) {
+    const costs = readServicePriceCosts(i, true);
+    costs.push({ name: '', amount: 0 });
+    rerenderServicePriceCosts(i, costs);
+    const nameEl = document.getElementById(`sp-cost-name-${i}-${costs.length - 1}`);
+    if (nameEl) nameEl.focus();
+}
+
+function removeServicePriceCost(i, k) {
+    const costs = readServicePriceCosts(i, true);
+    costs.splice(k, 1);
+    rerenderServicePriceCosts(i, costs);
 }
 
 function updateServicePriceTotal(i) {
     const gov = Number(document.getElementById(`sp-gov-${i}`).value) || 0;
     const svc = Number(document.getElementById(`sp-svc-${i}`).value) || 0;
     document.getElementById(`sp-total-${i}`).innerText = fmtMoney(gov + svc);
+    const costs = readServicePriceCosts(i);
+    const cost = costItemsTotal(costs);
+    document.getElementById(`sp-cost-total-${i}`).innerText = fmtMoney(cost);
+    document.getElementById(`sp-cost-count-${i}`).innerText = `(${costs.length})`;
+    const profit = round2(svc - cost);
+    const profitEl = document.getElementById(`sp-profit-${i}`);
+    profitEl.innerText = fmtMoney(profit);
+    profitEl.className = profit < 0 ? 'text-danger' : profit > 0 ? 'text-success' : 'text-muted';
 }
 
 async function saveServicePriceRow(i, jobType) {
+    const costItems = readServicePriceCosts(i);
+    if (costItems.some(c => !c.name)) { uiAlert("กรุณาใส่ชื่อรายการต้นทุนให้ครบทุกบรรทัด (หรือลบบรรทัดที่ไม่ใช้)"); return; }
     const priceData = {
         jobType,
         govFee: round2(document.getElementById(`sp-gov-${i}`).value),
         serviceFee: round2(document.getElementById(`sp-svc-${i}`).value),
+        costItems,
         updatedAt: new Date().toISOString()
     };
     const res = await callCloudAPI("saveServicePrice", { priceData });
@@ -11775,7 +11894,8 @@ async function saveServicePriceRow(i, jobType) {
     const idx = servicePrices.findIndex(p => p.jobType === jobType);
     if (idx === -1) servicePrices.push(priceData); else servicePrices[idx] = priceData;
     saveData();
-    showToast(`💾 บันทึกราคามาตรฐาน "${jobType}" แล้ว`, "success");
+    rerenderServicePriceCosts(i, costItems);
+    showToast(`💾 บันทึกราคามาตรฐาน "${jobType}" แล้ว — กำไรต่องานประมาณ ${fmtMoney(priceData.serviceFee - costItemsTotal(costItems))} บาท`, "success");
 }
 
 // ---------- เลือกคนงานหลายคนให้รายการในบิลอิสระ ----------

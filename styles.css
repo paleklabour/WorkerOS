@@ -2845,6 +2845,27 @@ td > .ico {
     font-size: 13px;
 }
 
+/* หน้าต่างพรีวิวใบแจ้งหนี้/ใบเสร็จ — กว้างเกือบเต็มจอ และขยายกระดาษ A4 บนจอให้อ่านง่าย
+   (ขยายเฉพาะบนจอด้วย zoom — ตอนพิมพ์ยังเป็น A4 ขนาดจริง) */
+.modal-content.modal-sheet {
+    max-width: min(1640px, 97vw);
+    max-height: 94vh;
+}
+
+/* บนจอมีคอลัมน์ "ค่าธรรมเนียมรัฐ" (no-print, 24มม.) + ปุ่มลบรายการ เพิ่มเข้ามา ทำให้คอลัมน์ "รายการ" แคบกว่าตอนพิมพ์
+   จนรายชื่อคนงานตัดเป็น 2 บรรทัด — ขยายกระดาษบนจอเท่าคอลัมน์ที่เพิ่ม ให้คอลัมน์รายการกว้างเท่าตอนพิมพ์ A4 จริง */
+@media screen {
+    .modal-sheet #invoice-sheet-container { width: 245mm; }
+}
+
+@media screen and (min-width: 1280px) {
+    .modal-sheet .invoice-sheet { zoom: 1.2; }
+}
+
+@media screen and (min-width: 1600px) {
+    .modal-sheet .invoice-sheet { zoom: 1.35; }
+}
+
 .invoice-sheet-header {
     display: flex;
     justify-content: space-between;
@@ -3810,6 +3831,51 @@ tr.is-voided-row td {
     font-size: 13.5px;
 }
 
+/* ต้นทุนต่องาน (แถวย่อยใต้ประเภทงาน) */
+.price-cost-toggle.is-open {
+    border-color: var(--gold-primary);
+    color: var(--gold-primary);
+}
+
+.price-cost-row > td {
+    background-color: var(--dk-subtle, #f8fafd);
+}
+
+.price-cost-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 4px 4px 6px;
+}
+
+.price-cost-head {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--navy-dark);
+}
+
+.price-cost-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.price-cost-name {
+    width: 260px;
+    max-width: 100%;
+    padding: 7px 10px;
+    border: 1px solid var(--dk-line, #d5dce8);
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 13.5px;
+}
+
+.price-cost-hint {
+    font-size: 12px;
+}
+
 .price-input.price-gov {
     border-color: #b7dcd8;
     color: #0f766e;
@@ -4411,7 +4477,7 @@ tr.is-voided-row td {
 }
 
 /* ==================== DARK MODE (ธีมมืดนุ่ม "B — กรมท่าหม่น") ====================
-   เปิด/ปิดด้วยปุ่มพระจันทร์มุมขวาบน (toggleTheme ใน app.js) → <html data-theme="dark">, จำค่าไว้ใน localStorage
+   เลือกจากปุ่มพระจันทร์มุมขวาบน (setTheme ใน app.js) → <html data-theme="dark"> (หรือ "pink" ดูหัวข้อธีมชมพู), จำค่าไว้ใน localStorage
    สีที่เคยเขียนตายตัวในไฟล์นี้ถูกเปลี่ยนเป็น var(--dk-xxx, สีเดิม) — ธีมสว่างไม่ได้กำหนด --dk-* จึงใช้สีเดิมทุกจุด
    ธีมมืดกำหนด --dk-* ด้านล่าง ส่วนใบแจ้งหนี้/ใบเสร็จ/ใบปะหน้า (กระดาษที่พิมพ์) ยังเป็นพื้นขาวเสมอ */
 :root[data-theme="dark"] {
@@ -4513,7 +4579,8 @@ tr.is-voided-row td {
 :root[data-theme="dark"] [style*="color: #92400e"] { color: var(--dk-warn, #92400e) !important; }
 
 /* กระดาษที่พิมพ์ (ใบแจ้งหนี้/ใบเสร็จ/ใบปะหน้า) — คงพื้นขาวตัวหนังสือเข้มเหมือนธีมสว่าง */
-:root[data-theme="dark"] .invoice-sheet,
+:root[data-theme="dark"] .invoice-sheet, :root[data-theme="pink"] .invoice-sheet,
+:root[data-theme="pink"] .delivery-label-sheet,
 :root[data-theme="dark"] .delivery-label-sheet {
     color-scheme: light;
     --navy-dark: #0f172a;
@@ -4542,15 +4609,97 @@ tr.is-voided-row td {
     border-color: #d5dce8;
 }
 
-/* ปุ่มสลับธีม (พระจันทร์ ↔ พระอาทิตย์) */
+/* ==================== ธีมชมพู ("ชมพู 1 — โรสอ่อน") — โหมดสว่างโทนชมพูกุหลาบ ====================
+   ใช้ระบบ --dk-* เดียวกับโหมดมืด (สีเทาอมฟ้าที่เขียนตายตัว → เปลี่ยนเป็นเทาอมชมพู) */
+:root[data-theme="pink"] {
+    --navy-dark: #2e1f27;
+    --navy-medium: #4a3640;
+    --navy-light: #8c7380;
+    --gold-primary: #d6457a;
+    --gold-hover: #bf3468;
+    --gold-light: rgba(214, 69, 122, 0.08);
+    --gold-border: rgba(214, 69, 122, 0.18);
+    --gray-bg: #fbf3f6;
+    --gray-card: #ffffff;
+    --text-dark: #4a3640;
+    --text-muted: #8c7380;
+    --shadow-sm: 0 4px 14px rgba(214, 69, 122, 0.08);
+    --shadow-md: 0 6px 18px rgba(214, 69, 122, 0.10);
+    --shadow-lg: 0 12px 28px rgba(70, 25, 45, 0.14);
+    --on-primary: #ffffff;
+
+    --dk-card: #ffffff;
+    --dk-subtle: #fcf4f7;
+    --dk-line: #f1dfe6;
+    --dk-head: #2e1f27;
+    --dk-muted: #8c7380;
+}
+:root[data-theme="pink"] .sidebar { border-right-color: var(--dk-line); }
+:root[data-theme="pink"] input:focus,
+:root[data-theme="pink"] select:focus,
+:root[data-theme="pink"] textarea:focus { border-color: var(--gold-primary); }
+:root[data-theme="pink"] ::-webkit-scrollbar-thumb { background: #ecd3dd; }
+:root[data-theme="pink"] [style*="border: 1px solid #e2e8f0"], :root[data-theme="pink"] [style*="border-color: #e2e8f0"],
+:root[data-theme="pink"] [style*="border-bottom: 1px solid #e2e8f0"] { border-color: var(--dk-line) !important; }
+:root[data-theme="pink"] [style*="background-color: #f8fafc"], :root[data-theme="pink"] [style*="background: #f8fafc"],
+:root[data-theme="pink"] [style*="background-color: #f1f5f9"], :root[data-theme="pink"] [style*="background: #f1f5f9"] { background-color: var(--dk-subtle) !important; }
+
+/* ปุ่มเลือกธีมมุมขวาบน: พระจันทร์ (พระอาทิตย์ตอนอยู่โหมดมืด) → เมนู สว่าง / ชมพู / มืด */
 .theme-toggle-btn .theme-icon-sun { display: none; }
 :root[data-theme="dark"] .theme-toggle-btn .theme-icon-sun { display: block; }
 :root[data-theme="dark"] .theme-toggle-btn .theme-icon-moon { display: none; }
 :root[data-theme="dark"] .theme-toggle-btn { color: #f6c35b; }
 
-/* พิมพ์จากธีมมืด → พิมพ์เป็นสีสว่างเสมอ */
+.theme-picker {
+    position: relative;
+}
+
+.theme-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 1500;
+    min-width: 200px;
+    padding: 6px;
+    background-color: var(--gray-card);
+    border-radius: 14px;
+    box-shadow: var(--shadow-lg), 0 0 0 1px var(--dk-line, #e2e8f0);
+}
+
+.theme-menu button {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 9px 12px;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--text-dark);
+    font-family: inherit;
+    font-size: 13.5px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.theme-menu button:hover { background-color: var(--gold-light); }
+.theme-menu button.is-active { font-weight: 600; color: var(--gold-primary); }
+
+.theme-swatch {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+}
+
+.theme-swatch-light { background: linear-gradient(135deg, #f1f4f9 50%, #2d4fa3 50%); }
+.theme-swatch-pink  { background: linear-gradient(135deg, #fbf3f6 50%, #d6457a 50%); }
+.theme-swatch-dark  { background: linear-gradient(135deg, #232a3b 50%, #6f8fe0 50%); }
+
+/* พิมพ์จากธีมมืด/ชมพู → พิมพ์เป็นสีปกติ (กรมท่า-ขาว) เสมอ */
 @media print {
-    :root[data-theme="dark"] {
+    :root[data-theme="dark"], :root[data-theme="pink"] {
         color-scheme: light;
         --navy-dark: #0f172a; --navy-medium: #1e293b; --navy-light: #64748b;
         --gold-primary: #2d4fa3; --gray-bg: #ffffff; --gray-card: #ffffff;

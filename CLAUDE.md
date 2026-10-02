@@ -129,14 +129,14 @@ or credit (`customerCredit()`), and it can be applied to later invoices
 customer; the real account is the one picked when recording the money. Schema:
 `supabase/migrations/20261002032303_receipts_and_customer_credit.sql`.
 
-## Dark mode (standing rule)
+## Themes: light / pink / dark (standing rule)
 
-The moon button in the top bar toggles `<html data-theme="dark">`, saved in
-localStorage `mw_theme`. When adding CSS, don't hard-code light-only colors.
+The moon button in the top bar opens a theme menu (`setTheme()`): light (default),
+`pink` or `dark` on `<html data-theme>`, saved in localStorage `mw_theme`. When adding CSS, don't hard-code light-only colors.
 Use existing variables (`--gray-card`, `--text-dark`, …), or write
 `var(--dk-card, #ffffff)` / `--dk-subtle` / `--dk-line` / `--dk-head` /
 `--dk-muted` / `--dk-ok|bad|warn(-bg)`. Light mode leaves `--dk-*` undefined,
-so it uses the fallback; dark mode defines them at the end of `styles.css`.
+so it uses the fallback; pink and dark define them at the end of `styles.css`.
 Printed sheets (`.invoice-sheet`, `.delivery-label-sheet`) always stay
 white-paper.
 

@@ -90,7 +90,7 @@
         voided: "voided", voidReason: "void_reason", voidedAt: "voided_at", voidedBy: "voided_by",
         recordedBy: "recorded_by", createdAt: "created_at"
     };
-    const SERVICE_PRICE_MAP = { jobType: "job_type", govFee: "gov_fee", serviceFee: "service_fee", updatedAt: "updated_at" };
+    const SERVICE_PRICE_MAP = { jobType: "job_type", govFee: "gov_fee", serviceFee: "service_fee", updatedAt: "updated_at", costItems: "cost_items" };
     // numeric ของ Postgres กลับมาเป็นสตริง ("1500.00") — แปลงเป็นตัวเลขให้ app.js คำนวณได้ตรง ๆ
     const num = (v) => (v === null || v === undefined || v === "") ? 0 : Number(v);
     function normalizeNumbers(list, keys) {
