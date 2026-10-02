@@ -265,27 +265,27 @@
                         <div id="db-tab-overview" class="db-tab-content">
                             <!-- สถิติภาพรวม: แคปซูลสีตามความเร่งด่วน (แบบ Wallet 2026-10) — ตัวเลขเติมใน renderDashboard() -->
                             <div class="stat-pills">
-                                <div class="stat-pill tone-navy">
+                                <div class="stat-pill tone-navy" data-go="customers" role="button" tabindex="0">
                                     <h3 id="stat-total-customers">0</h3>
                                     <p>นายจ้าง/ลูกค้าทั้งหมด</p>
                                 </div>
-                                <div class="stat-pill tone-teal">
+                                <div class="stat-pill tone-teal" data-go="workers" role="button" tabindex="0">
                                     <h3 id="stat-total-workers">0</h3>
                                     <p>คนงานต่างด้าวทั้งหมด</p>
                                 </div>
-                                <div class="stat-pill tone-purple">
+                                <div class="stat-pill tone-purple" data-go="open-jobs" role="button" tabindex="0">
                                     <h3 id="stat-open-jobs">0</h3>
                                     <p>งานที่เปิดอยู่ (ยังไม่ปิดงาน)</p>
                                 </div>
-                                <div class="stat-pill tone-red">
+                                <div class="stat-pill tone-red" data-go="expiry" role="button" tabindex="0">
                                     <h3 id="stat-expiry-warnings">0</h3>
                                     <p>เอกสารใกล้หมดอายุ/หมดอายุแล้ว</p>
                                 </div>
-                                <div class="stat-pill tone-orange">
+                                <div class="stat-pill tone-orange" data-go="missing-docs" role="button" tabindex="0">
                                     <h3 id="stat-missing-docs">0</h3>
                                     <p>คนงานที่ยังไม่ได้แนบเอกสาร</p>
                                 </div>
-                                <div class="stat-pill tone-red needs-finance">
+                                <div class="stat-pill tone-red needs-finance" data-go="overdue-bills" role="button" tabindex="0">
                                     <h3 id="stat-overdue-invoices">0</h3>
                                     <p>บิลค้างชำระเกิน 15 วัน</p>
                                 </div>
@@ -343,6 +343,16 @@
                                         <div class="customer-locations-list" id="customer-locations">
                                             <!-- Dynamic locations list -->
                                         </div>
+                                    </div>
+                                </div>
+                                <!-- คนงานแยกรายจังหวัด (ตามที่ตั้งสำนักงานใหญ่ของนายจ้าง = สถานที่ทำงาน) — ดู renderWorkerProvinces() -->
+                                <div class="dashboard-panel panel-worker-provinces">
+                                    <div class="panel-header">
+                                        <h3>คนงานต่างด้าวแยกรายจังหวัด</h3>
+                                        <small class="text-muted">ตามที่ตั้งนายจ้าง</small>
+                                    </div>
+                                    <div class="panel-content">
+                                        <div class="province-bars" id="dashboard-worker-provinces"></div>
                                     </div>
                                 </div>
                             </div>
@@ -458,36 +468,33 @@
 
                         <!-- TAB 4: COMPLETED JOBS SUMMARY -->
                         <div id="db-tab-completed" class="db-tab-content hidden">
-                            <div class="dashboard-panel" style="margin-bottom: 20px;">
-                                <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-                                    <h3 style="margin: 0;"><span class="ico" data-icon="search"></span> ค้นหางานที่แจ้งสำเร็จ</h3>
-                                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                                        <select id="db-completed-select-employer" class="select-filter" onchange="renderCompletedJobsStats()" style="min-width: 260px;">
-                                            <option value="">ภาพรวมทั้งหมด (ทุกนายจ้าง)</option>
-                                            <!-- Dynamic employer options -->
-                                        </select>
-                                        <select id="db-completed-select-agent" class="select-filter" onchange="renderCompletedJobsStats()" style="min-width: 260px;">
-                                            <option value="">ทุก Agent (ไม่กรอง)</option>
-                                            <!-- Dynamic agent options -->
-                                        </select>
-                                    </div>
+                            <!-- ตัวกรอง (แถบโค้งแบบเดียวกับสรุปการเงิน) -->
+                            <div class="panel-header fin-period-bar" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; padding: 0;">
+                                <h4 style="font-size: 14.5px; font-weight: 700; color: var(--navy-dark); margin: 0;"><span class="ico" data-icon="search"></span> ค้นหางานที่แจ้งสำเร็จ</h4>
+                                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                                    <select id="db-completed-select-employer" class="select-filter" onchange="renderCompletedJobsStats()" style="min-width: 240px;">
+                                        <option value="">ภาพรวมทั้งหมด (ทุกนายจ้าง)</option>
+                                        <!-- Dynamic employer options -->
+                                    </select>
+                                    <select id="db-completed-select-agent" class="select-filter" onchange="renderCompletedJobsStats()" style="min-width: 240px;">
+                                        <option value="">ทุก Agent (ไม่กรอง)</option>
+                                        <!-- Dynamic agent options -->
+                                    </select>
                                 </div>
                             </div>
 
-                            <div class="stats-grid" style="grid-template-columns: repeat(2, 1fr); margin-bottom: 20px;">
-                                <div class="stats-card" style="border-left: 4px solid var(--success);">
-                                    <div class="stats-icon text-success"><span class="ico" data-icon="ok"></span></div>
-                                    <div class="stats-info">
-                                        <h3 id="stat-completed-total">0</h3>
-                                        <p>งานที่แจ้งสำเร็จทั้งหมด (ตามตัวกรอง)</p>
+                            <!-- บัตรหลักแบบ Wallet + การ์ดเดือนนี้ (ตัวเลขเติมใน renderCompletedJobsStats) — เป็นวิดเจ็ตกระดาน "completed" -->
+                            <div class="completed-hero-grid">
+                                <div class="wallet-card completed-wallet">
+                                    <div class="wallet-card-top"><span class="wallet-brand"><span class="ico" data-icon="ok"></span> งานที่แจ้งสำเร็จ</span><span class="wallet-period">ตามตัวกรอง</span></div>
+                                    <div>
+                                        <p class="wallet-label">งานที่แจ้งสำเร็จทั้งหมด</p>
+                                        <p class="wallet-amount"><span id="stat-completed-total">0</span> <span class="wallet-unit">งาน</span></p>
                                     </div>
                                 </div>
-                                <div class="stats-card" style="border-left: 4px solid var(--navy-medium);">
-                                    <div class="stats-icon text-gold"><span class="ico" data-icon="calendar"></span></div>
-                                    <div class="stats-info">
-                                        <h3 id="stat-completed-this-month">0</h3>
-                                        <p>งานที่แจ้งสำเร็จเดือนนี้</p>
-                                    </div>
+                                <div class="fin-profit-card completed-month-card">
+                                    <p>งานที่แจ้งสำเร็จเดือนนี้</p>
+                                    <h3 id="stat-completed-this-month">0</h3>
                                 </div>
                             </div>
 
@@ -714,6 +721,7 @@
                                     </select>
                                     <select id="filter-job-status" onchange="renderJobs()">
                                         <option value="">ทุกสถานะงาน</option>
+                                        <option value="__open">งานที่ยังไม่ปิด (ทุกสถานะที่ค้าง)</option>
                                         <option value="รอดำเนินการ">รอดำเนินการ (Pending)</option>
                                         <option value="กำลังดำเนินการ">กำลังดำเนินการ (In Progress)</option>
                                         <option value="รอเอกสารเพิ่มเติม">รอเอกสารเพิ่มเติม (Waiting for Docs)</option>
@@ -978,11 +986,11 @@
 
                             <!-- ข้อมูลที่ควรรู้เพิ่ม (ณ วันนี้ ไม่ผูกกับช่วงเวลาที่เลือก ยกเว้นงานยังไม่ออกบิล) -->
                             <div class="stat-pills fin-extra-pills">
-                                <div class="stat-pill tone-red">
+                                <div class="stat-pill tone-red" data-go="overdue-bills" role="button" tabindex="0">
                                     <h3 id="stat-finance-overdue">0</h3>
                                     <p>บิลค้างชำระเกิน 15 วัน (ณ วันนี้)</p>
                                 </div>
-                                <div class="stat-pill tone-orange">
+                                <div class="stat-pill tone-orange" data-go="unbilled-jobs" role="button" tabindex="0">
                                     <h3 id="stat-finance-unbilled">0</h3>
                                     <p>งานที่ยังไม่ออกบิล (ช่วงนี้)</p>
                                 </div>
@@ -1181,6 +1189,7 @@
                                     <option value="pending" selected>ต้องดำเนินการ (ยังไม่ออกบิล + ค้างรับเงิน)</option>
                                     <option value="unbilled">เฉพาะงานที่ยังไม่ออกบิล</option>
                                     <option value="outstanding">เฉพาะบิลค้างรับเงิน</option>
+                                    <option value="overdue">บิลค้างชำระเกิน 15 วัน</option>
                                     <option value="paid">บิลที่ชำระครบแล้ว</option>
                                     <option value="void">บิลที่ยกเลิก</option>
                                     <option value="all">ทั้งหมด</option>

@@ -2584,7 +2584,7 @@ function renderBillingTab() {
 
     const showUnbilled = ['pending', 'unbilled', 'all'].includes(statusFilter);
     const invoiceStatuses = {
-        pending: ['issued', 'partial'], unbilled: [], outstanding: ['issued', 'partial'],
+        pending: ['issued', 'partial'], unbilled: [], outstanding: ['issued', 'partial'], overdue: ['issued', 'partial'],
         paid: ['paid'], void: ['void'], all: ['issued', 'partial', 'paid', 'void']
     }[statusFilter] || ['issued', 'partial'];
 
@@ -2597,7 +2597,8 @@ function renderBillingTab() {
         return hay.includes(query);
     });
 
-    const shownInvoices = invoices.filter(inv => invoiceStatuses.includes(inv.status)).filter(inv => {
+    const overdueIds = statusFilter === 'overdue' ? new Set(overdueInvoices().map(i => i.id)) : null; // ค้างเกินกำหนด (นิยามเดียวกับกระดิ่ง)
+    const shownInvoices = invoices.filter(inv => invoiceStatuses.includes(inv.status) && (!overdueIds || overdueIds.has(inv.id))).filter(inv => {
         if (!query) return true;
         const jobWorkers = (inv.jobIds || []).map(id => jobs.find(j => j.id === id)).filter(Boolean)
             .map(j => workers.find(w => w.id === j.workerId)).filter(Boolean).map(w => `${w.firstName} ${w.lastName}`);
@@ -2726,6 +2727,7 @@ function renderDashboardOverview() {
         `;
     }).join('');
     customerLocsEl.innerHTML = provincesList;
+    renderWorkerProvinces();
     
     // Render missing docs list
     renderMissingDocsOverview();
@@ -5219,7 +5221,7 @@ function renderJobsSummary(baseJobs, monthKey) {
     const periodLabel = monthKey ? monthLabelTh(monthKey) : 'ทุกเดือน';
     // วิดเจ็ต 1 ใบ (กระดาน "jobs" — ลาก/ปรับขนาดได้ ดู WIDGET_BOARDS.jobs) — html ว่าง = ไม่แสดงใบนั้น
     const widget = (id, kind, html) => html ? `<div class="widget" data-widget-id="${id}" data-kind="${kind}">${html}</div>` : '';
-    const pill = (tone, value, label) => `<div class="stat-pill tone-${tone}"><h3>${value}</h3><p>${label}</p></div>`;
+    const pill = (tone, value, label, go) => `<div class="stat-pill tone-${tone}"${go ? ` data-go="${go}" role="button" tabindex="0"` : ''}><h3>${value}</h3><p>${label}</p></div>`;
 
     // ตารางแยกกลุ่ม: แจ้งเข้า (ในเดือน) / ปิด (ในเดือน) / ค้างอยู่ตอนนี้
     const groupTable = (title, colLabel, keyOf, labelOf, limit = 0) => {
@@ -5277,9 +5279,9 @@ function renderJobsSummary(baseJobs, monthKey) {
         <div class="widget-board" data-board="jobs">
             ${widget('hero', 'block', hero)}
             ${widget('status', 'block', statusCard)}
-            ${widget('pill-unassigned', 'pill', pill('orange', unassigned.length, 'งานที่ยังไม่มอบหมายผู้รับผิดชอบ'))}
-            ${widget('pill-stale', 'pill', pill('red', stale.length, `งานค้างนานเกิน ${JOB_STALE_DAYS} วัน`))}
-            ${widget('pill-appts', 'pill', pill('teal', appts.length, 'นัดหมาย 7 วันข้างหน้า'))}
+            ${widget('pill-unassigned', 'pill', pill('orange', unassigned.length, 'งานที่ยังไม่มอบหมายผู้รับผิดชอบ', 'unassigned-jobs'))}
+            ${widget('pill-stale', 'pill', pill('red', stale.length, `งานค้างนานเกิน ${JOB_STALE_DAYS} วัน`, 'stale-jobs'))}
+            ${widget('pill-appts', 'pill', pill('teal', appts.length, 'นัดหมาย 7 วันข้างหน้า', 'appointments'))}
             ${widget('by-assignee', 'block', groupTable('แยกตามผู้รับผิดชอบ', 'ผู้รับผิดชอบ', j => j.assignedTo || '', k => k === '-' ? 'ยังไม่มอบหมาย' : getUserNameById(k)))}
             ${widget('by-type', 'block', groupTable('แยกตามประเภทงาน', 'ประเภทงาน', j => getCleanJobTypeName(j.jobType), k => k))}
             ${widget('by-customer', 'block', groupTable('นายจ้างที่มีงานมากที่สุด (10 อันดับ)', 'นายจ้าง', j => j.customerId || '', k => (customers.find(c => c.id === k) || {}).companyName || 'ไม่ระบุนายจ้าง', 10))}
@@ -5309,7 +5311,7 @@ function renderJobs() {
         const matchSearch = j.id.toLowerCase().includes(query) || custName.includes(query) || workName.includes(query) || getJobDisplayNo(j).toLowerCase().includes(query);
 
         const matchType = typeFilter === "" || (j.jobType && j.jobType.includes(typeFilter));
-        const matchStatus = statusFilter === "" || j.status === statusFilter;
+        const matchStatus = statusFilter === "" || (statusFilter === "__open" ? JOB_OPEN_STATUSES.includes(j.status) : j.status === statusFilter);
         const matchAssignee = !assigneeFilter
             || (assigneeFilter === 'me' && j.assignedTo === currentUser.id)
             || (assigneeFilter === 'none' && !j.assignedTo)
@@ -13171,8 +13173,9 @@ const WIDGET_BOARDS = {
             { id: 'pill-expiry', kind: 'pill', size: 's', els: () => [pillOf('stat-expiry-warnings')] },
             { id: 'pill-missing-docs', kind: 'pill', size: 's', els: () => [pillOf('stat-missing-docs')] },
             { id: 'pill-overdue', kind: 'pill', size: 's', els: () => [pillOf('stat-overdue-invoices')] },
-            { id: 'panel-expiry', kind: 'block', size: 'l', els: () => [document.querySelector('#db-tab-overview .panel-alerts')] },
-            { id: 'panel-nationality', kind: 'block', size: 's', els: () => [document.querySelector('#db-tab-overview .panel-charts')] },
+            { id: 'panel-expiry', kind: 'block', size: 'xl', els: () => [document.querySelector('#db-tab-overview .panel-alerts')] },
+            { id: 'panel-nationality', kind: 'block', size: 'm', els: () => [document.querySelector('#db-tab-overview .panel-charts')] },
+            { id: 'panel-worker-provinces', kind: 'block', size: 'm', els: () => [document.querySelector('#db-tab-overview .panel-worker-provinces')] },
             { id: 'panel-missing-docs', kind: 'block', size: 'xl', els: () => [panelOf('search-dashboard-missing-docs')] }
         ]
     },
@@ -13196,6 +13199,16 @@ const WIDGET_BOARDS = {
             { id: 'panel-payment-status', kind: 'block', size: 'm', els: () => [panelOf('db-finance-payment-breakdown-container')] },
             { id: 'panel-customers', kind: 'block', size: 'xl', els: () => [panelOf('db-finance-customers-table-wrap')] },
             { id: 'panel-expensecat', kind: 'block', size: 'xl', els: () => [panelOf('db-finance-expensecat-table-wrap')] }
+        ]
+    },
+    // แดชบอร์ด > แท็บ "สรุปงานที่แจ้งสำเร็จ"
+    completed: {
+        anchor: () => document.querySelector('#db-tab-completed .completed-hero-grid'),
+        widgets: [
+            { id: 'wallet', kind: 'block', size: 'l', els: () => [document.querySelector('#db-tab-completed .completed-wallet')] },
+            { id: 'this-month', kind: 'block', size: 's', els: () => [document.querySelector('#db-tab-completed .completed-month-card')] },
+            { id: 'panel-monthly', kind: 'block', size: 'm', els: () => [panelOf('db-completed-monthly-tbody')] },
+            { id: 'panel-jobtype', kind: 'block', size: 'm', els: () => [panelOf('db-completed-jobtype-tbody')] }
         ]
     },
     // หน้าสรุปงาน (ระบบแจ้งงาน): HTML สร้างใหม่ใน renderJobsSummary() ทุกครั้ง → dynamic, ผูกด้วย mountWidgetBoard('jobs')
@@ -13438,4 +13451,156 @@ function setupWidgetBoards() {
 
 document.addEventListener('DOMContentLoaded', () => {
     try { setupWidgetBoards(); } catch (err) { console.error('Widget board setup failed:', err); }
+});
+
+// ==================== ข้อความแนะนำปุ่ม (tooltip) แบบ iOS แทนกรอบดำของเบราว์เซอร์ ====================
+// ใช้ title="..." เดิมทุกจุด (ไม่ต้องแก้ปุ่ม) — ตอนชี้เมาส์ ย้าย title ไปเก็บชั่วคราว (กันกรอบดำของเบราว์เซอร์ซ้อน)
+// แล้วแสดงป้ายของเราแทน พอเมาส์ออกคืน title เดิมให้ (โค้ดอื่นที่อ่าน/แก้ title ยังทำงานเหมือนเดิม)
+// เฉพาะเครื่องที่มีเมาส์ — มือถือ/iPad ไม่มี hover อยู่แล้ว
+let _iosTip = null; // { el, title, box, timer }
+
+function hideIosTooltip() {
+    const t = _iosTip;
+    if (!t) return;
+    clearTimeout(t.timer);
+    if (t.box) t.box.remove();
+    // คืน title ให้ (ถ้าระหว่างนั้นโค้ดอื่นไม่ได้ตั้ง title ใหม่)
+    if (t.el.isConnected && !t.el.hasAttribute('title')) t.el.setAttribute('title', t.title);
+    _iosTip = null;
+}
+
+function showIosTooltip(el, text) {
+    const box = document.createElement('div');
+    box.className = 'ios-tooltip';
+    box.setAttribute('role', 'tooltip');
+    box.textContent = text;
+    document.body.appendChild(box);
+    const r = el.getBoundingClientRect();
+    const bw = box.offsetWidth, bh = box.offsetHeight;
+    let top = r.top - bh - 8;
+    if (top < 8) { top = r.bottom + 8; box.classList.add('is-below'); }
+    const left = Math.max(8, Math.min(r.left + r.width / 2 - bw / 2, window.innerWidth - bw - 8));
+    box.style.left = left + 'px';
+    box.style.top = top + 'px';
+    return box;
+}
+
+function setupIosTooltips() {
+    if (!window.matchMedia || !window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+
+    document.addEventListener('mouseover', e => {
+        if (_iosTip && _iosTip.el.contains(e.target)) return; // ยังชี้อยู่ในปุ่มเดิม
+        const el = e.target.closest && e.target.closest('[title]');
+        if (!el || (_iosTip && _iosTip.el === el)) return;
+        if (el.closest('svg') && el.tagName.toLowerCase() !== 'svg') return;
+        const title = el.getAttribute('title');
+        hideIosTooltip();
+        if (!title || !title.trim()) return;
+        el.removeAttribute('title');
+        _iosTip = { el, title, box: null, timer: null };
+        _iosTip.timer = setTimeout(() => {
+            if (_iosTip && _iosTip.el === el && el.isConnected) _iosTip.box = showIosTooltip(el, title);
+        }, 450);
+    });
+
+    document.addEventListener('mouseout', e => {
+        if (!_iosTip) return;
+        const to = e.relatedTarget;
+        if (to && _iosTip.el.contains(to)) return; // ยังอยู่ในปุ่มเดิม (เลื่อนไปโดนไอคอนข้างใน)
+        if (e.target === _iosTip.el || _iosTip.el.contains(e.target)) hideIosTooltip();
+    });
+
+    ['mousedown', 'keydown', 'wheel'].forEach(ev => document.addEventListener(ev, hideIosTooltip, true));
+    window.addEventListener('scroll', hideIosTooltip, true);
+    window.addEventListener('blur', hideIosTooltip);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    try { setupIosTooltips(); } catch (err) { console.error('Tooltip setup failed:', err); }
+});
+
+// ==================== คนงานแยกรายจังหวัด (แดชบอร์ด) ====================
+// จังหวัดของคนงาน = จังหวัดสำนักงานใหญ่ของนายจ้าง (ระบบล็อกสถานที่ทำงานของคนงานไว้ตามนี้ — ดู getCustomerHQAddress)
+function workerProvinceOf(w) {
+    const c = customers.find(item => item.id === w.employerId);
+    if (!c || !Array.isArray(c.branches) || !c.branches.length) return '';
+    const b = c.branches.find(br => (br.name || '').includes('สำนักงานใหญ่')) || c.branches[0];
+    return String((b && b.province) || '').trim();
+}
+
+function renderWorkerProvinces() {
+    const el = document.getElementById('dashboard-worker-provinces');
+    if (!el) return;
+    const counts = {};
+    workers.filter(w => w.status !== 'deleted').forEach(w => {
+        const p = workerProvinceOf(w) || 'ไม่ระบุจังหวัด';
+        counts[p] = (counts[p] || 0) + 1;
+    });
+    const rows = Object.entries(counts).sort((a, b) => (a[0] === 'ไม่ระบุจังหวัด') - (b[0] === 'ไม่ระบุจังหวัด') || b[1] - a[1]);
+    const total = rows.reduce((s, [, n]) => s + n, 0);
+    if (!rows.length) {
+        el.innerHTML = `<p class="text-muted" style="text-align:center; padding: 16px;">ยังไม่มีข้อมูลคนงาน</p>`;
+        return;
+    }
+    el.innerHTML = rows.map(([p, n]) => {
+        const pct = total ? (n / total) * 100 : 0;
+        return `<div class="chart-bar-item">
+            <div class="bar-info"><span>${icon('pin')} ${escapeHtml(p === 'ไม่ระบุจังหวัด' ? p : 'จังหวัด' + p)}</span><span><strong>${n}</strong> คน (${pct.toFixed(0)}%)</span></div>
+            <div class="bar-track"><div class="bar-fill" style="width: ${pct.toFixed(1)}%; background-color: var(--gold-primary);"></div></div>
+        </div>`;
+    }).join('') + `<p class="province-total text-muted">รวม ${total} คน</p>`;
+}
+
+// ==================== แคปซูลสถิติกดเข้าไปดูรายละเอียดได้ ====================
+// <div class="stat-pill" data-go="..."> → เปิดหน้า/ตัวกรองที่ตรงกับตัวเลขนั้น (ตอนกด "แก้ไขหน้า" แผ่นกันกดของวิดเจ็ตบังไว้ จึงไม่พาไปไหน)
+function scrollToWidget(boardName, widgetId) {
+    const w = document.querySelector(`.widget-board[data-board="${boardName}"] > .widget[data-widget-id="${widgetId}"]`);
+    if (!w) return;
+    w.scrollIntoView({ behavior: iosReducedMotion() ? 'auto' : 'smooth', block: 'start' });
+    w.classList.remove('is-flash');
+    void w.offsetWidth;
+    w.classList.add('is-flash');
+}
+
+function setSelectValue(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.value = value;
+}
+
+function openStatTarget(target) {
+    switch (target) {
+        case 'customers': switchView('customers'); break;
+        case 'workers': switchView('workers'); break;
+        case 'open-jobs':
+        case 'unassigned-jobs':
+            switchView('jobs');
+            setSelectValue('filter-job-status', '__open');
+            setSelectValue('filter-job-month', '');
+            setSelectValue('filter-job-assignee', target === 'unassigned-jobs' ? 'none' : '');
+            jobsCurrentPage = 1;
+            switchJobView('table');
+            break;
+        case 'expiry': scrollToWidget('dashboard', 'panel-expiry'); break;
+        case 'missing-docs': scrollToWidget('dashboard', 'panel-missing-docs'); break;
+        case 'stale-jobs': scrollToWidget('jobs', 'list-stale'); break;
+        case 'appointments': scrollToWidget('jobs', 'list-appts'); break;
+        case 'overdue-bills':
+        case 'unbilled-jobs':
+            switchView('expenses');
+            switchFinancePageTab('billing');
+            setSelectValue('filter-billing-payment-status', target === 'overdue-bills' ? 'overdue' : 'unbilled');
+            renderBillingTab();
+            break;
+    }
+}
+
+document.addEventListener('click', e => {
+    const pill = e.target.closest && e.target.closest('.stat-pill[data-go]');
+    if (pill) openStatTarget(pill.dataset.go);
+});
+document.addEventListener('keydown', e => {
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('.stat-pill[data-go]')) {
+        e.preventDefault();
+        openStatTarget(e.target.dataset.go);
+    }
 });

@@ -6247,3 +6247,75 @@ input[type="checkbox"], input[type="radio"], input[type="range"] {
 /* ไอคอนเมนูห้ามหด (ชื่อเมนูที่จางอยู่ยังกินที่ ถ้าไม่ล็อกไว้ไอคอนจะถูกบีบจนหาย) */
 .sidebar .menu-item > svg,
 .sidebar .menu-item > .ico { flex-shrink: 0; }
+
+/* ==================== ข้อความแนะนำปุ่ม (tooltip) แบบ iOS — ดู setupIosTooltips() ใน app.js ==================== */
+.ios-tooltip {
+    position: fixed;
+    z-index: 10001;
+    max-width: 280px;
+    padding: 6px 11px;
+    border-radius: 9px;
+    background-color: rgba(255, 255, 255, 0.86);
+    -webkit-backdrop-filter: saturate(180%) blur(18px);
+    backdrop-filter: saturate(180%) blur(18px);
+    color: #1c1c1e;
+    font-size: 12.5px;
+    line-height: 1.4;
+    white-space: pre-line;
+    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.16), 0 0 0 0.5px rgba(60, 60, 67, 0.18);
+    pointer-events: none;
+    transform-origin: bottom center;
+    animation: ios-tooltip-in 0.18s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+.ios-tooltip.is-below { transform-origin: top center; }
+:root[data-theme="dark"] .ios-tooltip {
+    background-color: rgba(58, 66, 88, 0.88);
+    color: #eef2fa;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35), 0 0 0 0.5px rgba(255, 255, 255, 0.12);
+}
+@keyframes ios-tooltip-in {
+    from { opacity: 0; transform: scale(0.94); }
+    to   { opacity: 1; transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .ios-tooltip { animation: none; }
+}
+
+/* แคปซูลสถิติที่กดเข้าไปดูได้ (data-go → openStatTarget() ใน app.js) — มีลูกศร › แบบ iOS */
+.stat-pill[data-go] { cursor: pointer; }
+.stat-pill[data-go]::after {
+    content: "›";
+    margin-left: auto;
+    padding-left: 6px;
+    font-size: 22px;
+    line-height: 1;
+    opacity: 0.45;
+    color: inherit;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+.stat-pill[data-go]:hover::after { opacity: 0.8; transform: translateX(2px); }
+.stat-pill[data-go]:active { transform: scale(0.98); }
+.stat-pill[data-go]:focus-visible { outline: 2px solid var(--gold-primary); outline-offset: 2px; }
+.stat-pill.tone-navy[data-go]::after { color: var(--pill-navy-fg); }
+.stat-pill.tone-teal[data-go]::after { color: var(--pill-teal-fg); }
+.stat-pill.tone-purple[data-go]::after { color: var(--pill-purple-fg); }
+.stat-pill.tone-red[data-go]::after { color: var(--pill-red-fg); }
+.stat-pill.tone-orange[data-go]::after { color: var(--pill-orange-fg); }
+
+/* เลื่อนไปที่การ์ดแล้วกระพริบขอบให้เห็นว่าอยู่ตรงไหน */
+.widget.is-flash > :first-child { animation: widget-flash 1.2s ease; }
+@keyframes widget-flash {
+    0%, 100% { box-shadow: var(--shadow-md); }
+    25%, 60% { box-shadow: 0 0 0 3px var(--gold-primary), var(--shadow-md); }
+}
+
+/* คนงานแยกรายจังหวัด */
+.province-bars { display: flex; flex-direction: column; gap: 12px; }
+.province-bars .bar-info .ico { --ic: var(--gold-primary); }
+.province-total { margin: 4px 0 0; font-size: 12.5px; text-align: right; }
+
+/* แดชบอร์ด > สรุปงานที่แจ้งสำเร็จ (แบบเดียวกับหน้าอื่น) */
+.completed-wallet { justify-content: space-between; min-height: 150px; }
+.completed-month-card { display: flex; flex-direction: column; justify-content: center; }
+.completed-month-card h3 { font-size: 40px; color: var(--gold-primary); }
+.widget > .fin-profit-card { flex-grow: 1; }
