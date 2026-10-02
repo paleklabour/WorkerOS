@@ -233,7 +233,7 @@
     const BANK_MAP = {
         id: "id", bankName: "bank_name", accountName: "account_name",
         accountNumber: "account_number", promptPayId: "prompt_pay_id", qrImage: "qr_image",
-        openingBalance: "opening_balance", openingDate: "opening_date"
+        openingBalance: "opening_balance", openingDate: "opening_date", sortOrder: "sort_order"
     };
 
     // ลบสำเร็จ (ไม่ error) แต่แถวไม่ตรงกับ RLS/id ที่ให้มา ก็จะลบได้ 0 แถวโดยไม่ error เลย (ดูเหมือนสำเร็จ
@@ -582,6 +582,14 @@
                 return await upsertOne("invoices", INVOICE_MAP, payload.invoiceData);
             case "savePayment":
                 return await upsertOne("payments", PAYMENT_MAP, payload.paymentData);
+            case "reorderBanks": {
+                // ลากสลับลำดับบัญชี — อัปเดตเฉพาะ sort_order (update ไม่ใช่ upsert เพื่อไม่ต้องส่งคอลัมน์อื่น)
+                for (const { id, sortOrder } of payload.order || []) {
+                    const { error } = await sb.from("banks").update({ sort_order: sortOrder }).eq("id", id);
+                    if (error) return { status: "error", message: error.message };
+                }
+                return { status: "success" };
+            }
             case "setMyTheme": {
                 // แก้ได้เฉพาะธีมของแถวตัวเอง (profiles อื่น ๆ แก้ได้แค่ admin) — ดู 20261002035144_profile_theme.sql
                 const { error } = await sb.rpc("set_my_theme", { p_theme: payload.theme });

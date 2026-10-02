@@ -2820,6 +2820,44 @@ td > .ico {
     gap: 6px;
 }
 
+/* ที่จับลากสลับลำดับบัญชี (SortableJS) — แถบจุดกลางขอบบนการ์ด ไม่ทับโลโก้ (ซ้าย) และปุ่มแก้/ลบ (ขวา) */
+.bank-drag-handle {
+    position: absolute;
+    top: 4px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 22px;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: grab;
+    touch-action: none; /* นิ้วแตะที่จับ = ลาก ไม่ใช่เลื่อนหน้าจอ */
+}
+
+.bank-drag-handle:hover {
+    background-color: var(--gold-light);
+    color: var(--gold-primary);
+}
+
+.bank-drag-handle .ico {
+    width: 18px;
+    height: 18px;
+    transform: rotate(90deg);
+}
+
+.bank-card-chosen .bank-drag-handle { cursor: grabbing; }
+
+.bank-card-ghost {
+    opacity: 0.4;
+    outline: 2px dashed var(--gold-primary);
+    outline-offset: -2px;
+}
+
 /* ==================== INVOICE STYLING ==================== */
 .invoice-selector-bar {
     background-color: var(--gray-bg);

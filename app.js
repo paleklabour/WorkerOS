@@ -350,7 +350,7 @@ async function loadData() {
             customers = res.customers || [];
             workers = res.workers || [];
             jobs = res.jobs || [];
-            banks = res.banks || [];
+            banks = sortBanks(res.banks || []);
             users = res.users || [];
             agents = res.agents || [];
             expenses = res.expenses || [];
@@ -392,7 +392,7 @@ async function loadData() {
         customers = JSON.parse(cachedCustomers);
         workers = JSON.parse(cachedWorkers);
         jobs = JSON.parse(cachedJobs);
-        banks = JSON.parse(cachedBanks);
+        banks = sortBanks(JSON.parse(cachedBanks));
         const cachedAgents = localStorage.getItem("mw_agents");
         agents = cachedAgents ? JSON.parse(cachedAgents) : [];
         const cachedExpenses = localStorage.getItem("mw_expenses");
@@ -1361,6 +1361,7 @@ const ICON_GLYPHS = {
     bolt:     { c: 'amber',  d: '<path class="fl" d="M13 2.5 4.5 13.5H11l-1 8 8.5-11H12z"/>' },
     cloud:    { c: 'blue',   d: '<path class="fl" d="M7 18.5h10.5a4 4 0 0 0 .6-8A6 6 0 0 0 6.4 9.2 4.7 4.7 0 0 0 7 18.5z"/>' },
     outbox:   { c: 'blue',   d: '<path class="fl" d="M4 13.5h4.5l1.5 2.5h4l1.5-2.5H20V18a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M12 12.5v-9M8.5 7 12 3.5 15.5 7"/>' },
+    grip:     { c: 'slate',  d: '<circle cx="9" cy="6" r="1.3"/><circle cx="15" cy="6" r="1.3"/><circle cx="9" cy="12" r="1.3"/><circle cx="15" cy="12" r="1.3"/><circle cx="9" cy="18" r="1.3"/><circle cx="15" cy="18" r="1.3"/>' },
 };
 
 function icon(name, color) {
@@ -6060,9 +6061,51 @@ function reopenJobFromModal() {
 }
 
 // ==================== BANK ACCOUNTS MODULE LOGIC ====================
+// ลำดับบัญชีธนาคาร (banks.sortOrder) — ลำดับเดียวกันทุกผู้ใช้ ลากสลับได้ในแท็บ "บัญชีธนาคาร"
+// เรียง array banks ทั้งก้อนไว้ตั้งแต่ตอนโหลด รายการเลือกบัญชีทุกจุด (banks.map) จึงเรียงตามนี้ไปด้วย
+function sortBanks(list) {
+    return list.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0) || String(a.bankName || '').localeCompare(String(b.bankName || '')));
+}
+
+let _bankSortable = null;
+function setupBankSortable(grid, enabled) {
+    if (_bankSortable) { _bankSortable.destroy(); _bankSortable = null; }
+    if (!enabled || typeof Sortable === 'undefined') return;
+    _bankSortable = Sortable.create(grid, {
+        animation: 180,
+        draggable: '.bank-card[data-bank-id]',   // การ์ดเงินสดไม่ได้ลาก
+        handle: '.bank-drag-handle',              // ลากจากที่จับ (มือถือ/ไอแพดเลื่อนหน้าจอผ่านการ์ดได้ตามปกติ)
+        ghostClass: 'bank-card-ghost',
+        chosenClass: 'bank-card-chosen',
+        onEnd: () => saveBankOrder(Array.from(grid.querySelectorAll('.bank-card[data-bank-id]')).map(el => el.dataset.bankId))
+    });
+}
+
+async function saveBankOrder(ids) {
+    const changed = [];
+    ids.forEach((id, i) => {
+        const b = banks.find(x => x.id === id);
+        if (b && b.sortOrder !== i + 1) changed.push({ bank: b, prev: b.sortOrder, sortOrder: i + 1 });
+    });
+    if (changed.length === 0) return;
+    changed.forEach(c => { c.bank.sortOrder = c.sortOrder; });
+    sortBanks(banks);
+    const res = await callCloudAPI("reorderBanks", { order: changed.map(c => ({ id: c.bank.id, sortOrder: c.sortOrder })) });
+    if (!res) {
+        changed.forEach(c => { c.bank.sortOrder = c.prev; });
+        sortBanks(banks);
+        renderBanks();
+        return;
+    }
+    saveData();
+    showToast("↕️ บันทึกลำดับบัญชีแล้ว — ทุกคนเห็นลำดับนี้", "success");
+}
+
 function renderBanks() {
     const query = document.getElementById("search-bank").value.toLowerCase();
     const grid = document.getElementById("banks-list-grid");
+    // ลากสลับได้เฉพาะ admin/manager และตอนไม่ได้ค้นหา (รายการที่กรองแล้วจัดลำดับไม่ได้ชัดเจน)
+    const canReorder = currentUser.role !== 'staff' && !query && banks.length > 1;
 
     const filtered = banks.filter(b => 
         b.bankName.toLowerCase().includes(query) ||
@@ -6076,6 +6119,7 @@ function renderBanks() {
                 <p>${icon("bad")} ไม่พบบัญชีธนาคารรับโอน</p>
             </div>
         `;
+        setupBankSortable(grid, false);
         return;
     }
 
@@ -6100,7 +6144,8 @@ function renderBanks() {
         }
 
         return `
-            <div class="bank-card">
+            <div class="bank-card" data-bank-id="${b.id}">
+                ${canReorder ? `<button type="button" class="bank-drag-handle" title="ลากเพื่อสลับลำดับบัญชี" aria-label="ลากเพื่อสลับลำดับ">${icon('grip')}</button>` : ''}
                 <div class="bank-card-actions">
                     ${editBtn}
                     ${deleteBtn}
@@ -6150,6 +6195,7 @@ function renderBanks() {
                 </div>
             </div>`;
     })();
+    setupBankSortable(grid, canReorder);
 }
 
 function openBankModal(id = null) {
@@ -6201,11 +6247,14 @@ async function saveBank(e) {
         return;
     }
 
+    const existing = editId ? banks.find(b => b.id === editId) : null;
     const bankData = {
         id: editId || 'bank-' + Date.now(),
         bankName, accountName, accountNumber, promptPayId,
         openingBalance: round2(document.getElementById("bank-opening-balance").value),
-        openingDate: document.getElementById("bank-opening-date").value || null
+        openingDate: document.getElementById("bank-opening-date").value || null,
+        // บัญชีใหม่ต่อท้ายสุด, แก้ไขคงลำดับเดิม
+        sortOrder: existing ? (existing.sortOrder || 0) : banks.reduce((m, b) => Math.max(m, b.sortOrder || 0), 0) + 1
     };
 
     showToast("💾 กำลังบันทึกบัญชีธนาคารเข้าคลาวด์...", "warning");
