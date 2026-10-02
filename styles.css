@@ -4440,12 +4440,11 @@ tr.is-voided-row td {
 :root[data-theme="dark"] ::-webkit-scrollbar-thumb { background: #44506a; }
 :root[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: #56637f; }
 
-/* โลโก้ (ตัวหนังสือสีเข้ม) วางบนพื้นสว่างโค้งมนให้ยังอ่านออก */
+/* โลโก้ไฟล์เดิมมีพื้นขาวในตัว → ใช้ logo-dark.png (พื้นโปร่งใส ตัวหนังสือ Service สีอ่อน) แทน
+   ใบแจ้งหนี้/ใบเสร็จยังใช้ logo.png เดิมเพราะเป็นกระดาษขาว */
 :root[data-theme="dark"] .brand-logo-img,
 :root[data-theme="dark"] .login-logo {
-    background-color: #eef2f8;
-    border-radius: 14px;
-    padding: 6px 10px;
+    content: url("assets/logo-dark.png");
 }
 
 /* ตัวเลข/ข้อความสีเขียว-แดงตายตัวที่ไม่ได้แปลงเป็นตัวแปร */
