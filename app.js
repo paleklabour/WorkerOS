@@ -74,10 +74,10 @@ function renderBankLogoBadge(bankName, size = 30) {
 // BANK_SELECT_HEAD ต้องเป็นลูกตัวแรกของ <select> เพื่อให้กล่องที่เลือกแล้วแสดงโลโก้ด้วย (ไม่ใช่แค่ในรายการ)
 const BANK_SELECT_HEAD = '<button type="button" class="bank-select-head"><selectedcontent></selectedcontent></button>';
 function bankOptionHtml(b, value) {
-    return `<option value="${value !== undefined ? value : b.id}">${renderBankLogoBadge(b.bankName, 18)}<span class="opt-bank-text">${escapeHtml(b.bankName)} — ${escapeHtml(b.accountName || '')}${b.accountNumber ? ` (${escapeHtml(b.accountNumber)})` : ''}</span></option>`;
+    return `<option value="${value !== undefined ? value : b.id}" data-bank="${escapeHtml(b.bankName)}">${renderBankLogoBadge(b.bankName, 18)}<span class="opt-bank-text">${escapeHtml(b.bankName)} — ${escapeHtml(b.accountName || '')}${b.accountNumber ? ` (${escapeHtml(b.accountNumber)})` : ''}</span></option>`;
 }
 function cashOptionHtml(value = 'cash', label = 'เงินสด') {
-    return `<option value="${value}"><span class="opt-cash-icon">${icon('cash', 'green')}</span><span class="opt-bank-text">${escapeHtml(label)}</span></option>`;
+    return `<option value="${value}" data-icon="cash"><span class="opt-cash-icon">${icon('cash', 'green')}</span><span class="opt-bank-text">${escapeHtml(label)}</span></option>`;
 }
 
 const MONTH_NAMES_TH = {
@@ -2236,7 +2236,8 @@ const PIE_CHART_PALETTE = ['#d4af37', '#1e3a5f', '#16a34a', '#dc2626', '#7c3aed'
 
 // วาดกราฟวงกลม (SVG โดนัท) ทั่วไป — รับ entries = [{name, value, color?}] ไม่ใช้ไลบรารีภายนอก
 // ใช้ร่วมกันทั้งกราฟรายรับแยกประเภทงาน, แยกลูกค้า, และแยกบัญชีธนาคาร
-function renderPieChartInto(containerId, entries) {
+function renderPieChartInto(containerId, entries, opts = {}) {
+    const unit = opts.unit || 'บ.'; // หน่วยในคำอธิบายสี (เงิน = บ., คนงาน = คน, งาน = งาน)
     const container = document.getElementById(containerId);
     if (!container) return;
 
@@ -2244,7 +2245,7 @@ function renderPieChartInto(containerId, entries) {
     const total = sorted.reduce((sum, e) => sum + e.value, 0);
 
     if (sorted.length === 0 || total <= 0) {
-        container.innerHTML = `<p class="text-muted" style="text-align:center; padding: 25px;">${icon("bad")} ไม่มีข้อมูลรายรับสำหรับแสดงกราฟ</p>`;
+        container.innerHTML = `<p class="text-muted" style="text-align:center; padding: 25px;">${icon("bad")} ${opts.emptyText || 'ไม่มีข้อมูลรายรับสำหรับแสดงกราฟ'}</p>`;
         return;
     }
 
@@ -2268,7 +2269,7 @@ function renderPieChartInto(containerId, entries) {
         return `
             <div style="display:flex; align-items:center; gap:6px; font-size:12.5px; margin-bottom:6px;">
                 <span style="width:12px; height:12px; border-radius:3px; background:${color}; display:inline-block; flex-shrink:0;"></span>
-                <span>${e.name} — ${e.value.toLocaleString('th-TH')} บ. (${pct}%)</span>
+                <span>${e.name} — ${e.value.toLocaleString('th-TH')} ${unit} (${pct}%)</span>
             </div>
         `;
     }).join('');
@@ -2284,8 +2285,9 @@ function renderPieChartInto(containerId, entries) {
 // สลับมุมมองแดชบอร์ดระหว่างตาราง/การ์ดเดิมกับกราฟวงกลม — ใช้ร่วมกันได้ทุกแผงในแท็บการเงิน
 // โดยยึด id ตามรูปแบบ db-finance-{prefix}-table-wrap / -chart-wrap และ btn-{prefix}-view-table / -chart
 function toggleChartView(prefix, mode) {
-    const tableWrap = document.getElementById(`db-finance-${prefix}-table-wrap`);
-    const chartWrap = document.getElementById(`db-finance-${prefix}-chart-wrap`);
+    // หน้าการเงินใช้ db-finance-{prefix}-… ส่วนแดชบอร์ดใช้ db-{prefix}-… (สัญชาติ/จังหวัด)
+    const tableWrap = document.getElementById(`db-finance-${prefix}-table-wrap`) || document.getElementById(`db-${prefix}-table-wrap`);
+    const chartWrap = document.getElementById(`db-finance-${prefix}-chart-wrap`) || document.getElementById(`db-${prefix}-chart-wrap`);
     const btnTable = document.getElementById(`btn-${prefix}-view-table`);
     const btnChart = document.getElementById(`btn-${prefix}-view-chart`);
     if (!tableWrap || !chartWrap || !btnTable || !btnChart) return;
@@ -2737,6 +2739,7 @@ function renderDashboardOverview() {
     }).join('');
     customerLocsEl.innerHTML = provincesList;
     renderWorkerProvinces();
+    renderDashboardPies(nationalityCounts);
     
     // Render missing docs list
     renderMissingDocsOverview();
@@ -3424,7 +3427,7 @@ function renderBranchesInputs() {
         <div class="branch-card" data-index="${idx}">
             <div class="branch-card-header">
                 <span class="branch-card-title">${icon("pin")} สาขาที่ ${idx + 1}: </span>
-                <input type="text" class="branch-name-input" value="${b.name}" placeholder="ชื่อสาขา เช่น สำนักงานใหญ่, คลังสินค้า" style="width: 250px; font-weight: 600; padding: 4px 8px; border: 1px dashed var(--gold-primary);" oninput="updateBranchField(${idx}, 'name', this.value)">
+                <input type="text" class="branch-name-input" value="${b.name}" placeholder="ชื่อสาขา เช่น สำนักงานใหญ่, คลังสินค้า" oninput="updateBranchField(${idx}, 'name', this.value)">
                 ${idx > 0 ? `<button type="button" class="btn-remove-branch" onclick="removeBranchInput(${idx})">ลบสาขานี้</button>` : ''}
             </div>
             
@@ -12980,8 +12983,12 @@ function openIosSelect(sel) {
         const el = document.createElement('div');
         el.className = 'ios-select-option';
         el.setAttribute('role', 'option');
-        el.textContent = opt.textContent;
-        el.title = opt.textContent;
+        // ตัวเลือกบัญชีธนาคาร/เงินสด (bankOptionHtml/cashOptionHtml) มีโลโก้ → แสดงโลโก้ในเมนูด้วย
+        const text = ((opt.querySelector('.opt-bank-text') || opt).textContent || '').trim();
+        if (opt.dataset.bank) el.innerHTML = `${renderBankLogoBadge(opt.dataset.bank, 16)}<span class="ios-select-text">${escapeHtml(text)}</span>`;
+        else if (opt.dataset.icon) el.innerHTML = `${icon(opt.dataset.icon, 'green')}<span class="ios-select-text">${escapeHtml(text)}</span>`;
+        else el.textContent = text;
+        el.title = text;
         if (opt.disabled) el.classList.add('is-disabled');
         if (opt.selected) { el.classList.add('is-selected'); el.setAttribute('aria-selected', 'true'); selectedItem = items.length; }
         el.dataset.index = opt.index;
@@ -13034,7 +13041,7 @@ function setupIosSelects() {
         if (_iosSelect && !(e.target.closest && e.target.closest('.ios-select-menu')) && sel !== _iosSelect.sel) closeIosSelect();
         if (!sel || e.button !== 0 || !iosSelectSupported(sel)) return;
         e.preventDefault();
-        sel.focus();
+        sel.focus({ preventScroll: true }); // ห้ามเลื่อนหน้า (การเลื่อนจะไปปิดเมนูทันที)
         if (_iosSelect && _iosSelect.sel === sel) closeIosSelect();
         else openIosSelect(sel);
     }, true);
@@ -13056,7 +13063,7 @@ function setupIosSelects() {
             else if (k.length === 1) {
                 // พิมพ์ตัวอักษร → กระโดดไปตัวเลือกแรกที่ขึ้นต้นด้วยตัวนั้น
                 const q = k.toLowerCase();
-                const i = _iosSelect.items.findIndex(el => el.textContent.trim().toLowerCase().startsWith(q));
+                const i = _iosSelect.items.findIndex(el => (el.title || el.textContent).trim().toLowerCase().startsWith(q));
                 if (i >= 0) setIosSelectActive(i);
             }
             return;
@@ -13183,8 +13190,9 @@ const WIDGET_BOARDS = {
             { id: 'pill-missing-docs', kind: 'pill', size: 's', els: () => [pillOf('stat-missing-docs')] },
             { id: 'pill-overdue', kind: 'pill', size: 's', els: () => [pillOf('stat-overdue-invoices')] },
             { id: 'panel-expiry', kind: 'block', size: 'xl', els: () => [document.querySelector('#db-tab-overview .panel-alerts')] },
-            { id: 'panel-nationality', kind: 'block', size: 'm', els: () => [document.querySelector('#db-tab-overview .panel-charts')] },
-            { id: 'panel-worker-provinces', kind: 'block', size: 'm', els: () => [document.querySelector('#db-tab-overview .panel-worker-provinces')] },
+            { id: 'panel-nationality', kind: 'block', size: 's', els: () => [document.querySelector('#db-tab-overview .panel-charts')] },
+            { id: 'panel-worker-provinces', kind: 'block', size: 's', els: () => [document.querySelector('#db-tab-overview .panel-worker-provinces')] },
+            { id: 'panel-job-status', kind: 'block', size: 's', els: () => [document.querySelector('#db-tab-overview .panel-job-status')] },
             { id: 'panel-missing-docs', kind: 'block', size: 'xl', els: () => [panelOf('search-dashboard-missing-docs')] }
         ]
     },
@@ -13558,6 +13566,7 @@ function renderWorkerProvinces() {
             <div class="bar-track"><div class="bar-fill" style="width: ${pct.toFixed(1)}%; background-color: var(--gold-primary);"></div></div>
         </div>`;
     }).join('') + `<p class="province-total text-muted">รวม ${total} คน</p>`;
+    renderPieChartInto('db-provinces-chart', rows.map(([p, n]) => ({ name: p === 'ไม่ระบุจังหวัด' ? p : 'จังหวัด' + p, value: n })), { unit: 'คน', emptyText: 'ยังไม่มีข้อมูลคนงาน' });
 }
 
 // ==================== แคปซูลสถิติกดเข้าไปดูรายละเอียดได้ ====================
@@ -13643,4 +13652,226 @@ function setupTableCardLabels() {
 
 document.addEventListener('DOMContentLoaded', () => {
     try { setupTableCardLabels(); } catch (err) { console.error('Table label setup failed:', err); }
+});
+
+// ==================== ปฏิทินเลือกวันที่แบบ iOS ====================
+// ใช้กับ <input type="date"> ทุกช่อง (ค่า YYYY-MM-DD) และช่องพิมพ์วันที่ "วัน/เดือน/ปี ค.ศ." (placeholder มี "วัน/เดือน/ปี")
+// ที่ได้ปุ่มปฏิทินเล็ก ๆ ในช่อง (ยังพิมพ์เอง/ให้ AI กรอกได้เหมือนเดิม) — ค่า DD/MM/YYYY
+// ช่อง type="date" เปลี่ยนเฉพาะเครื่องที่ใช้เมาส์ — iPad/มือถือใช้ปฏิทินของเครื่อง (เป็นแบบ iOS อยู่แล้ว)
+const IOS_WEEKDAYS_TH = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'];
+let _iosCal = null; // { input, mode: 'iso'|'dmy', box, view: Date }
+
+function iosCalParse(input, mode) {
+    const v = (input.value || '').trim();
+    let m;
+    if (mode === 'iso' && (m = v.match(/^(\d{4})-(\d{2})-(\d{2})$/))) return new Date(+m[1], +m[2] - 1, +m[3]);
+    if (mode === 'dmy' && (m = v.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/))) {
+        let y = +m[3];
+        if (y > 2400) y -= 543; // เผื่อพิมพ์ปี พ.ศ.
+        return new Date(y, +m[2] - 1, +m[1]);
+    }
+    return null;
+}
+
+function iosCalFormat(d, mode) {
+    const dd = String(d.getDate()).padStart(2, '0'), mm = String(d.getMonth() + 1).padStart(2, '0');
+    return mode === 'iso' ? `${d.getFullYear()}-${mm}-${dd}` : `${dd}/${mm}/${d.getFullYear()}`;
+}
+
+function closeIosCalendar() {
+    if (!_iosCal) return;
+    _iosCal.box.remove();
+    _iosCal = null;
+}
+
+function iosCalSet(d) {
+    const c = _iosCal;
+    if (!c) return;
+    const input = c.input;
+    input.value = d ? iosCalFormat(d, c.mode) : '';
+    closeIosCalendar();
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    input.focus();
+}
+
+function renderIosCalendar() {
+    const c = _iosCal;
+    if (!c) return;
+    const y = c.view.getFullYear(), mo = c.view.getMonth();
+    const selected = iosCalParse(c.input, c.mode);
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const min = c.mode === 'iso' && c.input.min ? iosCalParse({ value: c.input.min }, 'iso') : null;
+    const max = c.mode === 'iso' && c.input.max ? iosCalParse({ value: c.input.max }, 'iso') : null;
+    const start = new Date(y, mo, 1 - new Date(y, mo, 1).getDay());
+    const same = (a, b) => a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+    let cells = '';
+    for (let i = 0; i < 42; i++) {
+        const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+        const off = (min && d < min) || (max && d > max);
+        const cls = ['ios-cal-day', d.getMonth() !== mo ? 'is-other' : '', same(d, today) ? 'is-today' : '', same(d, selected) ? 'is-selected' : ''].filter(Boolean).join(' ');
+        cells += `<button type="button" class="${cls}" data-d="${iosCalFormat(d, 'iso')}" ${off ? 'disabled' : ''}>${d.getDate()}</button>`;
+    }
+    const monthName = MONTH_NAMES_TH[String(mo + 1).padStart(2, '0')];
+    c.box.innerHTML = `
+        <div class="ios-cal-head">
+            <strong>${monthName} ${y + 543}</strong>
+            <div class="ios-cal-nav">
+                <button type="button" data-nav="-12" aria-label="ปีก่อน">«</button>
+                <button type="button" data-nav="-1" aria-label="เดือนก่อน">‹</button>
+                <button type="button" data-nav="1" aria-label="เดือนถัดไป">›</button>
+                <button type="button" data-nav="12" aria-label="ปีถัดไป">»</button>
+            </div>
+        </div>
+        <div class="ios-cal-week">${IOS_WEEKDAYS_TH.map(w => `<span>${w}</span>`).join('')}</div>
+        <div class="ios-cal-grid">${cells}</div>
+        <div class="ios-cal-foot">
+            <button type="button" data-act="clear">ล้าง</button>
+            <button type="button" data-act="today">วันนี้</button>
+        </div>`;
+}
+
+function openIosCalendar(input, mode) {
+    closeIosCalendar();
+    const box = document.createElement('div');
+    box.className = 'ios-calendar';
+    box.setAttribute('role', 'dialog');
+    box.setAttribute('aria-label', 'เลือกวันที่');
+    const sel = iosCalParse(input, mode);
+    const base = sel || new Date();
+    _iosCal = { input, mode, box, view: new Date(base.getFullYear(), base.getMonth(), 1) };
+    document.body.appendChild(box);
+    renderIosCalendar();
+
+    box.addEventListener('mousedown', e => e.preventDefault()); // focus ค้างที่ช่องเดิม
+    box.addEventListener('click', e => {
+        const b = e.target.closest('button');
+        if (!b || b.disabled || !_iosCal) return;
+        if (b.dataset.nav) { _iosCal.view.setMonth(_iosCal.view.getMonth() + Number(b.dataset.nav)); renderIosCalendar(); }
+        else if (b.dataset.d) iosCalSet(iosCalParse({ value: b.dataset.d }, 'iso'));
+        else if (b.dataset.act === 'today') iosCalSet(new Date());
+        else if (b.dataset.act === 'clear') iosCalSet(null);
+    });
+
+    const r = input.getBoundingClientRect();
+    const bw = box.offsetWidth, bh = box.offsetHeight;
+    const below = window.innerHeight - r.bottom;
+    const placeBelow = below >= bh + 12 || below > r.top;
+    const top = placeBelow ? r.bottom + 6 : r.top - bh - 6;
+    box.style.top = Math.max(8, top) + 'px';
+    box.style.left = Math.max(8, Math.min(r.left, window.innerWidth - bw - 8)) + 'px';
+    if (!placeBelow) box.classList.add('is-above');
+}
+
+function setupIosDatePickers() {
+    const fine = window.matchMedia && window.matchMedia('(pointer: fine)').matches;
+
+    // ช่อง type="date": คลิกด้วยเมาส์ → ปฏิทินของเราแทนของเบราว์เซอร์
+    document.addEventListener('mousedown', e => {
+        const t = e.target;
+        if (_iosCal && !(t.closest && (t.closest('.ios-calendar') || t.closest('.date-text-btn'))) && t !== _iosCal.input) closeIosCalendar();
+        if (!fine || e.button !== 0 || !t.matches || !t.matches('input[type="date"]') || t.disabled || t.readOnly) return;
+        e.preventDefault();
+        t.focus({ preventScroll: true });
+        if (_iosCal && _iosCal.input === t) closeIosCalendar();
+        else openIosCalendar(t, 'iso');
+    }, true);
+
+    document.addEventListener('keydown', e => {
+        if (_iosCal && e.key === 'Escape') {
+            e.stopPropagation();
+            const i = _iosCal.input;
+            closeIosCalendar();
+            i.focus();
+            return;
+        }
+        if (fine && e.target.matches && e.target.matches('input[type="date"]') && (e.key === 'Enter' || (e.altKey && e.key === 'ArrowDown'))) {
+            e.preventDefault();
+            openIosCalendar(e.target, 'iso');
+        }
+    }, true);
+    window.addEventListener('scroll', e => { if (_iosCal && !_iosCal.box.contains(e.target)) closeIosCalendar(); }, true);
+    window.addEventListener('resize', closeIosCalendar);
+
+    // ช่องพิมพ์วันที่ (วัน/เดือน/ปี ค.ศ.) → ปุ่มปฏิทินในช่อง ใช้ได้ทุกเครื่อง (ช่องพวกนี้ไม่มีปฏิทินของเครื่อง)
+    const enhance = input => {
+        if (input._dateBtn) return;
+        input._dateBtn = true;
+        const wrap = document.createElement('span');
+        wrap.className = 'date-text-wrap';
+        input.parentNode.insertBefore(wrap, input);
+        wrap.appendChild(input);
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'date-text-btn';
+        btn.setAttribute('aria-label', 'เลือกวันที่จากปฏิทิน');
+        btn.title = 'เลือกวันที่จากปฏิทิน';
+        btn.innerHTML = icon('calendar');
+        btn.addEventListener('mousedown', e => e.preventDefault());
+        btn.addEventListener('click', () => {
+            if (input.disabled || input.readOnly) return;
+            if (_iosCal && _iosCal.input === input) closeIosCalendar();
+            else openIosCalendar(input, 'dmy');
+        });
+        wrap.appendChild(btn);
+    };
+    document.querySelectorAll('input[type="text"][placeholder*="วัน/เดือน/ปี"]').forEach(enhance);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    try { setupIosDatePickers(); } catch (err) { console.error('Date picker setup failed:', err); }
+});
+
+// ==================== กราฟวงกลมในแดชบอร์ด: สัญชาติคนงาน + สถานะงาน ====================
+const NATIONALITY_LABELS_TH = { Myanmar: 'เมียนมา (Myanmar)', Cambodia: 'กัมพูชา (Cambodia)', Laos: 'ลาว (Laos)', Vietnam: 'เวียดนาม (Vietnam)' };
+const NATIONALITY_PIE_COLORS = { Myanmar: '#2d4fa3', Cambodia: '#64748b', Laos: '#38bdf8', Vietnam: '#a855f7' };
+const JOB_STATUS_PIE = [
+    { status: 'รอดำเนินการ', color: '#f59e0b' },
+    { status: 'กำลังดำเนินการ', color: '#2d4fa3' },
+    { status: 'รอเอกสารเพิ่มเติม', color: '#e0565b' },
+    { status: 'ปิดงานแล้ว', color: '#1f9254' }
+];
+
+function renderDashboardPies(nationalityCounts) {
+    renderPieChartInto('db-nationality-chart', Object.entries(nationalityCounts || {}).map(([nat, n]) => ({
+        name: NATIONALITY_LABELS_TH[nat] || nat || 'ไม่ระบุ', value: n, color: NATIONALITY_PIE_COLORS[nat]
+    })), { unit: 'คน', emptyText: 'ยังไม่มีข้อมูลคนงาน' });
+
+    renderPieChartInto('db-job-status-chart', JOB_STATUS_PIE.map(s => ({
+        name: s.status, value: jobs.filter(j => j.status === s.status).length, color: s.color
+    })), { unit: 'งาน', emptyText: 'ยังไม่มีใบงานในระบบ' });
+}
+
+// ==================== ช่องข้อความหลายบรรทัด: จำขนาดที่ลากขยายไว้ (ต่อเครื่อง) ====================
+// เช่น "Note สำหรับวางบิล" — ลากมุมให้สูงขึ้นแล้ว เปิดฟอร์มครั้งต่อไปยังสูงเท่าเดิม (เก็บใน localStorage ตาม id ของช่อง)
+const TEXTAREA_SIZE_KEY = 'mw_textarea_heights';
+
+function loadTextareaHeights() {
+    try { return JSON.parse(localStorage.getItem(TEXTAREA_SIZE_KEY) || '{}') || {}; } catch (e) { return {}; }
+}
+
+function setupRememberTextareaSize() {
+    const saved = loadTextareaHeights();
+    document.querySelectorAll('textarea[id]').forEach(ta => {
+        if (saved[ta.id]) ta.style.height = saved[ta.id] + 'px';
+        // ลากมุมแล้วเบราว์เซอร์ตั้ง style.height ให้เอง (ไม่มี event ตอนปล่อยมุม) → ดักจากขนาดที่เปลี่ยน แล้วบันทึกหลังหยุดลาก
+        // ไม่จำตอนช่องถูกซ่อน (สูง 0) หรือยังไม่เคยถูกลาก (ไม่มี style.height)
+        if (!window.ResizeObserver) return;
+        let timer = null;
+        new ResizeObserver(() => {
+            const h = parseFloat(ta.style.height);
+            if (!h || !ta.offsetHeight) return;
+            clearTimeout(timer);
+            timer = setTimeout(() => {
+                const all = loadTextareaHeights();
+                if (all[ta.id] === h) return;
+                all[ta.id] = h;
+                try { localStorage.setItem(TEXTAREA_SIZE_KEY, JSON.stringify(all)); } catch (e) { /* ไม่เป็นไร แค่จำไม่ได้ */ }
+            }, 400);
+        }).observe(ta);
+    });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    try { setupRememberTextareaSize(); } catch (err) { console.error('Textarea size setup failed:', err); }
 });

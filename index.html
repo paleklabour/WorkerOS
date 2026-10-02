@@ -327,14 +327,21 @@
 
                                 <!-- Right: Statistics Charts -->
                                 <div class="dashboard-panel panel-charts" style="flex: 1.2;">
-                                    <div class="panel-header">
+                                    <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
                                         <h3>สัดส่วนสัญชาติคนงานต่างด้าว</h3>
+                                        <div style="display: flex; gap: 4px;">
+                                            <button type="button" class="btn btn-sm btn-gold btn-chart-toggle" id="btn-nationality-view-table" onclick="toggleChartView('nationality', 'table')"><span class="ico" data-icon="chart"></span> แถบ</button>
+                                            <button type="button" class="btn btn-sm btn-outline btn-chart-toggle" id="btn-nationality-view-chart" onclick="toggleChartView('nationality', 'chart')"><span class="ico" data-icon="pie"></span> กราฟวงกลม</button>
+                                        </div>
                                     </div>
                                     <div class="panel-content">
-                                        <div class="nationality-chart-container">
+                                        <div class="nationality-chart-container" id="db-nationality-table-wrap">
                                             <div class="chart-bars" id="nationality-bars">
                                                 <!-- Dynamic chart list -->
                                             </div>
+                                        </div>
+                                        <div class="hidden" id="db-nationality-chart-wrap">
+                                            <div id="db-nationality-chart" class="dash-pie"></div>
                                         </div>
                                         <hr>
                                         <div class="panel-header" style="padding: 10px 0 0 0">
@@ -347,12 +354,25 @@
                                 </div>
                                 <!-- คนงานแยกรายจังหวัด (ตามที่ตั้งสำนักงานใหญ่ของนายจ้าง = สถานที่ทำงาน) — ดู renderWorkerProvinces() -->
                                 <div class="dashboard-panel panel-worker-provinces">
-                                    <div class="panel-header">
-                                        <h3>คนงานต่างด้าวแยกรายจังหวัด</h3>
-                                        <small class="text-muted">ตามที่ตั้งนายจ้าง</small>
+                                    <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+                                        <h3>คนงานต่างด้าวแยกรายจังหวัด <small class="text-muted">ตามที่ตั้งนายจ้าง</small></h3>
+                                        <div style="display: flex; gap: 4px;">
+                                            <button type="button" class="btn btn-sm btn-gold btn-chart-toggle" id="btn-provinces-view-table" onclick="toggleChartView('provinces', 'table')"><span class="ico" data-icon="chart"></span> แถบ</button>
+                                            <button type="button" class="btn btn-sm btn-outline btn-chart-toggle" id="btn-provinces-view-chart" onclick="toggleChartView('provinces', 'chart')"><span class="ico" data-icon="pie"></span> กราฟวงกลม</button>
+                                        </div>
                                     </div>
                                     <div class="panel-content">
-                                        <div class="province-bars" id="dashboard-worker-provinces"></div>
+                                        <div id="db-provinces-table-wrap"><div class="province-bars" id="dashboard-worker-provinces"></div></div>
+                                        <div class="hidden" id="db-provinces-chart-wrap"><div id="db-provinces-chart" class="dash-pie"></div></div>
+                                    </div>
+                                </div>
+                                <!-- สถานะงาน (กราฟวงกลม) — ดู renderJobStatusPie() -->
+                                <div class="dashboard-panel panel-job-status">
+                                    <div class="panel-header">
+                                        <h3>สถานะงานทั้งหมด</h3>
+                                    </div>
+                                    <div class="panel-content">
+                                        <div id="db-job-status-chart" class="dash-pie"></div>
                                     </div>
                                 </div>
                             </div>
@@ -559,12 +579,14 @@
                     <!-- ==================== CUSTOMERS VIEW ==================== -->
                     <div id="view-customers" class="content-section hidden">
                         <div class="table-actions">
+                            <div class="search-filters-group">
                             <div class="search-box">
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                                 </svg>
                                 <input type="text" id="search-customer" placeholder="ค้นหาชื่อบริษัท, เลขผู้เสียภาษี, หรือผู้ประสานงาน..." oninput="renderCustomers()">
                             </div>
+                            <div class="filter-box">
                             <!-- ตัวกรองประเภทธุรกิจ / จังหวัด (ตัวเลือกสร้างจากข้อมูลนายจ้างที่มีจริง ดู fillCustomerFilterOptions) -->
                             <select id="filter-customer-business" class="select-filter" onchange="customersCurrentPage = 1; renderCustomers()">
                                 <option value="">ทุกประเภทธุรกิจ</option>
@@ -572,6 +594,7 @@
                             <select id="filter-customer-province" class="select-filter" onchange="customersCurrentPage = 1; renderCustomers()">
                                 <option value="">ทุกจังหวัด</option>
                             </select>
+                            </div></div>
                             <button class="btn btn-gold btn-add" id="btn-add-customer" onclick="openCustomerModal()">
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
