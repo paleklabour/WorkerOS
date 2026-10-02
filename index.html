@@ -705,6 +705,13 @@
                                         <option value="รอเอกสารเพิ่มเติม">รอเอกสารเพิ่มเติม (Waiting for Docs)</option>
                                         <option value="ปิดงานแล้ว">ปิดงานแล้ว (Closed)</option>
                                     </select>
+                                    <!-- เดือนที่แจ้งงาน (createdAt) — ตัวเลือกสร้างจากใบงานที่มีจริง ดู fillJobFilterOptions() -->
+                                    <select id="filter-job-month" onchange="jobsCurrentPage = 1; renderJobs()">
+                                        <option value="">ทุกเดือน</option>
+                                    </select>
+                                    <select id="filter-job-assignee" onchange="jobsCurrentPage = 1; renderJobs()">
+                                        <option value="">ผู้รับผิดชอบ: ทุกคน</option>
+                                    </select>
                                 </div>
                             </div>
                             <div class="action-buttons-group" style="display: flex; gap: 10px;">
@@ -725,7 +732,13 @@
                             <button class="btn btn-outline btn-sm" id="btn-job-view-kanban" onclick="switchJobView('kanban')" style="border-color: transparent; color: var(--text-dark); background: transparent;">
                                 <span class="ico" data-icon="clipboard"></span> คัมบังบอร์ด (Kanban)
                             </button>
+                            <button class="btn btn-outline btn-sm" id="btn-job-view-summary" onclick="switchJobView('summary')" style="border-color: transparent; color: var(--text-dark); background: transparent;">
+                                <span class="ico" data-icon="sparkles"></span> สรุปงาน (Summary)
+                            </button>
                         </div>
+
+                        <!-- สรุปงานสำหรับ Operation Manager — ตามเดือน/ตัวกรองที่เลือกด้านบน ดู renderJobsSummary() -->
+                        <div id="jobs-summary-container" class="jobs-summary hidden"></div>
 
                         <div class="table-container" id="jobs-table-container">
                             <table class="data-table" id="jobs-table">

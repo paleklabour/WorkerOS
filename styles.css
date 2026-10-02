@@ -4923,3 +4923,100 @@ tr.is-voided-row td {
     flex-wrap: wrap;
     gap: 4px;
 }
+
+/* ==================== สรุปงาน (ระบบแจ้งงาน → สรุปงาน) ดู renderJobsSummary ==================== */
+.jobs-summary { margin-top: 10px; }
+
+.js-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px 14px;
+    margin-bottom: 14px;
+}
+
+.js-head h3 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    font-size: 17px;
+    color: var(--navy-dark);
+}
+
+.js-head .text-muted { font-size: 12.5px; }
+
+.js-tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.js-tile {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 14px 16px;
+    border-radius: var(--radius-md);
+    background-color: var(--gray-card);
+    box-shadow: var(--shadow-sm);
+    border-top: 4px solid var(--gold-primary);
+}
+
+.js-tile span { font-size: 12.5px; color: var(--text-muted); }
+.js-tile strong { font-family: var(--font-head); font-size: 26px; font-weight: 500; color: var(--navy-dark); }
+.js-tile small { font-size: 11.5px; color: var(--text-muted); }
+.js-tile.is-ok { border-top-color: var(--success); }
+.js-tile.is-warn { border-top-color: var(--warning); }
+.js-tile.is-bad { border-top-color: var(--danger); }
+.js-tile.is-bad strong { color: var(--danger); }
+
+.js-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 14px;
+    margin-bottom: 14px;
+}
+
+.js-card {
+    padding: 14px 16px;
+    border-radius: var(--radius-md);
+    background-color: var(--gray-card);
+    box-shadow: var(--shadow-sm);
+    min-width: 0;
+}
+
+.js-card h4 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 10px;
+    font-size: 14px;
+    color: var(--navy-dark);
+}
+
+.js-table { box-shadow: none; border: 1px solid var(--dk-line, #edf1f7); }
+.js-table td, .js-table th { padding: 8px 10px; }
+
+.js-list { display: flex; flex-direction: column; gap: 4px; }
+
+.js-list-item {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    width: 100%;
+    padding: 8px 10px;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    font-family: inherit;
+    font-size: 13px;
+    text-align: left;
+    color: var(--text-dark);
+    cursor: pointer;
+    white-space: normal;
+}
+
+.js-list-item small { font-size: 11.5px; color: var(--text-muted); }
+.js-list-item:hover { background-color: var(--gold-light); }

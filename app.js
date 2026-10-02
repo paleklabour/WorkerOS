@@ -4932,25 +4932,152 @@ function buildEmployerIdText(cust, separator = ' | ') {
     return getEmployerIdParts(cust).map(p => `${p.label}: ${p.value}`).join(separator);
 }
 
+// ==================== ระบบแจ้งงาน: ตัวกรองเดือน/ผู้รับผิดชอบ + หน้าสรุปงาน (Operation Manager) ====================
+// เดือนของใบงาน = เดือนที่แจ้งงาน (createdAt) รูปแบบ "YYYY-MM"
+function jobMonthKey(j) {
+    return String(j.createdAt || j.updatedAt || '').slice(0, 7);
+}
+
+function monthLabelTh(key) {
+    const [y, m] = String(key).split('-');
+    return y && m ? `${MONTH_NAMES_TH[m] || m} ${parseInt(y, 10) + 543}` : key;
+}
+
+function fillJobFilterOptions() {
+    const monthSel = document.getElementById("filter-job-month");
+    if (monthSel) {
+        const prev = monthSel.value;
+        const months = [...new Set(jobs.map(jobMonthKey).filter(k => /^\d{4}-\d{2}$/.test(k)))];
+        const thisMonth = localDateISO(new Date()).slice(0, 7);
+        if (!months.includes(thisMonth)) months.push(thisMonth);
+        months.sort().reverse();
+        monthSel.innerHTML = '<option value="">ทุกเดือน</option>' + months.map(k => `<option value="${k}">${monthLabelTh(k)}</option>`).join('');
+        monthSel.value = months.includes(prev) ? prev : '';
+    }
+    const asgSel = document.getElementById("filter-job-assignee");
+    if (asgSel) {
+        const prev = asgSel.value;
+        const members = team.filter(m => m.role !== 'account_manager');
+        asgSel.innerHTML = '<option value="">ผู้รับผิดชอบ: ทุกคน</option>' +
+            (currentUser && currentUser.id ? '<option value="me">งานของฉัน</option>' : '') +
+            '<option value="none">ยังไม่มอบหมาย</option>' +
+            members.map(m => `<option value="${m.id}">${escapeHtml(m.name || '-')}</option>`).join('');
+        asgSel.value = [...asgSel.options].some(o => o.value === prev) ? prev : '';
+    }
+}
+
+const JOB_STALE_DAYS = 14; // งานเปิดค้างนานกว่านี้ = ค้างนาน
+
+function jobDaysOpen(j) {
+    const start = safeParseDate(String(j.createdAt || j.updatedAt || '').slice(0, 10));
+    const end = j.status === 'ปิดงานแล้ว' && j.closedAt ? new Date(j.closedAt) : new Date();
+    return start ? Math.max(0, Math.floor((end - start) / 86400000)) : 0;
+}
+
+// สรุปงาน: แจ้งเข้าในเดือน / ปิดในเดือน / ค้างอยู่ตอนนี้ + แยกตามประเภทงาน ผู้รับผิดชอบ นายจ้าง + นัดหมาย 7 วัน + งานค้างนาน
+function renderJobsSummary(baseJobs, monthKey) {
+    const box = document.getElementById("jobs-summary-container");
+    if (!box) return;
+    const inMonth = d => !monthKey || String(d || '').slice(0, 7) === monthKey;
+    const opened = baseJobs.filter(j => inMonth(j.createdAt || j.updatedAt));
+    const closed = baseJobs.filter(j => j.status === 'ปิดงานแล้ว' && j.closedAt && inMonth(j.closedAt));
+    const open = baseJobs.filter(j => isJobStatusOpen(j.status));
+    const unassigned = open.filter(j => !j.assignedTo);
+    const waitingDocs = open.filter(j => j.status === 'รอเอกสารเพิ่มเติม');
+    const stale = open.filter(j => jobDaysOpen(j) > JOB_STALE_DAYS).sort((a, b) => jobDaysOpen(b) - jobDaysOpen(a));
+    const avgClose = closed.length ? Math.round(closed.reduce((s, j) => s + jobDaysOpen(j), 0) / closed.length) : null;
+    const today = localDateISO(new Date());
+    const in7 = localDateISO(new Date(Date.now() + 7 * 86400000));
+    const appts = open.filter(j => { const d = String(j.appointmentDate || '').slice(0, 10); return d && d >= today && d <= in7; })
+        .sort((a, b) => String(a.appointmentDate).localeCompare(String(b.appointmentDate)) || String(a.appointmentTime || '').localeCompare(String(b.appointmentTime || '')));
+
+    const periodLabel = monthKey ? monthLabelTh(monthKey) : 'ทุกเดือน';
+    const tile = (label, value, sub, cls = '') => `<div class="js-tile ${cls}"><span>${label}</span><strong>${value}</strong><small>${sub}</small></div>`;
+
+    // ตารางแยกกลุ่ม: แจ้งเข้า (ในเดือน) / ปิด (ในเดือน) / ค้างอยู่ตอนนี้
+    const groupTable = (title, colLabel, keyOf, labelOf, limit = 0) => {
+        const rows = {};
+        const bump = (j, field) => { const k = keyOf(j) || '-'; (rows[k] = rows[k] || { opened: 0, closed: 0, open: 0, key: k })[field]++; };
+        opened.forEach(j => bump(j, 'opened'));
+        closed.forEach(j => bump(j, 'closed'));
+        open.forEach(j => bump(j, 'open'));
+        let list = Object.values(rows).sort((a, b) => (b.open + b.opened) - (a.open + a.opened));
+        if (limit) list = list.slice(0, limit);
+        if (!list.length) return '';
+        return `<div class="js-card"><h4>${title}</h4><div class="table-container js-table"><table class="data-table">
+            <thead><tr><th>${colLabel}</th><th class="inv-num">แจ้งเข้า</th><th class="inv-num">ปิดงาน</th><th class="inv-num">ค้างอยู่</th></tr></thead>
+            <tbody>${list.map(r => `<tr><td>${escapeHtml(labelOf(r.key))}</td><td class="inv-num">${r.opened || '-'}</td><td class="inv-num">${r.closed || '-'}</td><td class="inv-num"><strong>${r.open || '-'}</strong></td></tr>`).join('')}</tbody>
+        </table></div></div>`;
+    };
+    const jobListCard = (title, list, subOf, emptyText) => `<div class="js-card"><h4>${title} <span class="badge badge-gold">${list.length}</span></h4>
+        ${list.length ? `<div class="js-list">${list.slice(0, 12).map(j => {
+            const cust = customers.find(c => c.id === j.customerId);
+            const w = workers.find(x => x.id === j.workerId);
+            return `<button type="button" class="js-list-item" onclick="openJobModal('${j.id}')">
+                <span><strong>${getJobDisplayNo(j)}</strong> • ${escapeHtml(getCleanJobTypeName(j.jobType))}</span>
+                <small>${escapeHtml(cust ? cust.companyName : '-')} • ${escapeHtml(w ? `${w.firstName} ${w.lastName}` : '-')} • ${subOf(j)}</small>
+            </button>`;
+        }).join('')}${list.length > 12 ? `<div class="bell-more">และอีก ${list.length - 12} งาน</div>` : ''}</div>` : `<p class="text-muted pay-empty">${emptyText}</p>`}
+    </div>`;
+
+    box.innerHTML = `
+        <div class="js-head">
+            <h3>${icon('sparkles')} สรุปงาน — ${escapeHtml(periodLabel)}</h3>
+            <span class="text-muted">เลือกเดือน/ประเภทงาน/ผู้รับผิดชอบได้จากตัวกรองด้านบน • "ค้างอยู่" นับงานที่ยังไม่ปิด ณ วันนี้</span>
+        </div>
+        <div class="js-tiles">
+            ${tile('แจ้งงานเข้า', opened.length, monthKey ? 'งานที่แจ้งในเดือนนี้' : 'งานที่แจ้งทั้งหมด')}
+            ${tile('ปิดงานแล้ว', closed.length, `${monthKey ? 'ปิดในเดือนนี้' : 'ปิดแล้วทั้งหมด'}${avgClose !== null ? ` • เฉลี่ย ${avgClose} วัน/งาน` : ''}`, 'is-ok')}
+            ${tile('งานค้างอยู่ตอนนี้', open.length, `รอดำเนินการ ${open.filter(j => j.status === 'รอดำเนินการ').length} • กำลังทำ ${open.filter(j => j.status === 'กำลังดำเนินการ').length}`)}
+            ${tile('ยังไม่มอบหมาย', unassigned.length, 'ต้องเลือกผู้รับผิดชอบ', unassigned.length ? 'is-warn' : '')}
+            ${tile('รอเอกสารเพิ่มเติม', waitingDocs.length, 'ต้องตามเอกสารจากลูกค้า', waitingDocs.length ? 'is-warn' : '')}
+            ${tile(`ค้างนานเกิน ${JOB_STALE_DAYS} วัน`, stale.length, 'นับจากวันที่แจ้งงาน', stale.length ? 'is-bad' : '')}
+        </div>
+        <div class="js-grid">
+            ${groupTable('แยกตามผู้รับผิดชอบ', 'ผู้รับผิดชอบ', j => j.assignedTo || '', k => k === '-' ? 'ยังไม่มอบหมาย' : getUserNameById(k))}
+            ${groupTable('แยกตามประเภทงาน', 'ประเภทงาน', j => getCleanJobTypeName(j.jobType), k => k)}
+            ${groupTable('นายจ้างที่มีงานมากที่สุด (10 อันดับ)', 'นายจ้าง', j => j.customerId || '', k => (customers.find(c => c.id === k) || {}).companyName || 'ไม่ระบุนายจ้าง', 10)}
+        </div>
+        <div class="js-grid">
+            ${jobListCard('นัดหมาย 7 วันข้างหน้า', appts, j => `${formatThaiDate(j.appointmentDate)}${j.appointmentTime ? ` ${escapeHtml(j.appointmentTime)}` : ''}${j.appointmentLocation ? ` • ${escapeHtml(j.appointmentLocation)}` : ''}`, 'ไม่มีนัดหมายใน 7 วันข้างหน้า')}
+            ${jobListCard(`งานค้างนานเกิน ${JOB_STALE_DAYS} วัน`, stale, j => `${j.status} • ${jobDaysOpen(j)} วัน${j.assignedTo ? ` • ${escapeHtml(getUserNameById(j.assignedTo))}` : ' • ยังไม่มอบหมาย'}`, 'ไม่มีงานค้างนาน')}
+            ${jobListCard('ยังไม่มอบหมายผู้รับผิดชอบ', unassigned, j => `${j.status} • แจ้งเมื่อ ${formatThaiDate(String(j.createdAt || '').slice(0, 10))}`, 'มอบหมายครบทุกงานแล้ว')}
+        </div>`;
+}
+
 function renderJobs() {
     const query = document.getElementById("search-job").value.toLowerCase();
     const typeFilter = document.getElementById("filter-job-type").value;
     const statusFilter = document.getElementById("filter-job-status").value;
     const tbody = document.getElementById("jobs-list-tbody");
+    fillJobFilterOptions();
+    const monthFilter = (document.getElementById("filter-job-month") || {}).value || '';
+    const assigneeFilter = (document.getElementById("filter-job-assignee") || {}).value || '';
 
-    const filtered = jobs.filter(j => {
+    // ตัวกรองทุกอย่างยกเว้นเดือน (หน้าสรุปใช้แยก "แจ้งในเดือนนี้" กับ "ปิดในเดือนนี้")
+    const baseFiltered = jobs.filter(j => {
         const cust = customers.find(c => c.id === j.customerId);
         const work = workers.find(w => w.id === j.workerId);
-        
+
         const custName = cust ? cust.companyName.toLowerCase() : "";
         const workName = work ? `${work.firstName} ${work.lastName}`.toLowerCase() : "";
-        const matchSearch = j.id.toLowerCase().includes(query) || custName.includes(query) || workName.includes(query);
-        
+        const matchSearch = j.id.toLowerCase().includes(query) || custName.includes(query) || workName.includes(query) || getJobDisplayNo(j).toLowerCase().includes(query);
+
         const matchType = typeFilter === "" || (j.jobType && j.jobType.includes(typeFilter));
         const matchStatus = statusFilter === "" || j.status === statusFilter;
+        const matchAssignee = !assigneeFilter
+            || (assigneeFilter === 'me' && j.assignedTo === currentUser.id)
+            || (assigneeFilter === 'none' && !j.assignedTo)
+            || j.assignedTo === assigneeFilter;
 
-        return matchSearch && matchType && matchStatus;
+        return matchSearch && matchType && matchStatus && matchAssignee;
     });
+    const filtered = monthFilter ? baseFiltered.filter(j => jobMonthKey(j) === monthFilter) : baseFiltered;
+
+    if (currentJobView === 'summary') {
+        renderJobsSummary(baseFiltered, monthFilter);
+        return;
+    }
 
     if (currentJobView === 'kanban') {
         renderJobsKanban(filtered);
@@ -10617,39 +10744,28 @@ function renderMissingDocsOverview() {
 
 // ==================== KANBAN BOARD SYSTEM ====================
 
+// มุมมองหน้าระบบแจ้งงาน: table (ตาราง) / kanban (คัมบัง) / summary (สรุปงานสำหรับ Operation Manager)
 function switchJobView(viewType) {
     currentJobView = viewType;
-    const btnTable = document.getElementById("btn-job-view-table");
-    const btnKanban = document.getElementById("btn-job-view-kanban");
-    const tableContainer = document.getElementById("jobs-table-container");
-    const kanbanContainer = document.getElementById("jobs-kanban-container");
+    const views = {
+        table: { btn: "btn-job-view-table", box: "jobs-table-container" },
+        kanban: { btn: "btn-job-view-kanban", box: "jobs-kanban-container" },
+        summary: { btn: "btn-job-view-summary", box: "jobs-summary-container" }
+    };
+    Object.entries(views).forEach(([key, v]) => {
+        const btn = document.getElementById(v.btn);
+        const box = document.getElementById(v.box);
+        const on = key === viewType;
+        if (btn) {
+            btn.className = on ? "btn btn-gold btn-sm" : "btn btn-outline btn-sm";
+            btn.style.borderColor = on ? "" : "transparent";
+            btn.style.color = on ? "" : "var(--text-dark)";
+            btn.style.background = on ? "" : "transparent";
+        }
+        if (box) box.classList.toggle("hidden", !on);
+    });
     const paginationBar = document.getElementById("jobs-pagination-bar");
-
-    if (viewType === 'table') {
-        btnTable.className = "btn btn-gold btn-sm";
-        btnTable.style.background = "";
-        btnTable.style.color = "";
-        btnKanban.className = "btn btn-outline btn-sm";
-        btnKanban.style.borderColor = "transparent";
-        btnKanban.style.color = "var(--text-dark)";
-        btnKanban.style.background = "transparent";
-        
-        tableContainer.classList.remove("hidden");
-        kanbanContainer.classList.add("hidden");
-        if (paginationBar) paginationBar.classList.remove("hidden");
-    } else {
-        btnKanban.className = "btn btn-gold btn-sm";
-        btnKanban.style.background = "";
-        btnKanban.style.color = "";
-        btnTable.className = "btn btn-outline btn-sm";
-        btnTable.style.borderColor = "transparent";
-        btnTable.style.color = "var(--text-dark)";
-        btnTable.style.background = "transparent";
-        
-        tableContainer.classList.add("hidden");
-        kanbanContainer.classList.remove("hidden");
-        if (paginationBar) paginationBar.classList.add("hidden");
-    }
+    if (paginationBar) paginationBar.classList.toggle("hidden", viewType !== 'table');
     renderJobs();
 }
 
