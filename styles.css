@@ -4885,3 +4885,41 @@ tr.is-voided-row td {
 @media (max-width: 720px) {
     .bell-panel { position: fixed; top: 64px; right: 12px; left: 12px; width: auto; }
 }
+
+/* ประเภทกิจการของนายจ้าง — เลือกได้หลายประเภท (ช่องติ๊ก) */
+.bt-checklist {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 4px 10px;
+    max-height: 220px;
+    overflow-y: auto;
+    padding: 10px 12px;
+    border: 1px solid var(--dk-line, #cbd5e1);
+    border-radius: var(--radius-sm);
+    background-color: var(--dk-subtle, #f8fafc);
+}
+
+.bt-option {
+    display: flex !important;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 0 !important;
+    padding: 4px 2px;
+    font-size: 13px;
+    font-weight: normal !important;
+    line-height: 1.35;
+    cursor: pointer;
+}
+
+.bt-option input {
+    width: 16px;
+    height: 16px;
+    margin-top: 1px;
+    flex-shrink: 0;
+}
+
+.bt-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}

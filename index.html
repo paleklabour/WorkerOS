@@ -544,6 +544,13 @@
                                 </svg>
                                 <input type="text" id="search-customer" placeholder="ค้นหาชื่อบริษัท, เลขผู้เสียภาษี, หรือผู้ประสานงาน..." oninput="renderCustomers()">
                             </div>
+                            <!-- ตัวกรองประเภทธุรกิจ / จังหวัด (ตัวเลือกสร้างจากข้อมูลนายจ้างที่มีจริง ดู fillCustomerFilterOptions) -->
+                            <select id="filter-customer-business" class="select-filter" onchange="customersCurrentPage = 1; renderCustomers()">
+                                <option value="">ทุกประเภทธุรกิจ</option>
+                            </select>
+                            <select id="filter-customer-province" class="select-filter" onchange="customersCurrentPage = 1; renderCustomers()">
+                                <option value="">ทุกจังหวัด</option>
+                            </select>
                             <button class="btn btn-gold btn-add" id="btn-add-customer" onclick="openCustomerModal()">
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -1590,34 +1597,33 @@
 
                         <div class="form-row">
                             <div class="form-group col-6">
-                                <label for="cust-business-type">ประเภทกิจการ (ข้อมูลกรมจัดหางาน) <span class="required">*</span></label>
-                                <select id="cust-business-type" required>
-                                    <option value="" disabled selected>--- เลือกประเภทกิจการ ---</option>
-                                    <option value="ประมง">1. ประมง</option>
-                                    <option value="ต่อเนื่องประมงทะเล">2. ต่อเนื่องประมงทะเล</option>
-                                    <option value="เกษตรและปศุสัตว์">3. เกษตรและปศุสัตว์</option>
-                                    <option value="กิจการก่อสร้าง">4. กิจการก่อสร้าง</option>
-                                    <option value="งานรับใช้ในบ้าน">5. งานรับใช้ในบ้าน</option>
-                                    <option value="กิจการต่อเนื่องการเกษตร">6. กิจการต่อเนื่องการเกษตร</option>
-                                    <option value="ต่อเนื่องค้าปลีก/ค้าส่ง/ร้านค้า/แผงลอย">7. ต่อเนื่องค้าปลีก/ค้าส่ง/ร้านค้า/แผงลอย</option>
-                                    <option value="กิจการรีไซเคิล">8. กิจการรีไซเคิล</option>
-                                    <option value="เหมืองแร่และเหมืองหิน">9. เหมืองแร่และเหมืองหิน</option>
-                                    <option value="จำหน่ายผลิตภัณฑ์โลหะ">10. จำหน่ายผลิตภัณฑ์โลหะ</option>
-                                    <option value="จำหน่ายอาหารและเครื่องดื่ม">11. จำหน่ายอาหารและเครื่องดื่ม</option>
-                                    <option value="ผลิตหรือจำหน่ายผลิตภัณฑ์ถ่านหิน">12. ผลิตหรือจำหน่ายผลิตภัณฑ์ถ่านหิน</option>
-                                    <option value="ผลิตหรือจำหน่ายวัสดุก่อสร้าง">13. ผลิตหรือจำหน่ายวัสดุก่อสร้าง</option>
-                                    <option value="แปรรูปหิน">14. แปรรูปหิน</option>
-                                    <option value="ผลิตหรือจำหน่ายเสื้อผ้าสำเร็จรูป">15. ผลิตหรือจำหน่ายเสื้อผ้าสำเร็จรูป</option>
-                                    <option value="ผลิตหรือจำหน่ายผลิตภัณฑ์พลาสติก">16. ผลิตหรือจำหน่ายผลิตภัณฑ์พลาสติก</option>
-                                    <option value="ผลิตหรือจำหน่ายผลิตภัณฑ์กระดาษ">17. ผลิตหรือจำหน่ายผลิตภัณฑ์กระดาษ</option>
-                                    <option value="ผลิตหรือจำหน่ายผลิตภัณฑ์อิเล็กทรอนิกส์">18. ผลิตหรือจำหน่ายผลิตภัณฑ์อิเล็กทรอนิกส์</option>
-                                    <option value="ขนส่งสินค้าทางบก ทางน้ำ หรือทางอากาศ">19. ขนส่งสินค้าทางบก ทางน้ำ หรือทางอากาศ</option>
-                                    <option value="ค้าส่ง ค้าปลีก แผงลอย">20. ค้าส่ง ค้าปลีก แผงลอย</option>
-                                    <option value="อู่ซ่อมรถ ล้าง อัดฉีด">21. อู่ซ่อมรถ ล้าง อัดฉีด</option>
-                                    <option value="สถานบริการสปา นวด เพื่อสุขภาพ">22. สถานบริการสปา นวด เพื่อสุขภาพ</option>
-                                    <option value="สถานศึกษา มูลนิธิ สมาคม สถานพยาบาล">23. สถานศึกษา มูลนิธิ สมาคม สถานพยาบาล</option>
-                                    <option value="การให้บริการต่าง ๆ">24. การให้บริการต่าง ๆ</option>
-                                </select>
+                                <label>ประเภทกิจการ (ข้อมูลกรมจัดหางาน) — เลือกได้หลายประเภท <span class="required">*</span></label>
+                                <div id="cust-business-type" class="bt-checklist" role="group" aria-label="ประเภทกิจการ">
+                                    <label class="bt-option"><input type="checkbox" name="cust-business-type" value="ประมง"> 1. ประมง</label>
+                                    <label class="bt-option"><input type="checkbox" name="cust-business-type" value="ต่อเนื่องประมงทะเล"> 2. ต่อเนื่องประมงทะเล</label>
+                                    <label class="bt-option"><input type="checkbox" name="cust-business-type" value="เกษตรและปศุสัตว์"> 3. เกษตรและปศุสัตว์</label>
+                                    <label class="bt-option"><input type="checkbox" name="cust-business-type" value="กิจการก่อสร้าง"> 4. กิจการก่อสร้าง</label>
+                                    <label class="bt-option"><input type="checkbox" name="cust-business-type" value="งานรับใช้ในบ้าน"> 5. งานรับใช้ในบ้าน</label>
+                                    <label class="bt-option"><input type="checkbox" name="cust-business-type" value="กิจการต่อเนื่องการเกษตร"> 6. กิจการต่อเนื่องการเกษตร</label>
+                                    <label class="bt-option"><input type="checkbox" name="cust-business-type" value="ต่อเนื่องค้าปลีก/ค้าส่ง/ร้านค้า/แผงลอย"> 7. ต่อเนื่องค้าปลีก/ค้าส่ง/ร้านค้า/แผงลอย</label>
+                                    <label class="bt-option"><input type="checkbox" name="cust-business-type" value="กิจการรีไซเคิล"> 8. กิจการรีไซเคิล</label>
+                                    <label class="bt-option"><input type="checkbox" name="cust-business-type" value="เหมืองแร่และเหมืองหิน"> 9. เหมืองแร่และเหมืองหิน</label>
+                                    <label class="bt-option"><input type="checkbox" name="cust-business-type" value="จำหน่ายผลิตภัณฑ์โลหะ"> 10. จำหน่ายผลิตภัณฑ์โลหะ</label>
+                                    <label class="bt-option"><input type="checkbox" name="cust-business-type" value="จำหน่ายอาหารและเครื่องดื่ม"> 11. จำหน่ายอาหารและเครื่องดื่ม</label>
+                                    <label class="bt-option"><input type="checkbox" name="cust-business-type" value="ผลิตหรือจำหน่ายผลิตภัณฑ์ถ่านหิน"> 12. ผลิตหรือจำหน่ายผลิตภัณฑ์ถ่านหิน</label>
+                                    <label class="bt-option"><input type="checkbox" name="cust-business-type" value="ผลิตหรือจำหน่ายวัสดุก่อสร้าง"> 13. ผลิตหรือจำหน่ายวัสดุก่อสร้าง</label>
+                                    <label class="bt-option"><input type="checkbox" name="cust-business-type" value="แปรรูปหิน"> 14. แปรรูปหิน</label>
+                                    <label class="bt-option"><input type="checkbox" name="cust-business-type" value="ผลิตหรือจำหน่ายเสื้อผ้าสำเร็จรูป"> 15. ผลิตหรือจำหน่ายเสื้อผ้าสำเร็จรูป</label>
+                                    <label class="bt-option"><input type="checkbox" name="cust-business-type" value="ผลิตหรือจำหน่ายผลิตภัณฑ์พลาสติก"> 16. ผลิตหรือจำหน่ายผลิตภัณฑ์พลาสติก</label>
+                                    <label class="bt-option"><input type="checkbox" name="cust-business-type" value="ผลิตหรือจำหน่ายผลิตภัณฑ์กระดาษ"> 17. ผลิตหรือจำหน่ายผลิตภัณฑ์กระดาษ</label>
+                                    <label class="bt-option"><input type="checkbox" name="cust-business-type" value="ผลิตหรือจำหน่ายผลิตภัณฑ์อิเล็กทรอนิกส์"> 18. ผลิตหรือจำหน่ายผลิตภัณฑ์อิเล็กทรอนิกส์</label>
+                                    <label class="bt-option"><input type="checkbox" name="cust-business-type" value="ขนส่งสินค้าทางบก ทางน้ำ หรือทางอากาศ"> 19. ขนส่งสินค้าทางบก ทางน้ำ หรือทางอากาศ</label>
+                                    <label class="bt-option"><input type="checkbox" name="cust-business-type" value="ค้าส่ง ค้าปลีก แผงลอย"> 20. ค้าส่ง ค้าปลีก แผงลอย</label>
+                                    <label class="bt-option"><input type="checkbox" name="cust-business-type" value="อู่ซ่อมรถ ล้าง อัดฉีด"> 21. อู่ซ่อมรถ ล้าง อัดฉีด</label>
+                                    <label class="bt-option"><input type="checkbox" name="cust-business-type" value="สถานบริการสปา นวด เพื่อสุขภาพ"> 22. สถานบริการสปา นวด เพื่อสุขภาพ</label>
+                                    <label class="bt-option"><input type="checkbox" name="cust-business-type" value="สถานศึกษา มูลนิธิ สมาคม สถานพยาบาล"> 23. สถานศึกษา มูลนิธิ สมาคม สถานพยาบาล</label>
+                                    <label class="bt-option"><input type="checkbox" name="cust-business-type" value="การให้บริการต่าง ๆ"> 24. การให้บริการต่าง ๆ</label>
+                                </div>
                             </div>
                             <div class="form-group col-6">
                                 <label for="cust-coordinator">ชื่อผู้ประสานงาน <span class="required">*</span></label>

@@ -2643,13 +2643,61 @@ function changeCustomersPage(direction) {
     renderCustomers();
 }
 
+// ประเภทกิจการ: นายจ้าง 1 รายทำได้หลายประเภท — เก็บในคอลัมน์เดิม (customers.business_type) คั่นด้วย ", "
+// (ชื่อประเภทตามกรมจัดหางานไม่มีเครื่องหมายจุลภาค) ฟอร์มเป็นช่องติ๊ก name="cust-business-type"
+const BUSINESS_TYPE_SEP = ', ';
+function customerBusinessTypes(c) {
+    return String((c && c.businessType) || '').split(/\s*,\s*/).map(s => s.trim()).filter(Boolean);
+}
+
+function setCustomerBusinessTypes(value) {
+    const types = customerBusinessTypes({ businessType: value });
+    const box = document.getElementById("cust-business-type");
+    // ประเภทเก่าที่ไม่อยู่ในรายการมาตรฐาน — เพิ่มช่องติ๊กให้ ไม่ให้ข้อมูลเดิมหาย
+    types.forEach(t => {
+        if (box && !box.querySelector(`input[value="${CSS.escape(t)}"]`)) {
+            box.insertAdjacentHTML('beforeend', `<label class="bt-option bt-extra"><input type="checkbox" name="cust-business-type" value="${escapeHtml(t)}"> ${escapeHtml(t)}</label>`);
+        }
+    });
+    document.querySelectorAll('input[name="cust-business-type"]').forEach(cb => { cb.checked = types.includes(cb.value); });
+}
+
+function readCustomerBusinessTypes() {
+    return Array.from(document.querySelectorAll('input[name="cust-business-type"]:checked')).map(cb => cb.value);
+}
+
+// จังหวัดของนายจ้าง = จังหวัดของทุกสาขา (สำนักงานใหญ่ + สาขาอื่น)
+function customerProvinces(c) {
+    return [...new Set((c.branches || []).map(b => String(b.province || '').trim()).filter(Boolean))];
+}
+
+// ตัวเลือก dropdown ประเภทธุรกิจ/จังหวัด จากข้อมูลจริง — คงค่าที่เลือกไว้เดิม
+function fillCustomerFilterOptions() {
+    const live = customers.filter(c => c.status !== 'deleted');
+    const fill = (id, allLabel, values) => {
+        const sel = document.getElementById(id);
+        if (!sel) return;
+        const prev = sel.value;
+        const sorted = [...new Set(values)].filter(Boolean).sort((a, b) => a.localeCompare(b, 'th'));
+        sel.innerHTML = `<option value="">${allLabel}</option>` + sorted.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+        sel.value = sorted.includes(prev) ? prev : '';
+    };
+    fill("filter-customer-business", "ทุกประเภทธุรกิจ", live.flatMap(customerBusinessTypes));
+    fill("filter-customer-province", "ทุกจังหวัด", live.flatMap(customerProvinces));
+}
+
 function renderCustomers() {
     const query = document.getElementById("search-customer").value.toLowerCase();
     const tbody = document.getElementById("customers-list-tbody");
-    
+    fillCustomerFilterOptions();
+    const businessFilter = (document.getElementById("filter-customer-business") || {}).value || '';
+    const provinceFilter = (document.getElementById("filter-customer-province") || {}).value || '';
+
     // Filter
     const filtered = customers.filter(c => {
         const isDeleted = c.status === 'deleted';
+        if (businessFilter && !customerBusinessTypes(c).includes(businessFilter)) return false;
+        if (provinceFilter && !customerProvinces(c).includes(provinceFilter)) return false;
         if (!query) {
             return !isDeleted;
         }
@@ -2747,7 +2795,7 @@ function renderCustomers() {
             <tr class="clickable-row" ondblclick="handleRowDblClick(event) && openCustomerModal('${c.id}')" title="ดับเบิลคลิกเพื่อดูรายละเอียดนายจ้าง">
                 <td>${idPartsHtml}</td>
                 <td><strong>${c.companyName}${statusLabel}${prepaymentLabel}</strong></td>
-                <td><span class="badge badge-lg badge-gold">${c.businessType}</span></td>
+                <td><div class="bt-badges">${customerBusinessTypes(c).map(t => `<span class="badge badge-lg badge-gold">${escapeHtml(t)}</span>`).join("") || "-"}</div></td>
                 <td>${certCellHtml}</td>
                 <td>${hqAddress}</td>
                 <td>
@@ -3998,6 +4046,7 @@ function removeStagedWorkerAttachment(docType, index) {
 function openCustomerModal(id = null) {
     // Reset forms
     document.getElementById("customer-form").reset();
+    document.querySelectorAll("#cust-business-type .bt-extra").forEach(el => el.remove());
     const modalTitle = document.getElementById("customer-modal-title");
     const editIdInput = document.getElementById("customer-edit-id");
     tempCustomerAttachments = {};
@@ -4017,7 +4066,7 @@ function openCustomerModal(id = null) {
         document.getElementById("cust-tax-id").value = c.taxId;
         document.getElementById("cust-company-name").value = c.companyName;
         document.getElementById("cust-director-id").value = c.directorId || "";
-        document.getElementById("cust-business-type").value = c.businessType;
+        setCustomerBusinessTypes(c.businessType);
         document.getElementById("cust-coordinator").value = c.coordinator;
         document.getElementById("cust-phone").value = c.phone;
         document.getElementById("cust-billing-note").value = c.billingNote || "";
@@ -4193,7 +4242,9 @@ async function saveCustomer(e) {
     const taxId = document.getElementById("cust-tax-id").value;
     const companyName = document.getElementById("cust-company-name").value;
     const directorId = document.getElementById("cust-director-id").value.trim();
-    const businessType = document.getElementById("cust-business-type").value;
+    const businessTypes = readCustomerBusinessTypes();
+    if (businessTypes.length === 0) { uiAlert("กรุณาเลือกประเภทกิจการอย่างน้อย 1 ประเภท"); return; }
+    const businessType = businessTypes.join(BUSINESS_TYPE_SEP);
     const coordinator = document.getElementById("cust-coordinator").value;
     const phone = document.getElementById("cust-phone").value;
     const referredByAgentId = document.getElementById("cust-referred-by-agent").value || null;
