@@ -88,6 +88,11 @@ h1, h2, h3, h4, h5, h6 {
     cursor: pointer;
     transition: var(--transition);
     border: 1px solid transparent;
+    white-space: nowrap; /* ข้อความในปุ่มอยู่บรรทัดเดียวเสมอ — แถวปุ่มที่แคบให้ห่อทั้งปุ่มลงบรรทัดใหม่แทน (flex-wrap) */
+}
+/* ปุ่มอื่นที่ไม่ใช้ .btn (สลับมุมมอง/แท็บ/ปุ่มในตาราง ฯลฯ) ก็ไม่ตัดคำกลางปุ่ม */
+button {
+    white-space: nowrap;
 }
 .btn:active {
     transform: scale(0.97);
@@ -1592,6 +1597,11 @@ select:disabled {
     flex-wrap: wrap;
 }
 
+/* กลุ่มปุ่มบนแถบเครื่องมือ — ปุ่มไม่ตัดคำแล้ว จอแคบให้ปุ่มขึ้นแถวใหม่แทนการล้นจอ */
+.action-buttons-group {
+    flex-wrap: wrap;
+}
+
 .search-filters-group {
     display: flex;
     gap: 16px;
@@ -2251,6 +2261,7 @@ select:disabled {
     padding: 20px 28px;
     border-top: 1px solid var(--dk-line, #e2e8f0);
     display: flex;
+    flex-wrap: wrap;
     justify-content: flex-end;
     gap: 12px;
     background-color: var(--dk-subtle, #f8fafc);
@@ -2515,14 +2526,25 @@ td > .ico {
 
 
 /* ==================== TOAST NOTIFICATION ==================== */
+/* แจ้งเตือนทุกอัน (กำลังแนบไฟล์/AI กำลังอ่าน/บันทึกสำเร็จ ฯลฯ) ขึ้นกลางจอ ไม่ใช่มุมล่างขวา
+   ไม่บังการคลิกหน้าเว็บด้านหลัง (pointer-events) */
 .toast-container {
     position: fixed;
-    bottom: 24px;
-    right: 24px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
     display: flex;
     flex-direction: column;
+    align-items: center;
     gap: 10px;
     z-index: 2000;
+    width: max-content;
+    max-width: calc(100vw - 32px);
+    pointer-events: none;
+}
+
+.toast-container .toast {
+    pointer-events: auto;
 }
 
 /* ==================== การ์ดสถานะดึงข้อมูลกลางจอ (showSyncStatus ใน app.js) ==================== */
@@ -2682,7 +2704,7 @@ td > .ico {
     display: flex;
     align-items: center;
     gap: 12px;
-    animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    animation: toastPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     min-width: 280px;
     max-width: 420px;
 }
@@ -2724,9 +2746,9 @@ td > .ico {
     word-break: break-word;
 }
 
-@keyframes slideInRight {
-    from { transform: translateX(100%); opacity: 0; }
-    to { transform: translateX(0); opacity: 1; }
+@keyframes toastPop {
+    from { transform: scale(0.92); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
 }
 
 
@@ -4459,6 +4481,7 @@ tr.is-voided-row td {
 :root[data-theme="dark"] .tile-gov,
 :root[data-theme="dark"] .split-gov { color: #5fd3c5; }
 :root[data-theme="dark"] .tile-govpaid { background-color: var(--dk-subtle); }
+:root[data-theme="dark"] .sync-card { background-color: rgba(45, 53, 73, 0.97); }
 
 /* สไตล์ที่เขียนไว้ใน HTML/JS โดยตรง (style="...") — ทับเฉพาะพื้นขาว/เส้นเทาอ่อน/ตัวหนังสือเข้มที่พบบ่อย */
 :root[data-theme="dark"] [style*="background: #ffffff"], :root[data-theme="dark"] [style*="background:#ffffff"],

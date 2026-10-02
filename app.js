@@ -4588,7 +4588,7 @@ function showToast(message, type = 'success') {
 
     // Auto remove
     setTimeout(() => {
-        toast.style.animation = 'slideInRight 0.3s reverse';
+        toast.style.animation = 'toastPop 0.25s reverse forwards';
         setTimeout(() => {
             toast.remove();
         }, 300);
