@@ -59,7 +59,8 @@
         appointmentDocUrl: "appointment_doc_url",
         // ระบบบัญชี (20261001082230_accounting_ledger.sql)
         invoiceId: "invoice_id", paidAt: "paid_at", paidBy: "paid_by", govFee: "gov_fee",
-        commissionAmount: "commission_amount", commissionPaidAt: "commission_paid_at", commissionExpenseId: "commission_expense_id"
+        commissionAmount: "commission_amount", commissionPaidAt: "commission_paid_at", commissionExpenseId: "commission_expense_id",
+        assignedTo: "assigned_to"
     };
     const AGENT_MAP = { id: "id", name: "name", phone: "phone", createdAt: "created_at", defaultCommission: "default_commission" };
     const EXPENSE_MAP = {
@@ -174,7 +175,7 @@
     // -------------------- getData --------------------
     async function handleGetData() {
         const [customersRes, workersRes, jobsRes, banksRes, profilesRes, agentsRes, expensesRes, freeInvoicesRes,
-               invoicesRes, paymentsRes, servicePricesRes, receiptsRes] = await Promise.all([
+               invoicesRes, paymentsRes, servicePricesRes, receiptsRes, teamRes, settingsRes] = await Promise.all([
             sb.from("customers").select("*"),
             sb.from("workers").select("*"),
             sb.from("jobs").select("*"),
@@ -186,7 +187,9 @@
             sb.from("invoices").select("*"),
             sb.from("payments").select("*"),
             sb.from("service_prices").select("*"),
-            sb.from("receipts").select("*")
+            sb.from("receipts").select("*"),
+            sb.rpc("list_team"),
+            sb.from("app_settings").select("key, value")
         ]);
         // RLS กรองแถวให้อัตโนมัติตาม role/customer_id ของผู้ใช้ที่ล็อกอินอยู่แล้ว
         // (ไม่ต้อง filter ซ้ำฝั่ง client เหมือนโค้ด Code.gs เดิม)
@@ -213,6 +216,10 @@
             invoices: invoicesRes.error ? [] : normalizeNumbers(toCamelList(invoicesRes.data, INVOICE_MAP), ["subtotal", "grandTotal", "govFeeTotal"]),
             payments: paymentsRes.error ? [] : normalizeNumbers(toCamelList(paymentsRes.data, PAYMENT_MAP), ["amount"]),
             receipts: receiptsRes.error ? [] : normalizeNumbers(toCamelList(receiptsRes.data, RECEIPT_MAP), ["amount"]),
+            // ทีมงานภายใน (ชื่อ+ตำแหน่ง) สำหรับเลือก/แสดงผู้รับผิดชอบใบงาน — profiles อ่านได้เฉพาะแถวตัวเองถ้าไม่ใช่ admin
+            team: teamRes.error ? [] : (teamRes.data || []),
+            // ค่าตั้งค่ากลาง { key: value } เช่น cash_card_order
+            settings: settingsRes.error ? {} : Object.fromEntries((settingsRes.data || []).map((r) => [r.key, r.value])),
             servicePrices: servicePricesRes.error ? [] : normalizeNumbers(toCamelList(servicePricesRes.data, SERVICE_PRICE_MAP), ["govFee", "serviceFee"]),
             freeInvoices: freeInvoicesRes.error ? [] : toCamelList(freeInvoicesRes.data, FREE_INVOICE_MAP),
             users: profilesRes.error ? [] : (profilesRes.data || []).map((p) => ({
@@ -582,6 +589,12 @@
                 return await upsertOne("invoices", INVOICE_MAP, payload.invoiceData);
             case "savePayment":
                 return await upsertOne("payments", PAYMENT_MAP, payload.paymentData);
+            case "saveSetting": {
+                const { error } = await sb.from("app_settings")
+                    .upsert({ key: payload.key, value: payload.value, updated_at: new Date().toISOString() }, { onConflict: "key" });
+                if (error) return { status: "error", message: error.message };
+                return { status: "success" };
+            }
             case "reorderBanks": {
                 // ลากสลับลำดับบัญชี — อัปเดตเฉพาะ sort_order (update ไม่ใช่ upsert เพื่อไม่ต้องส่งคอลัมน์อื่น)
                 for (const { id, sortOrder } of payload.order || []) {

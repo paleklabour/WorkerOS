@@ -8,6 +8,8 @@ let workers = [];
 let jobs = [];
 let banks = [];
 let users = [];
+let appSettings = {};    // ค่าตั้งค่ากลาง (app_settings) เช่น cash_card_order — ใช้ร่วมกันทุกผู้ใช้
+let team = [];           // ทีมงานภายใน {id, name, role} จาก rpc list_team — ใช้เลือก/แสดงผู้รับผิดชอบใบงาน (ทุกตำแหน่งเห็น)
 let agents = [];
 let expenses = [];
 let freeInvoices = [];   // ตารางเดิม (เลิกใช้แล้ว ย้ายเข้า invoices) — ยังโหลดไว้เผื่อสำรองข้อมูล
@@ -161,7 +163,7 @@ const BUSINESS_TYPES = [
 // values as real passwords, and do not expose them on the login screen.
 const USERS = {
     "demo-admin@local.test": { email: "demo-admin@local.test", name: "Demo Admin (Offline)", role: "admin", password: "demo-only-local-1" },
-    "demo-manager@local.test": { email: "demo-manager@local.test", name: "Demo Manager (Offline)", role: "manager", password: "demo-only-local-2" },
+    "demo-manager@local.test": { email: "demo-manager@local.test", name: "Demo Manager (Offline)", role: "account_manager", password: "demo-only-local-2" },
     "demo-staff@local.test": { email: "demo-staff@local.test", name: "Demo Staff (Offline)", role: "staff", password: "demo-only-local-3" }
 };
 
@@ -352,6 +354,8 @@ async function loadData() {
             jobs = res.jobs || [];
             banks = sortBanks(res.banks || []);
             users = res.users || [];
+            team = res.team || [];
+            appSettings = res.settings || {};
             agents = res.agents || [];
             expenses = res.expenses || [];
             freeInvoices = res.freeInvoices || [];
@@ -1041,31 +1045,56 @@ function presetSearchSelect(key, id) {
     }
 }
 
+// ==================== สิทธิ์ตามตำแหน่ง (ยืนยัน 2026-10-02) ====================
+// admin = Admin/GM, account_manager = Account Manager, operation_manager = Operation Manager, staff = Staff, client = ลูกค้า
+// ฐานข้อมูลบังคับสิทธิ์ซ้ำอีกชั้น (RLS) — ดู supabase/migrations/20261002..._roles_gm_am_om_staff.sql
+// แก้สิทธิ์ที่นี่ที่เดียว แล้วใช้ can('...') / canEditJob(j) ทุกจุด
+const ROLE_LABELS = {
+    admin: 'Admin / GM (สิทธิ์เต็ม)',
+    account_manager: 'Account Manager (บิล/การเงิน)',
+    operation_manager: 'Operation Manager (งาน/เอกสาร)',
+    staff: 'Staff (ทำงานที่ได้รับมอบหมาย)',
+    client: 'ลูกค้า/นายจ้าง (เฉพาะข้อมูลตนเอง)'
+};
+const PERMS = {
+    finance:      ['admin', 'account_manager'],                     // บิล รับเงิน มัดจำ รายจ่าย บัญชีธนาคาร ราคามาตรฐาน/ต้นทุน
+    voidMoney:    ['admin', 'account_manager'],                     // ยกเลิกใบเสร็จ/การรับเงิน, ถอนยอดออกจากบิล
+    commission:   ['admin', 'account_manager'],                     // เห็น/จ่ายค่าคอม Agent
+    ops:          ['admin', 'operation_manager', 'staff'],          // เพิ่ม/แก้นายจ้าง คนงาน เอกสาร, เปิดใบงาน
+    assignJobs:   ['admin', 'operation_manager'],                   // มอบหมายผู้รับผิดชอบ + แก้ใบงานทุกใบ
+    manageAgents: ['admin', 'account_manager', 'operation_manager'],
+    deleteFiles:  ['admin', 'operation_manager'],                   // ลบไฟล์เอกสารในแฟ้ม (Storage)
+    admin:        ['admin']                                         // ลบข้อมูล จัดการผู้ใช้ สำรอง/กู้คืน
+};
+
+function can(perm) {
+    return !!currentUser && (PERMS[perm] || []).includes(currentUser.role);
+}
+
+// Staff แก้ได้เฉพาะใบงานที่ตัวเองเปิดหรือได้รับมอบหมาย
+function canEditJob(j) {
+    if (can('assignJobs')) return true;
+    return !!(j && currentUser && currentUser.role === 'staff' && currentUser.id && (j.assignedTo === currentUser.id || j.openedBy === currentUser.id));
+}
+
 function getRoleLabel(role) {
-    if (role === 'admin') return 'Administrator (สิทธิ์เต็ม)';
-    if (role === 'manager') return 'Manager (สิทธิ์เขียน)';
-    if (role === 'client') return 'ลูกค้า/นายจ้าง (เฉพาะข้อมูลตนเอง)';
-    return 'Staff (สิทธิ์ดูอย่างเดียว)';
+    return ROLE_LABELS[role] || ROLE_LABELS.staff;
 }
 
 function setupFormPermissions() {
-    // Hide buttons if user has no permission
-    const btnAddCust = document.getElementById("btn-add-customer");
-    const btnAddWork = document.getElementById("btn-add-worker");
-    const btnAddJob = document.getElementById("btn-add-job");
-    const btnAddBank = document.getElementById("btn-add-bank");
-    const btnBulkImportDocs = document.getElementById("btn-bulk-import-docs");
-    const menuUsers = document.getElementById("menu-users");
+    // ปุ่ม/เมนูที่อยู่ใน index.html ซ่อนด้วย CSS: <body class="perm-no-xxx"> + องค์ประกอบ class="needs-xxx"
+    Object.keys(PERMS).forEach(p => document.body.classList.toggle(`perm-no-${p}`, !can(p)));
 
-    const isStaff = currentUser.role === 'staff';
-    const isClient = currentUser.role === 'client';
-
-    if (btnAddCust) btnAddCust.style.display = (isStaff || isClient) ? 'none' : 'flex';
-    if (btnAddWork) btnAddWork.style.display = isStaff ? 'none' : 'flex';
-    if (btnAddJob) btnAddJob.style.display = isStaff ? 'none' : 'flex';
-    if (btnAddBank) btnAddBank.style.display = (isStaff || isClient) ? 'none' : 'flex';
-    if (btnBulkImportDocs) btnBulkImportDocs.style.display = (isStaff || isClient) ? 'none' : 'flex';
-    if (menuUsers) menuUsers.classList.toggle('hidden', currentUser.role !== 'admin');
+    const show = (id, on) => { const el = document.getElementById(id); if (el) el.style.display = on ? 'flex' : 'none'; };
+    show("btn-add-customer", can('ops'));
+    show("btn-add-worker", can('ops'));
+    show("btn-add-job", can('ops') || (currentUser && currentUser.role === 'client'));
+    show("btn-add-bank", can('finance'));
+    show("btn-bulk-import-docs", can('ops'));
+    const toggleMenu = (id, on) => { const el = document.getElementById(id); if (el) el.classList.toggle('hidden', !on); };
+    toggleMenu("menu-users", can('admin'));
+    toggleMenu("menu-expenses", can('finance'));
+    toggleMenu("menu-agents", can('manageAgents'));
 }
 
 // ==================== AUTHENTICATION ====================
@@ -2051,6 +2080,162 @@ function toggleChartView(prefix, mode) {
     }
 }
 
+// ==================== กระดิ่งแจ้งเตือนตามตำแหน่ง (มุมขวาบน) ====================
+// แต่ละตำแหน่งเห็นไม่เหมือนกัน (ยืนยันกับเจ้าของระบบ 2026-10-02):
+//   Admin/GM          → ทุกหมวด
+//   Account Manager   → เรื่องบิลและการเงินทั้งหมด
+//   Operation Manager → การแจ้งงาน/ปิดงานทั้งหมด + เอกสารคนงานใกล้หมดอายุ
+//   Staff             → งานที่ตัวเองเปิด/ได้รับมอบหมาย
+//   เอกสารคนงานที่ "ยังไม่ได้แนบ" ไม่แจ้งเตือนใคร
+const BELL_RECENT_CLOSE_DAYS = 3;
+const BELL_OVERDUE_DAYS = 15;   // ตรงกับกำหนดชำระมาตรฐานบนบิล
+const BELL_MAX_ITEMS = 6;
+
+function bellJobItem(j, sub) {
+    const cust = customers.find(c => c.id === j.customerId);
+    const w = workers.find(x => x.id === j.workerId);
+    return {
+        text: `${getJobDisplayNo(j)} • ${getCleanJobTypeName(j.jobType)}`,
+        sub: sub || `${cust ? cust.companyName : '-'} • ${w ? `${w.firstName} ${w.lastName}` : '-'}`,
+        action: `openJobModal('${j.id}')`
+    };
+}
+
+function bellInvoiceItem(inv, sub) {
+    return { text: `${inv.invoiceNo} • ${inv.customerName || '-'}`, sub, action: `openStoredInvoice('${inv.id}')` };
+}
+
+function daysSince(dateStr) {
+    const d = safeParseDate(dateStr);
+    if (!d) return 0;
+    const today = new Date(); today.setHours(0, 0, 0, 0); d.setHours(0, 0, 0, 0);
+    return Math.floor((today - d) / 86400000);
+}
+
+function buildNotificationGroups() {
+    if (!currentUser) return [];
+    const role = currentUser.role;
+    const groups = [];
+    const add = (g) => { if (g.items.length) groups.push(g); };
+    const today = localDateISO(new Date());
+    const tomorrow = localDateISO(new Date(Date.now() + 86400000));
+    const jobDate = j => String(j.appointmentDate || '').slice(0, 10);
+    const sortNewest = (a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
+
+    // ---------- งาน (Admin, Operation Manager = ทุกงาน / Staff = เฉพาะงานของตัวเอง) ----------
+    const opsAll = role === 'admin' || role === 'operation_manager';
+    const mine = j => j.assignedTo === currentUser.id || (!j.assignedTo && j.openedBy === currentUser.id);
+    const scope = opsAll ? jobs : role === 'staff' ? jobs.filter(mine) : [];
+    if (scope.length) {
+        if (opsAll) {
+            add({ key: 'unassigned', icon: 'users', title: 'งานแจ้งใหม่ ยังไม่มอบหมายผู้รับผิดชอบ', view: 'jobs',
+                items: scope.filter(j => isJobStatusOpen(j.status) && !j.assignedTo).sort(sortNewest).map(j => bellJobItem(j)) });
+            add({ key: 'new', icon: 'inbox', title: 'งานแจ้งใหม่ (รอดำเนินการ)', view: 'jobs',
+                items: scope.filter(j => j.status === 'รอดำเนินการ').sort(sortNewest).map(j => bellJobItem(j)) });
+        } else {
+            add({ key: 'mine', icon: 'clipboard', title: 'งานของฉันที่ยังไม่ปิด', view: 'jobs',
+                items: scope.filter(j => isJobStatusOpen(j.status)).sort(sortNewest).map(j => bellJobItem(j, `${j.status} • ${(customers.find(c => c.id === j.customerId) || {}).companyName || '-'}`)) });
+        }
+        add({ key: 'appt', icon: 'calendar', title: 'นัดหมายวันนี้ / พรุ่งนี้', view: 'jobs',
+            items: scope.filter(j => isJobStatusOpen(j.status) && [today, tomorrow].includes(jobDate(j)))
+                .sort((a, b) => jobDate(a).localeCompare(jobDate(b)))
+                .map(j => bellJobItem(j, `${jobDate(j) === today ? 'วันนี้' : 'พรุ่งนี้'}${j.appointmentTime ? ` ${j.appointmentTime}` : ''}${j.appointmentLocation ? ` • ${j.appointmentLocation}` : ''}`)) });
+        add({ key: 'docs', icon: 'clip', title: 'งานรอเอกสารเพิ่มเติม', view: 'jobs',
+            items: scope.filter(j => j.status === 'รอเอกสารเพิ่มเติม').sort(sortNewest).map(j => bellJobItem(j)) });
+        add({ key: 'closed', icon: 'ok', title: `ปิดงานแล้ว (${BELL_RECENT_CLOSE_DAYS} วันล่าสุด)`, view: 'jobs', info: true,
+            items: scope.filter(j => j.status === 'ปิดงานแล้ว' && j.closedAt && daysSince(j.closedAt) <= BELL_RECENT_CLOSE_DAYS)
+                .sort((a, b) => String(b.closedAt).localeCompare(String(a.closedAt)))
+                .map(j => bellJobItem(j, `ปิดเมื่อ ${formatThaiDate(j.closedAt, true)}${j.closedBy ? ` โดย ${getUserNameById(j.closedBy)}` : ''}`)) });
+    }
+
+    // ---------- เอกสารคนงานใกล้หมดอายุ / หมดอายุ (Admin, Operation Manager) — ไม่รวม "ยังไม่ได้แนบเอกสาร" ----------
+    if (opsAll) {
+        add({ key: 'expiry', icon: 'warn', title: 'เอกสารคนงานใกล้หมดอายุ / หมดอายุแล้ว', view: 'renewals',
+            items: calculateDeadlines().sort((a, b) => a.daysLeft - b.daysLeft).map(a => ({
+                text: a.title, sub: `${a.message.replace(/^คนงาน: /, '')} • ${a.empName}`,
+                action: a.target && a.target.id ? `openWorkerModal('${a.target.id}')` : `switchView('renewals')`
+            })) });
+    }
+
+    // ---------- บิลและการเงิน (Admin, Account Manager) ----------
+    if (can('finance')) {
+        const unbilledClosed = jobs.filter(j => j.status === 'ปิดงานแล้ว' && !getJobInvoice(j));
+        add({ key: 'unbilled', icon: 'receipt', title: 'ปิดงานแล้ว ยังไม่ออกบิล', view: 'billing',
+            items: unbilledClosed.map(j => ({ ...bellJobItem(j), action: `openInvoiceModal('${j.id}')` })) });
+        const prepay = jobs.filter(j => isJobStatusOpen(j.status) && !isJobPaid(j) && (customers.find(c => c.id === j.customerId) || {}).requirePrepayment);
+        add({ key: 'prepay', icon: 'lock', title: 'ลูกค้าต้องชำระก่อนเริ่มงาน (ยังไม่ได้รับเงิน)', view: 'billing',
+            items: prepay.map(j => ({ ...bellJobItem(j, `${j.paymentStatus || 'ยังไม่ออกบิล'} • ${(customers.find(c => c.id === j.customerId) || {}).companyName || '-'}`),
+                action: getJobInvoice(j) ? `openStoredInvoice('${getJobInvoice(j).id}')` : `openInvoiceModal('${j.id}')` })) });
+        const open = invoices.filter(i => (i.status === 'issued' || i.status === 'partial') && invoiceBalance(i) > 0);
+        add({ key: 'overdue', icon: 'hourglass', title: `บิลค้างชำระเกิน ${BELL_OVERDUE_DAYS} วัน`, view: 'billing',
+            items: open.filter(i => daysSince(i.issueDate) > BELL_OVERDUE_DAYS).sort((a, b) => daysSince(b.issueDate) - daysSince(a.issueDate))
+                .map(i => bellInvoiceItem(i, `ค้าง ${fmtMoney(invoiceBalance(i))} บาท • ${daysSince(i.issueDate)} วัน`)) });
+        add({ key: 'awaiting', icon: 'receipt', title: 'บิลรอชำระ (ยังไม่เกินกำหนด)', view: 'billing', info: true,
+            items: open.filter(i => daysSince(i.issueDate) <= BELL_OVERDUE_DAYS).sort((a, b) => daysSince(b.issueDate) - daysSince(a.issueDate))
+                .map(i => bellInvoiceItem(i, `${i.status === 'partial' ? 'ชำระบางส่วน • ' : ''}ค้าง ${fmtMoney(invoiceBalance(i))} บาท • ครบกำหนดอีก ${BELL_OVERDUE_DAYS - daysSince(i.issueDate)} วัน`)) });
+        add({ key: 'deposit', icon: 'cash', title: 'มัดจำ / เงินรับล่วงหน้า ยังไม่ได้หักบิล', view: 'billing', info: true,
+            items: receipts.filter(r => receiptUnapplied(r) > 0).map(r => ({
+                text: `${r.receiptNo || '-'} • ${r.customerName || '-'}`, sub: `คงเหลือ ${fmtMoney(receiptUnapplied(r))} บาท • รับเมื่อ ${formatThaiDate(r.paidDate)}`,
+                action: `openReceiptDoc('${r.id}')` })) });
+    }
+    if (can('commission')) {
+        add({ key: 'commission', icon: 'users', title: 'ค่าคอม Agent ถึงกำหนดจ่าย', view: 'agents',
+            items: agents.map(a => ({ a, s: agentCommissionSummary(a.id) })).filter(x => x.s.due > 0)
+                .map(x => ({ text: x.a.name, sub: `${fmtMoney(x.s.due)} บาท • ${x.s.dueCount} งาน`, action: `openCommissionPayoutModal('${x.a.id}')` })) });
+    }
+    return groups;
+}
+
+// ตัวเลขบนกระดิ่ง = รายการที่ต้องทำ (ไม่นับหมวดข้อมูลอ้างอิง เช่น ปิดงานล่าสุด/บิลที่ยังไม่ถึงกำหนด/มัดจำ)
+function updateNotificationBell() {
+    const groups = buildNotificationGroups();
+    const count = groups.filter(g => !g.info).reduce((s, g) => s + g.items.length, 0);
+    const bellBadge = document.getElementById("bell-alert-badge");
+    const navBadge = document.getElementById("nav-alert-badge");
+    if (bellBadge) { bellBadge.innerText = count > 99 ? '99+' : count; bellBadge.style.display = count > 0 ? 'flex' : 'none'; }
+    if (navBadge) { navBadge.innerText = count > 99 ? '99+' : count; navBadge.style.display = count > 0 ? 'inline-block' : 'none'; }
+    const panel = document.getElementById("bell-panel");
+    if (panel && !panel.classList.contains('hidden')) renderNotificationPanel(groups);
+}
+
+function renderNotificationPanel(groups = buildNotificationGroups()) {
+    const panel = document.getElementById("bell-panel");
+    if (!panel) return;
+    const roleName = (ROLE_LABELS[currentUser.role] || '').split(' (')[0];
+    panel.innerHTML = `
+        <div class="bell-panel-head"><strong>การแจ้งเตือน</strong><span>${escapeHtml(roleName)}</span></div>
+        ${groups.length === 0 ? `<div class="bell-empty">${icon('ok')} ไม่มีเรื่องที่ต้องติดตาม</div>` : groups.map(g => `
+            <div class="bell-group${g.info ? ' is-info' : ''}">
+                <button type="button" class="bell-group-head" onclick="closeNotificationPanel(); ${g.view === 'billing' ? "switchView('expenses'); switchFinancePageTab('billing')" : `switchView('${g.view}')`}">
+                    ${icon(g.icon)} <span>${escapeHtml(g.title)}</span><b>${g.items.length}</b>
+                </button>
+                ${g.items.slice(0, BELL_MAX_ITEMS).map(it => `
+                    <button type="button" class="bell-item" onclick="closeNotificationPanel(); ${it.action}">
+                        <span class="bell-item-text">${escapeHtml(it.text)}</span>
+                        <small>${escapeHtml(it.sub || '')}</small>
+                    </button>`).join('')}
+                ${g.items.length > BELL_MAX_ITEMS ? `<div class="bell-more">และอีก ${g.items.length - BELL_MAX_ITEMS} รายการ — กดหัวข้อเพื่อดูทั้งหมด</div>` : ''}
+            </div>`).join('')}`;
+}
+
+function toggleNotificationPanel() {
+    const panel = document.getElementById("bell-panel");
+    if (!panel) return;
+    const open = panel.classList.toggle('hidden') === false;
+    if (open) { closeThemeMenu(); renderNotificationPanel(); }
+}
+
+function closeNotificationPanel() {
+    const panel = document.getElementById("bell-panel");
+    if (panel) panel.classList.add('hidden');
+}
+
+document.addEventListener('mousedown', (e) => {
+    const wrap = document.getElementById("bell-wrap");
+    if (wrap && !wrap.contains(e.target)) closeNotificationPanel();
+});
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeNotificationPanel(); });
+
 function renderDashboard() {
     // 1. Calculations
     const totalCustomers = customers.length;
@@ -2068,18 +2253,8 @@ function renderDashboard() {
     const statMissingEl = document.getElementById("stat-missing-docs");
     if (statMissingEl) statMissingEl.innerText = missingWorkersCount;
 
-    // Bell alerts badges
-    const bellBadge = document.getElementById("bell-alert-badge");
-    const navBadge = document.getElementById("nav-alert-badge");
-    if (expiryWarnings > 0) {
-        bellBadge.innerText = expiryWarnings;
-        bellBadge.style.display = 'flex';
-        navBadge.innerText = expiryWarnings;
-        navBadge.style.display = 'inline-block';
-    } else {
-        bellBadge.style.display = 'none';
-        navBadge.style.display = 'none';
-    }
+    // กระดิ่ง + ตัวเลขที่เมนูแดชบอร์ด: แยกตามตำแหน่ง (ดู buildNotificationGroups)
+    updateNotificationBell();
 
     // Default Tab
     switchDashboardTab('overview');
@@ -2180,7 +2355,7 @@ function renderBillingTab() {
     if (!tbody) return;
     renderBillingCreditPanel();
     const receiveBtn = document.getElementById("btn-receive-money");
-    if (receiveBtn) receiveBtn.classList.toggle('hidden', !['admin', 'manager'].includes(currentUser.role));
+    if (receiveBtn) receiveBtn.classList.toggle('hidden', !can('finance'));
 
     const showUnbilled = ['pending', 'unbilled', 'all'].includes(statusFilter);
     const invoiceStatuses = {
@@ -4802,11 +4977,11 @@ function renderJobs() {
         let closeBtn = '';
         if (j.status === 'ปิดงานแล้ว') {
             closeBtn = `<button class="btn btn-sm btn-outline" onclick="reopenJob('${j.id}')" title="เปิดงานอีกครั้ง" style="white-space: nowrap;">${icon("unlock")} เปิดงาน</button>`;
-        } else if (currentUser.role !== 'staff') {
+        } else if (canEditJob(j)) {
             closeBtn = `<button class="btn btn-sm btn-outline" onclick="openJobCloseModal('${j.id}')" title="แนบเอกสารและปิดงาน" style="white-space: nowrap;">${icon("clip")} ปิดงาน</button>`;
         }
 
-        if (currentUser.role !== 'staff') {
+        if (canEditJob(j)) {
             editBtn = `
                 <button class="action-icon-btn" onclick="openJobModal('${j.id}')" title="แก้ไขขั้นตอน">
                     ${icon("edit")}
@@ -4976,6 +5151,30 @@ function parseJobTypeItems(jobTypeStr, defaultFee) {
     return parsed;
 }
 
+// ช่อง "ผู้รับผิดชอบ" ในฟอร์มใบงาน — ตัวเลือกจากทีมงานภายใน (team); แก้ได้เฉพาะ Admin/Operation Manager
+// Staff เปิดงานใหม่ → ตัวเองเป็นผู้รับผิดชอบอัตโนมัติ
+function fillJobAssigneeSelect(job) {
+    const sel = document.getElementById("job-assigned-to");
+    const hint = document.getElementById("job-assigned-hint");
+    if (!sel) return;
+    const members = team.filter(m => m.role !== 'account_manager');
+    sel.innerHTML = '<option value="">--- ยังไม่มอบหมาย ---</option>' +
+        members.map(m => `<option value="${m.id}">${escapeHtml(m.name || '-')} — ${escapeHtml((ROLE_LABELS[m.role] || '').split(' (')[0])}</option>`).join('');
+    const canAssign = can('assignJobs');
+    let value = job ? (job.assignedTo || '') : (currentUser && currentUser.role === 'staff' ? (currentUser.id || '') : '');
+    // ผู้รับผิดชอบเดิมไม่อยู่ในรายชื่อแล้ว (ถูกลบ/เปลี่ยนตำแหน่ง) — ยังแสดงชื่อไว้ไม่ให้ค่าหาย
+    if (value && !members.some(m => m.id === value)) sel.insertAdjacentHTML('beforeend', `<option value="${value}">${escapeHtml(getUserNameById(value))}</option>`);
+    sel.value = value;
+    sel.disabled = !canAssign;
+    if (hint) hint.innerText = canAssign ? 'มอบหมายให้ Staff / Operation Manager — ผู้รับผิดชอบจะเห็นงานนี้ในกระดิ่งแจ้งเตือน'
+        : 'มอบหมายงานได้เฉพาะ Admin / Operation Manager';
+}
+
+function readJobAssignee() {
+    const sel = document.getElementById("job-assigned-to");
+    return sel && sel.value ? sel.value : null;
+}
+
 function openJobModal(id = null) {
     if (customers.length === 0) {
         uiAlert("กรุณาเพิ่มข้อมูลนายจ้างอย่างน้อย 1 รายก่อนสั่งงาน");
@@ -5073,10 +5272,12 @@ function openJobModal(id = null) {
             openedByInfo.style.display = 'none';
         }
 
+        fillJobAssigneeSelect(j);
         // Show batch siblings (other job types opened together in the same batch)
         renderJobBatchHint(j);
     } else {
         modalTitle.innerText = "แจ้งสั่งงานใหม่ / ขั้นตอนดำเนินการ";
+        fillJobAssigneeSelect(null);
         editIdInput.value = "";
 
         // Reset worker picker (ค้นหา + เลือกหลายคน)
@@ -5096,12 +5297,15 @@ function openJobModal(id = null) {
     }
 
     refreshJobTypeLocks();
+    // ดูได้ทุกคน แต่บันทึกได้เฉพาะคนที่มีสิทธิ์ (Staff = งานที่ตัวเองเปิด/ได้รับมอบหมาย, Account Manager = ดูอย่างเดียว)
+    const canSaveJob = id ? canEditJob(jobs.find(item => item.id === id)) : (can('ops') || currentUser.role === 'client');
+    document.getElementById("btn-save-job-submit").classList.toggle("hidden", !canSaveJob);
     document.getElementById("job-modal").classList.remove("hidden");
 }
 
 function getUserNameById(id) {
     if (!id) return '-';
-    const u = users.find(x => x.id === id);
+    const u = team.find(x => x.id === id) || users.find(x => x.id === id);
     return u ? u.name : id;
 }
 
@@ -5334,6 +5538,7 @@ async function saveJob(e) {
     const customerId = document.getElementById("job-customer-id").value;
     const workerIds = getSelectedJobWorkerIds();
     const agentId = document.getElementById("job-agent-id").value || null;
+    const assignedTo = readJobAssignee();
 
     if (workerIds.length === 0) {
         uiAlert("กรุณาเลือกคนงานอย่างน้อย 1 คน");
@@ -5402,6 +5607,7 @@ async function saveJob(e) {
             createdAt: originalJob ? (originalJob.createdAt || originalJob.updatedAt) : updatedAt,
             orderNo: originalJob ? (originalJob.orderNo || null) : null,
             customerId, workerId, jobType: jobTypeLabel, fee: originalJob ? originalJob.fee : 0, status, notes, updatedAt, agentId,
+            assignedTo: can('assignJobs') ? assignedTo : (originalJob ? (originalJob.assignedTo || null) : null),
             appointmentDate: parseDateInput(document.getElementById("job-appointment-date").value.trim()),
             appointmentTime: document.getElementById("job-appointment-time").value.trim() || null,
             appointmentNo: document.getElementById("job-appointment-no").value.trim() || null,
@@ -5447,6 +5653,7 @@ async function saveJob(e) {
                     updatedAt: updatedAt,
                     agentId,
                     openedBy: currentUser.id || null,
+                    assignedTo,
                     paymentStatus: 'ยังไม่ออกบิล',
                     attachments: []
                 };
@@ -5515,7 +5722,7 @@ function renderAgentsList() {
         return;
     }
 
-    const canPay = ['admin', 'manager'].includes(currentUser.role);
+    const canPay = can('commission');
     tbody.innerHTML = filtered.map(a => {
         const referredCount = customers.filter(c => c.referredByAgentId === a.id).length;
         const jobCount = jobs.filter(j => j.agentId === a.id).length;
@@ -5526,8 +5733,8 @@ function renderAgentsList() {
             <td>${a.phone || '-'}</td>
             <td style="text-align:center;">${referredCount} ราย</td>
             <td style="text-align:center;">${jobCount} งาน</td>
-            <td class="inv-num">${Number(a.defaultCommission) > 0 ? fmtMoney(a.defaultCommission) : '<span class="text-muted">-</span>'}</td>
-            <td class="inv-num">
+            <td class="inv-num needs-commission">${Number(a.defaultCommission) > 0 ? fmtMoney(a.defaultCommission) : '<span class="text-muted">-</span>'}</td>
+            <td class="inv-num needs-commission">
                 ${com.due > 0 ? `<strong class="text-danger">${fmtMoney(com.due)}</strong> <small class="text-muted">(${com.dueCount} งาน)</small>` : '<span class="text-muted">-</span>'}
                 ${com.waiting > 0 ? `<div><small class="text-muted">รอลูกค้าชำระ ${fmtMoney(com.waiting)}</small></div>` : ''}
                 ${com.paidOut > 0 ? `<div><small class="text-success">จ่ายแล้ว ${fmtMoney(com.paidOut)}</small></div>` : ''}
@@ -5561,8 +5768,8 @@ function refreshCustomerAgentDropdown(selectedId) {
 }
 
 function openAgentModal(id = null) {
-    if (currentUser.role === 'staff') {
-        showToast("❌ สิทธิ์ Staff ไม่สามารถจัดการ Agent ได้", "danger");
+    if (!can('manageAgents')) {
+        showToast("❌ ตำแหน่งนี้ไม่มีสิทธิ์จัดการ Agent", "danger");
         return;
     }
     document.getElementById("agent-form").reset();
@@ -5590,7 +5797,9 @@ async function saveAgentForm(e) {
     const editId = document.getElementById("agent-edit-id").value;
     const name = document.getElementById("agent-name").value.trim();
     const phone = document.getElementById("agent-phone").value.trim();
-    const defaultCommission = round2(document.getElementById("agent-default-commission").value);
+    // Operation Manager ไม่เห็นช่องค่าคอม → คงค่าเดิมไว้ ไม่ให้ถูกล้างเป็น 0
+    const prevAgent = editId ? agents.find(a => a.id === editId) : null;
+    const defaultCommission = can('commission') ? round2(document.getElementById("agent-default-commission").value) : (prevAgent ? Number(prevAgent.defaultCommission) || 0 : 0);
     if (!name) {
         uiAlert("กรุณากรอกชื่อ Agent");
         return;
@@ -5933,6 +6142,7 @@ async function syncWorkerStatusForExitJob(job, targetStatus) {
 function openJobCloseModal(jobId) {
     const j = jobs.find(item => item.id === jobId);
     if (!j) return;
+    if (!canEditJob(j)) { showToast("❌ ปิดงานได้เฉพาะงานที่ตัวเองเปิดหรือได้รับมอบหมาย", "danger"); return; }
 
     document.getElementById("job-close-id").value = jobId;
     document.getElementById("job-close-file").value = "";
@@ -6020,12 +6230,12 @@ async function submitCloseJob(e) {
 }
 
 async function reopenJob(jobId) {
-    if (currentUser.role === 'staff') {
-        showToast("❌ คุณไม่มีสิทธิ์เปลี่ยนสถานะงานนี้", "danger");
-        return;
-    }
     const j = jobs.find(item => item.id === jobId);
     if (!j) return;
+    if (!canEditJob(j)) {
+        showToast("❌ คุณไม่มีสิทธิ์เปลี่ยนสถานะงานนี้ (Staff แก้ได้เฉพาะงานที่ตัวเองเปิดหรือได้รับมอบหมาย)", "danger");
+        return;
+    }
     if (!(await uiConfirm(`เปิดงาน ${getJobDisplayNo(j)} อีกครั้งหรือไม่? (สถานะจะกลับเป็น "กำลังดำเนินการ")`, { okText: "เปิดงานอีกครั้ง", card: dialogCardForJob(j) }))) return;
 
     const jobData = Object.assign({}, j, {
@@ -6073,30 +6283,33 @@ function setupBankSortable(grid, enabled) {
     if (!enabled || typeof Sortable === 'undefined') return;
     _bankSortable = Sortable.create(grid, {
         animation: 180,
-        draggable: '.bank-card[data-bank-id]',   // การ์ดเงินสดไม่ได้ลาก
+        draggable: '.bank-card[data-bank-id], .bank-card[data-cash-card]',
         handle: '.bank-drag-handle',              // ลากจากที่จับ (มือถือ/ไอแพดเลื่อนหน้าจอผ่านการ์ดได้ตามปกติ)
         ghostClass: 'bank-card-ghost',
         chosenClass: 'bank-card-chosen',
-        onEnd: () => saveBankOrder(Array.from(grid.querySelectorAll('.bank-card[data-bank-id]')).map(el => el.dataset.bankId))
+        onEnd: () => saveBankOrder(Array.from(grid.querySelectorAll('.bank-card[data-bank-id], .bank-card[data-cash-card]'))
+            .map(el => el.dataset.bankId || 'cash'))
     });
 }
 
+// ids = ลำดับการ์ดบนจอ ('cash' = การ์ดเงินสด) → ลำดับ 1..n ให้บัญชี (banks.sort_order) และการ์ดเงินสด (app_settings)
 async function saveBankOrder(ids) {
     const changed = [];
+    let cashOrder = null;
     ids.forEach((id, i) => {
+        if (id === 'cash') { cashOrder = i + 1; return; }
         const b = banks.find(x => x.id === id);
         if (b && b.sortOrder !== i + 1) changed.push({ bank: b, prev: b.sortOrder, sortOrder: i + 1 });
     });
-    if (changed.length === 0) return;
+    const cashChanged = cashOrder !== null && Number(appSettings.cash_card_order) !== cashOrder;
+    if (changed.length === 0 && !cashChanged) return;
     changed.forEach(c => { c.bank.sortOrder = c.sortOrder; });
     sortBanks(banks);
-    const res = await callCloudAPI("reorderBanks", { order: changed.map(c => ({ id: c.bank.id, sortOrder: c.sortOrder })) });
-    if (!res) {
-        changed.forEach(c => { c.bank.sortOrder = c.prev; });
-        sortBanks(banks);
-        renderBanks();
-        return;
-    }
+    const res = changed.length ? await callCloudAPI("reorderBanks", { order: changed.map(c => ({ id: c.bank.id, sortOrder: c.sortOrder })) }) : { status: 'success' };
+    const resCash = cashChanged ? await callCloudAPI("saveSetting", { key: 'cash_card_order', value: cashOrder }) : { status: 'success' };
+    if (!res) changed.forEach(c => { c.bank.sortOrder = c.prev; });
+    if (resCash && cashChanged) appSettings.cash_card_order = cashOrder;
+    if (!res || !resCash) { sortBanks(banks); renderBanks(); return; }
     saveData();
     showToast("↕️ บันทึกลำดับบัญชีแล้ว — ทุกคนเห็นลำดับนี้", "success");
 }
@@ -6105,7 +6318,7 @@ function renderBanks() {
     const query = document.getElementById("search-bank").value.toLowerCase();
     const grid = document.getElementById("banks-list-grid");
     // ลากสลับได้เฉพาะ admin/manager และตอนไม่ได้ค้นหา (รายการที่กรองแล้วจัดลำดับไม่ได้ชัดเจน)
-    const canReorder = currentUser.role !== 'staff' && !query && banks.length > 1;
+    const canReorder = can('finance') && !query && banks.length > 0;
 
     const filtered = banks.filter(b => 
         b.bankName.toLowerCase().includes(query) ||
@@ -6127,7 +6340,7 @@ function renderBanks() {
         let deleteBtn = '';
         let editBtn = '';
 
-        if (currentUser.role !== 'staff') {
+        if (can('finance')) {
             editBtn = `
                 <button class="action-icon-btn btn-sm" onclick="openBankModal('${b.id}')" title="แก้ไข">
                     ${icon("edit")}
@@ -6179,7 +6392,8 @@ function renderBanks() {
     }).join('') + (() => {
         const cash = cashBalance();
         return `
-            <div class="bank-card cash-card">
+            <div class="bank-card cash-card" data-cash-card="1">
+                ${canReorder ? `<button type="button" class="bank-drag-handle" title="ลากเพื่อสลับลำดับ" aria-label="ลากเพื่อสลับลำดับ">${icon('grip')}</button>` : ''}
                 <div class="bank-card-info">
                     <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
                         <span class="cash-badge">${icon("cash")}</span><span class="badge badge-success">เงินสด</span>
@@ -6195,6 +6409,14 @@ function renderBanks() {
                 </div>
             </div>`;
     })();
+    // การ์ดเงินสดไม่ใช่แถวใน banks — ตำแหน่งเก็บใน app_settings.cash_card_order (เทียบกับ sortOrder ของบัญชี)
+    const cashOrder = appSettings.cash_card_order == null ? NaN : Number(appSettings.cash_card_order);
+    const cashEl = grid.querySelector('.cash-card');
+    if (cashEl && !query && Number.isFinite(cashOrder)) {
+        const before = Array.from(grid.querySelectorAll('.bank-card[data-bank-id]'))
+            .find(el => ((banks.find(b => b.id === el.dataset.bankId) || {}).sortOrder || 0) > cashOrder);
+        if (before) grid.insertBefore(cashEl, before);
+    }
     setupBankSortable(grid, canReorder);
 }
 
@@ -6707,8 +6929,8 @@ function openFreeInvoiceModal(invoiceId) {
 // แล้วผูกใบงานทุกใบในบิลเข้ากับบิลนี้ (paymentStatus = 'ออกบิลแล้ว') พร้อมบันทึกราคาที่แก้ในบิลกลับเข้าใบงาน
 async function issueCurrentInvoice() {
     if (currentInvoiceId) return;
-    if (!['admin', 'manager'].includes(currentUser.role)) {
-        showToast("❌ เฉพาะ Admin / Manager เท่านั้นที่ออกบิลได้", "danger");
+    if (!can('finance')) {
+        showToast("❌ เฉพาะ Admin / Account Manager เท่านั้นที่ออกบิลได้", "danger");
         return;
     }
     currentInvoiceItems.forEach(item => syncInvoiceItemTextFields(item));
@@ -7191,7 +7413,7 @@ function computeEditedJobUpdates() {
 
 // "บันทึกการแก้ไขบิล" — ใช้กับบิลที่ออกแล้วแต่ยังไม่ได้รับเงิน: อัปเดตรายการ/ยอดในบิล + ราคาในใบงานที่ผูกอยู่
 async function saveInvoiceFeeEdits() {
-    if (!['admin', 'manager'].includes(currentUser.role)) {
+    if (!can('finance')) {
         showToast("❌ คุณไม่มีสิทธิ์แก้ไขบิลนี้", "danger");
         return;
     }
@@ -10016,8 +10238,8 @@ function syncBulkImportSelectAll() {
 }
 
 async function runBulkImport() {
-    if (currentUser.role === 'staff') {
-        showToast("❌ สิทธิ์ Staff ไม่สามารถนำเข้าเอกสารได้", "danger");
+    if (!can('ops')) {
+        showToast("❌ ตำแหน่งนี้ไม่มีสิทธิ์นำเข้าเอกสาร", "danger");
         return;
     }
 
@@ -10447,12 +10669,12 @@ function renderJobsKanban(filtered) {
             if (displayStatus === 'ปิดงานแล้ว') badgeClass = 'badge-success';
 
             let actionBtns = "";
-            if (currentUser.role !== 'staff') {
+            if (canEditJob(j)) {
                 actionBtns += `<button onclick="openJobModal('${j.id}')" style="background: none; border: none; cursor: pointer; font-size: 13px;" title="แก้ไข">${icon("edit")}</button>`;
             }
             if (displayStatus === 'ปิดงานแล้ว') {
                 actionBtns += `<button onclick="reopenJob('${j.id}')" style="background: none; border: none; cursor: pointer; font-size: 13px;" title="เปิดงานอีกครั้ง">${icon("unlock")}</button>`;
-            } else if (currentUser.role !== 'staff') {
+            } else if (canEditJob(j)) {
                 actionBtns += `<button onclick="openJobCloseModal('${j.id}')" style="background: none; border: none; cursor: pointer; font-size: 13px;" title="แนบเอกสารและปิดงาน">${icon("clip")}</button>`;
             }
 
@@ -10532,8 +10754,8 @@ async function onKanbanDrop(e, targetStatus) {
     const job = jobs.find(j => j.id === jobId);
     if (job && job.status !== targetStatus) {
         // Check write permission
-        if (currentUser.role === 'staff') {
-            showToast("❌ สิทธิ์ Staff ดูข้อมูลได้อย่างเดียว ไม่สามารถย้ายบอร์ดได้", "danger");
+        if (!canEditJob(job)) {
+            showToast("❌ ย้ายได้เฉพาะงานที่ตัวเองเปิดหรือได้รับมอบหมาย", "danger");
             return;
         }
 
@@ -10894,7 +11116,7 @@ async function syncJobsWithInvoice(inv) {
 function renderInvoiceStatusUi() {
     const inv = currentInvoiceId ? invoices.find(i => i.id === currentInvoiceId) : null;
     const status = inv ? inv.status : 'draft';
-    const canManage = ['admin', 'manager'].includes(currentUser.role);
+    const canManage = can('finance');
     const editable = isCurrentInvoiceEditable();
 
     const stamp = document.getElementById("inv-stamp");
@@ -10935,8 +11157,8 @@ function renderInvoicePaymentsPanel(inv) {
     if (!inv) { panel.classList.add('hidden'); panel.innerHTML = ''; return; }
     panel.classList.remove('hidden');
 
-    const canManage = ['admin', 'manager'].includes(currentUser.role);
-    const isAdmin = currentUser.role === 'admin';
+    const canManage = can('finance');
+    const isAdmin = can('voidMoney'); // ปุ่มยกเลิก/ถอนยอด — admin + account_manager
     const paid = invoicePaidAmount(inv);
     const balance = invoiceBalance(inv);
     const list = payments.filter(p => p.invoiceId === inv.id)
@@ -11016,7 +11238,7 @@ function renderInvoicePaymentsPanel(inv) {
 // รับเกินยอดคงเหลือได้ — ส่วนเกินเก็บเป็นมัดจำของนายจ้าง (ต้องเป็นบิลที่ผูกนายจ้างในระบบ)
 async function recordInvoicePayment() {
     const inv = currentInvoiceId ? invoices.find(i => i.id === currentInvoiceId) : null;
-    if (!inv || !['admin', 'manager'].includes(currentUser.role)) return;
+    if (!inv || !can('finance')) return;
     const balance = invoiceBalance(inv);
     const amount = round2(document.getElementById("pay-amount").value);
     const paidDate = document.getElementById("pay-date").value;
@@ -11076,7 +11298,7 @@ async function afterReceiptSaved({ receipt, failedAllocs, jobFails }) {
 // ปุ่ม "หักมัดจำเข้าบิลนี้" ในแผงรับเงิน
 async function applyCreditToCurrentInvoice() {
     const inv = currentInvoiceId ? invoices.find(i => i.id === currentInvoiceId) : null;
-    if (!inv || !['admin', 'manager'].includes(currentUser.role)) return;
+    if (!inv || !can('finance')) return;
     const take = Math.min(customerCredit(inv.customerId), invoiceBalance(inv));
     if (!(take > 0)) return;
     if (!(await uiConfirm(`หักมัดจำของ "${inv.customerName || '-'}" เข้าบิล ${inv.invoiceNo} จำนวน ${fmtMoney(take)} บาท`, {
@@ -11107,7 +11329,7 @@ function rerenderAfterVoid() {
 
 // ยกเลิกการรับเงินแบบเก่า (ไม่มีใบเสร็จแยก) 1 งวด (admin) — ใบเสร็จเลขเดิมถูกยกเลิก ไม่ลบทิ้ง เพื่อให้ตรวจย้อนหลังได้
 async function voidPayment(paymentId) {
-    if (currentUser.role !== 'admin') return;
+    if (!can('voidMoney')) return;
     const p = payments.find(x => x.id === paymentId);
     const inv = p ? invoices.find(i => i.id === p.invoiceId) : null;
     if (!p || !inv || p.voided) return;
@@ -11128,7 +11350,7 @@ async function voidPayment(paymentId) {
 
 // ถอนยอดที่ตัดเข้าบิลออก (admin) — เงินยังอยู่ กลับไปเป็นมัดจำของนายจ้าง ใช้ตอนตัดผิดบิล/ต้องยกเลิกบิลไปออกใหม่
 async function unapplyPayment(paymentId) {
-    if (currentUser.role !== 'admin') return;
+    if (!can('voidMoney')) return;
     const p = payments.find(x => x.id === paymentId);
     const r = paymentReceipt(p);
     const inv = p ? invoices.find(i => i.id === p.invoiceId) : null;
@@ -11147,7 +11369,7 @@ async function unapplyPayment(paymentId) {
 
 // ยกเลิกใบเสร็จทั้งใบ (admin) — เงินก้อนนี้ถือว่าไม่ได้รับจริง: ยกเลิกยอดที่ตัดเข้าทุกบิล + มัดจำที่เหลือ
 async function voidReceipt(receiptId) {
-    if (currentUser.role !== 'admin') return;
+    if (!can('voidMoney')) return;
     const r = receipts.find(x => x.id === receiptId);
     if (!r || r.voided) return;
     const allocs = liveAllocationsOf(r.id);
@@ -11189,7 +11411,7 @@ function receiveOpenInvoices() {
 }
 
 function openReceiveMoneyModal(customerId, invoiceId) {
-    if (!['admin', 'manager'].includes(currentUser.role)) { showToast("❌ เฉพาะ Admin / Manager เท่านั้นที่บันทึกรับเงินได้", "danger"); return; }
+    if (!can('finance')) { showToast("❌ เฉพาะ Admin / Account Manager เท่านั้นที่บันทึกรับเงินได้", "danger"); return; }
     receiveCustomerId = null;
     document.getElementById("receive-cust-search").value = '';
     document.getElementById("receive-amount").value = '';
@@ -11345,7 +11567,7 @@ function renderBillingCreditPanel() {
     const open = receipts.filter(r => receiptUnapplied(r) > 0)
         .sort((a, b) => (a.paidDate || '').localeCompare(b.paidDate || ''));
     if (open.length === 0) { panel.classList.add('hidden'); panel.innerHTML = ''; return; }
-    const isAdmin = currentUser.role === 'admin';
+    const isAdmin = can('voidMoney');
     const total = round2(open.reduce((s, r) => s + receiptUnapplied(r), 0));
     panel.classList.remove('hidden');
     panel.innerHTML = `
@@ -11391,7 +11613,7 @@ function registerReceiveMoneySearchSelect() {
 // ยกเลิกบิล (admin/manager) — ต้องยกเลิกการรับเงินทุกงวดก่อน; ใบงานกลับเป็น "ยังไม่ออกบิล" ออกบิลใหม่ได้
 async function voidCurrentInvoice() {
     const inv = currentInvoiceId ? invoices.find(i => i.id === currentInvoiceId) : null;
-    if (!inv || !['admin', 'manager'].includes(currentUser.role)) return;
+    if (!inv || !can('finance')) return;
     if (invoicePaidAmount(inv) > 0) {
         uiAlert(`บิล ${inv.invoiceNo} มีการรับเงินแล้ว ${fmtMoney(invoicePaidAmount(inv))} บาท\nต้องกด "ถอนออกจากบิล" (เงินกลับไปเป็นมัดจำ) หรือยกเลิกการรับเงินทุกงวดก่อน (เฉพาะ Admin) จึงจะยกเลิกบิลได้`);
         return;
@@ -11717,7 +11939,7 @@ function agentCommissionSummary(agentId) {
 
 let commissionModalAgentId = null;
 function openCommissionPayoutModal(agentId) {
-    if (!['admin', 'manager'].includes(currentUser.role)) return;
+    if (!can('commission')) return;
     const ag = agents.find(a => a.id === agentId);
     const due = commissionDueJobs(agentId);
     if (!ag) return;
@@ -11847,7 +12069,7 @@ function cashBalance() {
 // ---------- ราคามาตรฐาน (ภายใน): ค่าธรรมเนียมรัฐ + ค่าบริการ + ต้นทุน ต่อประเภทงาน ----------
 // ต้นทุน (costItems) = รายจ่ายของบริษัทต่องาน ที่ไม่ใช่ค่าธรรมเนียมรัฐ เช่น ค่าตรวจโรค ค่าแปล ค่าเดินทาง
 // กำไรต่องานโดยประมาณ = ค่าบริการ − ต้นทุนรวม (ค่าธรรมเนียมรัฐเป็นเงินเก็บแทน ไม่นับเป็นรายได้/ต้นทุน)
-const COST_ITEM_SUGGESTIONS = ['ค่าตรวจโรค/ใบรับรองแพทย์', 'ค่าแปลเอกสาร', 'ค่าเดินทาง', 'ค่าส่งเอกสาร/ไปรษณีย์', 'ค่าถ่ายเอกสาร/ปริ้น', 'ค่ารูปถ่าย', 'ค่าประกันสุขภาพ', 'ค่าคอม Agent', 'ค่านายหน้า/ผู้ประสานงาน'];
+const COST_ITEM_SUGGESTIONS = ['ค่าตรวจโรค/ใบรับรองแพทย์', 'ค่าแปลเอกสาร', 'ค่าเดินทาง', 'ค่าส่งเอกสาร/ไปรษณีย์', 'ค่าถ่ายเอกสาร/ปริ้น', 'ค่ารูปถ่าย', 'ค่าประกันสุขภาพ', 'ค่าคอม Agent', 'ค่านายหน้า/ผู้ประสานงาน', 'อื่นๆ'];
 
 function costItemsTotal(items) {
     return round2((items || []).reduce((s, c) => s + (Number(c.amount) || 0), 0));
@@ -11856,7 +12078,7 @@ function costItemsTotal(items) {
 function renderServicePrices() {
     const tbody = document.getElementById("service-prices-tbody");
     if (!tbody) return;
-    const canEdit = ['admin', 'manager'].includes(currentUser.role);
+    const canEdit = can('finance');
     const types = Array.from(document.querySelectorAll("input[name='job-type-checkbox']")).map(cb => cb.value);
     servicePrices.forEach(p => { if (!types.includes(p.jobType)) types.push(p.jobType); });
 

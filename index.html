@@ -194,11 +194,15 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
                             </svg>
                         </button>
-                        <div class="notification-bell" onclick="switchView('dashboard')">
+                        <!-- กระดิ่งแจ้งเตือนแยกตามตำแหน่ง — กดเปิดรายการ ดู buildNotificationGroups() / toggleNotificationPanel() -->
+                        <div class="bell-wrap" id="bell-wrap">
+                        <div class="notification-bell" onclick="toggleNotificationPanel()" role="button" aria-label="การแจ้งเตือน" tabindex="0">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                             </svg>
                             <span class="bell-badge" id="bell-alert-badge" style="display: none;">0</span>
+                        </div>
+                        <div class="bell-panel hidden" id="bell-panel" role="dialog" aria-label="รายการแจ้งเตือน"></div>
                         </div>
                         <div class="current-date" id="header-date">10 กรกฎาคม 2026</div>
                         <!-- เลือกธีม (สว่าง / ชมพู / มืด) — ไอคอนพระจันทร์, พระอาทิตย์ตอนมืด ดู toggleThemeMenu() / setTheme() -->
@@ -870,8 +874,8 @@
                                         <th style="width: 140px;">เบอร์โทร</th>
                                         <th style="text-align: center; width: 160px;">นายจ้างที่แนะนำ</th>
                                         <th style="text-align: center; width: 140px;">งานที่ส่ง</th>
-                                        <th class="inv-num" style="width: 120px;">ค่าคอม/งาน</th>
-                                        <th class="inv-num" style="width: 200px;">ค่าคอมถึงกำหนดจ่าย</th>
+                                        <th class="inv-num needs-commission" style="width: 120px;">ค่าคอม/งาน</th>
+                                        <th class="inv-num needs-commission" style="width: 200px;">ค่าคอมถึงกำหนดจ่าย</th>
                                         <th class="actions-col">จัดการ</th>
                                     </tr>
                                 </thead>
@@ -1352,9 +1356,10 @@
                                     <div class="form-group">
                                         <label for="user-role">บทบาท (Role) <span class="required">*</span></label>
                                         <select id="user-role" required onchange="toggleUserCustomerField()">
-                                            <option value="admin">Admin (สิทธิ์เต็ม)</option>
-                                            <option value="manager">Manager (เขียน/แก้ไข)</option>
-                                            <option value="staff">Staff (ดูอย่างเดียว)</option>
+                                            <option value="admin">Admin / GM (สิทธิ์เต็ม)</option>
+                                            <option value="account_manager">Account Manager (บิล/การเงิน/ค่าคอม)</option>
+                                            <option value="operation_manager">Operation Manager (งาน/เอกสาร/มอบหมายงาน)</option>
+                                            <option value="staff">Staff (นายจ้าง/คนงาน/งานที่ได้รับมอบหมาย)</option>
                                             <option value="client">Client (เฉพาะข้อมูลนายจ้างตนเอง)</option>
                                         </select>
                                     </div>
@@ -1457,7 +1462,7 @@
                             <label for="agent-phone">เบอร์โทร</label>
                             <input type="tel" id="agent-phone">
                         </div>
-                        <div class="form-group">
+                        <div class="form-group needs-commission">
                             <label for="agent-default-commission">ค่าคอมเริ่มต้นต่องาน (บาท)</label>
                             <input type="number" id="agent-default-commission" min="0" step="0.01" placeholder="0">
                             <small class="text-muted">ใช้คำนวณค่าคอมค้างจ่ายของงานที่ Agent ส่งมา ตอนจ่ายจริงแก้ยอดรายงานได้</small>
@@ -1843,7 +1848,7 @@
 
                         <div class="modal-footer">
                             <button type="button" class="btn btn-outline" onclick="closeCustomerModal()">ยกเลิก</button>
-                            <button type="submit" class="btn btn-gold" id="btn-save-customer-submit">บันทึกข้อมูล</button>
+                            <button type="submit" class="btn btn-gold needs-ops" id="btn-save-customer-submit">บันทึกข้อมูล</button>
                         </div>
                     </form>
                 </div>
@@ -2210,7 +2215,7 @@
 
                         <div class="modal-footer">
                             <button type="button" class="btn btn-outline" onclick="closeWorkerModal()">ยกเลิก</button>
-                            <button type="submit" class="btn btn-gold" id="btn-save-worker-submit">บันทึกข้อมูล</button>
+                            <button type="submit" class="btn btn-gold needs-ops" id="btn-save-worker-submit">บันทึกข้อมูล</button>
                         </div>
                     </form>
                 </div>
@@ -2270,6 +2275,15 @@
                         </div>
 
                         <div id="job-opened-by-info" class="text-muted" style="font-size:12px; margin-bottom:10px; display:none;"></div>
+
+                        <!-- ผู้รับผิดชอบ (มอบหมายงาน) — เลือกได้เฉพาะ Admin/Operation Manager; Staff เปิดงานเองจะเป็นผู้รับผิดชอบอัตโนมัติ ดู fillJobAssigneeSelect() -->
+                        <div class="form-group">
+                            <label for="job-assigned-to">ผู้รับผิดชอบงานนี้</label>
+                            <select id="job-assigned-to">
+                                <option value="">--- ยังไม่มอบหมาย ---</option>
+                            </select>
+                            <small class="text-muted" id="job-assigned-hint" style="display:block; margin-top:4px;"></small>
+                        </div>
 
                         <div class="form-group" style="margin-bottom: 15px;">
                             <label style="font-weight: 600; font-size: 13px; color: var(--navy-dark); margin-bottom: 8px; display: block;">ประเภทงานที่แจ้ง (เลือกได้หลายรายการ) <span class="required">*</span></label>
