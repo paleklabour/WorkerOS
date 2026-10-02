@@ -39,22 +39,26 @@
                     </div>
                     
                     <form id="login-form">
-                        <div class="form-group">
-                            <label for="login-username">ชื่อผู้ใช้งาน (อีเมล)</label>
-                            <input type="email" id="login-username" placeholder="example@email.com" required>
+                        <!-- ช่องกรอกแบบกลุ่มของ iOS: กล่องเดียว 2 แถว คั่นด้วยเส้นบาง (ดู .ios-field-group ใน styles.css) -->
+                        <div class="ios-field-group">
+                            <div class="ios-field">
+                                <label for="login-username">อีเมล</label>
+                                <input type="email" id="login-username" placeholder="example@email.com" autocomplete="username" autocapitalize="off" spellcheck="false" required>
+                            </div>
+                            <div class="ios-field">
+                                <label for="login-password">รหัสผ่าน</label>
+                                <input type="password" id="login-password" placeholder="ป้อนรหัสผ่าน" autocomplete="current-password" required>
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label for="login-password">รหัสผ่าน</label>
-                            <input type="password" id="login-password" placeholder="••••••••" required>
-                        </div>
-                        
+
                         <div class="error-msg" id="login-error">อีเมลหรือรหัสผ่านไม่ถูกต้อง</div>
-                        
+
                         <button type="submit" id="btn-login" class="btn btn-gold btn-block">
                             <span>เข้าสู่ระบบ</span>
                         </button>
                     </form>
                 </div>
+                <p class="login-footnote">NKT Service · ระบบภายในสำหรับพนักงานและนายจ้าง</p>
             </div>
         </section>
 
@@ -69,13 +73,15 @@
                     </div>
 
                     <form id="reset-password-form">
-                        <div class="form-group">
-                            <label for="reset-password-new">รหัสผ่านใหม่</label>
-                            <input type="password" id="reset-password-new" placeholder="อย่างน้อย 8 ตัวอักษร" required minlength="8">
-                        </div>
-                        <div class="form-group">
-                            <label for="reset-password-confirm">ยืนยันรหัสผ่านใหม่</label>
-                            <input type="password" id="reset-password-confirm" placeholder="••••••••" required minlength="8">
+                        <div class="ios-field-group">
+                            <div class="ios-field">
+                                <label for="reset-password-new">รหัสใหม่</label>
+                                <input type="password" id="reset-password-new" placeholder="อย่างน้อย 8 ตัวอักษร" autocomplete="new-password" required minlength="8">
+                            </div>
+                            <div class="ios-field">
+                                <label for="reset-password-confirm">ยืนยัน</label>
+                                <input type="password" id="reset-password-confirm" placeholder="ป้อนรหัสใหม่อีกครั้ง" autocomplete="new-password" required minlength="8">
+                            </div>
                         </div>
 
                         <div class="error-msg" id="reset-password-error"></div>
@@ -257,51 +263,31 @@
 
                         <!-- TAB 1: OVERVIEW AND ALERTS (GROUPED BY EMPLOYER) -->
                         <div id="db-tab-overview" class="db-tab-content">
-                            <!-- Stats Grid -->
-                            <div class="stats-grid">
-                                <div class="stats-card">
-                                    <div class="stats-icon text-gold">
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                                        </svg>
-                                    </div>
-                                    <div class="stats-info">
-                                        <h3 id="stat-total-customers">0</h3>
-                                        <p>จำนวนนายจ้าง/ลูกค้าทั้งหมด</p>
-                                    </div>
+                            <!-- สถิติภาพรวม: แคปซูลสีตามความเร่งด่วน (แบบ Wallet 2026-10) — ตัวเลขเติมใน renderDashboard() -->
+                            <div class="stat-pills">
+                                <div class="stat-pill tone-navy">
+                                    <h3 id="stat-total-customers">0</h3>
+                                    <p>นายจ้าง/ลูกค้าทั้งหมด</p>
                                 </div>
-                                <div class="stats-card">
-                                    <div class="stats-icon text-gold">
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                                        </svg>
-                                    </div>
-                                    <div class="stats-info">
-                                        <h3 id="stat-total-workers">0</h3>
-                                        <p>จำนวนคนงานต่างด้าวทั้งหมด</p>
-                                    </div>
+                                <div class="stat-pill tone-teal">
+                                    <h3 id="stat-total-workers">0</h3>
+                                    <p>คนงานต่างด้าวทั้งหมด</p>
                                 </div>
-                                <div class="stats-card alert-card">
-                                    <div class="stats-icon text-danger">
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                                        </svg>
-                                    </div>
-                                    <div class="stats-info">
-                                        <h3 id="stat-expiry-warnings">0</h3>
-                                        <p>เอกสารใกล้หมดอายุ/หมดอายุแล้ว</p>
-                                    </div>
+                                <div class="stat-pill tone-purple">
+                                    <h3 id="stat-open-jobs">0</h3>
+                                    <p>งานที่เปิดอยู่ (ยังไม่ปิดงาน)</p>
                                 </div>
-                                <div class="stats-card alert-card" style="border-left: 4px solid #f97316;">
-                                    <div class="stats-icon" style="color: #f97316;">
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                        </svg>
-                                    </div>
-                                    <div class="stats-info">
-                                        <h3 id="stat-missing-docs">0</h3>
-                                        <p>คนงานที่ยังไม่ได้แนบเอกสาร</p>
-                                    </div>
+                                <div class="stat-pill tone-red">
+                                    <h3 id="stat-expiry-warnings">0</h3>
+                                    <p>เอกสารใกล้หมดอายุ/หมดอายุแล้ว</p>
+                                </div>
+                                <div class="stat-pill tone-orange">
+                                    <h3 id="stat-missing-docs">0</h3>
+                                    <p>คนงานที่ยังไม่ได้แนบเอกสาร</p>
+                                </div>
+                                <div class="stat-pill tone-red needs-finance">
+                                    <h3 id="stat-overdue-invoices">0</h3>
+                                    <p>บิลค้างชำระเกิน 15 วัน</p>
                                 </div>
                             </div>
 
@@ -795,8 +781,8 @@
                                 <!-- Column: Waiting for Docs -->
                                 <div class="kanban-column" style="flex: 1; min-width: 250px; background: #f8fafc; border-radius: var(--radius-md); border: 1px solid #e2e8f0; display: flex; flex-direction: column; height: fit-content; max-height: calc(100vh - 260px);">
                                     <div class="kanban-column-header" style="padding: 12px; border-bottom: 2px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f1f5f9; border-top-left-radius: var(--radius-md); border-top-right-radius: var(--radius-md);">
-                                        <h4 style="font-weight: 600; font-size: 13px; color: #475569; margin: 0;"><span class="ico" data-icon="folder"></span> รอเอกสาร</h4>
-                                        <span class="badge badge-danger" id="count-kanban-docs" style="font-size: 11px; padding: 2px 8px;">0</span>
+                                        <h4 style="font-weight: 600; font-size: 13.5px; color: #475569; margin: 0;"><span class="ico" data-icon="folder"></span> รอเอกสาร</h4>
+                                        <span class="badge badge-danger" id="count-kanban-docs" style="font-size: 11.5px; padding: 2px 8px;">0</span>
                                     </div>
                                     <div class="kanban-cards-container" id="kanban-docs" ondragover="onKanbanDragOver(event)" ondrop="onKanbanDrop(event, 'รอเอกสารเพิ่มเติม')" style="padding: 12px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-height: 200px; flex-grow: 1;">
                                     </div>
@@ -805,8 +791,8 @@
                                 <!-- Column: Pending -->
                                 <div class="kanban-column" style="flex: 1; min-width: 250px; background: #f8fafc; border-radius: var(--radius-md); border: 1px solid #e2e8f0; display: flex; flex-direction: column; height: fit-content; max-height: calc(100vh - 260px);">
                                     <div class="kanban-column-header" style="padding: 12px; border-bottom: 2px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f1f5f9; border-top-left-radius: var(--radius-md); border-top-right-radius: var(--radius-md);">
-                                        <h4 style="font-weight: 600; font-size: 13px; color: #475569; margin: 0;"><span class="ico" data-icon="hourglass"></span> รอดำเนินการ</h4>
-                                        <span class="badge badge-warning" id="count-kanban-pending" style="font-size: 11px; padding: 2px 8px;">0</span>
+                                        <h4 style="font-weight: 600; font-size: 13.5px; color: #475569; margin: 0;"><span class="ico" data-icon="hourglass"></span> รอดำเนินการ</h4>
+                                        <span class="badge badge-warning" id="count-kanban-pending" style="font-size: 11.5px; padding: 2px 8px;">0</span>
                                     </div>
                                     <div class="kanban-cards-container" id="kanban-pending" ondragover="onKanbanDragOver(event)" ondrop="onKanbanDrop(event, 'รอดำเนินการ')" style="padding: 12px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-height: 200px; flex-grow: 1;">
                                     </div>
@@ -815,8 +801,8 @@
                                 <!-- Column: In Progress -->
                                 <div class="kanban-column" style="flex: 1; min-width: 250px; background: #f8fafc; border-radius: var(--radius-md); border: 1px solid #e2e8f0; display: flex; flex-direction: column; height: fit-content; max-height: calc(100vh - 260px);">
                                     <div class="kanban-column-header" style="padding: 12px; border-bottom: 2px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f1f5f9; border-top-left-radius: var(--radius-md); border-top-right-radius: var(--radius-md);">
-                                        <h4 style="font-weight: 600; font-size: 13px; color: #475569; margin: 0;"><span class="ico" data-icon="settings"></span> กำลังดำเนินการ</h4>
-                                        <span class="badge badge-gold" id="count-kanban-progress" style="font-size: 11px; padding: 2px 8px;">0</span>
+                                        <h4 style="font-weight: 600; font-size: 13.5px; color: #475569; margin: 0;"><span class="ico" data-icon="settings"></span> กำลังดำเนินการ</h4>
+                                        <span class="badge badge-gold" id="count-kanban-progress" style="font-size: 11.5px; padding: 2px 8px;">0</span>
                                     </div>
                                     <div class="kanban-cards-container" id="kanban-progress" ondragover="onKanbanDragOver(event)" ondrop="onKanbanDrop(event, 'กำลังดำเนินการ')" style="padding: 12px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-height: 200px; flex-grow: 1;">
                                     </div>
@@ -825,10 +811,10 @@
                                 <!-- Column: Closed (ปิดงานแล้ว — เข้าได้เฉพาะผ่านปุ่ม "ปิดงาน" ที่แนบเอกสาร ลากเข้ามาตรงๆ ไม่ได้) -->
                                 <div class="kanban-column" style="flex: 1; min-width: 250px; background: #f8fafc; border-radius: var(--radius-md); border: 1px solid #e2e8f0; display: flex; flex-direction: column; height: fit-content; max-height: calc(100vh - 260px);">
                                     <div class="kanban-column-header" style="padding: 12px; border-bottom: 2px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f1f5f9; border-top-left-radius: var(--radius-md); border-top-right-radius: var(--radius-md);">
-                                        <h4 style="font-weight: 600; font-size: 13px; color: #475569; margin: 0;" title="เข้าคอลัมน์นี้ได้เฉพาะผ่านปุ่ม 📎 ปิดงาน (ต้องแนบเอกสารก่อน) — งานที่ปิดแล้วและลูกค้าชำระเงินครบแล้วจะถูกซ่อนออกจากคอลัมน์นี้อัตโนมัติ (ดูย้อนหลังได้ที่หน้ารายการหรือแท็บออกบิล/รับเงิน)"><span class="ico" data-icon="lock"></span> ปิดงานแล้ว</h4>
+                                        <h4 style="font-weight: 600; font-size: 13.5px; color: #475569; margin: 0;" title="เข้าคอลัมน์นี้ได้เฉพาะผ่านปุ่ม 📎 ปิดงาน (ต้องแนบเอกสารก่อน) — งานที่ปิดแล้วและลูกค้าชำระเงินครบแล้วจะถูกซ่อนออกจากคอลัมน์นี้อัตโนมัติ (ดูย้อนหลังได้ที่หน้ารายการหรือแท็บออกบิล/รับเงิน)"><span class="ico" data-icon="lock"></span> ปิดงานแล้ว</h4>
                                         <div style="display: flex; gap: 4px; align-items: center;">
-                                            <span class="badge badge-danger" id="count-kanban-completed-unbilled" style="font-size: 10px; padding: 2px 6px; display: none;" title="ปิดงานแล้วแต่ยังไม่ได้รับชำระเงิน (ไม่ว่าจะออกบิลไปแล้วหรือยัง) — หายไปเมื่อลูกค้าชำระครบแล้ว"><span class="ico" data-icon="warn"></span> 0 ยังไม่ได้ชำระ</span>
-                                            <span class="badge badge-success" id="count-kanban-completed" style="font-size: 11px; padding: 2px 8px;">0</span>
+                                            <span class="badge badge-danger" id="count-kanban-completed-unbilled" style="font-size: 11.5px; padding: 2px 6px; display: none;" title="ปิดงานแล้วแต่ยังไม่ได้รับชำระเงิน (ไม่ว่าจะออกบิลไปแล้วหรือยัง) — หายไปเมื่อลูกค้าชำระครบแล้ว"><span class="ico" data-icon="warn"></span> 0 ยังไม่ได้ชำระ</span>
+                                            <span class="badge badge-success" id="count-kanban-completed" style="font-size: 11.5px; padding: 2px 8px;">0</span>
                                         </div>
                                     </div>
                                     <div class="kanban-cards-container" id="kanban-completed" ondragover="onKanbanDragOver(event)" ondrop="onKanbanDrop(event, 'ปิดงานแล้ว')" style="padding: 12px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-height: 200px; flex-grow: 1;">
@@ -846,7 +832,7 @@
 
                     <!-- ==================== RENEWALS VIEW (ข้อมูลคนงานต่ออายุ) ==================== -->
                     <div id="view-renewals" class="content-section hidden">
-                        <p class="text-muted" style="font-size: 12.5px; margin-bottom: 16px;">
+                        <p class="text-muted" style="font-size: 13px; margin-bottom: 16px;">
                             จัดกลุ่มคนงานที่ยังทำงานอยู่ตาม "วันหมดอายุใบอนุญาตทำงาน" ที่ตรงกันเป๊ะโดยอัตโนมัติ (ตั้งชื่อกลุ่มตามวันที่นั้น)
                             — คนงานที่วันหมดอายุไม่ตรงกับใครเลยจะถูกจัดไว้ในกลุ่ม MOU — เรียงข้อมูลในแต่ละกลุ่มตามชื่อนายจ้าง
                         </p>
@@ -955,71 +941,54 @@
                                 </select>
                             </div>
 
-                            <!-- Top Highlight Cards -->
-                            <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 15px;">
-                                <div class="stats-card" style="border-left: 4px solid var(--gold-primary);">
-                                    <div class="stats-icon text-gold"><span class="ico" data-icon="trophy"></span></div>
-                                    <div class="stats-info">
-                                        <h3 id="stat-top-jobtype-count" style="font-size: 15px;">-</h3>
-                                        <p>บริการขายดีที่สุด (จำนวนงาน)</p>
+                            <!-- สรุปการเงินแบบบัตร Wallet (2026-10) — ตัวเลขเติมใน renderFinanceStats() -->
+                            <div class="fin-wallet-grid">
+                                <div class="wallet-card">
+                                    <div class="wallet-card-top">
+                                        <span class="wallet-brand">NKT Service</span>
+                                        <span class="wallet-period" id="stat-finance-period-label">ทั้งหมด</span>
+                                    </div>
+                                    <div>
+                                        <p class="wallet-label">ยอดบิล + งานยังไม่ออกบิล (ประมาณการ)</p>
+                                        <p class="wallet-amount" id="stat-finance-total">0.00 บาท</p>
+                                    </div>
+                                    <div class="wallet-progress" title="เงินที่รับจริงในช่วงนี้ เทียบกับยอดบิลของช่วงนี้">
+                                        <div class="wallet-progress-bar"><div class="wallet-progress-fill" id="stat-finance-collect-bar" style="width: 0%"></div></div>
+                                        <span id="stat-finance-collect-pct">เก็บเงินได้ 0%</span>
+                                    </div>
+                                    <div class="wallet-sub">
+                                        <div><p>รับจริง (ตามวันที่รับเงิน)</p><h3 id="stat-finance-paid">0.00 บาท</h3></div>
+                                        <div><p>ค้างรับ (บิลค้าง + ยังไม่ออกบิล)</p><h3 id="stat-finance-unpaid" class="wallet-warn">0.00 บาท</h3></div>
+                                        <div><p>รายจ่ายรวม</p><h3 id="stat-finance-expenses">0.00 บาท</h3></div>
                                     </div>
                                 </div>
-                                <div class="stats-card" style="border-left: 4px solid var(--success);">
-                                    <div class="stats-icon text-success"><span class="ico" data-icon="gem"></span></div>
-                                    <div class="stats-info">
-                                        <h3 id="stat-top-jobtype-revenue" style="font-size: 15px;">-</h3>
-                                        <p>บริการทำรายได้สูงสุด</p>
-                                    </div>
-                                </div>
-                                <div class="stats-card" style="border-left: 4px solid var(--navy-medium);">
-                                    <div class="stats-icon" style="color: var(--navy-dark);"><span class="ico" data-icon="crown"></span></div>
-                                    <div class="stats-info">
-                                        <h3 id="stat-top-customer" style="font-size: 15px;">-</h3>
-                                        <p>ลูกค้าที่ทำรายได้ให้มากที่สุด</p>
-                                    </div>
-                                </div>
-                            </div>
 
-                            <!-- Finance Mini-Stats Cards -->
-                            <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 25px;">
-                                <div class="stats-card" style="border-left: 4px solid var(--navy-medium);">
-                                    <div class="stats-icon text-gold"><span class="ico" data-icon="moneybag"></span></div>
-                                    <div class="stats-info">
-                                        <h3 id="stat-finance-total">0.00 บาท</h3>
-                                        <p>ยอดบิล + งานยังไม่ออกบิล (ประมาณการ)</p>
-                                    </div>
-                                </div>
-                                <div class="stats-card" style="border-left: 4px solid var(--success);">
-                                    <div class="stats-icon text-success"><span class="ico" data-icon="ok"></span></div>
-                                    <div class="stats-info">
-                                        <h3 id="stat-finance-paid">0.00 บาท</h3>
-                                        <p>เงินที่รับจริงในช่วงนี้ (ตามวันที่รับเงิน)</p>
-                                    </div>
-                                </div>
-                                <div class="stats-card" style="border-left: 4px solid var(--danger);">
-                                    <div class="stats-icon text-danger"><span class="ico" data-icon="clock"></span></div>
-                                    <div class="stats-info">
-                                        <h3 id="stat-finance-unpaid">0.00 บาท</h3>
-                                        <p>ยอดค้างรับ (บิลค้าง + งานยังไม่ออกบิล)</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Expense & Net Profit Cards -->
-                            <div class="stats-grid" style="grid-template-columns: repeat(2, 1fr); margin-bottom: 25px;">
-                                <div class="stats-card" style="border-left: 4px solid var(--danger);">
-                                    <div class="stats-icon text-danger"><span class="ico" data-icon="trenddown"></span></div>
-                                    <div class="stats-info">
-                                        <h3 id="stat-finance-expenses">0.00 บาท</h3>
-                                        <p>รายจ่ายรวมทั้งหมด</p>
-                                    </div>
-                                </div>
-                                <div class="stats-card" style="border-left: 4px solid var(--gold-primary);">
-                                    <div class="stats-icon" style="color: var(--gold-primary);"><span class="ico" data-icon="chart"></span></div>
-                                    <div class="stats-info">
-                                        <h3 id="stat-finance-net-profit">0.00 บาท</h3>
+                                <div class="fin-side">
+                                    <div class="fin-profit-card">
                                         <p>กำไรสุทธิ (เงินที่รับจริง − รายจ่าย)</p>
+                                        <h3 id="stat-finance-net-profit">0.00 บาท</h3>
                                     </div>
+                                    <div class="fin-list-card">
+                                        <div class="fin-row"><span>ลูกค้าที่ทำรายได้มากที่สุด</span><strong id="stat-top-customer">-</strong></div>
+                                        <div class="fin-row"><span>บริการขายดีที่สุด (จำนวนงาน)</span><strong id="stat-top-jobtype-count">-</strong></div>
+                                        <div class="fin-row"><span>บริการทำรายได้สูงสุด</span><strong id="stat-top-jobtype-revenue">-</strong></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- ข้อมูลที่ควรรู้เพิ่ม (ณ วันนี้ ไม่ผูกกับช่วงเวลาที่เลือก ยกเว้นงานยังไม่ออกบิล) -->
+                            <div class="stat-pills fin-extra-pills">
+                                <div class="stat-pill tone-red">
+                                    <h3 id="stat-finance-overdue">0</h3>
+                                    <p>บิลค้างชำระเกิน 15 วัน (ณ วันนี้)</p>
+                                </div>
+                                <div class="stat-pill tone-orange">
+                                    <h3 id="stat-finance-unbilled">0</h3>
+                                    <p>งานที่ยังไม่ออกบิล (ช่วงนี้)</p>
+                                </div>
+                                <div class="stat-pill tone-teal">
+                                    <h3 id="stat-finance-credit">0.00</h3>
+                                    <p>เงินมัดจำ/เครดิตลูกค้าคงเหลือ (บาท)</p>
                                 </div>
                             </div>
 
@@ -1113,13 +1082,13 @@
                                     </div>
                                     <div class="panel-content" style="padding: 20px; display: flex; flex-direction: column; gap: 15px;">
                                         <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); padding: 16px;">
-                                            <h5 style="font-size: 13.5px; font-weight: 600; margin-bottom: 12px; color: var(--navy-dark);">สัดส่วนการชำระเงินงาน (Payment Status):</h5>
+                                            <h5 style="font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--navy-dark);">สัดส่วนการชำระเงินงาน (Payment Status):</h5>
                                             <div id="db-finance-payment-breakdown-container" style="display: flex; flex-direction: column; gap: 8px;">
                                                 <!-- Dynamic breakdown bars -->
                                             </div>
                                         </div>
                                         <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); padding: 16px;">
-                                            <h5 style="font-size: 13.5px; font-weight: 600; margin-bottom: 12px; color: var(--navy-dark);">ความคืบหน้างานบริการ (Service Progress):</h5>
+                                            <h5 style="font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--navy-dark);">ความคืบหน้างานบริการ (Service Progress):</h5>
                                             <div id="db-finance-progress-breakdown-container" style="display: flex; flex-direction: column; gap: 8px;">
                                                 <!-- Dynamic progress bars -->
                                             </div>
@@ -1398,7 +1367,7 @@
                                         <label for="user-password">รหัสผ่าน <span class="required">*</span></label>
                                         <input type="text" id="user-password" required>
                                     </div>
-                                    <p id="user-edit-note" class="text-muted hidden" style="font-size:12px; margin:-6px 0 12px;">
+                                    <p id="user-edit-note" class="text-muted hidden" style="font-size:12.5px; margin:-6px 0 12px;">
                                         แก้ไขได้เฉพาะชื่อ/บทบาท/รหัสลูกค้า — เปลี่ยนอีเมลหรือรหัสผ่านต้องลบบัญชีนี้แล้วสร้างใหม่ (หรือใช้ระบบลืมรหัสผ่านสำหรับเปลี่ยนรหัสผ่าน)
                                     </p>
                                     <div class="form-group">
@@ -1433,7 +1402,7 @@
                         <div class="dashboard-panel" style="max-width: 700px; margin: 0 auto; padding: 30px;">
                             <div class="panel-header" style="padding-bottom: 20px; border-bottom: 1px solid #e2e8f0; margin-bottom: 25px;">
                                 <h3 style="font-size: 18px; font-weight: 600; color: var(--navy-dark);"><span class="ico" data-icon="save"></span> จัดการและสำรองข้อมูลระบบ (Data Backup & Sync)</h3>
-                                <p style="font-size: 13px; color: var(--text-muted); margin-top: 5px;">
+                                <p style="font-size: 13.5px; color: var(--text-muted); margin-top: 5px;">
                                     ข้อมูลจริงเก็บอยู่บนคลาวด์ (Supabase แพ็กเกจฟรี ซึ่งไม่มีระบบสำรองอัตโนมัติให้) — ควรกดสำรองทั้งระบบอย่างน้อยสัปดาห์ละครั้ง แล้วเซฟไฟล์เก็บไว้ใน Google Drive หรือแฟลชไดรฟ์
                                 </p>
                             </div>
@@ -1442,7 +1411,7 @@
                                 <!-- Section 1: Export Data to Drive file -->
                                 <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); padding: 20px;">
                                     <h4 style="font-size: 14.5px; font-weight: 600; margin-bottom: 8px; color: var(--navy-dark);">1. ส่งออกข้อมูลสำรอง (Export Backup File)</h4>
-                                    <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 15px; line-height: 1.5;">
+                                    <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px; line-height: 1.5;">
                                         <strong>สำรองทั้งระบบ (แนะนำ)</strong> — ข้อมูลทุกอย่าง (นายจ้าง, คนงาน, งาน, บัญชีธนาคาร, Agent, รายจ่าย, บิลอิสระ, กลุ่ม LINE) พร้อมไฟล์เอกสารและรูปทุกไฟล์ รวมเป็นไฟล์ ZIP เดียว ใช้เวลานานขึ้นตามจำนวนไฟล์<br>
                                         <strong>เฉพาะข้อมูล</strong> — ไฟล์ .json เล็กและเร็ว แต่เก็บแค่ลิงก์เอกสาร ไม่มีไฟล์จริง
                                     </p>
@@ -1461,7 +1430,7 @@
                                 <!-- Section 2: Import Data from Drive file -->
                                 <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); padding: 20px;">
                                     <h4 style="font-size: 14.5px; font-weight: 600; margin-bottom: 8px; color: var(--navy-dark);">2. นำเข้าข้อมูลระบบจากภายนอก (Import Backup File)</h4>
-                                    <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 15px; line-height: 1.5;">
+                                    <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px; line-height: 1.5;">
                                         เลือกไฟล์สำรองที่เคยบันทึกไว้ — ไฟล์ .zip (สำรองทั้งระบบ) จะกู้คืนทั้งข้อมูลและไฟล์เอกสาร/รูป, ไฟล์ .json กู้คืนเฉพาะข้อมูล ข้อมูลในไฟล์จะเขียนทับรายการเดียวกันในคลาวด์ (รายการที่ไม่มีในไฟล์จะไม่ถูกลบ)
                                     </p>
                                     <div style="display: flex; align-items: center; gap: 15px;">
@@ -1469,7 +1438,7 @@
                                             <span class="ico" data-icon="folder"></span> เลือกไฟล์เพื่อกู้คืน (.zip / .json)
                                         </button>
                                         <input type="file" id="import-file-input" accept=".json,.zip" onchange="importSystemData(event)" class="hidden" style="display: none;">
-                                        <span id="import-file-name" class="text-muted" style="font-size: 13px;">ยังไม่ได้เลือกไฟล์</span>
+                                        <span id="import-file-name" class="text-muted" style="font-size: 13.5px;">ยังไม่ได้เลือกไฟล์</span>
                                     </div>
                                 </div>
 
@@ -1477,11 +1446,11 @@
                                 <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); padding: 20px; display: flex; justify-content: space-between; align-items: center; gap: 15px; flex-wrap: wrap;">
                                     <div>
                                         <h4 style="font-size: 14.5px; font-weight: 600; margin-bottom: 4px; color: var(--navy-dark);">3. จัดการ Agent (ผู้ส่งงาน / ผู้แนะนำลูกค้า)</h4>
-                                        <p style="font-size: 12.5px; color: var(--text-muted); margin: 0; line-height: 1.5;">
+                                        <p style="font-size: 13px; color: var(--text-muted); margin: 0; line-height: 1.5;">
                                             ย้ายไปอยู่หน้าเมนู "จัดการ Agent" แล้ว — เพิ่ม/แก้ไข/ลบ Agent ได้ที่นั่น
                                         </p>
                                     </div>
-                                    <button class="btn btn-gold btn-sm" onclick="switchView('agents')" style="padding: 8px 16px; font-size: 12.5px; white-space: nowrap;">
+                                    <button class="btn btn-gold btn-sm" onclick="switchView('agents')" style="padding: 8px 16px; font-size: 13px; white-space: nowrap;">
                                         ไปที่หน้าจัดการ Agent →
                                     </button>
                                 </div>
@@ -1546,9 +1515,9 @@
                                 </div>
                                 <div class="ocr-status" id="status-expense-slip"></div>
                             </div>
-                            <div id="expense-slip-attached" class="hidden" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; padding: 8px 12px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); font-size: 12.5px;">
+                            <div id="expense-slip-attached" class="hidden" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; padding: 8px 12px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); font-size: 13px;">
                                 <a id="expense-slip-link" href="#" target="_blank" rel="noopener" style="color: var(--navy-dark); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><span class="ico" data-icon="clip"></span> ไฟล์แนบ</a>
-                                <button type="button" class="btn btn-sm btn-outline delete-btn" onclick="removeExpenseSlip()" style="padding: 3px 8px; font-size: 11px; flex-shrink: 0;">ลบไฟล์แนบ</button>
+                                <button type="button" class="btn btn-sm btn-outline delete-btn" onclick="removeExpenseSlip()" style="padding: 3px 8px; font-size: 11.5px; flex-shrink: 0;">ลบไฟล์แนบ</button>
                             </div>
                         </div>
 
@@ -1828,7 +1797,7 @@
                                 </div>
                             </div>
 
-                            <div id="cust-delivery-same-preview" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); padding: 14px 16px; font-size: 13px; line-height: 1.7; color: var(--navy-dark); margin-bottom: 15px;">
+                            <div id="cust-delivery-same-preview" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); padding: 14px 16px; font-size: 13.5px; line-height: 1.7; color: var(--navy-dark); margin-bottom: 15px;">
                                 <!-- Populated by JS from company/HQ branch data -->
                             </div>
 
@@ -1953,14 +1922,14 @@
                         <!-- Photo Upload and General Info Row -->
                         <div class="form-row" style="align-items: center; margin-bottom: 20px; display: flex; gap: 20px;">
                             <div class="form-group" style="width: 140px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; margin-bottom: 0;">
-                                <label style="font-weight: 600; font-size: 13px; text-align: center; width: 100%; color: var(--navy-dark);">รูปถ่ายคนงาน</label>
+                                <label style="font-weight: 600; font-size: 13.5px; text-align: center; width: 100%; color: var(--navy-dark);">รูปถ่ายคนงาน</label>
                                 <div style="width: 110px; height: 110px; border: 2px dashed #cbd5e1; border-radius: 50%; display: flex; align-items: center; justify-content: center; background-color: #f8fafc; position: relative;" id="worker-photo-preview-container">
                                     <span style="font-size: 32px; color: #94a3b8;" id="worker-photo-icon"><span class="ico" data-icon="user"></span></span>
                                     <img id="worker-photo-preview" src="" alt="Worker Photo" class="hidden" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
                                     <input type="file" id="worker-photo-input" accept="image/*" onchange="handleWorkerPhotoUpload(event)" style="position: absolute; width: 100%; height: 100%; opacity: 0; cursor: pointer;">
                                     <button type="button" class="remove-photo-btn" onclick="removeWorkerPhoto(event)" title="ลบรูปถ่าย">&times;</button>
                                 </div>
-                                <small style="font-size: 9.5px; color: var(--text-muted); text-align: center; line-height: 1.3;">คลิกอัปโหลดรูปภาพ</small>
+                                <small style="font-size: 11.5px; color: var(--text-muted); text-align: center; line-height: 1.3;">คลิกอัปโหลดรูปภาพ</small>
                             </div>
                             <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 12px; width: calc(100% - 160px);">
                                 <div class="form-row" style="margin-bottom: 0;">
@@ -2321,7 +2290,7 @@
                             </div>
                         </div>
 
-                        <div id="job-opened-by-info" class="text-muted" style="font-size:12px; margin-bottom:10px; display:none;"></div>
+                        <div id="job-opened-by-info" class="text-muted" style="font-size:12.5px; margin-bottom:10px; display:none;"></div>
 
                         <!-- ผู้รับผิดชอบ (มอบหมายงาน) — เลือกได้เฉพาะ Admin/Operation Manager; Staff เปิดงานเองจะเป็นผู้รับผิดชอบอัตโนมัติ ดู fillJobAssigneeSelect() -->
                         <div class="form-group">
@@ -2333,78 +2302,78 @@
                         </div>
 
                         <div class="form-group" style="margin-bottom: 15px;">
-                            <label style="font-weight: 600; font-size: 13px; color: var(--navy-dark); margin-bottom: 8px; display: block;">ประเภทงานที่แจ้ง (เลือกได้หลายรายการ) <span class="required">*</span></label>
+                            <label style="font-weight: 600; font-size: 13.5px; color: var(--navy-dark); margin-bottom: 8px; display: block;">ประเภทงานที่แจ้ง (เลือกได้หลายรายการ) <span class="required">*</span></label>
                             <small class="text-muted" style="display:block; margin-bottom: 8px;">กำหนดราคาค่าบริการภายหลังได้ที่หน้า "บัญชีและการเงิน" &rarr; แท็บ "ออกบิล / รับเงิน"</small>
                             <div id="job-type-checkboxes-container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: var(--radius-sm); padding: 12px;">
                                 <div style="display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
-                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
+                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
                                         <input type="checkbox" name="job-type-checkbox" value="ขึ้นทะเบียนแรงงานต่างด้าว" style="width: 16px; height: 16px;"> ขึ้นทะเบียนแรงงานฯ
                                     </label>
                                 </div>
                                 <div style="display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
-                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
+                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
                                         <input type="checkbox" name="job-type-checkbox" value="ต่อเล่ม CI/Passport" style="width: 16px; height: 16px;"> ต่อเล่ม CI/Passport
                                     </label>
                                 </div>
                                 <div style="display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
-                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
+                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
                                         <input type="checkbox" name="job-type-checkbox" value="ตี VISA" style="width: 16px; height: 16px;"> ตี VISA
                                     </label>
                                 </div>
                                 <div style="display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
-                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
+                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
                                         <input type="checkbox" name="job-type-checkbox" value="ย้ายตรา" style="width: 16px; height: 16px;"> ย้ายตรา
                                     </label>
                                 </div>
                                 <div style="display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
-                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
+                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
                                         <input type="checkbox" name="job-type-checkbox" value="แจ้งเข้าคนงานต่างด้าว" style="width: 16px; height: 16px;"> แจ้งเข้าคนงานฯ
                                     </label>
                                 </div>
                                 <div style="display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
-                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
+                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
                                         <input type="checkbox" name="job-type-checkbox" value="แจ้งออกคนงานต่างด้าว" style="width: 16px; height: 16px;"> แจ้งออกคนงานฯ
                                     </label>
                                 </div>
                                 <div style="display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
-                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
+                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
                                         <input type="checkbox" name="job-type-checkbox" value="เปลี่ยน/แก้ไข ใบอนุญาตทำงาน" style="width: 16px; height: 16px;"> เปลี่ยน/แก้ ใบอนุญาตฯ
                                     </label>
                                 </div>
                                 <div style="display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
-                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
+                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
                                         <input type="checkbox" name="job-type-checkbox" value="ออกใบรับรองแพทย์" style="width: 16px; height: 16px;"> ออกใบรับรองแพทย์
                                     </label>
                                 </div>
                                 <div style="display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
-                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
+                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
                                         <input type="checkbox" name="job-type-checkbox" value="ซื้อประกัน" style="width: 16px; height: 16px;"> ซื้อประกัน
                                     </label>
                                 </div>
                                 <div style="display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
-                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
+                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
                                         <input type="checkbox" name="job-type-checkbox" value="ทำบัตร ผู้ไม่มีสัญชาติไทย" style="width: 16px; height: 16px;"> ทำบัตรผู้ไม่มีสัญชาติฯ
                                     </label>
                                 </div>
                                 <div style="display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
-                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
+                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
                                         <input type="checkbox" name="job-type-checkbox" value="แจ้งเข้าประกันสังคม" style="width: 16px; height: 16px;"> แจ้งเข้าประกันสังคม
                                     </label>
                                 </div>
                                 <div style="display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
-                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
+                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
                                         <input type="checkbox" name="job-type-checkbox" value="แจ้งที่พัก TM.30" style="width: 16px; height: 16px;"> แจ้งที่พัก TM.30
                                     </label>
                                 </div>
                                 <div style="display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm); grid-column: span 2;">
-                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
+                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
                                         <input type="checkbox" name="job-type-checkbox" value="อื่นๆ" style="width: 16px; height: 16px;"> อื่นๆ
                                     </label>
                                 </div>
                             </div>
                         </div>
 
-                        <div id="job-closed-banner" style="display:none; background:#f0fdf4; border:1px solid #bbf7d0; color:#166534; border-radius:var(--radius-sm); padding:10px 12px; font-size:12.5px; margin-bottom:12px;">
+                        <div id="job-closed-banner" style="display:none; background:#f0fdf4; border:1px solid #bbf7d0; color:#166534; border-radius:var(--radius-sm); padding:10px 12px; font-size:13px; margin-bottom:12px;">
                             <div id="job-closed-banner-text"></div>
                             <button type="button" class="btn btn-outline btn-sm" style="margin-top:6px;" onclick="reopenJobFromModal()"><span class="ico" data-icon="unlock"></span> เปิดงานอีกครั้ง</button>
                         </div>
@@ -2476,7 +2445,7 @@
                 <div class="modal-body">
                     <form id="job-close-form" onsubmit="submitCloseJob(event)">
                         <input type="hidden" id="job-close-id">
-                        <p id="job-close-target-label" class="text-muted" style="font-size:13px; margin-bottom:12px;"></p>
+                        <p id="job-close-target-label" class="text-muted" style="font-size:13.5px; margin-bottom:12px;"></p>
                         <div class="form-group">
                             <label for="job-close-file">แนบเอกสารยืนยันการปิดงาน <span class="required">*</span></label>
                             <input type="file" id="job-close-file" multiple required>
@@ -2628,7 +2597,7 @@
 
                     <!-- Note สำหรับวางบิล: แสดงให้เจ้าหน้าที่เห็นก่อนออกบิลเท่านั้น ไม่ถูกพิมพ์ลงในใบแจ้งหนี้ที่ให้ลูกค้า -->
                     <div class="no-print hidden" id="invoice-billing-note-wrap" style="margin-bottom: 15px;">
-                        <div style="background-color: #fffbeb; border: 1px solid #fde68a; border-radius: var(--radius-sm); padding: 12px 14px; font-size: 13px; color: #92400e;">
+                        <div style="background-color: #fffbeb; border: 1px solid #fde68a; border-radius: var(--radius-sm); padding: 12px 14px; font-size: 13.5px; color: #92400e;">
                             <strong><span class="ico" data-icon="pin"></span> Note วางบิลของนายจ้างรายนี้:</strong>
                             <p id="invoice-billing-note-text" style="margin: 6px 0 0; white-space: pre-line; line-height: 1.5;"></p>
                         </div>
@@ -2925,7 +2894,7 @@
                         </select>
                     </div>
                     <div class="form-group hidden" id="combine-billing-note-wrap">
-                        <div style="background-color: #fffbeb; border: 1px solid #fde68a; border-radius: var(--radius-sm); padding: 12px 14px; font-size: 13px; color: #92400e;">
+                        <div style="background-color: #fffbeb; border: 1px solid #fde68a; border-radius: var(--radius-sm); padding: 12px 14px; font-size: 13.5px; color: #92400e;">
                             <strong><span class="ico" data-icon="pin"></span> Note วางบิลของนายจ้างรายนี้:</strong>
                             <p id="combine-billing-note-text" style="margin: 6px 0 0; white-space: pre-line; line-height: 1.5;"></p>
                         </div>
@@ -2933,7 +2902,7 @@
                     <div class="form-group">
                         <label>เลือกรายการใบสั่งงานที่ต้องการรวมบิล:</label>
                         <div id="combine-jobs-list" style="max-height: 250px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); padding: 12px; display: flex; flex-direction: column; gap: 10px; background-color: #f8fafc;">
-                            <span class="text-muted" style="font-size: 13px; text-align: center; display: block; padding: 20px 0;">
+                            <span class="text-muted" style="font-size: 13.5px; text-align: center; display: block; padding: 20px 0;">
                                 <span class="ico" data-icon="idea"></span> กรุณาเลือกนายจ้างด้านบนเพื่อดึงข้อมูลใบสั่งงานที่ค้างจ่าย
                             </span>
                         </div>
@@ -2963,7 +2932,7 @@
                     <input type="file" id="customer-folder-upload-input" accept="image/*,application/pdf" multiple style="display:none;" onchange="handleCustomerFolderFileUpload(event)">
                     <div style="margin-bottom: 20px; background-color: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0;">
                         <h4 id="customer-folder-name" style="margin: 0 0 4px 0; color: var(--navy-dark); font-size: 16px; font-weight: 600;"></h4>
-                        <p id="customer-folder-meta" style="margin: 0; font-size: 12.5px; color: var(--text-muted);"></p>
+                        <p id="customer-folder-meta" style="margin: 0; font-size: 13px; color: var(--text-muted);"></p>
                     </div>
 
                     <div class="search-box" style="max-width: 100%; margin-bottom: 14px;">
@@ -3041,11 +3010,11 @@
                     <div style="display:flex; align-items:center; gap:14px; padding:12px; background:#fef2f2; border:1px solid #fecaca; border-radius: var(--radius-sm); margin-bottom:14px;">
                         <div id="confirm-delete-attachment-thumb" style="flex-shrink:0;"></div>
                         <div style="min-width:0; overflow:hidden;">
-                            <div id="confirm-delete-attachment-filename" style="font-weight:600; font-size:13.5px; word-break:break-all; color:var(--navy-dark);"></div>
-                            <a href="#" id="confirm-delete-attachment-viewlink" target="_blank" rel="noopener" style="font-size:12px;"><span class="ico" data-icon="search"></span> เปิดดูไฟล์ก่อนลบ</a>
+                            <div id="confirm-delete-attachment-filename" style="font-weight:600; font-size:14px; word-break:break-all; color:var(--navy-dark);"></div>
+                            <a href="#" id="confirm-delete-attachment-viewlink" target="_blank" rel="noopener" style="font-size:12.5px;"><span class="ico" data-icon="search"></span> เปิดดูไฟล์ก่อนลบ</a>
                         </div>
                     </div>
-                    <p style="font-size:13px; color:var(--text-muted); margin:0;">ไฟล์นี้จะถูกลบออกจากระบบอย่างถาวร ไม่สามารถกู้คืนได้</p>
+                    <p style="font-size:13.5px; color:var(--text-muted); margin:0;">ไฟล์นี้จะถูกลบออกจากระบบอย่างถาวร ไม่สามารถกู้คืนได้</p>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline" onclick="closeConfirmDeleteAttachmentModal()">ยกเลิก</button>
@@ -3062,7 +3031,7 @@
                     <button class="close-btn" onclick="closeBulkImportModal()">&times;</button>
                 </div>
                 <div class="modal-body" style="padding-top: 10px; max-height: 70vh; overflow-y: auto;">
-                    <p class="text-muted" style="font-size: 12.5px; margin-bottom: 12px; line-height: 1.5;">
+                    <p class="text-muted" style="font-size: 13px; margin-bottom: 12px; line-height: 1.5;">
                         เลือกไฟล์เอกสารได้ทีเดียวหลายไฟล์ (หรือลากทั้งโฟลเดอร์มาวาง) ระบบจะพยายามจับคู่แต่ละไฟล์เข้ากับคนงานและประเภทเอกสารให้อัตโนมัติจากชื่อไฟล์
                         (เลข 13 หลัก/ชื่อ) — <strong>ตรวจสอบและแก้ไขให้ถูกต้องในตารางด้านล่างก่อนกดนำเข้าเสมอ</strong> แถวที่จับคู่ไม่ได้จะถูกไฮไลต์สีแดงให้เลือกเอง
                     </p>
@@ -3075,10 +3044,10 @@
                          onclick="document.getElementById('bulk-import-file-input').click()">
                         <input type="file" id="bulk-import-file-input" multiple accept="image/*,application/pdf" style="display:none;" onchange="handleBulkImportFilesSelected(event.target.files)">
                         <div style="font-size: 28px;"><span class="ico" data-icon="folder"></span></div>
-                        <div style="font-size: 13px; color: var(--text-dark); margin-top: 6px;">คลิกเพื่อเลือกไฟล์ ลากไฟล์/โฟลเดอร์มาวางตรงนี้ หรือกด Ctrl+V วางภาพที่แคปหน้าจอไว้</div>
+                        <div style="font-size: 13.5px; color: var(--text-dark); margin-top: 6px;">คลิกเพื่อเลือกไฟล์ ลากไฟล์/โฟลเดอร์มาวางตรงนี้ หรือกด Ctrl+V วางภาพที่แคปหน้าจอไว้</div>
                     </div>
 
-                    <div id="bulk-import-summary" class="text-muted" style="font-size: 12.5px; margin-bottom: 8px; display:none;"></div>
+                    <div id="bulk-import-summary" class="text-muted" style="font-size: 13px; margin-bottom: 8px; display:none;"></div>
 
                     <!-- คนงานใหม่ที่ AI เจอจากเอกสารแต่ยังไม่มีในระบบ (ดู matchBulkRowsFromOcr / renderBulkNewWorkers ใน app.js) -->
                     <div id="bulk-import-new-workers-wrap" class="bulk-new-workers-wrap hidden">
@@ -3096,7 +3065,7 @@
                     </div>
 
                     <div class="table-container" style="box-shadow: none; border: 1px solid #e2e8f0;">
-                        <table class="data-table" style="min-width: 100%; font-size: 12.5px;">
+                        <table class="data-table" style="min-width: 100%; font-size: 13px;">
                             <thead>
                                 <tr>
                                     <th style="width:34px;"><input type="checkbox" id="bulk-import-select-all" onchange="toggleAllBulkImportRows(this.checked)"></th>
@@ -3115,7 +3084,7 @@
                         </table>
                     </div>
 
-                    <div id="bulk-import-progress" class="hidden" style="margin-top: 12px; font-size: 12.5px; color: var(--text-muted);"></div>
+                    <div id="bulk-import-progress" class="hidden" style="margin-top: 12px; font-size: 13px; color: var(--text-muted);"></div>
                 </div>
                 <div class="modal-footer" style="display: flex; gap: 10px;">
                     <button type="button" class="btn btn-outline" style="flex:1;" onclick="closeBulkImportModal()">ยกเลิก</button>

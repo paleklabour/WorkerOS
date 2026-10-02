@@ -85,7 +85,7 @@ h1, h2, h3, h4, h5, h6 {
     padding: 8px 16px;
     border-radius: var(--radius-sm);
     font-weight: 500;
-    font-size: 13px;
+    font-size: 13.5px;
     font-family: inherit;
     cursor: pointer;
     transition: var(--transition);
@@ -140,7 +140,7 @@ button {
 
 .btn-sm {
     padding: 6px 12px;
-    font-size: 12px;
+    font-size: 12.5px;
 }
 
 /* ปุ่มแดงทึบ — ใช้เป็นปุ่ม "ลบ" ในหน้าต่างยืนยัน */
@@ -277,7 +277,7 @@ button {
 }
 
 .ui-dialog-card-names small {
-    font-size: 12.5px;
+    font-size: 13px;
     color: var(--text-muted);
 }
 
@@ -288,7 +288,7 @@ button {
     margin: 0;
     padding-top: 10px;
     border-top: 1px solid var(--dk-line, #e2e7ef);
-    font-size: 13px;
+    font-size: 13.5px;
 }
 
 .ui-dialog-card-rows dt {
@@ -308,7 +308,7 @@ button {
     margin: 0;
     padding: 10px 0 0 18px;
     border-top: 1px solid var(--dk-line, #e2e7ef);
-    font-size: 13px;
+    font-size: 13.5px;
     color: var(--text-dark);
     display: flex;
     flex-direction: column;
@@ -386,7 +386,7 @@ button {
 
 /* ปุ่มสลับ "ตาราง / กราฟวงกลม" ในหน้าบัญชีและการเงิน (toggleChartView() สลับแค่ btn-gold/btn-outline) */
 .btn-chart-toggle {
-    font-size: 13px;
+    font-size: 13.5px;
     padding: 7px 16px;
     gap: 6px;
     white-space: nowrap;
@@ -400,7 +400,7 @@ button {
 /* เลขประจำตัวคนต่างด้าว / เลขใบอนุญาตทำงาน ในช่อง "เลขคนงาน / บัตร" (ตารางคนงาน + ต่ออายุ)
    และเลขบริษัท / เลขกรรมการ / เลขประจำตัว ใต้ชื่อนายจ้าง (buildEmployerIdLinesHtml — ตารางคนงาน, นายจ้าง, ใบงาน, วางบิล) */
 .employer-name {
-    font-size: 13.5px;
+    font-size: 14px;
     font-weight: 600;
     color: var(--navy-dark);
     margin-bottom: 2px;
@@ -408,7 +408,7 @@ button {
 
 .worker-id-line,
 .employer-id-line {
-    font-size: 13px;
+    font-size: 13.5px;
     line-height: 1.6;
     white-space: nowrap;
 }
@@ -416,7 +416,7 @@ button {
 .worker-id-line span,
 .employer-id-line span {
     color: var(--text-muted);
-    font-size: 12px;
+    font-size: 12.5px;
 }
 
 .employer-id-line b,
@@ -438,7 +438,7 @@ button {
 
 .renewal-filter-summary {
     margin: -6px 0 14px;
-    font-size: 13px;
+    font-size: 13.5px;
     font-weight: 600;
     color: var(--gold-primary);
 }
@@ -477,7 +477,7 @@ button {
 
 /* ปุ่ม "เปิดแฟ้มเอกสาร" ในตารางนายจ้าง/คนงาน/แดชบอร์ด — ปุ่มหลักของแถว ให้ใหญ่กดง่าย */
 .btn-open-folder {
-    font-size: 13px;
+    font-size: 13.5px;
     padding: 8px 16px;
     gap: 7px;
     white-space: nowrap;
@@ -508,7 +508,7 @@ button {
 
 .alert-row-actions .btn {
     white-space: nowrap;
-    font-size: 11.5px;
+    font-size: 12px;
     padding: 5px 12px;
 }
 
@@ -518,7 +518,7 @@ button {
     align-items: center;
     padding: 3px 10px;
     border-radius: 9999px;
-    font-size: 11px;
+    font-size: 11.5px;
     font-weight: 500;
     white-space: nowrap;
     border: 1px solid transparent;
@@ -527,7 +527,7 @@ button {
 /* ป้ายขนาดใหญ่ — ใช้ในตารางที่ป้ายเป็นข้อมูลหลักของช่อง (เช่น จำนวนคนงานใกล้หมดอายุ, ประเภทกิจการ, วันหมดอายุหนังสือรับรอง) */
 .badge-lg {
     padding: 5px 12px;
-    font-size: 13px;
+    font-size: 13.5px;
     font-weight: 600;
     gap: 5px;
 }
@@ -565,7 +565,7 @@ button {
 }
 
 .form-group label {
-    font-size: 13px;
+    font-size: 13.5px;
     font-weight: 600;
     color: var(--navy-medium);
 }
@@ -577,7 +577,7 @@ button {
     border: 1px solid var(--dk-line, #cbd5e1);
     border-radius: var(--radius-sm);
     font-family: inherit;
-    font-size: 13.5px;
+    font-size: 14px;
     background-color: var(--dk-card, #ffffff);
     transition: var(--transition);
     color: var(--text-dark);
@@ -677,7 +677,7 @@ select:disabled {
     select:not([multiple]):not([size]) option {
         padding: 9px 12px;
         border-radius: 10px;
-        font-size: 13.5px;
+        font-size: 14px;
         color: var(--text-dark);
         cursor: pointer;
     }
@@ -812,7 +812,7 @@ select:disabled {
 
 .login-header .subtitle {
     color: var(--text-muted);
-    font-size: 13px;
+    font-size: 13.5px;
     font-weight: 500;
 }
 
@@ -842,7 +842,7 @@ select:disabled {
     border: 1px solid rgba(239, 68, 68, 0.15);
     padding: 10px 14px;
     border-radius: var(--radius-sm);
-    font-size: 13px;
+    font-size: 13.5px;
     margin-bottom: 16px;
     display: none;
     font-weight: 500;
@@ -856,7 +856,7 @@ select:disabled {
 
 .demo-accounts h4 {
     color: var(--text-muted);
-    font-size: 11px;
+    font-size: 11.5px;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     margin-bottom: 12px;
@@ -892,12 +892,12 @@ select:disabled {
 }
 
 .demo-badge strong {
-    font-size: 12.5px;
+    font-size: 13px;
     font-weight: 500;
 }
 
 .demo-badge span {
-    font-size: 11px;
+    font-size: 11.5px;
     color: var(--text-muted);
 }
 
@@ -953,7 +953,7 @@ select:disabled {
 
 .brand-text span {
     color: var(--text-muted);
-    font-size: 11px;
+    font-size: 11.5px;
     font-weight: 500;
 }
 
@@ -983,7 +983,7 @@ select:disabled {
 
 .user-info h4 {
     color: var(--navy-dark);
-    font-size: 13.5px;
+    font-size: 14px;
     margin-bottom: 2px;
     font-weight: 600;
 }
@@ -1041,7 +1041,7 @@ select:disabled {
     margin-left: auto;
     background-color: var(--danger);
     color: white;
-    font-size: 10.5px;
+    font-size: 11.5px;
     padding: 2px 7px;
     border-radius: 9999px;
     font-weight: 600;
@@ -1109,7 +1109,7 @@ select:disabled {
     right: 6px;
     margin-left: 0;
     padding: 1px 5px;
-    font-size: 9.5px;
+    font-size: 11.5px;
 }
 
 .sidebar.sidebar-collapsed .sidebar-footer {
@@ -1271,7 +1271,7 @@ select:disabled {
     background-color: var(--danger);
     color: white;
     border-radius: 999px;
-    font-size: 12px;
+    font-size: 12.5px;
     line-height: 1;
     font-weight: 700;
     font-variant-numeric: tabular-nums;
@@ -1282,7 +1282,7 @@ select:disabled {
 }
 
 .current-date {
-    font-size: 13.5px;
+    font-size: 14px;
     color: var(--text-muted);
 }
 
@@ -1421,7 +1421,7 @@ select:disabled {
 
 .stats-info p {
     color: var(--text-muted);
-    font-size: 12.5px;
+    font-size: 13px;
     font-weight: 500;
 }
 
@@ -1508,7 +1508,7 @@ select:disabled {
 }
 
 .alert-body p {
-    font-size: 13px;
+    font-size: 13.5px;
     color: var(--text-muted);
 }
 
@@ -1519,7 +1519,7 @@ select:disabled {
 }
 
 .alert-meta span {
-    font-size: 11px;
+    font-size: 11.5px;
 }
 
 .alert-action {
@@ -1553,7 +1553,7 @@ select:disabled {
 .bar-info {
     display: flex;
     justify-content: space-between;
-    font-size: 13px;
+    font-size: 13.5px;
     font-weight: 500;
 }
 
@@ -1590,7 +1590,7 @@ select:disabled {
     padding: 8px 12px;
     background-color: var(--gray-bg);
     border-radius: var(--radius-sm);
-    font-size: 13.5px;
+    font-size: 14px;
 }
 
 .location-name {
@@ -1671,7 +1671,7 @@ select:disabled {
     gap: 1px;
     padding: 8px 14px;
     cursor: pointer;
-    font-size: 13px;
+    font-size: 13.5px;
 }
 
 .search-suggest-item:not(:last-child) {
@@ -1690,7 +1690,7 @@ select:disabled {
 
 .search-suggest-sub {
     color: var(--text-muted);
-    font-size: 11.5px;
+    font-size: 12px;
 }
 
 /* ==================== JOB WORKER PICKER (ค้นหา + เลือกคนงานหลายคน แทน <select multiple>) ==================== */
@@ -1717,7 +1717,7 @@ select:disabled {
     border: 1px solid #c7d2fe;
     border-radius: 999px;
     padding: 4px 6px 4px 12px;
-    font-size: 12px;
+    font-size: 12.5px;
     font-weight: 500;
 }
 
@@ -1742,7 +1742,7 @@ select:disabled {
     border-bottom: 1px solid var(--dk-line, #e2e8f0) !important;
     border-radius: 0 !important;
     padding: 10px 14px !important;
-    font-size: 13.5px;
+    font-size: 14px;
 }
 
 .job-worker-search-input:focus {
@@ -1759,7 +1759,7 @@ select:disabled {
     align-items: center;
     gap: 10px;
     padding: 9px 14px;
-    font-size: 13px;
+    font-size: 13.5px;
     font-weight: normal;
     cursor: pointer;
     margin: 0;
@@ -1786,13 +1786,13 @@ select:disabled {
 
 .job-worker-row-uid {
     color: var(--text-muted);
-    font-size: 11.5px;
+    font-size: 12px;
     font-family: monospace;
 }
 
 .job-worker-row-nat {
     color: var(--text-muted);
-    font-size: 11px;
+    font-size: 11.5px;
     background-color: var(--dk-subtle, #f1f5f9);
     border-radius: 999px;
     padding: 2px 8px;
@@ -1800,7 +1800,7 @@ select:disabled {
 
 .job-worker-empty {
     padding: 14px;
-    font-size: 12.5px;
+    font-size: 13px;
     color: var(--text-muted);
     text-align: center;
 }
@@ -1816,7 +1816,7 @@ select:disabled {
     border-radius: var(--radius-sm);
     background-color: var(--dk-card, #ffffff);
     font-family: inherit;
-    font-size: 13.5px;
+    font-size: 14px;
     outline: none;
 }
 
@@ -1836,7 +1836,7 @@ select:disabled {
     width: 100%;
     border-collapse: collapse;
     text-align: left;
-    font-size: 13px;
+    font-size: 13.5px;
 }
 
 .data-table th {
@@ -1845,7 +1845,7 @@ select:disabled {
     font-weight: 600;
     padding: 14px 20px;
     border-bottom: 1px solid var(--dk-line, #edf0f5);
-    font-size: 12.5px;
+    font-size: 13px;
     letter-spacing: -0.01em;
 }
 
@@ -1939,7 +1939,7 @@ select:disabled {
     background-color: var(--gray-bg);
     border: 1px solid var(--dk-line, #e2e8f0);
     border-radius: var(--radius-sm);
-    font-size: 12.5px;
+    font-size: 13px;
     line-height: 1.5;
 }
 
@@ -1948,7 +1948,7 @@ select:disabled {
     align-items: center;
     gap: 8px;
     margin-top: 12px;
-    font-size: 12.5px;
+    font-size: 13px;
     cursor: pointer;
 }
 
@@ -1967,7 +1967,7 @@ select:disabled {
 }
 
 .worker-expiry-line {
-    font-size: 12px;
+    font-size: 12.5px;
     line-height: 1.6;
 }
 
@@ -1987,7 +1987,7 @@ select:disabled {
 
 .bulk-new-workers-title {
     font-weight: 600;
-    font-size: 12.5px;
+    font-size: 13px;
     color: var(--gold-primary);
     margin-bottom: 10px;
 }
@@ -2004,7 +2004,7 @@ select:disabled {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 12.5px;
+    font-size: 13px;
     margin-bottom: 8px;
     flex-wrap: wrap;
 }
@@ -2019,7 +2019,7 @@ select:disabled {
 
 .bulk-new-worker-discard {
     margin-left: auto;
-    font-size: 11px;
+    font-size: 11.5px;
     padding: 2px 10px;
 }
 
@@ -2031,7 +2031,7 @@ select:disabled {
 
 .bulk-new-worker-fields input,
 .bulk-new-worker-fields select {
-    font-size: 12px;
+    font-size: 12.5px;
     padding: 5px 7px;
     border: 1px solid var(--dk-line, #cbd5e1);
     border-radius: var(--radius-sm);
@@ -2119,7 +2119,7 @@ select:disabled {
     display: inline-flex;
     align-items: center;
     padding: 0 8px;
-    font-size: 12px;
+    font-size: 12.5px;
     font-weight: 600;
     color: var(--text-muted);
     background-color: var(--gray-bg);
@@ -2133,7 +2133,7 @@ select:disabled {
     outline: none;
     padding: 0 8px;
     font-family: inherit;
-    font-size: 12.5px;
+    font-size: 13px;
     color: var(--text-dark);
     background: transparent;
 }
@@ -2320,7 +2320,7 @@ select:disabled {
 }
 
 .branch-card-title {
-    font-size: 13.5px;
+    font-size: 14px;
     font-weight: 600;
     color: var(--navy-medium);
 }
@@ -2329,7 +2329,7 @@ select:disabled {
     background: none;
     border: none;
     color: var(--danger);
-    font-size: 12px;
+    font-size: 12.5px;
     font-family: inherit;
     cursor: pointer;
     font-weight: 500;
@@ -2352,7 +2352,7 @@ select:disabled {
 }
 
 .section-desc {
-    font-size: 12.5px;
+    font-size: 13px;
     color: var(--text-muted);
     margin-bottom: 16px;
 }
@@ -2488,20 +2488,20 @@ td > .ico {
 .btn .ico { --ic: currentColor; }
 
 .doc-title {
-    font-size: 13px;
+    font-size: 13.5px;
     font-weight: 600;
     color: var(--navy-dark);
 }
 
 .upload-hint {
-    font-size: 10.5px;
+    font-size: 11.5px;
     color: var(--text-muted);
 }
 
 /* AI OCR loader and output styles */
 .ocr-status {
     width: 100%;
-    font-size: 11px;
+    font-size: 11.5px;
     font-weight: 500;
     text-align: center;
     min-height: 16px;
@@ -2807,7 +2807,7 @@ td > .ico {
 }
 
 .bank-card-meta {
-    font-size: 12.5px;
+    font-size: 13px;
     color: var(--text-muted);
     display: flex;
     flex-direction: column;
@@ -3035,7 +3035,7 @@ td > .ico {
 }
 
 .inv-addr-block h5 {
-    font-size: 11.5px;
+    font-size: 12px;
     font-weight: 600;
     letter-spacing: 0.04em;
     color: var(--text-muted);
@@ -3043,7 +3043,7 @@ td > .ico {
 }
 
 .inv-addr-block p {
-    font-size: 12.5px;
+    font-size: 13px;
     line-height: 1.45;
 }
 
@@ -3113,7 +3113,7 @@ td > .ico {
 }
 
 .inv-item-desc {
-    font-size: 11.5px;
+    font-size: 12px;
     line-height: 1.35;
     color: var(--text-muted);
     margin-top: 2px;
@@ -3155,7 +3155,7 @@ td > .ico {
     background-color: var(--dk-subtle, #f3f6fc);
     color: var(--gold-primary);
     font-family: inherit;
-    font-size: 12px;
+    font-size: 12.5px;
     font-weight: 600;
     cursor: pointer;
 }
@@ -3167,7 +3167,7 @@ td > .ico {
 
 .item-workers-count {
     margin-right: auto;
-    font-size: 13px;
+    font-size: 13.5px;
     font-weight: 600;
     color: var(--gold-primary);
 }
@@ -3203,7 +3203,7 @@ td > .ico {
     border-radius: 8px;
     text-align: right;
     font-family: inherit;
-    font-size: 13px;
+    font-size: 13.5px;
     color: #0f766e;
     background-color: var(--dk-card, #ffffff);
 }
@@ -3260,7 +3260,7 @@ td > .ico {
 
 .inv-words-row td {
     text-align: right;
-    font-size: 12.5px;
+    font-size: 13px;
     font-weight: 600;
     color: var(--navy-dark);
     padding: 6px 10px 8px;
@@ -3296,7 +3296,7 @@ td > .ico {
 }
 
 .payment-bank-details h5 {
-    font-size: 12.5px;
+    font-size: 13px;
     color: var(--navy-dark);
     margin-bottom: 8px;
     font-weight: 600;
@@ -3310,7 +3310,7 @@ td > .ico {
     background-color: var(--dk-subtle, #f3f6fc);
     border-radius: 16px;
     padding: 9px 14px;
-    font-size: 12.5px;
+    font-size: 13px;
     line-height: 1.45;
 }
 
@@ -3360,7 +3360,7 @@ td > .ico {
     padding: 12px 16px;
     background-color: var(--dk-ok-bg, #e5f5ed);
     border-radius: 14px;
-    font-size: 13.5px;
+    font-size: 14px;
     color: #14532d;
 }
 
@@ -3370,7 +3370,7 @@ td > .ico {
 
 .receipt-note {
     flex-basis: 100%;
-    font-size: 12.5px;
+    font-size: 13px;
 }
 
 /* ===== ส่วนภายในหน้าต่างบิล (no-print) ===== */
@@ -3393,7 +3393,7 @@ td > .ico {
     gap: 10px;
     padding: 12px 16px;
     border-radius: 14px;
-    font-size: 13px;
+    font-size: 13.5px;
 }
 
 .split-item strong {
@@ -3408,7 +3408,7 @@ td > .ico {
 .split-note {
     grid-column: 1 / -1;
     margin: 0;
-    font-size: 12px;
+    font-size: 12.5px;
     color: var(--text-muted);
 }
 
@@ -3438,7 +3438,7 @@ td > .ico {
 }
 
 .pay-summary span {
-    font-size: 12px;
+    font-size: 12.5px;
     color: var(--text-muted);
 }
 
@@ -3496,7 +3496,7 @@ td > .ico {
 
 .pay-empty {
     margin: 0 0 14px;
-    font-size: 13px;
+    font-size: 13.5px;
 }
 
 .pay-form {
@@ -3523,7 +3523,7 @@ td > .ico {
     gap: 12px;
     flex-wrap: wrap;
     margin-top: 12px;
-    font-size: 12.5px;
+    font-size: 13px;
 }
 
 /* มัดจำ/เครดิตของนายจ้างในแผงรับเงินของบิล */
@@ -3538,7 +3538,7 @@ td > .ico {
     border-radius: 14px;
     background-color: var(--dk-ok-bg, #e5f5ed);
     color: var(--dk-ok, #1f6b45);
-    font-size: 13.5px;
+    font-size: 14px;
 }
 
 .pay-credit-box small {
@@ -3564,7 +3564,7 @@ td > .ico {
     border-radius: 12px;
     background-color: var(--dk-ok-bg, #e5f5ed);
     color: var(--dk-ok, #1f6b45);
-    font-size: 13px;
+    font-size: 13.5px;
 }
 
 .receive-summary {
@@ -3583,7 +3583,7 @@ td > .ico {
 }
 
 .receive-summary span {
-    font-size: 12px;
+    font-size: 12.5px;
     color: var(--text-muted);
 }
 
@@ -3602,7 +3602,7 @@ td > .ico {
     display: block;
     background-color: var(--dk-bad-bg, #fde8e8);
     color: var(--dk-bad, #d13b3b);
-    font-size: 13px;
+    font-size: 13.5px;
 }
 
 /* แผงมัดจำคงค้างบนแท็บออกบิล */
@@ -3683,7 +3683,7 @@ tr.is-voided-row td {
     background-color: var(--dk-card, #ffffff);
     border-radius: 16px;
     box-shadow: var(--shadow-sm);
-    font-size: 13px;
+    font-size: 13.5px;
     color: var(--text-muted);
 }
 
@@ -3710,7 +3710,7 @@ tr.is-voided-row td {
 }
 
 .fin-tile span {
-    font-size: 12.5px;
+    font-size: 13px;
     font-weight: 600;
 }
 
@@ -3721,7 +3721,7 @@ tr.is-voided-row td {
 }
 
 .fin-tile small {
-    font-size: 11.5px;
+    font-size: 12px;
     opacity: 0.85;
 }
 
@@ -3762,7 +3762,7 @@ tr.is-voided-row td {
 }
 
 .bank-balance-main span {
-    font-size: 11.5px;
+    font-size: 12px;
     color: var(--text-muted);
 }
 
@@ -3776,7 +3776,7 @@ tr.is-voided-row td {
 .bank-balance-rows {
     display: grid;
     gap: 3px;
-    font-size: 12.5px;
+    font-size: 13px;
 }
 
 .bank-balance-rows > div {
@@ -3837,12 +3837,12 @@ tr.is-voided-row td {
     gap: 2px;
     flex: 1;
     min-width: 0;
-    font-size: 13px;
+    font-size: 13.5px;
 }
 
 .commission-job-info small {
     color: var(--text-muted);
-    font-size: 11.5px;
+    font-size: 12px;
 }
 
 .commission-amount-input {
@@ -3877,7 +3877,7 @@ tr.is-voided-row td {
     border-radius: 10px;
     text-align: right;
     font-family: inherit;
-    font-size: 13.5px;
+    font-size: 14px;
 }
 
 /* ต้นทุนต่องาน (แถวย่อยใต้ประเภทงาน) */
@@ -3900,7 +3900,7 @@ tr.is-voided-row td {
 
 .price-cost-head {
     font-weight: 600;
-    font-size: 13px;
+    font-size: 13.5px;
     color: var(--navy-dark);
 }
 
@@ -3918,11 +3918,11 @@ tr.is-voided-row td {
     border: 1px solid var(--dk-line, #d5dce8);
     border-radius: 10px;
     font-family: inherit;
-    font-size: 13.5px;
+    font-size: 14px;
 }
 
 .price-cost-hint {
-    font-size: 12px;
+    font-size: 12.5px;
 }
 
 .price-input.price-gov {
@@ -4340,7 +4340,7 @@ tr.is-voided-row td {
 }
 
 .drive-tile-category {
-    font-size: 10px;
+    font-size: 11.5px;
     font-weight: 700;
     color: var(--gold-dark, var(--gold-primary));
     text-transform: uppercase;
@@ -4351,7 +4351,7 @@ tr.is-voided-row td {
 }
 
 .drive-tile-name {
-    font-size: 12px;
+    font-size: 12.5px;
     font-weight: 500;
     color: var(--navy-dark);
     white-space: nowrap;
@@ -4393,7 +4393,7 @@ tr.is-voided-row td {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 12px;
+    font-size: 12.5px;
     cursor: pointer;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
@@ -4430,7 +4430,7 @@ tr.is-voided-row td {
 }
 
 .drive-tile.add-tile .add-tile-label {
-    font-size: 11px;
+    font-size: 11.5px;
     text-align: center;
     line-height: 1.35;
     padding: 0 10px;
@@ -4479,7 +4479,7 @@ tr.is-voided-row td {
 }
 .backup-last-info {
     margin-top: 12px;
-    font-size: 12.5px;
+    font-size: 13px;
     color: var(--text-muted);
 }
 .backup-last-info.is-stale {
@@ -4488,7 +4488,7 @@ tr.is-voided-row td {
 }
 .backup-progress {
     margin-top: 10px;
-    font-size: 12.5px;
+    font-size: 13px;
     line-height: 1.5;
     word-break: break-word;
 }
@@ -4520,7 +4520,7 @@ tr.is-voided-row td {
     cursor: pointer;
 }
 .worker-bulk-check {
-    font-size: 11px;
+    font-size: 11.5px;
     color: var(--gold-primary);
     margin-bottom: 4px;
 }
@@ -4724,7 +4724,7 @@ tr.is-voided-row td {
     background: transparent;
     color: var(--text-dark);
     font-family: inherit;
-    font-size: 13.5px;
+    font-size: 14px;
     text-align: left;
     cursor: pointer;
 }
@@ -4803,7 +4803,7 @@ tr.is-voided-row td {
 }
 
 .bell-panel-head span {
-    font-size: 12px;
+    font-size: 12.5px;
     color: var(--text-muted);
 }
 
@@ -4836,7 +4836,7 @@ tr.is-voided-row td {
     align-items: center;
     gap: 8px;
     padding: 8px 10px;
-    font-size: 13px;
+    font-size: 13.5px;
     font-weight: 600;
     color: var(--navy-dark);
     white-space: normal;
@@ -4850,7 +4850,7 @@ tr.is-voided-row td {
     border-radius: 999px;
     background-color: var(--danger);
     color: #ffffff;
-    font-size: 12px;
+    font-size: 12.5px;
     text-align: center;
 }
 
@@ -4867,12 +4867,12 @@ tr.is-voided-row td {
 }
 
 .bell-item-text {
-    font-size: 13px;
+    font-size: 13.5px;
     font-weight: 500;
 }
 
 .bell-item small {
-    font-size: 11.5px;
+    font-size: 12px;
     color: var(--text-muted);
 }
 
@@ -4883,7 +4883,7 @@ tr.is-voided-row td {
 
 .bell-more {
     padding: 4px 10px 6px 34px;
-    font-size: 11.5px;
+    font-size: 12px;
     color: var(--text-muted);
 }
 
@@ -4910,7 +4910,7 @@ tr.is-voided-row td {
     gap: 8px;
     margin: 0 !important;
     padding: 4px 2px;
-    font-size: 13px;
+    font-size: 13.5px;
     font-weight: normal !important;
     line-height: 1.35;
     cursor: pointer;
@@ -4949,7 +4949,7 @@ tr.is-voided-row td {
     color: var(--navy-dark);
 }
 
-.js-head .text-muted { font-size: 12.5px; }
+.js-head .text-muted { font-size: 13px; }
 
 .js-tiles {
     display: grid;
@@ -4969,9 +4969,9 @@ tr.is-voided-row td {
     border-top: 4px solid var(--gold-primary);
 }
 
-.js-tile span { font-size: 12.5px; color: var(--text-muted); }
+.js-tile span { font-size: 13px; color: var(--text-muted); }
 .js-tile strong { font-family: var(--font-head); font-size: 26px; font-weight: 500; color: var(--navy-dark); }
-.js-tile small { font-size: 11.5px; color: var(--text-muted); }
+.js-tile small { font-size: 12px; color: var(--text-muted); }
 .js-tile.is-ok { border-top-color: var(--success); }
 .js-tile.is-warn { border-top-color: var(--warning); }
 .js-tile.is-bad { border-top-color: var(--danger); }
@@ -5016,14 +5016,14 @@ tr.is-voided-row td {
     border-radius: 10px;
     background: transparent;
     font-family: inherit;
-    font-size: 13px;
+    font-size: 13.5px;
     text-align: left;
     color: var(--text-dark);
     cursor: pointer;
     white-space: normal;
 }
 
-.js-list-item small { font-size: 11.5px; color: var(--text-muted); }
+.js-list-item small { font-size: 12px; color: var(--text-muted); }
 .js-list-item:hover { background-color: var(--gold-light); }
 
 /* ==================== พอร์ทัลนายจ้าง (บัญชี Client) ดู renderClientPortal ==================== */
@@ -5064,7 +5064,7 @@ tr.is-voided-row td {
     background-color: var(--dk-subtle, #f3f6fc);
 }
 
-.cp-stats span { font-size: 12px; color: var(--text-muted); }
+.cp-stats span { font-size: 12.5px; color: var(--text-muted); }
 .cp-stats strong { font-family: var(--font-head); font-size: 20px; font-weight: 500; color: var(--navy-dark); }
 .cp-stats .is-due strong { color: var(--danger); }
 
@@ -5088,7 +5088,7 @@ tr.is-voided-row td {
     align-items: center;
     gap: 10px 14px;
     margin-bottom: 12px;
-    font-size: 13px;
+    font-size: 13.5px;
 }
 
 .cp-toolbar .search-box { flex: 1; min-width: 220px; max-width: 420px; }
@@ -5098,7 +5098,7 @@ tr.is-voided-row td {
 
 .cp-pay-hint {
     margin: 12px 0 0;
-    font-size: 12.5px;
+    font-size: 13px;
 }
 
 /* ==================== แฟ้มเอกสารคนงาน: รายการ + พรีวิวใหญ่ (renderWorkerFolderTiles / renderWorkerFolderPreview) ==================== */
@@ -5136,7 +5136,7 @@ tr.is-voided-row td {
 
 .fv-person-text { flex: 1; min-width: 200px; }
 .fv-person-text h4 { margin: 0 0 4px; font-size: 17px; font-weight: 600; color: var(--navy-dark); }
-.fv-person-text p { margin: 0; font-size: 12.5px; color: var(--text-muted); }
+.fv-person-text p { margin: 0; font-size: 13px; color: var(--text-muted); }
 .fv-search { flex: 0 1 300px; max-width: 100%; margin: 0; }
 
 .fv-layout {
@@ -5159,13 +5159,13 @@ tr.is-voided-row td {
     align-items: center;
     gap: 6px;
     padding: 6px 4px;
-    font-size: 12.5px;
+    font-size: 13px;
     font-weight: 600;
     color: var(--navy-dark);
 }
 
 .fv-group-head span { flex: 1; }
-.fv-group-head b { font-size: 11.5px; color: var(--text-muted); }
+.fv-group-head b { font-size: 12px; color: var(--text-muted); }
 
 .fv-add {
     display: inline-flex;
@@ -5177,13 +5177,13 @@ tr.is-voided-row td {
     background: transparent;
     color: var(--gold-primary);
     font-family: inherit;
-    font-size: 11.5px;
+    font-size: 12px;
     cursor: pointer;
 }
 
 .fv-add:hover { background-color: var(--gold-light); }
 
-.fv-none { padding: 4px 8px 6px; font-size: 11.5px; color: var(--text-muted); }
+.fv-none { padding: 4px 8px 6px; font-size: 12px; color: var(--text-muted); }
 
 .fv-item {
     display: flex;
@@ -5207,10 +5207,10 @@ tr.is-voided-row td {
 }
 
 .fv-item-text { min-width: 0; display: flex; flex-direction: column; }
-.fv-item-text b { font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.fv-item-text small { font-size: 11px; color: var(--text-muted); }
+.fv-item-text b { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fv-item-text small { font-size: 11.5px; color: var(--text-muted); }
 
-.tag-mini { display: inline-block; padding: 0 6px; border-radius: 999px; font-size: 10.5px; font-weight: 600; }
+.tag-mini { display: inline-block; padding: 0 6px; border-radius: 999px; font-size: 11.5px; font-weight: 600; }
 .tag-mini.is-ok { background-color: var(--dk-ok-bg, #e5f5ed); color: var(--dk-ok, #1f9254); }
 .tag-mini.is-warn { background-color: var(--dk-warn-bg, #fff6e0); color: var(--dk-warn, #b7791f); }
 .tag-mini.is-bad { background-color: var(--dk-bad-bg, #fde8e8); color: var(--dk-bad, #d13b3b); }
@@ -5222,7 +5222,7 @@ tr.is-voided-row td {
     border-radius: 12px;
 }
 
-.fv-expired h5 { margin: 0 0 6px; font-size: 12.5px; color: var(--text-muted); }
+.fv-expired h5 { margin: 0 0 6px; font-size: 13px; color: var(--text-muted); }
 .fv-expired h5 small { font-weight: normal; }
 .fv-empty { text-align: center; padding: 20px; }
 
@@ -5248,7 +5248,7 @@ tr.is-voided-row td {
 }
 
 .fv-bar-title { display: flex; flex-direction: column; min-width: 0; flex: 1; }
-.fv-bar-title small { font-size: 11.5px; color: var(--text-muted); }
+.fv-bar-title small { font-size: 12px; color: var(--text-muted); }
 
 .fv-name {
     max-width: 420px;
@@ -5320,7 +5320,7 @@ tr.is-voided-row td {
 }
 
 .app-splash-text {
-    font-size: 13px;
+    font-size: 13.5px;
     color: var(--text-muted);
     letter-spacing: 0.2px;
 }
@@ -5573,7 +5573,7 @@ tr.is-voided-row td {
 .ios-select-option.is-disabled { opacity: 0.4; cursor: default; }
 .ios-select-group {
     padding: 8px 12px 4px;
-    font-size: 11.5px;
+    font-size: 12px;
     font-weight: 600;
     color: var(--text-muted);
 }
@@ -5612,4 +5612,524 @@ input[type="checkbox"], input[type="radio"], input[type="range"] {
     .tab-slider.is-animated { transition: none; }
     .ios-select-menu, .modal-content, .content-section { animation: none; }
     .btn:active, .action-icon-btn:active { transform: none; }
+}
+
+/* ==================== หน้าเข้าสู่ระบบแบบ iOS ==================== */
+/* ไม่มีการ์ดครอบ (แบบหน้า Sign in ของ iOS) — โลโก้เป็นไอคอนแอปมุมโค้ง หัวข้อตัวใหญ่หนา
+   ช่องกรอกเป็นกล่องกลุ่ม (ป้ายซ้าย ช่องกรอกขวา คั่นด้วยเส้นบาง) และปุ่มหลักสูงเต็มความกว้าง */
+#login-view .login-container,
+#reset-password-view .login-container {
+    max-width: 400px;
+}
+
+#login-view .login-card,
+#reset-password-view .login-card {
+    background: transparent;
+    box-shadow: none;
+    padding: 0;
+    animation: ios-page-in 0.5s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+#login-view .login-header,
+#reset-password-view .login-header {
+    margin-bottom: 30px;
+}
+
+#login-view .login-logo,
+#reset-password-view .login-logo {
+    width: 104px;
+    height: 104px;
+    object-fit: contain;
+    margin: 0 auto 22px;
+    padding: 10px;
+    border-radius: 24px;  /* มุมโค้งแบบไอคอนแอป */
+    background-color: var(--gray-card);
+    box-shadow: var(--shadow-md);
+}
+
+#login-view .login-header h2,
+#reset-password-view .login-header h2 {
+    font-family: var(--font-head);
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    margin-bottom: 6px;
+}
+
+#login-view .login-header .subtitle,
+#reset-password-view .login-header .subtitle {
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.5;
+}
+
+.ios-field-group {
+    margin-bottom: 16px;
+    border-radius: 14px;
+    background-color: var(--gray-card);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+}
+
+.ios-field {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 52px;
+    padding: 0 16px;
+    position: relative;
+}
+
+/* เส้นคั่นบางแบบ iOS เว้นระยะซ้ายเท่ากับขอบข้อความ */
+.ios-field + .ios-field::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 16px;
+    right: 0;
+    height: 1px;
+    background-color: var(--dk-line, rgba(60, 60, 67, 0.14));
+}
+
+.ios-field label {
+    flex: 0 0 74px;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--navy-dark);
+}
+
+#login-form .ios-field input,
+#reset-password-form .ios-field input {
+    flex: 1;
+    min-width: 0;
+    height: 52px;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    outline: none;
+    font-family: inherit;
+    font-size: 15px;   /* ≥16px บน iPhone ด้านล่าง กัน Safari ซูมเข้าเองตอนแตะ */
+    color: var(--text-dark);
+}
+
+#login-form .ios-field input::placeholder,
+#reset-password-form .ios-field input::placeholder {
+    color: var(--text-muted);
+    opacity: 0.7;
+}
+
+/* แถวที่กำลังพิมพ์: ป้ายเปลี่ยนเป็นสีหลัก (แบบ iOS ไม่มีกรอบ/พื้นไฮไลต์) */
+.ios-field:focus-within label {
+    color: var(--gold-primary);
+}
+
+#login-view .error-msg,
+#reset-password-view .error-msg {
+    border: none;
+    border-radius: 12px;
+    text-align: center;
+}
+
+#btn-login,
+#btn-reset-password {
+    height: 52px;
+    margin-top: 4px;
+    border-radius: 14px;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.login-footnote {
+    margin-top: 28px;
+    text-align: center;
+    font-size: 12.5px;
+    color: var(--text-muted);
+}
+
+@media (max-width: 600px) {
+    #login-form .ios-field input,
+    #reset-password-form .ios-field input { font-size: 16px; }
+}
+
+/* Chrome/Safari ทาพื้นฟ้าให้ช่องที่กรอกอัตโนมัติ (รหัสที่จำไว้) — ทับด้วยเงาทึบสีเดียวกับกล่อง ช่องจะกลืนกับแถว */
+#login-form .ios-field input:-webkit-autofill,
+#reset-password-form .ios-field input:-webkit-autofill {
+    -webkit-text-fill-color: var(--text-dark);
+    -webkit-box-shadow: 0 0 0 100px var(--gray-card) inset !important;
+    box-shadow: 0 0 0 100px var(--gray-card) inset !important;
+    caret-color: var(--text-dark);
+}
+
+/* ==================== แถบเมนูข้างแบบลอย (ทุกธีม) ==================== */
+/* เดิมแถบเมนูติดขอบจอซ้ายและยาวตามหน้า — ตอนนี้เป็นการ์ดลอยมุมโค้ง เว้นขอบรอบตัว มีเงาเหมือนการ์ดอื่น
+   และค้างอยู่กับที่ตอนเลื่อนหน้า (sticky) เมนูยาวเกินจอให้เลื่อนในตัวแถบเอง */
+@media (min-width: 1025px) {
+    .sidebar {
+        position: sticky;
+        top: 12px;
+        align-self: flex-start;
+        height: calc(100vh - 24px);
+        margin: 12px 0 12px 12px;
+        border-right: none !important;
+        border-radius: 22px;
+        box-shadow: var(--shadow-md);
+        overflow: hidden;
+    }
+
+    .sidebar-menu {
+        overflow-y: auto;
+        min-height: 0;   /* ให้เมนูหดแล้วเลื่อนในตัว ไม่ดันปุ่มออกจากระบบด้านล่างหลุดกรอบ */
+        scrollbar-width: none;
+    }
+    .sidebar-menu::-webkit-scrollbar { display: none; }
+}
+
+/* จอแคบ: ลิ้นชักเมนูก็ลอยเว้นขอบ มุมโค้ง */
+@media (max-width: 1024px) {
+    .sidebar {
+        top: 10px;
+        left: 10px;
+        height: calc(100vh - 20px);
+        border-radius: 22px;
+        transform: translateX(calc(-100% - 20px));
+    }
+}
+
+/* ==================== การ์ดสถิติแบบ Wallet (เลือก 2026-10-02) ==================== */
+/* แดชบอร์ด: แคปซูลพื้นสีอ่อนตามความเร่งด่วน (น้ำเงิน/เขียวอมฟ้า/ม่วง = ข้อมูลทั่วไป, แดง/ส้ม = ต้องจัดการ) */
+:root {
+    --pill-navy-bg: #e6ecfa;   --pill-navy-fg: #1d3a85;   --pill-navy-sub: #2b3a63;
+    --pill-teal-bg: #e0f3f5;   --pill-teal-fg: #0b5f69;   --pill-teal-sub: #1f4f55;
+    --pill-purple-bg: #eee9fb; --pill-purple-fg: #4e34a6; --pill-purple-sub: #3f3263;
+    --pill-red-bg: #fbe6e6;    --pill-red-fg: #a52a2a;    --pill-red-sub: #6b2b2b;
+    --pill-orange-bg: #fdeedd; --pill-orange-fg: #9a4a06; --pill-orange-sub: #6b3d12;
+    --wallet-bg: #1d3a85;
+}
+:root[data-theme="dark"] {
+    --pill-navy-bg: rgba(111, 143, 224, 0.16);  --pill-navy-fg: #a9bff2;   --pill-navy-sub: #c6d3f3;
+    --pill-teal-bg: rgba(56, 189, 204, 0.14);   --pill-teal-fg: #7fd6df;   --pill-teal-sub: #b9e6eb;
+    --pill-purple-bg: rgba(160, 135, 240, 0.16); --pill-purple-fg: #c4b4f5; --pill-purple-sub: #dad0f8;
+    --pill-red-bg: rgba(245, 138, 138, 0.15);   --pill-red-fg: #f7a3a3;    --pill-red-sub: #f3c9c9;
+    --pill-orange-bg: rgba(246, 170, 91, 0.15); --pill-orange-fg: #f6be7f; --pill-orange-sub: #f2d5b3;
+    --wallet-bg: #2b4590;
+}
+
+.stat-pills {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 12px;
+    margin-bottom: 26px;
+}
+
+.stat-pill {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-height: 64px;
+    padding: 12px 22px;
+    border-radius: 999px;
+    background-color: var(--pill-navy-bg);
+    transition: transform 0.2s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.stat-pill:hover { transform: translateY(-2px); }
+
+.stat-pill h3 {
+    margin: 0;
+    font-family: var(--font-head);
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1.1;
+    white-space: nowrap;
+    color: var(--pill-navy-fg);
+}
+
+.stat-pill p {
+    margin: 0;
+    font-size: 13.5px;
+    line-height: 1.35;
+    color: var(--pill-navy-sub);
+}
+
+.stat-pill.tone-teal   { background-color: var(--pill-teal-bg); }
+.stat-pill.tone-teal h3 { color: var(--pill-teal-fg); }
+.stat-pill.tone-teal p  { color: var(--pill-teal-sub); }
+.stat-pill.tone-purple   { background-color: var(--pill-purple-bg); }
+.stat-pill.tone-purple h3 { color: var(--pill-purple-fg); }
+.stat-pill.tone-purple p  { color: var(--pill-purple-sub); }
+.stat-pill.tone-red   { background-color: var(--pill-red-bg); }
+.stat-pill.tone-red h3 { color: var(--pill-red-fg); }
+.stat-pill.tone-red p  { color: var(--pill-red-sub); }
+.stat-pill.tone-orange   { background-color: var(--pill-orange-bg); }
+.stat-pill.tone-orange h3 { color: var(--pill-orange-fg); }
+.stat-pill.tone-orange p  { color: var(--pill-orange-sub); }
+
+/* แคปซูลที่ตัวเลขยาว (เช่น "3 ใบ · 12,000.00") ตัวเล็กลงหน่อย */
+.widget-board[data-board="finance"] .stat-pill h3 { font-size: 20px; }
+
+/* สรุปการเงิน: บัตรสีกรมท่าแบบ Apple Card + การ์ดกำไร + รายการอันดับ */
+.fin-wallet-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+    gap: 18px;
+    margin-bottom: 16px;
+}
+
+.wallet-card {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 28px;
+    border-radius: 26px;
+    background-color: var(--wallet-bg);
+    color: #ffffff;
+    box-shadow: 0 18px 40px rgba(29, 58, 133, 0.32);
+}
+/* วงแหวนจาง ๆ มุมขวาบน ให้ดูเป็นบัตร */
+.wallet-card::before {
+    content: "";
+    position: absolute;
+    right: -60px;
+    top: -60px;
+    width: 220px;
+    height: 220px;
+    border-radius: 50%;
+    border: 30px solid rgba(255, 255, 255, 0.06);
+    pointer-events: none;
+}
+
+.wallet-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+}
+.wallet-brand { font-size: 15px; font-weight: 600; }
+.wallet-period { font-size: 13.5px; color: #c9d6f7; }
+
+.wallet-label { margin: 0; font-size: 14px; color: #c9d6f7; }
+.wallet-amount {
+    margin: 6px 0 0;
+    font-family: var(--font-head);
+    font-size: 40px;
+    font-weight: 700;
+    letter-spacing: -0.8px;
+    line-height: 1.1;
+    color: #ffffff;
+}
+
+.wallet-progress {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 13.5px;
+    color: #c9d6f7;
+    white-space: nowrap;
+}
+.wallet-progress-bar {
+    flex-grow: 1;
+    height: 8px;
+    border-radius: 999px;
+    background-color: rgba(255, 255, 255, 0.16);
+    overflow: hidden;
+}
+.wallet-progress-fill {
+    height: 100%;
+    min-width: 0;
+    border-radius: 999px;
+    background-color: #7fe0b0;
+    transition: width 0.8s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.wallet-sub {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+    padding-top: 18px;
+    border-top: 1px solid rgba(255, 255, 255, 0.18);
+}
+.wallet-sub p { margin: 0; font-size: 13px; line-height: 1.35; color: #c9d6f7; }
+.wallet-sub h3 { margin: 4px 0 0; font-size: 19px; font-weight: 700; color: #ffffff; }
+.wallet-sub h3.wallet-warn { color: #ffb4b4; }
+
+.fin-side {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.fin-profit-card,
+.fin-list-card {
+    border-radius: 22px;
+    background-color: var(--gray-card);
+    box-shadow: var(--shadow-md);
+}
+
+.fin-profit-card { padding: 22px; }
+.fin-profit-card p { margin: 0; font-size: 13.5px; color: var(--text-muted); }
+.fin-profit-card h3 {
+    margin: 6px 0 0;
+    font-family: var(--font-head);
+    font-size: 32px;
+    font-weight: 700;
+}
+
+.fin-list-card {
+    flex-grow: 1;
+    padding: 4px 0;
+}
+.fin-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 14px;
+    padding: 13px 20px;
+    font-size: 14px;
+}
+.fin-row + .fin-row { border-top: 1px solid var(--dk-line, #e5e5ea); }
+.fin-row span { color: var(--text-muted); flex-shrink: 0; }
+.fin-row strong { font-weight: 600; color: var(--text-dark); text-align: right; }
+
+@media (max-width: 900px) {
+    .fin-wallet-grid { grid-template-columns: 1fr; }
+    .wallet-amount { font-size: 32px; }
+}
+@media (max-width: 560px) {
+    .wallet-sub { grid-template-columns: 1fr; }
+    .stat-pill { border-radius: 20px; }
+}
+
+/* ==================== วิดเจ็ตแบบ iPad (จัดลำดับ/ปรับขนาด) ==================== */
+/* setupWidgetBoards() ใน app.js ห่อการ์ดเดิมเป็น .widget ในกริด 12 ช่อง — ขนาด = จำนวนช่อง (--span) */
+.widget-board-bar {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin: -6px 0 10px;
+}
+
+.widget-bar-btn {
+    padding: 6px 14px;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--gold-primary);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.widget-bar-btn:hover { background-color: var(--gold-light); }
+.widget-reset-btn, .widget-done-btn { display: none; }
+.widget-board-bar.is-editing .widget-edit-btn { display: none; }
+.widget-board-bar.is-editing .widget-reset-btn { display: inline-block; color: var(--text-muted); }
+.widget-board-bar.is-editing .widget-done-btn {
+    display: inline-block;
+    background-color: var(--gold-primary);
+    color: var(--on-primary, #ffffff);
+}
+
+.widget-board {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 16px;
+    margin-bottom: 25px;
+    align-items: stretch;
+}
+
+.widget {
+    grid-column: span var(--span, 12);
+    position: relative;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.widget[data-kind="pill"] { align-self: start; }
+.widget > * { margin-top: 0 !important; margin-bottom: 0 !important; }
+.widget > .dashboard-panel,
+.widget > .wallet-card,
+.widget > .fin-side { flex-grow: 1; }
+/* panel-alerts/panel-charts เคยมี flex: 1.8/1.2 จากแถวเดิม — ในวิดเจ็ตไม่ใช้แล้ว */
+.widget > .dashboard-panel { flex-basis: auto; }
+
+.widget-shield,
+.widget-edit-ui { display: none; }
+
+/* โหมดแก้ไข: การ์ดสั่นแบบไอคอน iOS (ใช้ property rotate แยกจาก transform ที่ใช้ตอนลาก/เลื่อน) */
+.widget-board.is-editing .widget {
+    animation: widget-jiggle 0.28s ease-in-out infinite alternate;
+}
+.widget-board.is-editing .widget[data-kind="block"] { animation-name: widget-jiggle-soft; }
+.widget-board.is-editing .widget:nth-child(2n) { animation-delay: -0.14s; }
+.widget-board.is-editing .widget.is-dragging { animation: none; z-index: 30; }
+
+@keyframes widget-jiggle {
+    from { rotate: -0.6deg; }
+    to   { rotate: 0.6deg; }
+}
+@keyframes widget-jiggle-soft {
+    from { rotate: -0.12deg; }
+    to   { rotate: 0.12deg; }
+}
+
+.widget-board.is-editing .widget-shield {
+    display: block;
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    border-radius: 22px;
+    cursor: grab;
+    touch-action: none;
+    outline: 2px dashed var(--gold-border);
+    outline-offset: 3px;
+    background-color: rgba(255, 255, 255, 0.04);
+}
+.widget.is-dragging .widget-shield {
+    cursor: grabbing;
+    box-shadow: var(--shadow-lg);
+}
+
+.widget-board.is-editing .widget-edit-ui {
+    display: flex;
+    position: absolute;
+    top: -12px;
+    right: 12px;
+    z-index: 6;
+    gap: 2px;
+    padding: 3px;
+    border-radius: 10px;
+    background-color: var(--gray-card);
+    box-shadow: var(--shadow-md), 0 0 0 1px var(--dk-line, #e2e8f0);
+}
+.widget-edit-ui button {
+    padding: 3px 9px;
+    border: none;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 12.5px;
+    cursor: pointer;
+}
+.widget-edit-ui button.is-active {
+    background-color: var(--gold-primary);
+    color: var(--on-primary, #ffffff);
+    font-weight: 600;
+}
+
+/* จอแคบ (iPad แนวตั้ง/มือถือ): การ์ดเต็มแถว แคปซูลครึ่งแถว — ขนาดที่เลือกไว้ใช้กับจอกว้าง */
+@media (max-width: 900px) {
+    .widget { grid-column: span 12; }
+    .widget[data-kind="pill"] { grid-column: span 6; }
+}
+@media (max-width: 480px) {
+    .widget[data-kind="pill"] { grid-column: span 12; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .widget-board.is-editing .widget { animation: none; }
 }

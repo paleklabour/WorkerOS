@@ -156,6 +156,21 @@ so it uses the fallback; pink and dark define them at the end of `styles.css`.
 Printed sheets (`.invoice-sheet`, `.delivery-label-sheet`) always stay
 white-paper.
 
+## iOS look & widget boards (standing rule, 2026-10)
+
+The UI follows iOS (owner's request): SF Pro/Sukhumvit fonts, light theme
+"Layered" (grouped gray bg, two-layer shadows), floating sidebar, tab groups
+with a sliding thumb (`attachTabSlider`), every `<select>` opens an iOS menu on
+mouse devices (`openIosSelect` — the native `<select>` still holds the value),
+charts animate via `setupChartMagicMove`. Keep new UI consistent with that.
+Smallest UI font is 11.5px; don't add smaller sizes (printed sheets excepted).
+
+Dashboard overview and finance overview cards are widgets the user can
+reorder/resize ("แก้ไขหน้า"), saved per account in `profiles.ui_layout` via
+`set_my_ui_layout()`. A new card/panel on those two pages must be registered in
+`WIDGET_BOARDS` in `app.js` (id, kind `pill`/`block`, default size) or it won't
+be part of the board.
+
 ## Running locally
 
 ```powershell

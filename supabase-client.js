@@ -137,7 +137,7 @@
         }
         const { data: profile, error: profErr } = await sb
             .from("profiles")
-            .select("name, role, customer_id, theme")
+            .select("name, role, customer_id, theme, ui_layout")
             .eq("id", data.user.id)
             .single();
         if (profErr || !profile) {
@@ -146,7 +146,7 @@
         }
         return {
             status: "success",
-            user: { id: data.user.id, email: data.user.email, name: profile.name, role: profile.role, customer_id: profile.customer_id, theme: profile.theme || null }
+            user: { id: data.user.id, email: data.user.email, name: profile.name, role: profile.role, customer_id: profile.customer_id, theme: profile.theme || null, uiLayout: profile.ui_layout || null }
         };
     }
 
@@ -182,7 +182,7 @@
             sb.from("workers").select("*"),
             sb.from("jobs").select("*"),
             sb.from("banks").select("*"),
-            sb.from("profiles").select("name, role, customer_id, id, theme"),
+            sb.from("profiles").select("name, role, customer_id, id, theme, ui_layout"),
             sb.from("agents").select("*"),
             sb.from("expenses").select("*"),
             sb.from("free_invoices").select("*"),
@@ -225,7 +225,7 @@
             servicePrices: servicePricesRes.error ? [] : normalizeNumbers(toCamelList(servicePricesRes.data, SERVICE_PRICE_MAP), ["govFee", "serviceFee"]),
             freeInvoices: freeInvoicesRes.error ? [] : toCamelList(freeInvoicesRes.data, FREE_INVOICE_MAP),
             users: profilesRes.error ? [] : (profilesRes.data || []).map((p) => ({
-                id: p.id, email: p.id, name: p.name, role: p.role, customer_id: p.customer_id, theme: p.theme || null
+                id: p.id, email: p.id, name: p.name, role: p.role, customer_id: p.customer_id, theme: p.theme || null, uiLayout: p.ui_layout || null
             }))
         };
     }
@@ -603,6 +603,12 @@
                     const { error } = await sb.from("banks").update({ sort_order: sortOrder }).eq("id", id);
                     if (error) return { status: "error", message: error.message };
                 }
+                return { status: "success" };
+            }
+            case "setMyUiLayout": {
+                // การจัดหน้าวิดเจ็ต (ลำดับ/ขนาด) ของแถวตัวเอง — ดู 20261002082104_profile_ui_layout.sql
+                const { error } = await sb.rpc("set_my_ui_layout", { p_layout: payload.layout });
+                if (error) return { status: "error", message: error.message };
                 return { status: "success" };
             }
             case "setMyTheme": {

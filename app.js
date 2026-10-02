@@ -375,6 +375,11 @@ async function loadData() {
             // เปลี่ยนธีมจากอีกเครื่องไว้ → ใช้ธีมล่าสุดของบัญชี (ตอนเปิดระบบ/กดรีเฟรช)
             const me = currentUser ? users.find(u => u.id === currentUser.id) : null;
             if (me) syncThemeFromAccount(me.theme);
+            // การจัดหน้าวิดเจ็ตล่าสุดของบัญชี (อาจจัดจากอีกเครื่อง) — ข้ามถ้ามีการแก้ในเครื่องนี้ที่ยังรอบันทึก
+            if (me && !_widgetSaveTimer && JSON.stringify(me.uiLayout || null) !== JSON.stringify(currentUser.uiLayout || null)) {
+                currentUser.uiLayout = me.uiLayout || null;
+                applyAllWidgetLayouts();
+            }
 
             // Cache locally
             localStorage.setItem("mw_customers", JSON.stringify(customers));
@@ -784,6 +789,7 @@ function seedMockData() {
 async function initApp() {
     try {
         await loadData();
+        applyAllWidgetLayouts(); // จัดวิดเจ็ตตามที่บัญชีนี้บันทึกไว้ (profiles.ui_layout)
         hideLoginView();
         showMainLayout();
         
@@ -1147,7 +1153,8 @@ async function handleLogin(e) {
                     name: result.user.name,
                     role: result.user.role,
                     customer_id: result.user.customer_id,
-                    theme: result.user.theme || null
+                    theme: result.user.theme || null,
+                    uiLayout: result.user.uiLayout || null
                 };
                 localStorage.setItem("mw_current_user", JSON.stringify(currentUser));
                 syncThemeFromAccount(result.user.theme);
@@ -2053,7 +2060,7 @@ function renderRenewalGroups() {
             <div class="dashboard-panel" style="flex: 1; margin-bottom: 20px;">
                 <div class="panel-header">
                     <h3 style="margin:0;">${title}</h3>
-                    <span style="font-size: 12.5px; color: #64748b;">
+                    <span style="font-size: 13px; color: #64748b;">
                         ทั้งหมด ${list.length} คน • ${icon("warn")} ใกล้หมดอายุ ${warningCount} • ${icon("bad")} หมดอายุแล้ว ${expiredCount} • ${icon("book")} ยังไม่มีเล่ม ${noBookCount}
                     </span>
                 </div>
@@ -2250,7 +2257,7 @@ function renderPieChartInto(containerId, entries) {
         const color = e.color || PIE_CHART_PALETTE[idx % PIE_CHART_PALETTE.length];
         const pct = ((e.value / total) * 100).toFixed(1);
         return `
-            <div style="display:flex; align-items:center; gap:6px; font-size:12px; margin-bottom:6px;">
+            <div style="display:flex; align-items:center; gap:6px; font-size:12.5px; margin-bottom:6px;">
                 <span style="width:12px; height:12px; border-radius:3px; background:${color}; display:inline-block; flex-shrink:0;"></span>
                 <span>${e.name} — ${e.value.toLocaleString('th-TH')} บ. (${pct}%)</span>
             </div>
@@ -2297,6 +2304,11 @@ function toggleChartView(prefix, mode) {
 const BELL_RECENT_CLOSE_DAYS = 3;
 const BELL_OVERDUE_DAYS = 15;   // ตรงกับกำหนดชำระมาตรฐานบนบิล
 const BELL_MAX_ITEMS = 6;
+
+// บิลที่ยังค้างชำระและออกมาเกินกำหนดชำระมาตรฐานแล้ว (นิยามเดียวกับหมวด "บิลค้างชำระเกิน 15 วัน" ในกระดิ่ง) — ใช้ในแคปซูลแดชบอร์ด/สรุปการเงิน
+function overdueInvoices() {
+    return invoices.filter(i => (i.status === 'issued' || i.status === 'partial') && invoiceBalance(i) > 0 && daysSince(i.issueDate) > BELL_OVERDUE_DAYS);
+}
 
 function bellJobItem(j, sub) {
     const cust = customers.find(c => c.id === j.customerId);
@@ -2460,6 +2472,12 @@ function renderDashboard() {
     const statMissingEl = document.getElementById("stat-missing-docs");
     if (statMissingEl) statMissingEl.innerText = missingWorkersCount;
 
+    // แคปซูลเพิ่ม: งานที่ยังไม่ปิด + บิลค้างเกินกำหนด (แคปซูลบิลซ่อนจากคนที่ไม่มีสิทธิ์การเงินด้วย needs-finance)
+    const openJobsEl = document.getElementById("stat-open-jobs");
+    if (openJobsEl) openJobsEl.innerText = jobs.filter(j => JOB_OPEN_STATUSES.includes(j.status)).length;
+    const overdueEl = document.getElementById("stat-overdue-invoices");
+    if (overdueEl) overdueEl.innerText = overdueInvoices().length;
+
     // กระดิ่ง + ตัวเลขที่เมนูแดชบอร์ด: แยกตามตำแหน่ง (ดู buildNotificationGroups)
     updateNotificationBell();
 
@@ -2537,15 +2555,15 @@ function switchFinancePageTab(tabName) {
 
 // badge สถานะการเงิน ใช้ร่วมกันทั้งบิลที่ผูกใบงานจริง (jobs) และบิลอิสระ (freeInvoices) ในตาราง "ออกบิล/รับเงิน"
 function buildFinancePaymentBadge(paymentStatus, paymentMethod, isClosedUnpaid) {
-    let badge = `<span class="badge badge-warning" style="font-size: 10px; padding: 2px 6px;">${icon("hourglass")} ยังไม่ออกบิล</span>`;
+    let badge = `<span class="badge badge-warning" style="font-size: 11.5px; padding: 2px 6px;">${icon("hourglass")} ยังไม่ออกบิล</span>`;
     if (isClosedUnpaid && paymentStatus === 'ยังไม่ออกบิล') {
-        badge = `<span class="badge badge-danger" style="font-size: 10px; padding: 2px 6px;">${icon("warn")} ยังไม่ออกบิล/ยังไม่ชำระ</span>`;
+        badge = `<span class="badge badge-danger" style="font-size: 11.5px; padding: 2px 6px;">${icon("warn")} ยังไม่ออกบิล/ยังไม่ชำระ</span>`;
     } else if (isClosedUnpaid && paymentStatus === 'ออกบิลแล้ว') {
-        badge = `<span class="badge badge-danger" style="font-size: 10px; padding: 2px 6px;">${icon("warn")} ออกบิลแล้ว รอชำระ</span>`;
+        badge = `<span class="badge badge-danger" style="font-size: 11.5px; padding: 2px 6px;">${icon("warn")} ออกบิลแล้ว รอชำระ</span>`;
     } else if (paymentStatus === 'ออกบิลแล้ว') {
-        badge = `<span class="badge" style="font-size: 10px; padding: 2px 6px; background-color: #3b82f6; color: white;">${icon("receipt")} ออกบิลแล้ว</span>`;
+        badge = `<span class="badge" style="font-size: 11.5px; padding: 2px 6px; background-color: #3b82f6; color: white;">${icon("receipt")} ออกบิลแล้ว</span>`;
     } else if (paymentStatus === 'ชำระเงินแล้ว') {
-        badge = `<span class="badge badge-success" style="font-size: 10px; padding: 2px 6px;">${icon("ok")} ชำระเงินแล้ว${paymentMethod ? ` (${paymentMethod})` : ''}</span>`;
+        badge = `<span class="badge badge-success" style="font-size: 11.5px; padding: 2px 6px;">${icon("ok")} ชำระเงินแล้ว${paymentMethod ? ` (${paymentMethod})` : ''}</span>`;
     }
     return badge;
 }
@@ -2962,10 +2980,10 @@ function renderCustomers() {
         const totalWorkersCount = workers.filter(w => w.employerId === c.id && w.status !== 'deleted').length;
         
         const statusLabel = c.status === 'deleted' ?
-            ' <span class="badge" style="background-color: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); font-size: 10px; padding: 2px 6px; margin-left: 4px;">ลบแล้ว/เก็บถาวร</span>' :
+            ' <span class="badge" style="background-color: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); font-size: 11.5px; padding: 2px 6px; margin-left: 4px;">ลบแล้ว/เก็บถาวร</span>' :
             '';
         const prepaymentLabel = c.requirePrepayment ?
-            ' <span class="badge" style="background-color: #fffbeb; color: #92400e; border: 1px solid #fde68a; font-size: 10px; padding: 2px 6px; margin-left: 4px;" title="ต้องออกบิลและรับชำระก่อนย้ายใบงานเข้ากำลังดำเนินการ">' + icon("moneybag") + ' ต้องชำระก่อนดำเนินการ</span>' :
+            ' <span class="badge" style="background-color: #fffbeb; color: #92400e; border: 1px solid #fde68a; font-size: 11.5px; padding: 2px 6px; margin-left: 4px;" title="ต้องออกบิลและรับชำระก่อนย้ายใบงานเข้ากำลังดำเนินการ">' + icon("moneybag") + ' ต้องชำระก่อนดำเนินการ</span>' :
             '';
         
         const attachHtml = `
@@ -2979,10 +2997,10 @@ function renderCustomers() {
         const referredAgent = c.referredByAgentId ? agents.find(a => a.id === c.referredByAgentId) : null;
         const referredAgentHtml = referredAgent
             ? `<span class="badge" style="background-color:#e0f2fe; color:#0369a1; font-weight:600;">${icon("users")} ${referredAgent.name}</span>`
-            : `<span class="text-muted" style="font-size:12px;">-</span>`;
+            : `<span class="text-muted" style="font-size:12.5px;">-</span>`;
 
         // หนังสือรับรองนิติบุคคล: มีเฉพาะลูกค้าที่กรอกวันที่ออกหนังสือรับรองไว้ (cert_expiry = วันที่ออก + 6 เดือน)
-        let certCellHtml = `<span class="text-muted" style="font-size:12px;">-</span>`;
+        let certCellHtml = `<span class="text-muted" style="font-size:12.5px;">-</span>`;
         if (c.certExpiry) {
             const certExpDate = new Date(c.certExpiry);
             const certDaysDiff = Math.ceil((certExpDate.setHours(0,0,0,0) - new Date().setHours(0,0,0,0)) / (1000 * 60 * 60 * 24));
@@ -3349,7 +3367,7 @@ function renderWorkers() {
                             ${w.thaiName ? `<div><small class="text-muted">ชื่อไทย (บัตรชมพู): ${w.thaiName}</small></div>` : ''}
                             <div><small class="text-muted">เพศ: ${w.gender || '-'}</small></div>
                             ${pendingNotifyBadge}
-                            ${(w.fatherName || w.motherName) ? `<div style="font-size:10px; color:var(--text-muted); margin-top:2px;">พ่อ: ${w.fatherName || '-'} / แม่: ${w.motherName || '-'}</div>` : ''}
+                            ${(w.fatherName || w.motherName) ? `<div style="font-size:11.5px; color:var(--text-muted); margin-top:2px;">พ่อ: ${w.fatherName || '-'} / แม่: ${w.motherName || '-'}</div>` : ''}
                         </div>
                     </div>
                 </td>
@@ -3797,7 +3815,7 @@ function renderAttachmentChipsHtml(fileList, buildRemoveCall, buildPreviewCall) 
     if (!fileList || fileList.length === 0) return '';
     return `<div style="display:flex; flex-direction:column; gap:4px; text-align:left; margin-top:4px;">` +
         fileList.map((f, idx) => `
-            <div style="display:flex; align-items:center; justify-content:space-between; gap:6px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:4px; padding:3px 6px; font-size:11px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:6px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:4px; padding:3px 6px; font-size:11.5px;">
                 <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#166534; ${buildPreviewCall ? 'cursor:pointer; text-decoration:underline dotted;' : ''}"
                       title="${buildPreviewCall ? `คลิกเพื่อดูตัวอย่างไฟล์: ${f.name}` : f.name}"
                       ${buildPreviewCall ? `onclick="${buildPreviewCall(idx)}"` : ''}>${icon("ok")} ${f.name}</span>
@@ -5325,7 +5343,7 @@ function renderJobs() {
         const custIdLines = buildEmployerIdLinesHtml(cust);
         const workName = work ? `${work.firstName} ${work.lastName} (${work.nationality})` : "ไม่พบข้อมูลคนงาน";
         const jobAgent = j.agentId ? agents.find(a => a.id === j.agentId) : null;
-        const agentLine = jobAgent ? `<br><span style="font-size:11px; color:var(--text-muted);">${icon("user")} Agent: ${jobAgent.name}</span>` : '';
+        const agentLine = jobAgent ? `<br><span style="font-size:11.5px; color:var(--text-muted);">${icon("user")} Agent: ${jobAgent.name}</span>` : '';
 
         // Status styling and display (สถานะขั้นตอนงาน — แยกจากสถานะการเงินโดยสิ้นเชิงแล้ว)
         let displayStatus = j.status;
@@ -5343,17 +5361,17 @@ function renderJobs() {
 
         // Payment badge (ออกบิล/ชำระเงิน) — เป็นอิสระจากสถานะขั้นตอนงาน ออกบิลได้ตั้งแต่เปิดงาน
         const paymentStatus = j.paymentStatus || 'ยังไม่ออกบิล';
-        let paymentBadge = `<span class="badge badge-warning" style="font-size: 10px; padding: 2px 6px;">${icon("hourglass")} ยังไม่ออกบิล</span>`;
+        let paymentBadge = `<span class="badge badge-warning" style="font-size: 11.5px; padding: 2px 6px;">${icon("hourglass")} ยังไม่ออกบิล</span>`;
         if (paymentStatus === 'ออกบิลแล้ว') {
-            paymentBadge = `<span class="badge" style="font-size: 10px; padding: 2px 6px; background-color: #3b82f6; color: white;">${icon("receipt")} ออกบิลแล้ว</span>`;
+            paymentBadge = `<span class="badge" style="font-size: 11.5px; padding: 2px 6px; background-color: #3b82f6; color: white;">${icon("receipt")} ออกบิลแล้ว</span>`;
         } else if (paymentStatus === 'ชำระเงินแล้ว') {
-            paymentBadge = `<span class="badge badge-success" style="font-size: 10px; padding: 2px 6px;">${icon("ok")} ชำระเงินแล้ว${j.paymentMethod ? ` (${j.paymentMethod})` : ''}</span>`;
+            paymentBadge = `<span class="badge badge-success" style="font-size: 11.5px; padding: 2px 6px;">${icon("ok")} ชำระเงินแล้ว${j.paymentMethod ? ` (${j.paymentMethod})` : ''}</span>`;
         }
 
         // นายจ้างบางรายตั้งไว้ว่าต้องออกบิล+รับชำระก่อนถึงจะเริ่ม "กำลังดำเนินการ" ได้ (customers.requirePrepayment)
         // โชว์เตือนไว้ในตารางใบงานเลยเพื่อให้เจ้าหน้าที่เห็นล่วงหน้า ไม่ต้องเปิดไปเช็กที่หน้านายจ้างก่อน
         const prepaymentBadge = (cust && cust.requirePrepayment && paymentStatus !== 'ชำระเงินแล้ว')
-            ? `<br><span class="badge" style="background-color: #fffbeb; color: #92400e; border: 1px solid #fde68a; font-size: 10px; padding: 2px 6px;" title="นายจ้าง &quot;${custName}&quot; ตั้งไว้ว่าต้องออกบิลและรับชำระเงินก่อนย้ายเข้ากำลังดำเนินการ">${icon("moneybag")} ต้องออกบิลและรับชำระเงินก่อน</span>`
+            ? `<br><span class="badge" style="background-color: #fffbeb; color: #92400e; border: 1px solid #fde68a; font-size: 11.5px; padding: 2px 6px;" title="นายจ้าง &quot;${custName}&quot; ตั้งไว้ว่าต้องออกบิลและรับชำระเงินก่อนย้ายเข้ากำลังดำเนินการ">${icon("moneybag")} ต้องออกบิลและรับชำระเงินก่อน</span>`
             : '';
 
         // Action buttons
@@ -5385,13 +5403,13 @@ function renderJobs() {
         const cleanJobType = (j.jobType || "").replace(/\s*\(\d+\)/g, "");
         const siblings = getJobBatchSiblings(j);
         const batchBadge = siblings.length > 0
-            ? `<br><span class="badge" style="font-size:10px; margin-top:3px; background:#eef2ff; color:#4338ca; display:inline-block;">${icon("clip")} ชุดงานเดียวกัน • ${siblings.length + 1} รายการ</span>`
+            ? `<br><span class="badge" style="font-size:11.5px; margin-top:3px; background:#eef2ff; color:#4338ca; display:inline-block;">${icon("clip")} ชุดงานเดียวกัน • ${siblings.length + 1} รายการ</span>`
             : '';
         const siblingPills = siblings.length > 0
             ? `<div style="margin-top:5px; display:flex; flex-wrap:wrap; gap:4px;">${siblings.map(s => {
                 const sClean = (s.jobType || "").replace(/\s*\(\d+\)/g, "");
                 const dotColor = isJobStatusOpen(s.status) ? '#f59e0b' : '#22c55e';
-                return `<span title="${sClean}: ${s.status}" style="font-size:10px; padding:1px 7px; border-radius:10px; background:#f1f5f9; color:#475569; display:inline-flex; align-items:center; gap:4px;"><span style="width:6px;height:6px;border-radius:50%;background:${dotColor};display:inline-block;"></span>${sClean}</span>`;
+                return `<span title="${sClean}: ${s.status}" style="font-size:11.5px; padding:1px 7px; border-radius:10px; background:#f1f5f9; color:#475569; display:inline-flex; align-items:center; gap:4px;"><span style="width:6px;height:6px;border-radius:50%;background:${dotColor};display:inline-block;"></span>${sClean}</span>`;
             }).join('')}</div>`
             : '';
 
@@ -5415,8 +5433,8 @@ function renderJobs() {
                     </div>
                 </td>
                 <td>
-                    <span style="font-size:12.5px;">${getUserNameById(j.openedBy)}</span>
-                    ${j.closedBy ? `<br><span style="font-size:11px; color:var(--text-muted);">${icon("lock")} ปิดโดย: ${getUserNameById(j.closedBy)}</span>` : ''}
+                    <span style="font-size:13px;">${getUserNameById(j.openedBy)}</span>
+                    ${j.closedBy ? `<br><span style="font-size:11.5px; color:var(--text-muted);">${icon("lock")} ปิดโดย: ${getUserNameById(j.closedBy)}</span>` : ''}
                 </td>
                 <td class="actions-col" onclick="event.stopPropagation()">
                     <div class="actions-cell">
@@ -5854,7 +5872,7 @@ function refreshJobTypeLocks() {
 
             const note = document.createElement('div');
             note.className = 'job-type-lock-note';
-            note.style.cssText = 'width:100%; font-size:10.5px; color:#b91c1c; margin-top:2px; line-height:1.4;';
+            note.style.cssText = 'width:100%; font-size:11.5px; color:#b91c1c; margin-top:2px; line-height:1.4;';
             const detail = conflicts.map(x => {
                 const w = workers.find(item => item.id === x.wid);
                 const wName = w ? `${w.firstName} ${w.lastName}` : x.wid;
@@ -5878,7 +5896,7 @@ function renderJobBatchHint(job, workerIdForNew) {
     if (!hintBox) {
         hintBox = document.createElement("div");
         hintBox.id = "job-batch-hint";
-        hintBox.style.cssText = "font-size:12px; border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 14px; display:none;";
+        hintBox.style.cssText = "font-size:12.5px; border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 14px; display:none;";
         const container = document.getElementById("job-type-checkboxes-container");
         if (container && container.parentNode) {
             container.parentNode.insertBefore(hintBox, container);
@@ -7871,7 +7889,7 @@ function openCombineBillsModal() {
         customers.map(c => `<option value="${c.id}">${c.companyName}</option>`).join('');
 
     document.getElementById("combine-jobs-list").innerHTML = `
-        <span class="text-muted" style="font-size: 13px; text-align: center; display: block; padding: 20px 0;">
+        <span class="text-muted" style="font-size: 13.5px; text-align: center; display: block; padding: 20px 0;">
             ${icon("idea")} กรุณาเลือกนายจ้างด้านบนเพื่อดึงข้อมูลใบสั่งงานที่ค้างจ่าย
         </span>
     `;
@@ -7910,7 +7928,7 @@ function onCombineCustomerChange() {
 
     if (unpaidJobs.length === 0) {
         listContainer.innerHTML = `
-            <span class="text-muted" style="font-size: 13px; text-align: center; display: block; padding: 20px 0; color: var(--danger);">
+            <span class="text-muted" style="font-size: 13.5px; text-align: center; display: block; padding: 20px 0; color: var(--danger);">
                 ${icon("bad")} ไม่พบงานที่ค้างชำระของนายจ้างรายนี้ในระบบ
             </span>
         `;
@@ -7925,7 +7943,7 @@ function onCombineCustomerChange() {
         const workUidTag = work && work.workerUid ? ` [${work.workerUid}]` : '';
 
         return `
-            <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px; border-bottom: 1px solid #f1f5f9; font-size: 13.5px; gap: 15px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px; border-bottom: 1px solid #f1f5f9; font-size: 14px; gap: 15px;">
                 <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: normal; margin: 0; width: 65%;">
                     <input type="checkbox" name="combine-job-checkbox" value="${j.id}" onchange="updateCombineTotalAmount()" style="width: 16px; height: 16px; cursor: pointer;">
                     <div>
@@ -7933,8 +7951,8 @@ function onCombineCustomerChange() {
                     </div>
                 </label>
                 <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
-                    <input type="number" id="combine-fee-${j.id}" value="${j.fee > 0 ? j.fee : buildInvoiceItemsFromJob(j, '').reduce((s, it) => s + it.fee, 0)}" oninput="updateCombineTotalAmount()" style="width: 90px; padding: 4px 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 12.5px; text-align: right; font-family: inherit;">
-                    <span style="color: var(--text-muted); font-size: 12.5px;">บาท</span>
+                    <input type="number" id="combine-fee-${j.id}" value="${j.fee > 0 ? j.fee : buildInvoiceItemsFromJob(j, '').reduce((s, it) => s + it.fee, 0)}" oninput="updateCombineTotalAmount()" style="width: 90px; padding: 4px 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 13px; text-align: right; font-family: inherit;">
+                    <span style="color: var(--text-muted); font-size: 13px;">บาท</span>
                 </div>
             </div>
         `;
@@ -8998,12 +9016,12 @@ function renderMonthlyDetails() {
 
     if (custUl) {
         if (matchingCustomers.length === 0) {
-            custUl.innerHTML = '<li class="text-muted" style="font-size:13px; text-align:center; padding:10px;">' + icon("bad") + ' ไม่มีนายจ้างลงทะเบียนใหม่ในเดือนนี้</li>';
+            custUl.innerHTML = '<li class="text-muted" style="font-size:13.5px; text-align:center; padding:10px;">' + icon("bad") + ' ไม่มีนายจ้างลงทะเบียนใหม่ในเดือนนี้</li>';
         } else {
             custUl.innerHTML = matchingCustomers.map(c => `
-                <li style="font-size:13px; padding: 6px 10px; background-color: #ffffff; border-radius: var(--radius-sm); border: 1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+                <li style="font-size:13.5px; padding: 6px 10px; background-color: #ffffff; border-radius: var(--radius-sm); border: 1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
                     <span>${icon("building")} <strong>${c.companyName}</strong> (${c.businessType})</span>
-                    <span style="font-size:11.5px; color:var(--text-muted);">${formatDateOnly(c.createdAt)}</span>
+                    <span style="font-size:12px; color:var(--text-muted);">${formatDateOnly(c.createdAt)}</span>
                 </li>
             `).join('');
         }
@@ -9011,18 +9029,18 @@ function renderMonthlyDetails() {
 
     if (workUl) {
         if (matchingWorkers.length === 0) {
-            workUl.innerHTML = '<li class="text-muted" style="font-size:13px; text-align:center; padding:10px;">' + icon("bad") + ' ไม่มีคนงานขึ้นทะเบียนใหม่ในเดือนนี้</li>';
+            workUl.innerHTML = '<li class="text-muted" style="font-size:13.5px; text-align:center; padding:10px;">' + icon("bad") + ' ไม่มีคนงานขึ้นทะเบียนใหม่ในเดือนนี้</li>';
         } else {
             workUl.innerHTML = matchingWorkers.map(w => {
                 const emp = customers.find(c => c.id === w.employerId);
                 const empName = emp ? emp.companyName : "ไม่ระบุนายจ้าง";
                 return `
-                    <li style="font-size:13px; padding: 6px 10px; background-color: #ffffff; border-radius: var(--radius-sm); border: 1px solid #e2e8f0; display:flex; flex-direction:column; gap:4px;">
+                    <li style="font-size:13.5px; padding: 6px 10px; background-color: #ffffff; border-radius: var(--radius-sm); border: 1px solid #e2e8f0; display:flex; flex-direction:column; gap:4px;">
                         <div style="display:flex; justify-content:space-between;">
                             <strong>${icon("user")} ${w.firstName} ${w.lastName} (${w.nationality})</strong>
-                            <span style="font-size:11.5px; color:var(--text-muted);">${formatDateOnly(w.createdAt)}</span>
+                            <span style="font-size:12px; color:var(--text-muted);">${formatDateOnly(w.createdAt)}</span>
                         </div>
-                        <div style="font-size:11.5px; color:var(--text-muted);">
+                        <div style="font-size:12px; color:var(--text-muted);">
                             เลขประจำตัว: ${w.workerUid || '-'} | นายจ้าง: ${empName}
                         </div>
                     </li>
@@ -9118,7 +9136,32 @@ function renderFinanceStats() {
     document.getElementById("stat-finance-expenses").innerText = totalExpenses.toLocaleString('th-TH', { minimumFractionDigits: 2 }) + " บาท";
     const netProfitEl = document.getElementById("stat-finance-net-profit");
     netProfitEl.innerText = netProfit.toLocaleString('th-TH', { minimumFractionDigits: 2 }) + " บาท";
-    netProfitEl.style.color = netProfit < 0 ? "var(--danger)" : "var(--navy-dark)";
+    netProfitEl.style.color = netProfit < 0 ? "var(--danger)" : "var(--dk-ok, #1f7a50)";
+
+    // บัตร Wallet: ชื่อช่วงเวลา + แถบ "เก็บเงินได้กี่ %" (รับจริงในช่วงนี้ ÷ ยอดบิลช่วงนี้ — อาจรวมเงินของบิลเก่า จึงตัดที่ 100%)
+    const periodSelect = document.getElementById("db-finance-period-select");
+    const periodLabelEl = document.getElementById("stat-finance-period-label");
+    if (periodLabelEl && periodSelect) {
+        const opt = periodSelect.options[periodSelect.selectedIndex];
+        periodLabelEl.innerText = opt ? opt.text : "ทั้งหมด";
+    }
+    const collectPct = totalRevenue > 0 ? Math.min(100, (paidRevenue / totalRevenue) * 100) : 0;
+    const collectBar = document.getElementById("stat-finance-collect-bar");
+    if (collectBar) collectBar.style.width = collectPct.toFixed(1) + "%";
+    const collectPctEl = document.getElementById("stat-finance-collect-pct");
+    if (collectPctEl) collectPctEl.innerText = `เก็บเงินได้ ${collectPct < 10 && collectPct > 0 ? collectPct.toFixed(1) : Math.round(collectPct)}%`;
+
+    // ข้อมูลที่ควรรู้เพิ่ม: บิลเกินกำหนด (ณ วันนี้), งานยังไม่ออกบิล (ช่วงนี้), มัดจำ/เครดิตลูกค้าคงเหลือ (ณ วันนี้)
+    const overdue = overdueInvoices();
+    const overdueFinEl = document.getElementById("stat-finance-overdue");
+    if (overdueFinEl) {
+        const overdueSum = overdue.reduce((s, i) => s + invoiceBalance(i), 0);
+        overdueFinEl.innerText = overdue.length ? `${overdue.length} ใบ · ${fmtMoney(overdueSum)}` : "0";
+    }
+    const unbilledEl = document.getElementById("stat-finance-unbilled");
+    if (unbilledEl) unbilledEl.innerText = unbilledJobs.length ? `${unbilledJobs.length} งาน · ${fmtMoney(unbilledAmount)}` : "0";
+    const creditEl = document.getElementById("stat-finance-credit");
+    if (creditEl) creditEl.innerText = fmtMoney(customers.reduce((s, c) => s + customerCredit(c.id), 0));
 
     renderFinanceInternalSplit(periodPayments, periodExpenses);
     renderReceivablesAging();
@@ -9146,8 +9189,8 @@ function renderFinanceStats() {
             <div class="stats-card" style="border-left: 4px solid #10b981; background: #ffffff; padding: 12px; border-radius: var(--radius-sm); border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 10px;">
                 <div style="font-size: 24px;">${icon("cash")}</div>
                 <div style="display: flex; flex-direction: column;">
-                    <span style="font-size: 11px; color: #64748b; font-weight: 500;">เงินสด (Cash)</span>
-                    <strong style="font-size: 13.5px; color: #0f172a; margin-top: 2px;">${cashSum.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บ.</strong>
+                    <span style="font-size: 11.5px; color: #64748b; font-weight: 500;">เงินสด (Cash)</span>
+                    <strong style="font-size: 14px; color: #0f172a; margin-top: 2px;">${cashSum.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บ.</strong>
                 </div>
             </div>
         `;
@@ -9159,8 +9202,8 @@ function renderFinanceStats() {
                 <div class="stats-card" style="border-left: 4px solid ${meta.color}; background: #ffffff; padding: 12px; border-radius: var(--radius-sm); border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 10px;">
                     ${renderBankLogoBadge(bankName, 28)}
                     <div style="display: flex; flex-direction: column;">
-                        <span style="font-size: 11px; color: #64748b; font-weight: 500; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; max-width: 120px;" title="${bankName}">${bankName}</span>
-                        <strong style="font-size: 13.5px; color: #0f172a; margin-top: 2px;">${sum.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บ.</strong>
+                        <span style="font-size: 11.5px; color: #64748b; font-weight: 500; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; max-width: 120px;" title="${bankName}">${bankName}</span>
+                        <strong style="font-size: 14px; color: #0f172a; margin-top: 2px;">${sum.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บ.</strong>
                     </div>
                 </div>
             `;
@@ -9172,8 +9215,8 @@ function renderFinanceStats() {
                 <div class="stats-card" style="border-left: 4px solid #94a3b8; background: #ffffff; padding: 12px; border-radius: var(--radius-sm); border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 10px;">
                     <div style="font-size: 24px;">${icon("edit")}</div>
                     <div style="display: flex; flex-direction: column;">
-                        <span style="font-size: 11px; color: #64748b; font-weight: 500;">บัญชีธนาคาร (ไม่ระบุ)</span>
-                        <strong style="font-size: 13.5px; color: #0f172a; margin-top: 2px;">${unspecifiedSum.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บ.</strong>
+                        <span style="font-size: 11.5px; color: #64748b; font-weight: 500;">บัญชีธนาคาร (ไม่ระบุ)</span>
+                        <strong style="font-size: 14px; color: #0f172a; margin-top: 2px;">${unspecifiedSum.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บ.</strong>
                     </div>
                 </div>
             `;
@@ -9276,12 +9319,12 @@ function renderFinanceStats() {
                 let actionBtn = "";
                 if (item.unpaid > 0) {
                     actionBtn = `
-                        <button class="btn btn-sm btn-gold" onclick="quickCombineInvoice('${item.customer.id}')" style="font-size: 11px; padding: 4px 10px;">
+                        <button class="btn btn-sm btn-gold" onclick="quickCombineInvoice('${item.customer.id}')" style="font-size: 11.5px; padding: 4px 10px;">
                             ${icon("receipt")} รวมบิลเพื่อเก็บเงิน
                         </button>
                     `;
                 } else {
-                    actionBtn = `<span class="badge badge-success" style="font-size: 10px; padding: 2px 8px;">${icon("ok")} ครบถ้วน</span>`;
+                    actionBtn = `<span class="badge badge-success" style="font-size: 11.5px; padding: 2px 8px;">${icon("ok")} ครบถ้วน</span>`;
                 }
                 return `
                     <tr>
@@ -9360,7 +9403,7 @@ function renderFinanceStats() {
                 
                 return `
                     <div class="chart-bar-item" style="margin-bottom: 8px;">
-                        <div class="bar-info" style="font-size: 11.5px;">
+                        <div class="bar-info" style="font-size: 12px;">
                             <span>${status}</span>
                             <span>${count} งาน (${pct}%)</span>
                         </div>
@@ -10409,19 +10452,19 @@ function renderBulkImportTable() {
 
     tbody.innerHTML = bulkImportRows.map((row, idx) => {
         let statusBadge;
-        if (row.status === 'pending' && row.ocrStatus === 'busy') statusBadge = '<span class="badge badge-warning" style="font-size:10px;" title="Gemini ไม่ว่างหรือโควตาหมด — กด ให้ AI อ่าน อีกครั้งทีหลัง หรือเลือกคนงาน/ประเภทเอง">' + icon("warn") + ' AI ไม่ว่าง</span>';
-        else if (row.status === 'pending' && row.ocrStatus === 'failed') statusBadge = '<span class="badge badge-warning" style="font-size:10px;" title="AI อ่านเอกสารนี้ไม่ได้ — เลือกคนงาน/ประเภทเอง">' + icon("warn") + ' AI อ่านไม่ได้</span>';
-        else if (row.status === 'pending' && isBulkNewWorkerId(row.workerId)) statusBadge = '<span class="badge badge-gold" style="font-size:10px;" title="ไม่พบคนงานนี้ในระบบ จะสร้างคนงานใหม่ตอนกดนำเข้า">' + icon("sparkles", "blue") + ' คนงานใหม่</span>';
-        else if (row.status === 'pending' && row.matchNote) statusBadge = `<span class="badge badge-success" style="font-size:10px;" title="AI อ่านเอกสารแล้วจับคู่กับคนงานเดิมด้วย${row.matchNote}">${icon("bot")} ตรง${row.matchNote}</span>`;
-        else if (row.status === 'failed' && row.aiStatus === 'busy') statusBadge = '<span class="badge badge-warning" style="font-size:10px;" title="Gemini มีผู้ใช้งานมาก ไฟล์นี้ยังไม่ได้บันทึก — กด นำเข้า อีกครั้งในอีกสักครู่">' + icon("warn") + ' ยังไม่บันทึก • AI ไม่ว่าง</span>';
-        else if (row.status === 'failed' && row.aiStatus === 'failed') statusBadge = '<span class="badge badge-warning" style="font-size:10px;" title="AI อ่านเอกสารไม่ได้ ไฟล์นี้ยังไม่ได้บันทึก — ตรวจไฟล์แล้วลองใหม่">' + icon("warn") + ' ยังไม่บันทึก • AI อ่านไม่ได้</span>';
-        else if (row.status === 'success' && row.aiStatus === 'manual') statusBadge = `<button type="button" class="btn btn-sm btn-outline" style="font-size:10.5px; padding:2px 8px; white-space:nowrap;" onclick="openManualEntryForm('worker', '${row.workerId}', '${row.docType}')" title="ไฟล์เข้าระบบแล้ว (ไม่ผ่าน AI) — กดเพื่อเปิดฟอร์มคนงานไปกรอกข้อมูล">${icon("sign")} กรอกข้อมูล</button>`;
-        else if (row.status === 'success' && row.aiStatus === 'filled') statusBadge = '<span class="badge badge-success" style="font-size:10px;">' + icon("ok") + ' นำเข้าแล้ว • AI เติมข้อมูลแล้ว</span>';
-        else if (row.status === 'success') statusBadge = '<span class="badge badge-success" style="font-size:10px;">' + icon("ok") + ' นำเข้าแล้ว</span>';
-        else if (row.status === 'failed') statusBadge = '<span class="badge badge-danger" style="font-size:10px;">' + icon("bad") + ' ล้มเหลว</span>';
-        else if (row.confidence === 'high') statusBadge = '<span class="badge badge-success" style="font-size:10px;">' + icon("ok") + ' ตรงเลข 13 หลัก</span>';
-        else if (row.confidence === 'medium') statusBadge = '<span class="badge badge-gold" style="font-size:10px;">' + icon("dot") + ' จับคู่จากชื่อ</span>';
-        else statusBadge = '<span class="badge badge-danger" style="font-size:10px;">' + icon("bad") + ' ไม่พบคู่</span>';
+        if (row.status === 'pending' && row.ocrStatus === 'busy') statusBadge = '<span class="badge badge-warning" style="font-size:11.5px;" title="Gemini ไม่ว่างหรือโควตาหมด — กด ให้ AI อ่าน อีกครั้งทีหลัง หรือเลือกคนงาน/ประเภทเอง">' + icon("warn") + ' AI ไม่ว่าง</span>';
+        else if (row.status === 'pending' && row.ocrStatus === 'failed') statusBadge = '<span class="badge badge-warning" style="font-size:11.5px;" title="AI อ่านเอกสารนี้ไม่ได้ — เลือกคนงาน/ประเภทเอง">' + icon("warn") + ' AI อ่านไม่ได้</span>';
+        else if (row.status === 'pending' && isBulkNewWorkerId(row.workerId)) statusBadge = '<span class="badge badge-gold" style="font-size:11.5px;" title="ไม่พบคนงานนี้ในระบบ จะสร้างคนงานใหม่ตอนกดนำเข้า">' + icon("sparkles", "blue") + ' คนงานใหม่</span>';
+        else if (row.status === 'pending' && row.matchNote) statusBadge = `<span class="badge badge-success" style="font-size:11.5px;" title="AI อ่านเอกสารแล้วจับคู่กับคนงานเดิมด้วย${row.matchNote}">${icon("bot")} ตรง${row.matchNote}</span>`;
+        else if (row.status === 'failed' && row.aiStatus === 'busy') statusBadge = '<span class="badge badge-warning" style="font-size:11.5px;" title="Gemini มีผู้ใช้งานมาก ไฟล์นี้ยังไม่ได้บันทึก — กด นำเข้า อีกครั้งในอีกสักครู่">' + icon("warn") + ' ยังไม่บันทึก • AI ไม่ว่าง</span>';
+        else if (row.status === 'failed' && row.aiStatus === 'failed') statusBadge = '<span class="badge badge-warning" style="font-size:11.5px;" title="AI อ่านเอกสารไม่ได้ ไฟล์นี้ยังไม่ได้บันทึก — ตรวจไฟล์แล้วลองใหม่">' + icon("warn") + ' ยังไม่บันทึก • AI อ่านไม่ได้</span>';
+        else if (row.status === 'success' && row.aiStatus === 'manual') statusBadge = `<button type="button" class="btn btn-sm btn-outline" style="font-size:11.5px; padding:2px 8px; white-space:nowrap;" onclick="openManualEntryForm('worker', '${row.workerId}', '${row.docType}')" title="ไฟล์เข้าระบบแล้ว (ไม่ผ่าน AI) — กดเพื่อเปิดฟอร์มคนงานไปกรอกข้อมูล">${icon("sign")} กรอกข้อมูล</button>`;
+        else if (row.status === 'success' && row.aiStatus === 'filled') statusBadge = '<span class="badge badge-success" style="font-size:11.5px;">' + icon("ok") + ' นำเข้าแล้ว • AI เติมข้อมูลแล้ว</span>';
+        else if (row.status === 'success') statusBadge = '<span class="badge badge-success" style="font-size:11.5px;">' + icon("ok") + ' นำเข้าแล้ว</span>';
+        else if (row.status === 'failed') statusBadge = '<span class="badge badge-danger" style="font-size:11.5px;">' + icon("bad") + ' ล้มเหลว</span>';
+        else if (row.confidence === 'high') statusBadge = '<span class="badge badge-success" style="font-size:11.5px;">' + icon("ok") + ' ตรงเลข 13 หลัก</span>';
+        else if (row.confidence === 'medium') statusBadge = '<span class="badge badge-gold" style="font-size:11.5px;">' + icon("dot") + ' จับคู่จากชื่อ</span>';
+        else statusBadge = '<span class="badge badge-danger" style="font-size:11.5px;">' + icon("bad") + ' ไม่พบคู่</span>';
 
         const rowStyle = (!row.workerId || !row.docType) && row.status === 'pending' ? 'background:#fef2f2;' : '';
 
@@ -10430,14 +10473,14 @@ function renderBulkImportTable() {
                 <td><input type="checkbox" ${row.selected ? 'checked' : ''} ${row.status === 'success' ? 'disabled' : ''} onchange="setBulkImportRowSelected(${idx}, this.checked)"></td>
                 <td style="max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${row.fileName}">${row.fileName}</td>
                 <td>
-                    <select style="font-size:12px; max-width:200px;" onchange="updateBulkImportWorker(${idx}, this.value)">
+                    <select style="font-size:12.5px; max-width:200px;" onchange="updateBulkImportWorker(${idx}, this.value)">
                         <option value="">--- เลือกคนงาน ---</option>
                         ${bulkNewWorkers.map((c, cIdx) => { const v = BULK_NEW_WORKER_PREFIX + c.id; return `<option value="${v}" ${row.workerId === v ? 'selected' : ''}>🆕 คนงานใหม่ #${cIdx + 1}: ${escapeHtml(`${c.data.firstName || '(ไม่มีชื่อ)'} ${c.data.lastName || ''}`.trim())}</option>`; }).join('')}
                         ${workers.map(w => `<option value="${w.id}" ${row.workerId === w.id ? 'selected' : ''}>${w.firstName} ${w.lastName || ''} (${w.workerUid || 'ไม่มีเลข'})</option>`).join('')}
                     </select>
                 </td>
                 <td>
-                    <select style="font-size:12px;" onchange="updateBulkImportDocType(${idx}, this.value)">
+                    <select style="font-size:12.5px;" onchange="updateBulkImportDocType(${idx}, this.value)">
                         <option value="">--- เลือกประเภท ---</option>
                         ${WORKER_DOC_TYPES.map(dt => `<option value="${dt.key}" ${row.docType === dt.key ? 'selected' : ''}>${dt.label}</option>`).join('')}
                     </select>
@@ -11133,20 +11176,20 @@ function renderJobsKanban(filtered) {
             const isClosedUnpaid = displayStatus === 'ปิดงานแล้ว' && paymentStatus !== 'ชำระเงินแล้ว';
             if (isClosedUnpaid) closedUnbilledCount++;
 
-            let paymentBadge = `<span class="badge badge-warning" style="font-size: 10px; padding: 2px 6px;">${icon("hourglass")} ยังไม่ออกบิล</span>`;
+            let paymentBadge = `<span class="badge badge-warning" style="font-size: 11.5px; padding: 2px 6px;">${icon("hourglass")} ยังไม่ออกบิล</span>`;
             if (isClosedUnpaid && paymentStatus === 'ยังไม่ออกบิล') {
-                paymentBadge = `<span class="badge badge-danger" style="font-size: 10px; padding: 2px 6px;">${icon("warn")} ยังไม่ออกบิล/ยังไม่ชำระ</span>`;
+                paymentBadge = `<span class="badge badge-danger" style="font-size: 11.5px; padding: 2px 6px;">${icon("warn")} ยังไม่ออกบิล/ยังไม่ชำระ</span>`;
             } else if (isClosedUnpaid && paymentStatus === 'ออกบิลแล้ว') {
-                paymentBadge = `<span class="badge badge-danger" style="font-size: 10px; padding: 2px 6px;">${icon("warn")} ออกบิลแล้ว รอชำระ</span>`;
+                paymentBadge = `<span class="badge badge-danger" style="font-size: 11.5px; padding: 2px 6px;">${icon("warn")} ออกบิลแล้ว รอชำระ</span>`;
             } else if (paymentStatus === 'ออกบิลแล้ว') {
-                paymentBadge = `<span class="badge" style="font-size: 10px; padding: 2px 6px; background-color: #3b82f6; color: white;">${icon("receipt")} ออกบิลแล้ว</span>`;
+                paymentBadge = `<span class="badge" style="font-size: 11.5px; padding: 2px 6px; background-color: #3b82f6; color: white;">${icon("receipt")} ออกบิลแล้ว</span>`;
             } else if (paymentStatus === 'ชำระเงินแล้ว') {
-                paymentBadge = `<span class="badge badge-success" style="font-size: 10px; padding: 2px 6px;">${icon("ok")} ชำระเงินแล้ว</span>`;
+                paymentBadge = `<span class="badge badge-success" style="font-size: 11.5px; padding: 2px 6px;">${icon("ok")} ชำระเงินแล้ว</span>`;
             }
 
             // นายจ้างบางรายตั้งไว้ว่าต้องออกบิล+รับชำระก่อนถึงจะเริ่ม "กำลังดำเนินการ" ได้ (customers.requirePrepayment)
             const prepaymentBadge = (cust && cust.requirePrepayment && paymentStatus !== 'ชำระเงินแล้ว')
-                ? `<div style="font-size: 10px;"><span class="badge" style="background-color: #fffbeb; color: #92400e; border: 1px solid #fde68a; font-size: 10px; padding: 2px 6px;" title="นายจ้าง &quot;${custName}&quot; ตั้งไว้ว่าต้องออกบิลและรับชำระเงินก่อนย้ายเข้ากำลังดำเนินการ">${icon("moneybag")} ต้องออกบิลและรับชำระเงินก่อน</span></div>`
+                ? `<div style="font-size: 11.5px;"><span class="badge" style="background-color: #fffbeb; color: #92400e; border: 1px solid #fde68a; font-size: 11.5px; padding: 2px 6px;" title="นายจ้าง &quot;${custName}&quot; ตั้งไว้ว่าต้องออกบิลและรับชำระเงินก่อนย้ายเข้ากำลังดำเนินการ">${icon("moneybag")} ต้องออกบิลและรับชำระเงินก่อน</span></div>`
                 : '';
 
             let badgeClass = 'badge-gold';
@@ -11157,12 +11200,12 @@ function renderJobsKanban(filtered) {
 
             let actionBtns = "";
             if (canEditJob(j)) {
-                actionBtns += `<button onclick="openJobModal('${j.id}')" style="background: none; border: none; cursor: pointer; font-size: 13px;" title="แก้ไข">${icon("edit")}</button>`;
+                actionBtns += `<button onclick="openJobModal('${j.id}')" style="background: none; border: none; cursor: pointer; font-size: 13.5px;" title="แก้ไข">${icon("edit")}</button>`;
             }
             if (displayStatus === 'ปิดงานแล้ว') {
-                actionBtns += `<button onclick="reopenJob('${j.id}')" style="background: none; border: none; cursor: pointer; font-size: 13px;" title="เปิดงานอีกครั้ง">${icon("unlock")}</button>`;
+                actionBtns += `<button onclick="reopenJob('${j.id}')" style="background: none; border: none; cursor: pointer; font-size: 13.5px;" title="เปิดงานอีกครั้ง">${icon("unlock")}</button>`;
             } else if (canEditJob(j)) {
-                actionBtns += `<button onclick="openJobCloseModal('${j.id}')" style="background: none; border: none; cursor: pointer; font-size: 13px;" title="แนบเอกสารและปิดงาน">${icon("clip")}</button>`;
+                actionBtns += `<button onclick="openJobCloseModal('${j.id}')" style="background: none; border: none; cursor: pointer; font-size: 13.5px;" title="แนบเอกสารและปิดงาน">${icon("clip")}</button>`;
             }
 
             // Strip prices for clean display of types
@@ -11171,7 +11214,7 @@ function renderJobsKanban(filtered) {
             // ป้ายบอกว่าใบงานนี้ถูกเปิดมาพร้อมกับงานอื่นในชุดเดียวกัน (batch เดียวกัน)
             const siblings = getJobBatchSiblings(j);
             const batchTag = siblings.length > 0
-                ? `<div style="font-size:10px; color:#4338ca; display:flex; align-items:center; gap:4px; flex-wrap:wrap;">${icon("clip")} ชุดเดียวกัน (${siblings.length + 1} งาน):
+                ? `<div style="font-size:11.5px; color:#4338ca; display:flex; align-items:center; gap:4px; flex-wrap:wrap;">${icon("clip")} ชุดเดียวกัน (${siblings.length + 1} งาน):
                     ${siblings.map(s => {
                         const sClean = (s.jobType || "").replace(/\s*\(\d+\)/g, "");
                         const dotColor = isJobStatusOpen(s.status) ? '#f59e0b' : '#22c55e';
@@ -11185,18 +11228,18 @@ function renderJobsKanban(filtered) {
             container.innerHTML += `
                 <div class="kanban-card" draggable="true" ondragstart="onKanbanDragStart(event, '${j.id}')" style="background: ${cardBg}; border-radius: 6px; padding: 12px; border: ${cardBorder}; box-shadow: 0 1px 3px rgba(0,0,0,0.05); cursor: grab; display: flex; flex-direction: column; gap: 8px;">
                     <div style="display: flex; justify-content: space-between; align-items: start; gap: 8px;">
-                        <span style="font-weight: 700; font-size: 11px; color: var(--gold-dark);">${getJobDisplayNo(j)}</span>
-                        <span class="badge badge-sm ${badgeClass}" style="font-size: 10px; padding: 1px 6px;">${cleanJobType}</span>
+                        <span style="font-weight: 700; font-size: 11.5px; color: var(--gold-dark);">${getJobDisplayNo(j)}</span>
+                        <span class="badge badge-sm ${badgeClass}" style="font-size: 11.5px; padding: 1px 6px;">${cleanJobType}</span>
                     </div>
-                    <div style="font-weight: 600; font-size: 12.5px; color: #1e293b; line-height: 1.4;">${icon("user")} ${workName}</div>
-                    ${work && work.workerUid ? `<div style="font-size: 10.5px; color: #94a3b8; margin-top:-4px;">เลขประจำตัว: ${work.workerUid}</div>` : ''}
-                    <div style="font-size: 11.5px; color: #64748b;" ${custIdTitle ? `title="${custIdTitle}"` : ''}>${icon("building")} ${custName}</div>
+                    <div style="font-weight: 600; font-size: 13px; color: #1e293b; line-height: 1.4;">${icon("user")} ${workName}</div>
+                    ${work && work.workerUid ? `<div style="font-size: 11.5px; color: #94a3b8; margin-top:-4px;">เลขประจำตัว: ${work.workerUid}</div>` : ''}
+                    <div style="font-size: 12px; color: #64748b;" ${custIdTitle ? `title="${custIdTitle}"` : ''}>${icon("building")} ${custName}</div>
                     ${prepaymentBadge}
-                    ${jobAgent ? `<div style="font-size: 11px; color: #64748b;">${icon("user")} Agent: ${jobAgent.name}</div>` : ''}
-                    <div style="font-size: 10.5px; color: #94a3b8;">${icon("edit")} เปิดงานโดย: ${getUserNameById(j.openedBy)}${j.closedBy ? ` • ${icon("lock")} ปิดโดย: ${getUserNameById(j.closedBy)}` : ''}</div>
+                    ${jobAgent ? `<div style="font-size: 11.5px; color: #64748b;">${icon("user")} Agent: ${jobAgent.name}</div>` : ''}
+                    <div style="font-size: 11.5px; color: #94a3b8;">${icon("edit")} เปิดงานโดย: ${getUserNameById(j.openedBy)}${j.closedBy ? ` • ${icon("lock")} ปิดโดย: ${getUserNameById(j.closedBy)}` : ''}</div>
                     ${batchTag}
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; padding-top: 8px; border-top: 1px solid #f1f5f9;">
-                        <div style="font-size: 12px; font-weight: 700; color: #0f172a;">${icon("moneybag")} ${j.fee.toLocaleString()} บ.</div>
+                        <div style="font-size: 12.5px; font-weight: 700; color: #0f172a;">${icon("moneybag")} ${j.fee.toLocaleString()} บ.</div>
                         <div style="display: flex; gap: 4px; align-items: center;">
                             ${paymentBadge}
                             <div style="display: flex; gap: 4px; margin-left: 6px;">
@@ -13070,4 +13113,265 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) {
         console.error('iOS UI setup failed:', err);
     }
+});
+
+// ==================== วิดเจ็ตแบบ iPad: จัดลำดับ/ปรับขนาดการ์ดในแดชบอร์ดและสรุปการเงิน ====================
+// ห่อการ์ด/แผงที่มีอยู่แล้วเป็น .widget ใน .widget-board (ย้าย DOM เดิม id เดิม — โค้ด render เดิมไม่ต้องแก้)
+// กด "แก้ไขหน้า" → การ์ดสั่นแบบ iOS ลากสลับที่ได้ เลือกขนาด เล็ก/กลาง/ใหญ่/เต็ม (ช่องในกริด 12 ช่อง)
+// การจัดหน้าเก็บต่อบัญชีใน profiles.ui_layout (set_my_ui_layout) — ดู 20261002082104_profile_ui_layout.sql
+const WIDGET_SPANS = {
+    pill:  { s: 2, m: 3, l: 4, xl: 6 },
+    block: { s: 4, m: 6, l: 8, xl: 12 }
+};
+const WIDGET_SIZE_LABELS = { s: 'เล็ก', m: 'กลาง', l: 'ใหญ่', xl: 'เต็ม' };
+
+const pillOf = id => { const el = document.getElementById(id); return el ? el.closest('.stat-pill') : null; };
+const panelOf = id => { const el = document.getElementById(id); return el ? el.closest('.dashboard-panel') : null; };
+
+const WIDGET_BOARDS = {
+    dashboard: {
+        anchor: () => document.querySelector('#db-tab-overview .stat-pills'),
+        widgets: [
+            { id: 'pill-customers', kind: 'pill', size: 's', els: () => [pillOf('stat-total-customers')] },
+            { id: 'pill-workers', kind: 'pill', size: 's', els: () => [pillOf('stat-total-workers')] },
+            { id: 'pill-open-jobs', kind: 'pill', size: 's', els: () => [pillOf('stat-open-jobs')] },
+            { id: 'pill-expiry', kind: 'pill', size: 's', els: () => [pillOf('stat-expiry-warnings')] },
+            { id: 'pill-missing-docs', kind: 'pill', size: 's', els: () => [pillOf('stat-missing-docs')] },
+            { id: 'pill-overdue', kind: 'pill', size: 's', els: () => [pillOf('stat-overdue-invoices')] },
+            { id: 'panel-expiry', kind: 'block', size: 'l', els: () => [document.querySelector('#db-tab-overview .panel-alerts')] },
+            { id: 'panel-nationality', kind: 'block', size: 's', els: () => [document.querySelector('#db-tab-overview .panel-charts')] },
+            { id: 'panel-missing-docs', kind: 'block', size: 'xl', els: () => [panelOf('search-dashboard-missing-docs')] }
+        ]
+    },
+    finance: {
+        anchor: () => document.querySelector('#finpage-tab-overview .fin-wallet-grid'),
+        widgets: [
+            { id: 'wallet', kind: 'block', size: 'l', els: () => [document.querySelector('#finpage-tab-overview .wallet-card')] },
+            { id: 'profit-ranking', kind: 'block', size: 's', els: () => [document.querySelector('#finpage-tab-overview .fin-side')] },
+            { id: 'pill-overdue', kind: 'pill', size: 'l', els: () => [pillOf('stat-finance-overdue')] },
+            { id: 'pill-unbilled', kind: 'pill', size: 'l', els: () => [pillOf('stat-finance-unbilled')] },
+            { id: 'pill-credit', kind: 'pill', size: 'l', els: () => [pillOf('stat-finance-credit')] },
+            { id: 'panel-internal', kind: 'block', size: 'xl', els: () => [panelOf('finance-internal-split')] },
+            { id: 'panel-aging', kind: 'block', size: 'xl', els: () => [panelOf('finance-aging-tbody')] },
+            { id: 'accounts', kind: 'block', size: 'xl', els: () => {
+                const btn = document.getElementById('btn-accounts-view-table');
+                return [btn && btn.parentElement && btn.parentElement.parentElement,
+                        document.getElementById('db-finance-accounts-table-wrap'),
+                        document.getElementById('db-finance-accounts-chart-wrap')];
+            } },
+            { id: 'panel-jobtypes', kind: 'block', size: 'm', els: () => [panelOf('db-finance-jobtypes-table-wrap')] },
+            { id: 'panel-payment-status', kind: 'block', size: 'm', els: () => [panelOf('db-finance-payment-breakdown-container')] },
+            { id: 'panel-customers', kind: 'block', size: 'xl', els: () => [panelOf('db-finance-customers-table-wrap')] },
+            { id: 'panel-expensecat', kind: 'block', size: 'xl', els: () => [panelOf('db-finance-expensecat-table-wrap')] }
+        ]
+    }
+};
+
+function widgetSpan(kind, size) {
+    const spans = WIDGET_SPANS[kind] || WIDGET_SPANS.block;
+    return spans[size] || spans.m;
+}
+
+function setWidgetSize(widget, size) {
+    widget.dataset.size = size;
+    widget.style.setProperty('--span', widgetSpan(widget.dataset.kind, size));
+    widget.querySelectorAll(':scope > .widget-edit-ui button').forEach(b => b.classList.toggle('is-active', b.dataset.size === size));
+}
+
+// FLIP: จำตำแหน่งก่อนเปลี่ยน → เปลี่ยน → เลื่อนจากที่เดิมไปที่ใหม่แบบนุ่ม ๆ (magic move)
+function flipWidgets(board, change, skip) {
+    const items = Array.from(board.querySelectorAll(':scope > .widget')).filter(w => w !== skip);
+    const before = new Map(items.map(w => [w, w.getBoundingClientRect()]));
+    change();
+    if (iosReducedMotion()) return;
+    items.forEach(w => {
+        const a = before.get(w), b = w.getBoundingClientRect();
+        const dx = a.left - b.left, dy = a.top - b.top;
+        if (!dx && !dy) return;
+        w.style.transition = 'none';
+        w.style.transform = `translate(${dx}px, ${dy}px)`;
+        w.getBoundingClientRect();
+        w.style.transition = `transform 0.38s ${IOS_EASE}`;
+        w.style.transform = '';
+    });
+}
+
+function widgetLayoutState() {
+    if (!currentUser) return {};
+    if (!currentUser.uiLayout || typeof currentUser.uiLayout !== 'object') currentUser.uiLayout = {};
+    return currentUser.uiLayout;
+}
+
+let _widgetSaveTimer = null;
+function saveWidgetLayout(boardName) {
+    const board = document.querySelector(`.widget-board[data-board="${boardName}"]`);
+    if (!board || !currentUser) return;
+    const widgets = Array.from(board.querySelectorAll(':scope > .widget'));
+    const state = widgetLayoutState();
+    state[boardName] = {
+        order: widgets.map(w => w.dataset.widgetId),
+        sizes: Object.fromEntries(widgets.map(w => [w.dataset.widgetId, w.dataset.size]))
+    };
+    persistWidgetLayout();
+}
+
+function persistWidgetLayout() {
+    try { localStorage.setItem("mw_current_user", JSON.stringify(currentUser)); } catch (e) { /* ไม่เป็นไร */ }
+    clearTimeout(_widgetSaveTimer);
+    _widgetSaveTimer = setTimeout(() => {
+        _widgetSaveTimer = null;
+        if (currentUser && currentUser.id && window.supabaseAdapter) callCloudAPI("setMyUiLayout", { layout: currentUser.uiLayout || {} });
+    }, 600);
+}
+
+function applyWidgetLayout(boardName) {
+    const cfg = WIDGET_BOARDS[boardName];
+    const board = document.querySelector(`.widget-board[data-board="${boardName}"]`);
+    if (!cfg || !board) return;
+    const saved = (currentUser && currentUser.uiLayout && currentUser.uiLayout[boardName]) || {};
+    const byId = new Map(Array.from(board.querySelectorAll(':scope > .widget')).map(w => [w.dataset.widgetId, w]));
+    const defaultOrder = cfg.widgets.map(w => w.id);
+    // ลำดับที่บันทึกไว้ก่อน แล้วต่อด้วยวิดเจ็ตใหม่ที่ยังไม่เคยอยู่ในลำดับที่บันทึก (เผื่อเพิ่มการ์ดทีหลัง)
+    const order = [...(saved.order || []).filter(id => byId.has(id)), ...defaultOrder.filter(id => !(saved.order || []).includes(id))];
+    order.forEach(id => board.appendChild(byId.get(id)));
+    cfg.widgets.forEach(def => {
+        const w = byId.get(def.id);
+        if (!w) return;
+        const size = saved.sizes && WIDGET_SPANS[def.kind][saved.sizes[def.id]] ? saved.sizes[def.id] : def.size;
+        setWidgetSize(w, size);
+    });
+}
+
+function applyAllWidgetLayouts() {
+    Object.keys(WIDGET_BOARDS).forEach(applyWidgetLayout);
+}
+
+function resetWidgetLayout(boardName) {
+    const board = document.querySelector(`.widget-board[data-board="${boardName}"]`);
+    const state = widgetLayoutState();
+    delete state[boardName];
+    flipWidgets(board, () => applyWidgetLayout(boardName));
+    persistWidgetLayout();
+}
+
+function setWidgetEditing(boardName, on) {
+    const board = document.querySelector(`.widget-board[data-board="${boardName}"]`);
+    const bar = document.querySelector(`.widget-board-bar[data-board="${boardName}"]`);
+    if (!board || !bar) return;
+    board.classList.toggle('is-editing', on);
+    bar.classList.toggle('is-editing', on);
+}
+
+// ลากสลับที่ด้วย pointer events (ใช้ได้ทั้งเมาส์และนิ้วบน iPad)
+function startWidgetDrag(e, widget) {
+    if (e.button !== undefined && e.button !== 0) return;
+    const board = widget.parentElement;
+    const shield = e.currentTarget;
+    e.preventDefault();
+    try { shield.setPointerCapture(e.pointerId); } catch (err) { /* ไม่เป็นไร */ }
+    const start = widget.getBoundingClientRect();
+    const offX = e.clientX - start.left, offY = e.clientY - start.top;
+    widget.classList.add('is-dragging');
+    widget.style.transition = 'none';
+
+    const follow = (x, y) => {
+        widget.style.transform = 'none';
+        const r = widget.getBoundingClientRect();
+        widget.style.transform = `translate(${x - offX - r.left}px, ${y - offY - r.top}px) scale(1.02)`;
+    };
+
+    const move = ev => {
+        // ลากชิดขอบจอ → เลื่อนหน้าให้
+        if (ev.clientY < 70) window.scrollBy(0, -14);
+        else if (ev.clientY > window.innerHeight - 70) window.scrollBy(0, 14);
+        const hit = document.elementsFromPoint(ev.clientX, ev.clientY).find(el => el.classList && el.classList.contains('widget') && el !== widget && el.parentElement === board);
+        if (hit) {
+            const items = Array.from(board.children);
+            const from = items.indexOf(widget), to = items.indexOf(hit);
+            flipWidgets(board, () => board.insertBefore(widget, from < to ? hit.nextSibling : hit), widget);
+        }
+        follow(ev.clientX, ev.clientY);
+    };
+
+    const end = () => {
+        shield.removeEventListener('pointermove', move);
+        shield.removeEventListener('pointerup', end);
+        shield.removeEventListener('pointercancel', end);
+        widget.classList.remove('is-dragging');
+        widget.style.transition = `transform 0.35s ${IOS_EASE}`;
+        widget.style.transform = '';
+        saveWidgetLayout(board.dataset.board);
+    };
+
+    shield.addEventListener('pointermove', move);
+    shield.addEventListener('pointerup', end);
+    shield.addEventListener('pointercancel', end);
+}
+
+function buildWidgetBoard(boardName) {
+    const cfg = WIDGET_BOARDS[boardName];
+    const anchor = cfg.anchor();
+    if (!anchor || document.querySelector(`.widget-board[data-board="${boardName}"]`)) return;
+
+    const bar = document.createElement('div');
+    bar.className = 'widget-board-bar';
+    bar.dataset.board = boardName;
+    bar.innerHTML = `
+        <button type="button" class="widget-bar-btn widget-edit-btn">แก้ไขหน้า</button>
+        <button type="button" class="widget-bar-btn widget-reset-btn">คืนค่าเริ่มต้น</button>
+        <button type="button" class="widget-bar-btn widget-done-btn">เสร็จ</button>`;
+    bar.querySelector('.widget-edit-btn').addEventListener('click', () => setWidgetEditing(boardName, true));
+    bar.querySelector('.widget-done-btn').addEventListener('click', () => setWidgetEditing(boardName, false));
+    bar.querySelector('.widget-reset-btn').addEventListener('click', () => resetWidgetLayout(boardName));
+
+    const board = document.createElement('div');
+    board.className = 'widget-board';
+    board.dataset.board = boardName;
+    anchor.parentElement.insertBefore(bar, anchor);
+    anchor.parentElement.insertBefore(board, anchor);
+
+    const oldParents = new Set();
+    cfg.widgets.forEach(def => {
+        const els = def.els().filter(Boolean);
+        if (!els.length) return;
+        const w = document.createElement('div');
+        w.className = 'widget';
+        w.dataset.widgetId = def.id;
+        w.dataset.kind = def.kind;
+        els.forEach(el => {
+            if (el.parentElement) oldParents.add(el.parentElement);
+            if (el.classList.contains('needs-finance')) w.classList.add('needs-finance');
+            w.appendChild(el);
+        });
+
+        const shield = document.createElement('div');
+        shield.className = 'widget-shield';
+        shield.setAttribute('aria-hidden', 'true');
+        shield.addEventListener('pointerdown', e => startWidgetDrag(e, w));
+        w.appendChild(shield);
+
+        const ui = document.createElement('div');
+        ui.className = 'widget-edit-ui';
+        ui.innerHTML = Object.keys(WIDGET_SPANS[def.kind]).map(s => `<button type="button" data-size="${s}">${WIDGET_SIZE_LABELS[s]}</button>`).join('');
+        ui.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+            flipWidgets(board, () => setWidgetSize(w, b.dataset.size));
+            saveWidgetLayout(boardName);
+        }));
+        w.appendChild(ui);
+
+        board.appendChild(w);
+        setWidgetSize(w, def.size);
+    });
+
+    // กล่องเดิมที่ว่างแล้ว (กริดเดิม/แถวเดิม) เอาออก
+    oldParents.forEach(p => { if (p !== board && p.isConnected && !p.querySelector('*:not(script)')) p.remove(); });
+}
+
+function setupWidgetBoards() {
+    Object.keys(WIDGET_BOARDS).forEach(buildWidgetBoard);
+    applyAllWidgetLayouts();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    try { setupWidgetBoards(); } catch (err) { console.error('Widget board setup failed:', err); }
 });
