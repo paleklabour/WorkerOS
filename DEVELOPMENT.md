@@ -16,7 +16,7 @@ server.ps1                                              ← dev server ในเ
 
 โปรเจกต์เดี่ยว ไม่ต้องวางกระบวนการหนักเกินความจำเป็น:
 
-- `main` = โค้ดที่ deploy ได้เสมอ (GitHub Pages ดึงจากนี่โดยตรง)
+- **ตอนนี้ GitHub Pages ดึงจาก `supabase-migration`** (ยืนยัน 2026-10-02 ด้วย `gh api repos/paleklabour/WorkerOS/pages`) — push เข้า branch นี้ = ขึ้นเว็บจริงทันที; `main` เป็นประวัติเก่าสมัย Apps Script (ไม่มี commit ร่วมกัน) อย่า merge เข้า
 - งานเล็ก/แก้บั๊ก → commit ตรงที่ `main` ได้เลย
 - งานเสี่ยง/เปลี่ยน schema/ฟีเจอร์ใหญ่ (เช่นช่วงย้ายข้อมูลไป Supabase) → แยก branch
   (เช่น `supabase-migration`) แล้วค่อย merge กลับ `main` ตอน verify แล้วว่าใช้งานได้จริง
@@ -35,7 +35,7 @@ supabase db push                             # apply ขึ้นโปรเจ
 
 ## Deploy
 
-- **หน้าเว็บ** → GitHub Pages, deploy อัตโนมัติทุกครั้งที่ push เข้า `main`
+- **หน้าเว็บ** → GitHub Pages, deploy อัตโนมัติทุกครั้งที่ push เข้า `supabase-migration`
   (ตั้งค่าใน repo Settings → Pages → Source: Deploy from branch → `main` / `/ (root)`)
 - **Database/Auth/Storage/Edge Functions** → Supabase project `cagpzvrqtjkuabhqaqon`
   ผ่าน `supabase db push` (schema) และ `supabase functions deploy <ชื่อ>` (edge functions)

@@ -36,7 +36,10 @@ Vanilla HTML/CSS/JS SPA, no build step, no package manager.
    tables (`customers`/`workers`/`jobs`/`banks`/`line_groups`) are intentionally
    empty; legacy Google Sheets data was not migrated (decided 2026-08). See
    `DEPLOY_SUPABASE.md` for the full status and what's still unverified
-   (which GitHub Pages branch actually deploys, Edge Function secrets).
+   (Edge Function secrets). **GitHub Pages serves branch `supabase-migration`,
+   not `main`** — every push to `origin/supabase-migration` goes live within
+   ~20s. `main` is an unrelated older history (the July Apps Script version),
+   don't merge into it.
 
 `index.html` has `window.SUPABASE_URL` / `window.SUPABASE_ANON_KEY` pointed
 at the real project, so opening the app via `server.ps1` talks to Supabase,
