@@ -129,6 +129,22 @@ or credit (`customerCredit()`), and it can be applied to later invoices
 customer; the real account is the one picked when recording the money. Schema:
 `supabase/migrations/20261002032303_receipts_and_customer_credit.sql`.
 
+## Roles & permissions (standing rule, confirmed 2026-10-02)
+
+`admin` = Admin/GM (everything), `account_manager` (billing, payments,
+deposits, voiding receipts, expenses, banks, standard prices/costs, agent
+commissions; read-only on customers/workers/jobs), `operation_manager`
+(customers, workers, documents, jobs, assigning jobs; no finance, no
+commissions), `staff` (customers/workers/docs, opens jobs, edits only jobs
+they opened or are assigned to via `jobs.assigned_to`), `client`. Front end:
+change permissions only in `PERMS` in `app.js` and check with `can('…')` /
+`canEditJob(j)` — static HTML controls get `needs-<perm>` classes, hidden by
+`body.perm-no-<perm>`. The database enforces the same rules with RLS helpers
+`is_internal()` / `can_finance()` / `can_ops()` (migration
+`20261002042034_roles_gm_am_om_staff.sql`) — update both sides together.
+The bell is per role (`buildNotificationGroups`); missing worker documents
+must not alert anyone.
+
 ## Themes: light / pink / dark (standing rule)
 
 The moon button in the top bar opens a theme menu (`setTheme()`): light (default),
