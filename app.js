@@ -1642,7 +1642,7 @@ document.addEventListener("DOMContentLoaded", () => hydrateIcons());
 // - คืนค่าเป็น Promise เสมอ — ฟังก์ชันที่เรียก uiConfirm/uiPrompt ต้องเป็น async แล้ว await
 // - card: แสดงข้อมูลของรายการที่กำลังจะลบ/แก้ไข { image, imageIcon, title, subtitle, rows: [[ป้าย, ค่า], ...], list: [...] }
 //   (สร้างด้วย dialogCardForWorker/Customer/Job/... ด้านล่าง) — ทุกค่าใส่ผ่าน textContent/src ไม่ตีความ HTML
-function showUiDialog({ kind, message, title, okText, cancelText, danger, inputType, placeholder, card }) {
+function showUiDialog({ kind, message, title, okText, cancelText, danger, inputType, placeholder, card, summary }) {
     return new Promise(resolve => {
         const isDanger = danger ?? (kind === 'confirm' && /ลบ|ยกเลิกลิงก์/.test(message));
         const iconName = kind === 'alert' ? 'warn' : isDanger ? 'trash' : kind === 'prompt' ? 'lock' : 'clipboard';
@@ -1655,6 +1655,7 @@ function showUiDialog({ kind, message, title, okText, cancelText, danger, inputT
                 <h3 class="ui-dialog-title"></h3>
                 <p class="ui-dialog-message"></p>
                 ${card ? '<div class="ui-dialog-card"></div>' : ''}
+                ${summary && summary.length ? '<div class="ui-dialog-summary"></div>' : ''}
                 ${kind === 'prompt' ? `<input class="ui-dialog-input" type="${inputType || 'text'}" name="ui-dialog-${Date.now()}" autocomplete="${inputType === 'password' ? 'new-password' : 'off'}" data-lpignore="true" data-1p-ignore>` : ''}
                 <div class="ui-dialog-actions">
                     <button type="button" class="btn ${isDanger ? 'btn-danger-solid' : 'btn-gold'} ui-dialog-ok"></button>
@@ -1666,6 +1667,7 @@ function showUiDialog({ kind, message, title, okText, cancelText, danger, inputT
         // ตัดอีโมจินำหน้าข้อความเดิมทิ้ง — หน้าต่างมีไอคอนของตัวเองอยู่แล้ว
         backdrop.querySelector('.ui-dialog-message').textContent = String(message ?? '').replace(/^\s*(?:\p{Extended_Pictographic}️?\s*)+/u, '');
         if (card) fillUiDialogCard(backdrop.querySelector('.ui-dialog-card'), card);
+        if (summary && summary.length) fillUiDialogSummary(backdrop.querySelector('.ui-dialog-summary'), summary);
         const okBtn = backdrop.querySelector('.ui-dialog-ok');
         const cancelBtn = backdrop.querySelector('.ui-dialog-cancel');
         const input = backdrop.querySelector('.ui-dialog-input');
@@ -4368,6 +4370,7 @@ function loadDeliveryAddressFields(deliveryAddress) {
     document.getElementById("cust-delivery-district").value = da.district || "";
     document.getElementById("cust-delivery-province").value = da.province || "";
     document.getElementById("cust-delivery-postal").value = da.postalCode || "";
+    updateDeliveryAddressLists(); // รายการอำเภอ/ตำบลตามจังหวัดที่บันทึกไว้
     toggleDeliverySameAsMain();
 }
 
@@ -4555,6 +4558,7 @@ async function saveCustomer(e) {
     if (!customerData) return;
 
     // Cloud Sync
+    if (!(await confirmBeforeSave(e.target.closest("form") || e.target, "ตรวจสอบข้อมูลนายจ้าง/ลูกค้า"))) return;
     showToast("💾 กำลังบันทึกข้อมูลเข้าคลาวด์...", "warning");
     const res = await callCloudAPI("saveCustomer", { customerData: customerData });
     if (!res || res.status === "error") {
@@ -5030,6 +5034,7 @@ async function saveWorker(e) {
 
     const finalWorkerData = editId ? { ...workerData, createdAt: workers.find(item => item.id === editId).createdAt || new Date().toISOString().split('T')[0] } : { ...workerData, createdAt: new Date().toISOString().split('T')[0] };
 
+    if (!(await confirmBeforeSave(e.target.closest("form") || e.target, "ตรวจสอบข้อมูลคนงาน"))) return;
     showToast("💾 กำลังบันทึกข้อมูลคนงานเข้าคลาวด์...", "warning");
     const workerSaveRes = await callCloudAPI("saveWorker", { workerData: finalWorkerData });
     if (!workerSaveRes || workerSaveRes.status === "error") {
@@ -5531,6 +5536,10 @@ async function saveJobOrderNo(jobId) {
         jobData.updatedAt = new Date().toISOString().split('T')[0];
     }
 
+    if (!(await confirmBeforeSave(null, `ตรวจสอบ Order No. ของ ${getJobDisplayNo(j)}`, [
+        { label: "Order No.", value: orderNo || "(ลบออก)" },
+        ...(movesToProgress ? [{ label: "สถานะใบงาน", value: "จะย้ายเป็น \"กำลังดำเนินการ\"" }] : [])
+    ]))) return;
     const res = await callCloudAPI("saveJob", { jobData });
     if (!res || res.status === "error") {
         showToast("❌ บันทึก Order No. ไม่สำเร็จ: " + (res && res.message ? res.message : "กรุณาลองใหม่"), "danger");
@@ -6051,6 +6060,7 @@ async function saveJob(e) {
             appointmentLocation: document.getElementById("job-appointment-location").value.trim() || null,
             appointmentDocUrl: tempJobAppointmentDocUrl || (originalJob ? (originalJob.appointmentDocUrl || null) : null)
         };
+        if (!(await confirmBeforeSave(e.target.closest("form") || e.target, "ตรวจสอบการแก้ไขใบสั่งงาน"))) return;
         showToast("💾 กำลังบันทึกการแก้ไขใบสั่งงานเข้าคลาวด์...", "warning");
         const jobSaveRes = await callCloudAPI("saveJob", { jobData: jobData });
         if (!jobSaveRes || jobSaveRes.status === "error") {
@@ -6070,6 +6080,7 @@ async function saveJob(e) {
         // แต่รู้ว่ามาจากการแจ้งงานครั้งเดียวกัน — ควรตรวจผลลัพธ์ก่อนใช้กับจำนวนคนงานมากๆ)
         const batchId = 'batch-' + Date.now().toString().slice(-8);
         const totalSubJobs = workerIds.length * selectedItems.length;
+        if (!(await confirmBeforeSave(e.target.closest("form") || e.target, "ตรวจสอบก่อนแจ้งงานใหม่", [{ label: "จำนวนใบงานที่จะสร้าง", value: `${totalSubJobs} ใบ (${workerIds.length} คน × ${selectedItems.length} ประเภทงาน)` }]))) return;
         showToast(`💾 กำลังสร้างใบสั่งงานย่อย ${totalSubJobs} รายการเข้าคลาวด์...`, "warning");
 
         let failedCount = 0;
@@ -6243,6 +6254,7 @@ async function saveAgentForm(e) {
     }
 
     const agentData = { id: editId || ('agent-' + Date.now().toString().slice(-8)), name, phone, defaultCommission };
+    if (!(await confirmBeforeSave(e.target.closest("form") || e.target, "ตรวจสอบข้อมูล Agent"))) return;
     showToast("💾 กำลังบันทึก Agent...", "warning");
     const res = await callCloudAPI("saveAgent", { agentData });
     if (!res || res.status === "error") {
@@ -6508,6 +6520,7 @@ async function saveExpense(e) {
         attachment: tempExpenseAttachment || {}
     };
 
+    if (!(await confirmBeforeSave(e.target.closest("form") || e.target, "ตรวจสอบรายจ่าย"))) return;
     showToast("💾 กำลังบันทึกรายจ่ายเข้าคลาวด์...", "warning");
     const res = await callCloudAPI("saveExpense", { expenseData });
     if (!res || res.status === "error") {
@@ -6609,6 +6622,7 @@ async function submitCloseJob(e) {
         uiAlert("กรุณาแนบเอกสารยืนยันการปิดงานก่อน");
         return;
     }
+    if (!(await confirmBeforeSave(e.target.closest("form") || e.target, `ตรวจสอบก่อนปิดงาน ${getJobDisplayNo(j)}`))) return;
 
     const btn = document.getElementById("btn-confirm-close-job");
     btn.disabled = true;
@@ -6916,6 +6930,7 @@ async function saveBank(e) {
         sortOrder: existing ? (existing.sortOrder || 0) : banks.reduce((m, b) => Math.max(m, b.sortOrder || 0), 0) + 1
     };
 
+    if (!(await confirmBeforeSave(e.target.closest("form") || e.target, "ตรวจสอบบัญชีธนาคาร"))) return;
     showToast("💾 กำลังบันทึกบัญชีธนาคารเข้าคลาวด์...", "warning");
     const res = await callCloudAPI("saveBank", { bankData });
     if (!res || res.status === "error") {
@@ -7069,6 +7084,7 @@ async function saveUser(e) {
 
     if (editId) {
         // แก้ไข: name/role/customer_id เท่านั้น (RLS อนุญาต admin แก้ profiles ได้ตรงๆ)
+        if (!(await confirmBeforeSave(e.target.closest("form") || e.target, "ตรวจสอบการแก้ไขบัญชีผู้ใช้"))) return;
         showToast("💾 กำลังบันทึกการแก้ไขเข้าคลาวด์...", "warning");
         const res = await callCloudAPI("updateUserProfile", {
             userId: editId,
@@ -7106,6 +7122,7 @@ async function saveUser(e) {
 
     const userData = { name, email, password, role, customer_id: role === 'client' ? customerId : '-' };
 
+    if (!(await confirmBeforeSave(e.target.closest("form") || e.target, "ตรวจสอบบัญชีผู้ใช้ใหม่"))) return;
     showToast("💾 กำลังบันทึกบัญชีผู้ใช้งานเข้าคลาวด์...", "warning");
     const res = await callCloudAPI("saveUser", { userData: userData, pin: pin });
     if (!res || res.status === "error") {
@@ -7382,6 +7399,10 @@ async function issueCurrentInvoice() {
         uiAlert(`มีใบงานที่ออกบิลไปแล้ว ${alreadyBilled.length} ใบในรายการนี้ กรุณาปิดหน้าต่างแล้วเปิดใหม่`);
         return;
     }
+    if (!(await confirmBeforeSave(null, "ตรวจสอบก่อนออกบิล", [
+        ...realItems.map((item, i) => ({ label: `${i + 1}. ${item.title || "รายการ"}`, value: `${fmtMoney(item.fee || 0)} บาท` })),
+        { label: "ยอดรวมทั้งบิล", value: `${fmtMoney(total)} บาท` }
+    ]))) return;
 
     const btn = document.getElementById("btn-issue-invoice");
     if (btn) btn.disabled = true;
@@ -7864,6 +7885,10 @@ async function saveInvoiceFeeEdits() {
     const items = currentInvoiceItems.filter(item => !item.placeholder);
     const total = items.reduce((s, item) => s + (item.fee || 0), 0);
     if (items.length === 0 || total <= 0) { uiAlert("บิลต้องมีอย่างน้อย 1 รายการ และยอดรวมมากกว่า 0 บาท"); return; }
+    if (!(await confirmBeforeSave(null, `ตรวจสอบการแก้ไขบิล ${inv.invoiceNo}`, [
+        ...items.map((item, i) => ({ label: `${i + 1}. ${item.title || "รายการ"}`, value: `${fmtMoney(item.fee || 0)} บาท` })),
+        { label: "ยอดรวมใหม่", value: `${fmtMoney(total)} บาท` }
+    ]))) return;
 
     const prev = JSON.parse(JSON.stringify(inv));
     const selectBank = document.getElementById("invoice-bank-select");
@@ -11828,6 +11853,7 @@ async function recordInvoicePayment() {
         const bank = banks.find(b => b.id === methodVal);
         if (!(await uiConfirm("ยังไม่ได้แนบหลักฐานการโอนเงิน ต้องการบันทึกรับเงินโดยไม่มีหลักฐานหรือไม่?", { okText: "บันทึกรับเงิน", card: dialogCardForBank(bank) }))) return;
     }
+    if (!(await confirmBeforeSave(document.querySelector(".pay-form"), `ตรวจสอบก่อนรับเงินบิล ${inv.invoiceNo}`, [{ label: "ยอดคงเหลือของบิล", value: `${fmtMoney(balance)} บาท` }]))) return;
 
     const btn = document.getElementById("btn-record-payment");
     if (btn) btn.disabled = true;
@@ -12758,6 +12784,11 @@ async function saveServicePriceRow(i, jobType) {
         costItems,
         updatedAt: new Date().toISOString()
     };
+    if (!(await confirmBeforeSave(null, `ตรวจสอบราคามาตรฐาน "${jobType}"`, [
+        { label: "ค่าธรรมเนียมรัฐ (เก็บแทน)", value: `${fmtMoney(priceData.govFee)} บาท` },
+        { label: "ค่าบริการ", value: `${fmtMoney(priceData.serviceFee)} บาท` },
+        ...costItems.map(c => ({ label: `ต้นทุน: ${c.name}`, value: `${fmtMoney(c.amount || c.cost || 0)} บาท` }))
+    ]))) return;
     const res = await callCloudAPI("saveServicePrice", { priceData });
     if (!res || res.status === "error") return;
     const idx = servicePrices.findIndex(p => p.jobType === jobType);
@@ -13874,4 +13905,236 @@ function setupRememberTextareaSize() {
 
 document.addEventListener('DOMContentLoaded', () => {
     try { setupRememberTextareaSize(); } catch (err) { console.error('Textarea size setup failed:', err); }
+});
+
+// ==================== ตรวจสอบข้อมูลก่อนบันทึก (ทุกการบันทึกในระบบ) ====================
+// ก่อนส่งข้อมูลขึ้นคลาวด์ แสดงรายการ "ชื่อช่อง : ค่าที่กรอก" (เฉพาะช่องที่มีข้อมูล) ให้ผู้ใช้ตรวจอีกรอบ
+// ดึงจากฟอร์มอัตโนมัติ (collectFormSummary) — ฟอร์มใหม่ใช้ได้เลยไม่ต้องเขียนรายการเอง
+// รูปแบบรายการ: [{ label, value }] หรือ { heading } เป็นหัวข้อกลุ่ม
+function fillUiDialogSummary(box, rows) {
+    rows.forEach(r => {
+        if (r.heading) {
+            const h = document.createElement('div');
+            h.className = 'ui-sum-heading';
+            h.textContent = r.heading;
+            box.appendChild(h);
+            return;
+        }
+        const row = document.createElement('div');
+        row.className = 'ui-sum-row';
+        const l = document.createElement('span');
+        l.className = 'ui-sum-label';
+        l.textContent = r.label;
+        const v = document.createElement('span');
+        v.className = 'ui-sum-value';
+        v.textContent = r.value;
+        row.append(l, v);
+        box.appendChild(row);
+    });
+}
+
+function cleanSummaryLabel(text) {
+    return String(text || '').replace(/\s*\*\s*$/, '').replace(/\s+/g, ' ').replace(/[:：]\s*$/, '').trim();
+}
+
+// ค่าที่แสดงของช่องหนึ่งช่อง ('' = ไม่มีข้อมูล ข้ามไป)
+function summaryValueOf(group) {
+    const checks = Array.from(group.querySelectorAll('input[type="checkbox"]'));
+    if (checks.length > 1) {
+        return checks.filter(c => c.checked).map(c => cleanSummaryLabel((c.closest('label') || {}).textContent || c.value)).join(', ');
+    }
+    const radio = group.querySelector('input[type="radio"]:checked');
+    if (radio) return cleanSummaryLabel((radio.closest('label') || {}).textContent || radio.value);
+    const sel = group.querySelector('select');
+    if (sel && !sel.multiple) {
+        if (!sel.value) return '';
+        const opt = sel.options[sel.selectedIndex];
+        return cleanSummaryLabel(opt ? ((opt.querySelector('.opt-bank-text') || opt).textContent) : sel.value);
+    }
+    if (sel && sel.multiple) return Array.from(sel.selectedOptions).map(o => cleanSummaryLabel(o.textContent)).join(', ');
+    const file = group.querySelector('input[type="file"]');
+    if (file && file.files && file.files.length) return Array.from(file.files).map(f => f.name).join(', ');
+    const field = group.querySelector('textarea, input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"])');
+    if (!field) return '';
+    const v = String(field.value || '').trim();
+    if (!v) return '';
+    if (field.type === 'date') return formatThaiDate(v);
+    if (field.type === 'password') return '••••••';
+    return v;
+}
+
+function collectFormSummary(root) {
+    const rows = [];
+    if (!root) return rows;
+    let lastHeading = '';
+    root.querySelectorAll('.form-group').forEach(g => {
+        if (g.parentElement && g.parentElement.closest('.form-group')) return;        // กลุ่มซ้อนกลุ่ม นับครั้งเดียว
+        if (g.closest('.hidden:not([id^="cust-tab-"])')) return;                       // ช่องที่ซ่อนอยู่ (ยกเว้นแท็บในฟอร์มนายจ้าง)
+        const labelEl = g.querySelector('label');
+        const label = cleanSummaryLabel(labelEl ? labelEl.textContent : '');
+        const value = summaryValueOf(g);
+        if (!label || !value) return;
+        // หัวข้อกลุ่ม: การ์ดสาขา → "สาขาที่ N: ชื่อสาขา", ส่วนที่มี data-summary-heading → ชื่อส่วนนั้น
+        const branch = g.closest('.branch-card');
+        const section = g.closest('[data-summary-heading]');
+        let heading = '';
+        if (branch) {
+            const t = branch.querySelector('.branch-card-title');
+            const n = branch.querySelector('.branch-name-input');
+            heading = cleanSummaryLabel(`${t ? t.textContent : 'สาขา'} ${n ? n.value : ''}`);
+        } else if (section) heading = section.dataset.summaryHeading;
+        else if (lastHeading) heading = 'ข้อมูลอื่น ๆ';
+        if (heading && heading !== lastHeading) rows.push({ heading });
+        lastHeading = heading;
+        rows.push({ label, value });
+    });
+    // ช่องติ๊กเดี่ยวนอก .form-group (เช่น "ต้องชำระเงินก่อนเริ่มดำเนินการ")
+    root.querySelectorAll('input[type="checkbox"]').forEach(c => {
+        if (c.closest('.form-group') || !c.checked || c.closest('.hidden')) return;
+        const lbl = cleanSummaryLabel((c.closest('label') || {}).textContent || '');
+        if (lbl) rows.push({ label: lbl, value: 'ใช่' });
+    });
+    return rows;
+}
+
+// ถามยืนยันพร้อมรายการข้อมูล — คืน true ถ้ากด "ยืนยันบันทึก"
+// root = ฟอร์ม/กล่องที่จะอ่านค่า (null ได้ ถ้าส่ง rows เอง), extra = รายการเพิ่มท้าย (เช่น ยอดรวม)
+async function confirmBeforeSave(root, title, extra = []) {
+    const rows = [...collectFormSummary(root), ...extra];
+    return uiConfirm(rows.length ? 'ตรวจสอบข้อมูลด้านล่างให้ถูกต้องก่อนบันทึก' : 'ยืนยันบันทึกข้อมูลนี้หรือไม่?', {
+        title: title || 'ตรวจสอบข้อมูลก่อนบันทึก',
+        summary: rows,
+        okText: 'ยืนยันบันทึก',
+        cancelText: 'กลับไปแก้ไข',
+        danger: false
+    });
+}
+
+// ==================== ที่อยู่จัดส่งเอกสาร: รายการแนะนำ จังหวัด → อำเภอ → ตำบล (พิมพ์เองได้) ====================
+// ช่องยังเป็นช่องพิมพ์ (เก็บค่าที่พิมพ์ตามจริง แม้ไม่อยู่ในรายการ) และมีเมนูแนะนำแบบ iOS จาก SOUTHERN_ADDRESS_DB (attachSuggestMenu)
+// เลือก/พิมพ์อำเภอที่ตรงกับในรายการ → เติมรหัสไปรษณีย์ของอำเภอนั้นให้ (แก้เองต่อได้)
+function updateDeliveryAddressLists(districtChanged = false) {
+    const prov = (document.getElementById('cust-delivery-province') || {}).value || '';
+    const distEl = document.getElementById('cust-delivery-district');
+    const postalEl = document.getElementById('cust-delivery-postal');
+    // รายการแนะนำอ่านสดจาก SOUTHERN_ADDRESS_DB ตอนเปิดเมนู (attachSuggestMenu) — ที่นี่แค่เติมรหัสไปรษณีย์ตามอำเภอ
+    const districts = SOUTHERN_ADDRESS_DB[prov.trim()] || null;
+    const d = districts && distEl ? districts[distEl.value.trim()] : null;
+    if (districtChanged && d && postalEl) postalEl.value = d.zip; // แก้เองต่อได้
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    try { updateDeliveryAddressLists(); } catch (err) { console.error('Delivery address lists failed:', err); }
+});
+
+// ==================== ช่องพิมพ์ + เมนูแนะนำแบบ iOS (แทน <datalist> ที่เบราว์เซอร์แสดงเป็นกล่องสีดำ) ====================
+// attachSuggestMenu(input, getItems): โฟกัส/พิมพ์ → เมนูรายการที่ตรงกับคำที่พิมพ์ (หน้าตาเดียวกับ dropdown แบบ iOS)
+// คลิก/Enter เลือก → ใส่ค่าในช่องแล้วยิง event input (โค้ดเดิมที่ฟัง oninput ทำงานต่อ) — พิมพ์ค่าอื่นเองได้เสมอ
+let _suggestMenu = null; // { input, menu, items: [el], active }
+
+function closeSuggestMenu() {
+    if (!_suggestMenu) return;
+    _suggestMenu.menu.remove();
+    _suggestMenu = null;
+}
+
+function pickSuggestItem(value) {
+    const s = _suggestMenu;
+    if (!s) return;
+    const input = s.input;
+    closeSuggestMenu();
+    input.value = value;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+function setSuggestActive(i) {
+    const s = _suggestMenu;
+    if (!s || !s.items.length) return;
+    if (s.active >= 0 && s.items[s.active]) s.items[s.active].classList.remove('is-active');
+    s.active = (i + s.items.length) % s.items.length;
+    s.items[s.active].classList.add('is-active');
+    s.items[s.active].scrollIntoView({ block: 'nearest' });
+}
+
+function openSuggestMenu(input, getItems) {
+    const q = input.value.trim().toLowerCase();
+    const all = (getItems() || []).filter(Boolean);
+    // ค่าที่พิมพ์ตรงกับรายการพอดี → แสดงทั้งหมด (ให้เปลี่ยนใจเลือกค่าอื่นได้ง่าย) ไม่งั้นกรองตามคำที่พิมพ์
+    const list = !q || all.some(v => v.toLowerCase() === q) ? all : all.filter(v => v.toLowerCase().includes(q));
+    if (_suggestMenu && _suggestMenu.input !== input) closeSuggestMenu();
+    if (!list.length) { closeSuggestMenu(); return; }
+    let menu = _suggestMenu ? _suggestMenu.menu : null;
+    if (!menu) {
+        menu = document.createElement('div');
+        menu.className = 'ios-select-menu suggest-menu';
+        menu.setAttribute('role', 'listbox');
+        document.body.appendChild(menu);
+    }
+    menu.innerHTML = '';
+    const items = list.map(v => {
+        const el = document.createElement('div');
+        el.className = 'ios-select-option' + (v.toLowerCase() === q ? ' is-selected' : '');
+        el.setAttribute('role', 'option');
+        el.textContent = v;
+        el.addEventListener('mousedown', e => e.preventDefault());
+        el.addEventListener('click', () => pickSuggestItem(v));
+        menu.appendChild(el);
+        return el;
+    });
+    _suggestMenu = { input, menu, items, active: -1 };
+    const r = input.getBoundingClientRect();
+    menu.style.minWidth = r.width + 'px';
+    menu.style.left = Math.max(8, Math.min(r.left, window.innerWidth - menu.offsetWidth - 8)) + 'px';
+    const below = window.innerHeight - r.bottom - 12;
+    if (below < 200 && r.top > below) {
+        menu.classList.add('is-above');
+        menu.style.top = '';
+        menu.style.bottom = (window.innerHeight - r.top + 6) + 'px';
+        menu.style.maxHeight = Math.min(300, r.top - 12) + 'px';
+    } else {
+        menu.classList.remove('is-above');
+        menu.style.bottom = '';
+        menu.style.top = (r.bottom + 6) + 'px';
+        menu.style.maxHeight = Math.min(300, Math.max(below, 120)) + 'px';
+    }
+}
+
+function attachSuggestMenu(input, getItems) {
+    if (!input || input._suggest) return;
+    input._suggest = true;
+    input.setAttribute('autocomplete', 'off');
+    input.addEventListener('focus', () => openSuggestMenu(input, getItems));
+    input.addEventListener('click', () => { if (!_suggestMenu) openSuggestMenu(input, getItems); });
+    input.addEventListener('input', e => { if (e.isTrusted) openSuggestMenu(input, getItems); });
+    input.addEventListener('blur', () => setTimeout(() => { if (_suggestMenu && _suggestMenu.input === input) closeSuggestMenu(); }, 120));
+    input.addEventListener('keydown', e => {
+        const s = _suggestMenu;
+        if (!s || s.input !== input) {
+            if (e.key === 'ArrowDown') { e.preventDefault(); openSuggestMenu(input, getItems); }
+            return;
+        }
+        if (e.key === 'ArrowDown') { e.preventDefault(); setSuggestActive(s.active + 1); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); setSuggestActive(s.active - 1); }
+        else if (e.key === 'Enter' && s.active >= 0) { e.preventDefault(); pickSuggestItem(s.items[s.active].textContent); }
+        else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeSuggestMenu(); }
+    });
+}
+
+window.addEventListener('scroll', e => { if (_suggestMenu && !_suggestMenu.menu.contains(e.target)) closeSuggestMenu(); }, true);
+window.addEventListener('resize', closeSuggestMenu);
+
+// ที่อยู่จัดส่งเอกสาร: จังหวัด → อำเภอ → ตำบล จาก SOUTHERN_ADDRESS_DB
+document.addEventListener('DOMContentLoaded', () => {
+    try {
+        const val = id => ((document.getElementById(id) || {}).value || '').trim();
+        const districtsOf = () => SOUTHERN_ADDRESS_DB[val('cust-delivery-province')] || null;
+        attachSuggestMenu(document.getElementById('cust-delivery-province'), () => Object.keys(SOUTHERN_ADDRESS_DB));
+        attachSuggestMenu(document.getElementById('cust-delivery-district'), () => { const d = districtsOf(); return d ? Object.keys(d) : []; });
+        attachSuggestMenu(document.getElementById('cust-delivery-subdistrict'), () => {
+            const d = districtsOf();
+            const x = d ? d[val('cust-delivery-district')] : null;
+            return x ? x.subs : [];
+        });
+    } catch (err) { console.error('Delivery suggest setup failed:', err); }
 });

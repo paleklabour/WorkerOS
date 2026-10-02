@@ -2299,7 +2299,7 @@ select:disabled {
     padding: 16px;
     margin-bottom: 12px;
     position: relative;
-    animation: slideDown 0.3s ease-out;
+    /* ไม่มีแอนิเมชันเลื่อนลง: การ์ดสาขาถูกวาดใหม่ทุกครั้งที่เลือกจังหวัด/อำเภอ จะกระพริบทุกครั้ง (เจ้าของระบบขอเอาออก 2026-10-02) */
 }
 
 @keyframes slideDown {
@@ -6744,4 +6744,43 @@ input[type="file"][style*="display:none"] { display: none !important; }
     outline: none;
     border-color: var(--gold-primary) !important;
     box-shadow: 0 0 0 3px var(--gold-light);
+}
+
+/* ==================== หน้าต่างตรวจสอบข้อมูลก่อนบันทึก (confirmBeforeSave ใน app.js) ==================== */
+.ui-dialog:has(.ui-dialog-summary) { width: min(560px, calc(100vw - 32px)); max-width: none; }
+.ui-dialog-summary {
+    width: 100%;
+    max-height: min(52vh, 460px);
+    overflow-y: auto;
+    margin: 4px 0 6px;
+    padding: 4px 14px;
+    border-radius: 14px;
+    background-color: var(--dk-subtle, #f6f7fa);
+    text-align: left;
+}
+.ui-sum-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--dk-line, rgba(60, 60, 67, 0.1));
+    font-size: 13.5px;
+}
+.ui-sum-row:last-child { border-bottom: none; }
+.ui-sum-label { flex: 0 0 42%; color: var(--text-muted); }
+.ui-sum-value {
+    flex: 1;
+    min-width: 0;
+    color: var(--text-dark);
+    font-weight: 600;
+    text-align: right;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+}
+.ui-sum-heading {
+    padding: 12px 0 4px;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--gold-primary);
 }

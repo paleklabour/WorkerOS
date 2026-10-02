@@ -1816,7 +1816,7 @@
                         <!-- /cust-tab-general -->
 
                         <!-- ==================== TAB: DOCUMENT DELIVERY ADDRESS ==================== -->
-                        <div id="cust-tab-delivery" class="hidden">
+                        <div id="cust-tab-delivery" class="hidden" data-summary-heading="ที่อยู่จัดส่งเอกสาร">
                             <p class="section-desc" style="margin-top: -5px;">
                                 <span class="ico" data-icon="save"></span> ข้อมูลในแท็บนี้จะถูกบันทึกพร้อมกับปุ่ม "บันทึกข้อมูล" ด้านล่างของฟอร์ม (ใช้ปุ่มเดียวกับแท็บ "ข้อมูลทั่วไป") — ไม่ต้องกดบันทึกแยก ครั้งหน้าที่เปิดแก้ไขนายจ้างรายนี้จะดึงค่าที่เคยกรอกไว้กลับมาให้อัตโนมัติ
                             </p>
@@ -1864,18 +1864,19 @@
                                         <input type="text" id="cust-delivery-road" placeholder="เช่น ถ.สุขุมวิท">
                                     </div>
                                     <div class="form-group col-6">
-                                        <label for="cust-delivery-subdistrict">ตำบล / แขวง</label>
-                                        <input type="text" id="cust-delivery-subdistrict" placeholder="ตำบล/แขวง">
+                                        <label for="cust-delivery-province">จังหวัด</label>
+                                        <!-- พิมพ์เองได้ หรือเลือกจากรายการ (datalist) จังหวัด → อำเภอ → ตำบล ตาม SOUTHERN_ADDRESS_DB — ดู updateDeliveryAddressLists() -->
+                                        <input type="text" id="cust-delivery-province" placeholder="พิมพ์หรือเลือกจังหวัด" autocomplete="off" oninput="updateDeliveryAddressLists()">
                                     </div>
                                 </div>
                                 <div class="form-row">
                                     <div class="form-group col-4">
                                         <label for="cust-delivery-district">อำเภอ / เขต</label>
-                                        <input type="text" id="cust-delivery-district" placeholder="อำเภอ/เขต">
+                                        <input type="text" id="cust-delivery-district" placeholder="พิมพ์หรือเลือกอำเภอ" autocomplete="off" oninput="updateDeliveryAddressLists(true)">
                                     </div>
                                     <div class="form-group col-4">
-                                        <label for="cust-delivery-province">จังหวัด</label>
-                                        <input type="text" id="cust-delivery-province" placeholder="จังหวัด">
+                                        <label for="cust-delivery-subdistrict">ตำบล / แขวง</label>
+                                        <input type="text" id="cust-delivery-subdistrict" placeholder="พิมพ์หรือเลือกตำบล" autocomplete="off">
                                     </div>
                                     <div class="form-group col-4">
                                         <label for="cust-delivery-postal">รหัสไปรษณีย์</label>
