@@ -8584,7 +8584,7 @@ function renderCustomerFolderTiles() {
             if (query && !(fItem.name || '').toLowerCase().includes(query)) return;
             tiles.push(renderCustomerDriveTile(docInfo, fItem, fIdx, c.companyName));
         });
-        if (!query) tiles.push(renderDriveAddTile(docInfo.label, `triggerCustomerFolderFileUpload('${docInfo.key}')`, `customer-folder:${docInfo.key}`, docInfo.icon));
+        if (!query) tiles.push(renderDriveAddTile(docInfo.label, `triggerCustomerFolderFileUpload('${docInfo.key}')`, `customer-folder:${docInfo.key}`, docInfo.icon, `cameraCustomerFolderUpload('${docInfo.key}')`));
     });
 
     const customerFolderListEl = document.getElementById("customer-folder-files-list");
@@ -8675,11 +8675,12 @@ function tryPdfThumbFallback(imgEl) {
 }
 
 // pasteTarget ("worker-folder:<ประเภท>" / "customer-folder:<ประเภท>") = ชี้เมาส์ที่ช่องนี้แล้วกด Ctrl+V วางภาพได้ (ดู findPasteTarget)
-function renderDriveAddTile(label, triggerCall, pasteTarget = '', iconName = '') {
+function renderDriveAddTile(label, triggerCall, pasteTarget = '', iconName = '', cameraCall = '') {
     return `
         <div class="drive-tile add-tile" onclick="${triggerCall}" ${pasteTarget ? `data-paste-target="${pasteTarget}"` : ''} title="แนบไฟล์: ${label}${pasteTarget ? ' — คลิกเลือกไฟล์ หรือชี้แล้วกด Ctrl+V วางภาพ' : ''}">
             <div class="add-tile-icon">${icon("plus")}</div>
             <div class="add-tile-label">${iconName ? icon(iconName) + ' ' : ''}${label}</div>
+            ${cameraCall && isCameraDevice() ? cameraButtonHtml(cameraCall) : ''}
         </div>
     `;
 }
@@ -9727,7 +9728,7 @@ function renderWorkerFolderTiles() {
                 <div class="fv-group-head">
                     <span>${icon(file.icon)} ${file.label}</span>
                     <b>${items.length || ''}</b>
-                    ${canAdd ? `<button type="button" class="fv-add" onclick="triggerFolderFileUpload('${file.key}')" data-paste-target="worker-folder:${file.key}" title="แนบไฟล์: ${file.label} — คลิกเลือกไฟล์ หรือชี้แล้วกด Ctrl+V วางภาพ">${icon('plus')} แนบ</button>` : ''}
+                    ${canAdd ? `<button type="button" class="fv-add" onclick="triggerFolderFileUpload('${file.key}')" data-paste-target="worker-folder:${file.key}" title="แนบไฟล์: ${file.label} — คลิกเลือกไฟล์ หรือชี้แล้วกด Ctrl+V วางภาพ">${icon('plus')} แนบ</button>` : ''}${canAdd && isCameraDevice() ? cameraButtonHtml(`cameraWorkerFolderUpload('${file.key}')`, 'fv-cam') : ''}
                 </div>
                 ${items.join('') || '<div class="fv-none">ยังไม่มีไฟล์</div>'}
             </div>`);
@@ -14137,4 +14138,103 @@ document.addEventListener('DOMContentLoaded', () => {
             return x ? x.subs : [];
         });
     } catch (err) { console.error('Delivery suggest setup failed:', err); }
+});
+
+// ==================== ถ่ายรูปเอกสารด้วยกล้อง (เฉพาะ iPad / มือถือ) แล้วให้ AI อ่านทันที ====================
+// ปุ่ม "ถ่ายรูป" ข้างช่องแนบเอกสารคนงาน/นายจ้าง (ในฟอร์ม + หน้าแฟ้มเอกสาร) — เปิดกล้องหลังทันที
+// ภาพที่ถ่าย ย่อเหลือด้านยาว ~2000px (JPEG) แล้วส่งเข้าช่องแนบเดิม → เส้นทางอัปโหลด + AI อ่านเดิม (fileSelectHandler ฯลฯ)
+// คอมไม่แสดงปุ่มนี้ (ตามที่เจ้าของระบบกำหนด 2026-10-02)
+function isCameraDevice() {
+    return !!(window.matchMedia && window.matchMedia('(pointer: coarse), (any-pointer: coarse)').matches);
+}
+
+// ย่อรูปจากกล้อง (ไฟล์ 3–12 MB) ให้อัปโหลดเร็ว — AI ยังอ่านได้ชัด; ไม่ใช่รูป/ย่อไม่ได้ → คืนไฟล์เดิม
+function shrinkImageFile(file, maxSide = 2000, quality = 0.85) {
+    return new Promise(resolve => {
+        if (!file || !/^image\//.test(file.type) || /gif|svg/.test(file.type)) { resolve(file); return; }
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+            const scale = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
+            if (scale === 1 && file.size < 2.5 * 1024 * 1024) { URL.revokeObjectURL(url); resolve(file); return; }
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.round(img.naturalWidth * scale);
+            canvas.height = Math.round(img.naturalHeight * scale);
+            canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+            URL.revokeObjectURL(url);
+            canvas.toBlob(blob => {
+                if (!blob) { resolve(file); return; }
+                const name = (file.name || 'photo').replace(/\.[^.]+$/, '') + '.jpg';
+                resolve(new File([blob], name, { type: 'image/jpeg', lastModified: Date.now() }));
+            }, 'image/jpeg', quality);
+        };
+        img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+        img.src = url;
+    });
+}
+
+// เปิดกล้องหลัง → ได้ไฟล์รูป 1 ไฟล์ (ผู้ใช้กดยกเลิก = ไม่ทำอะไร)
+function capturePhotoFile() {
+    return new Promise(resolve => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.setAttribute('capture', 'environment');
+        input.style.display = 'none';
+        input.addEventListener('change', () => {
+            resolve(input.files && input.files[0] ? input.files[0] : null);
+            input.remove();
+        });
+        document.body.appendChild(input);
+        input.click();
+    });
+}
+
+// ถ่ายรูปแล้วใส่เข้าช่องแนบไฟล์ที่กำหนด + ยิง change ให้โค้ดอัปโหลด/AI เดิมทำงาน
+async function cameraToInput(targetInput) {
+    if (!targetInput) return;
+    const photo = await capturePhotoFile();
+    if (!photo) return;
+    const file = await shrinkImageFile(photo);
+    try {
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        targetInput.files = dt.files;
+    } catch (err) {
+        console.error('Camera: cannot attach photo to input', err);
+        showToast('❌ เครื่องนี้ส่งรูปจากกล้องเข้าช่องแนบไม่ได้ กรุณาแตะช่องแนบแล้วเลือก "ถ่ายรูป" แทน', 'danger');
+        return;
+    }
+    targetInput.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+function cameraButtonHtml(onclick, extraClass = '') {
+    return `<button type="button" class="camera-btn ${extraClass}" onclick="event.stopPropagation(); event.preventDefault(); ${onclick}" title="ถ่ายรูปเอกสาร (AI อ่านให้ทันที)">${icon('photo')} ถ่ายรูป</button>`;
+}
+
+// หน้าแฟ้มเอกสาร: ตั้งประเภทเอกสารที่จะแนบ แล้วถ่ายรูปเข้าช่องอัปโหลดของแฟ้ม
+function cameraCustomerFolderUpload(docType) {
+    activeFolderCustomerDocType = docType;
+    cameraToInput(document.getElementById('customer-folder-upload-input'));
+}
+
+function cameraWorkerFolderUpload(docType) {
+    activeFolderDocType = docType;
+    cameraToInput(document.getElementById('folder-upload-input'));
+}
+
+// ฟอร์มคนงาน/นายจ้าง: ใส่ปุ่มกล้องในกล่องแนบเอกสารทุกกล่อง (ช่อง file-worker-* / file-cust-* / file-employer-*)
+function setupCameraButtons() {
+    if (!isCameraDevice()) return;
+    document.body.classList.add('has-camera');
+    document.querySelectorAll('.upload-box .file-input').forEach(input => {
+        if (!/^file-(worker|cust|employer)-/.test(input.id || '')) return;
+        const box = input.closest('.upload-box');
+        if (!box || box.querySelector('.camera-btn')) return;
+        box.insertAdjacentHTML('beforeend', cameraButtonHtml(`cameraToInput(document.getElementById('${input.id}'))`));
+    });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    try { setupCameraButtons(); } catch (err) { console.error('Camera setup failed:', err); }
 });

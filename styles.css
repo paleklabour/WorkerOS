@@ -6784,3 +6784,32 @@ input[type="file"][style*="display:none"] { display: none !important; }
     font-weight: 700;
     color: var(--gold-primary);
 }
+
+/* ==================== ปุ่มถ่ายรูปเอกสาร (เฉพาะ iPad/มือถือ — setupCameraButtons ใน app.js) ==================== */
+.camera-btn {
+    position: relative;
+    z-index: 2;               /* อยู่เหนือช่องเลือกไฟล์ที่โปร่งใสคลุมกล่องแนบเอกสาร */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 10px;
+    padding: 9px 16px;
+    min-height: 40px;
+    border: none;
+    border-radius: 999px;
+    background-color: var(--gold-primary);
+    color: var(--on-primary, #ffffff);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(45, 79, 163, 0.25);
+    -webkit-tap-highlight-color: transparent;
+}
+.camera-btn .ico { --ic: currentColor; }
+.camera-btn:active { transform: scale(0.96); }
+/* ในรายการแฟ้มเอกสารคนงาน: ปุ่มเล็กต่อจากปุ่ม "แนบ" */
+.camera-btn.fv-cam { margin: 0 0 0 6px; padding: 5px 12px; min-height: 32px; font-size: 13px; }
+/* บนเครื่องที่มีกล้อง: ข้อความ "กด Ctrl+V วางภาพ" ไม่เกี่ยว ซ่อนไว้ให้กล่องโล่ง */
+body.has-camera .upload-hint { display: none; }
