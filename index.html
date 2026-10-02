@@ -463,11 +463,11 @@
                                     <h3 style="margin: 0;"><span class="ico" data-icon="search"></span> ค้นหางานที่แจ้งสำเร็จ</h3>
                                     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                                         <select id="db-completed-select-employer" class="select-filter" onchange="renderCompletedJobsStats()" style="min-width: 260px;">
-                                            <option value="">🌐 ภาพรวมทั้งหมด (ทุกนายจ้าง)</option>
+                                            <option value="">ภาพรวมทั้งหมด (ทุกนายจ้าง)</option>
                                             <!-- Dynamic employer options -->
                                         </select>
                                         <select id="db-completed-select-agent" class="select-filter" onchange="renderCompletedJobsStats()" style="min-width: 260px;">
-                                            <option value="">🤝 ทุก Agent (ไม่กรอง)</option>
+                                            <option value="">ทุก Agent (ไม่กรอง)</option>
                                             <!-- Dynamic agent options -->
                                         </select>
                                     </div>
@@ -811,7 +811,7 @@
                                 <!-- Column: Closed (ปิดงานแล้ว — เข้าได้เฉพาะผ่านปุ่ม "ปิดงาน" ที่แนบเอกสาร ลากเข้ามาตรงๆ ไม่ได้) -->
                                 <div class="kanban-column" style="flex: 1; min-width: 250px; background: #f8fafc; border-radius: var(--radius-md); border: 1px solid #e2e8f0; display: flex; flex-direction: column; height: fit-content; max-height: calc(100vh - 260px);">
                                     <div class="kanban-column-header" style="padding: 12px; border-bottom: 2px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f1f5f9; border-top-left-radius: var(--radius-md); border-top-right-radius: var(--radius-md);">
-                                        <h4 style="font-weight: 600; font-size: 13.5px; color: #475569; margin: 0;" title="เข้าคอลัมน์นี้ได้เฉพาะผ่านปุ่ม 📎 ปิดงาน (ต้องแนบเอกสารก่อน) — งานที่ปิดแล้วและลูกค้าชำระเงินครบแล้วจะถูกซ่อนออกจากคอลัมน์นี้อัตโนมัติ (ดูย้อนหลังได้ที่หน้ารายการหรือแท็บออกบิล/รับเงิน)"><span class="ico" data-icon="lock"></span> ปิดงานแล้ว</h4>
+                                        <h4 style="font-weight: 600; font-size: 13.5px; color: #475569; margin: 0;" title="เข้าคอลัมน์นี้ได้เฉพาะผ่านปุ่ม ปิดงาน (ต้องแนบเอกสารก่อน) — งานที่ปิดแล้วและลูกค้าชำระเงินครบแล้วจะถูกซ่อนออกจากคอลัมน์นี้อัตโนมัติ (ดูย้อนหลังได้ที่หน้ารายการหรือแท็บออกบิล/รับเงิน)"><span class="ico" data-icon="lock"></span> ปิดงานแล้ว</h4>
                                         <div style="display: flex; gap: 4px; align-items: center;">
                                             <span class="badge badge-danger" id="count-kanban-completed-unbilled" style="font-size: 11.5px; padding: 2px 6px; display: none;" title="ปิดงานแล้วแต่ยังไม่ได้รับชำระเงิน (ไม่ว่าจะออกบิลไปแล้วหรือยัง) — หายไปเมื่อลูกค้าชำระครบแล้ว"><span class="ico" data-icon="warn"></span> 0 ยังไม่ได้ชำระ</span>
                                             <span class="badge badge-success" id="count-kanban-completed" style="font-size: 11.5px; padding: 2px 8px;">0</span>
@@ -933,7 +933,7 @@
                         <!-- SUB-TAB: FINANCE OVERVIEW -->
                         <div id="finpage-tab-overview" class="db-tab-content">
                             <!-- Period Filter -->
-                            <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; padding: 0;">
+                            <div class="panel-header fin-period-bar" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; padding: 0;">
                                 <h4 style="font-size: 14.5px; font-weight: 700; color: var(--navy-dark); margin: 0;"><span class="ico" data-icon="calendar"></span> ช่วงเวลาที่ต้องการดูสรุป</h4>
                                 <select id="db-finance-period-select" class="select-filter" onchange="renderFinanceStats()" style="min-width: 220px;">
                                     <option value="">ทั้งหมด (All Time)</option>
@@ -1553,7 +1553,7 @@
                             <label for="expense-payment-method">จ่ายจากบัญชี</label>
                             <select id="expense-payment-method">
                                 <option value="">-- ไม่ระบุ --</option>
-                                <option value="เงินสด">💵 เงินสด (Cash)</option>
+                                <option value="เงินสด">เงินสด (Cash)</option>
                                 <!-- Dynamic bank options -->
                             </select>
                         </div>
@@ -2273,7 +2273,7 @@
                             <div class="job-worker-picker">
                                 <div id="job-worker-chips" class="job-worker-chips" style="display:none;"></div>
                                 <input type="text" id="job-worker-search" class="job-worker-search-input"
-                                    placeholder="🔍 ค้นหาชื่อ หรือเลขประจำตัวคนงาน 13 หลัก..."
+                                    placeholder="ค้นหาชื่อ หรือเลขประจำตัวคนงาน 13 หลัก..."
                                     oninput="filterJobWorkerChecklist()" autocomplete="off">
                                 <div id="job-worker-checklist" class="job-worker-checklist"></div>
                             </div>
@@ -3125,7 +3125,7 @@
     <!-- Error Handler -->
     <script>
         window.onerror = function(message, source, lineno, colno, error) {
-            alert("❌ JavaScript Error: " + message + "\nLine: " + lineno + "\nSource: " + source);
+            alert("JavaScript Error: " + message + "\nLine: " + lineno + "\nSource: " + source);
             return false;
         };
     </script>

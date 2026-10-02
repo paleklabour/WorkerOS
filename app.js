@@ -190,7 +190,7 @@ function jobPrepaymentBlockReason(customerId, targetStatus, currentPaymentStatus
     const cust = customers.find(c => c.id === customerId);
     if (!cust || !cust.requirePrepayment) return null;
     if (currentPaymentStatus === 'ชำระเงินแล้ว') return null;
-    return `❌ ย้ายเข้า "กำลังดำเนินการ" ไม่ได้: นายจ้าง "${cust.companyName}" ตั้งไว้ว่าต้องออกบิลและรับชำระเงินก่อนเริ่มดำเนินการ`;
+    return `ย้ายเข้า "กำลังดำเนินการ" ไม่ได้: นายจ้าง "${cust.companyName}" ตั้งไว้ว่าต้องออกบิลและรับชำระเงินก่อนเริ่มดำเนินการ`;
 }
 
 // ตัดราคาที่ต่อท้ายในชื่อประเภทงาน เช่น "แจ้งเข้าคนงานต่างด้าว (2500)" -> "แจ้งเข้าคนงานต่างด้าว"
@@ -340,7 +340,7 @@ function cleanupLargeAttachments() {
             });
             if (changed) {
                 localStorage.setItem("mw_workers", JSON.stringify(wList));
-                console.log("🧹 Cleaned up large base64 attachments in localStorage to recover quota.");
+                console.log("Cleaned up large base64 attachments in localStorage to recover quota.");
             }
         } catch (e) {
             console.error("Cleanup failed:", e);
@@ -3671,7 +3671,7 @@ function processJobAppointmentFile(file) {
 
         const uploadResult = await uploadDocumentFile(fileContent, fileName, customerId, workerIds[0] || "", "job-appointment");
         if (uploadResult && uploadResult.aiRejected) {
-            statusEl.innerHTML = `<span class="ai-error">${getAiRejectedMessage(uploadResult.ocrError)}</span>`;
+            statusEl.innerHTML = `<span class="ai-error">${icon("warn", "amber")} ${getAiRejectedMessage(uploadResult.ocrError)}</span>`;
             return;
         }
         if (!uploadResult) {
@@ -3783,7 +3783,7 @@ function processCustomerDocFile(file, docType) {
             const uploadResult = await uploadDocumentFile(fileContent, fileName, editId, "", docType);
             if (uploadResult && uploadResult.aiRejected) {
                 renderCustomerAttachmentStatus(docType);
-                statusEl.insertAdjacentHTML('afterbegin', `<span class="ai-error">${getAiRejectedMessage(uploadResult.ocrError)}</span>`);
+                statusEl.insertAdjacentHTML('afterbegin', `<span class="ai-error">${icon("warn", "amber")} ${getAiRejectedMessage(uploadResult.ocrError)}</span>`);
                 resolve();
                 return;
             }
@@ -4218,7 +4218,7 @@ function processUploadedFile(file, docType) {
             const uploadResult = await uploadDocumentFile(fileContent, fileName, employerId, editId, docType);
             if (uploadResult && uploadResult.aiRejected) {
                 renderWorkerAttachmentStatus(docType);
-                statusEl.insertAdjacentHTML('afterbegin', `<span class="ai-error">${getAiRejectedMessage(uploadResult.ocrError)}</span>`);
+                statusEl.insertAdjacentHTML('afterbegin', `<span class="ai-error">${icon("warn", "amber")} ${getAiRejectedMessage(uploadResult.ocrError)}</span>`);
                 resolve();
                 return;
             }
@@ -5217,7 +5217,9 @@ function renderJobsSummary(baseJobs, monthKey) {
         .sort((a, b) => String(a.appointmentDate).localeCompare(String(b.appointmentDate)) || String(a.appointmentTime || '').localeCompare(String(b.appointmentTime || '')));
 
     const periodLabel = monthKey ? monthLabelTh(monthKey) : 'ทุกเดือน';
-    const tile = (label, value, sub, cls = '') => `<div class="js-tile ${cls}"><span>${label}</span><strong>${value}</strong><small>${sub}</small></div>`;
+    // วิดเจ็ต 1 ใบ (กระดาน "jobs" — ลาก/ปรับขนาดได้ ดู WIDGET_BOARDS.jobs) — html ว่าง = ไม่แสดงใบนั้น
+    const widget = (id, kind, html) => html ? `<div class="widget" data-widget-id="${id}" data-kind="${kind}">${html}</div>` : '';
+    const pill = (tone, value, label) => `<div class="stat-pill tone-${tone}"><h3>${value}</h3><p>${label}</p></div>`;
 
     // ตารางแยกกลุ่ม: แจ้งเข้า (ในเดือน) / ปิด (ในเดือน) / ค้างอยู่ตอนนี้
     const groupTable = (title, colLabel, keyOf, labelOf, limit = 0) => {
@@ -5245,29 +5247,47 @@ function renderJobsSummary(baseJobs, monthKey) {
         }).join('')}${list.length > 12 ? `<div class="bell-more">และอีก ${list.length - 12} งาน</div>` : ''}</div>` : `<p class="text-muted pay-empty">${emptyText}</p>`}
     </div>`;
 
+    // บัตรหลักแบบ Wallet (เหมือนสรุปการเงิน): งานค้างตอนนี้ + แถบปิดงานได้กี่ % ของงานที่แจ้งเข้า (ปิดในช่วงนี้อาจเป็นงานเก่า จึงตัดที่ 100%)
+    const closePct = opened.length ? Math.min(100, (closed.length / opened.length) * 100) : 0;
+    const todayOpened = baseJobs.filter(j => String(j.createdAt || '').slice(0, 10) === today).length;
+    const hero = `<div class="wallet-card">
+        <div class="wallet-card-top"><span class="wallet-brand">${icon('sparkles')} สรุปงาน</span><span class="wallet-period">${escapeHtml(periodLabel)}</span></div>
+        <div><p class="wallet-label">งานค้างอยู่ตอนนี้ (ยังไม่ปิด)</p><p class="wallet-amount">${open.length} <span class="wallet-unit">งาน</span></p></div>
+        <div class="wallet-progress" title="งานที่ปิดในช่วงนี้ เทียบกับงานที่แจ้งเข้าในช่วงนี้">
+            <div class="wallet-progress-bar"><div class="wallet-progress-fill" style="width: ${closePct.toFixed(1)}%"></div></div>
+            <span>ปิดงานได้ ${Math.round(closePct)}%</span>
+        </div>
+        <div class="wallet-sub">
+            <div><p>${monthKey ? 'แจ้งงานเข้าเดือนนี้' : 'แจ้งงานเข้าทั้งหมด'}</p><h3>${opened.length}</h3></div>
+            <div><p>${monthKey ? 'ปิดงานเดือนนี้' : 'ปิดงานแล้วทั้งหมด'}</p><h3>${closed.length}</h3></div>
+            <div><p>เวลาปิดงานเฉลี่ย</p><h3>${avgClose !== null ? `${avgClose} วัน` : '-'}</h3></div>
+        </div>
+    </div>`;
+    const statusCard = `<div class="fin-list-card">
+        <div class="fin-row"><span>รอดำเนินการ</span><strong>${open.filter(j => j.status === 'รอดำเนินการ').length}</strong></div>
+        <div class="fin-row"><span>กำลังดำเนินการ</span><strong>${open.filter(j => j.status === 'กำลังดำเนินการ').length}</strong></div>
+        <div class="fin-row"><span>รอเอกสารเพิ่มเติม (ตามจากลูกค้า)</span><strong>${waitingDocs.length}</strong></div>
+        <div class="fin-row"><span>แจ้งงานเข้าวันนี้</span><strong>${todayOpened}</strong></div>
+    </div>`;
+
+    const wasEditing = !!box.querySelector('.widget-board.is-editing');
     box.innerHTML = `
-        <div class="js-head">
-            <h3>${icon('sparkles')} สรุปงาน — ${escapeHtml(periodLabel)}</h3>
-            <span class="text-muted">เลือกเดือน/ประเภทงาน/ผู้รับผิดชอบได้จากตัวกรองด้านบน • "ค้างอยู่" นับงานที่ยังไม่ปิด ณ วันนี้</span>
-        </div>
-        <div class="js-tiles">
-            ${tile('แจ้งงานเข้า', opened.length, monthKey ? 'งานที่แจ้งในเดือนนี้' : 'งานที่แจ้งทั้งหมด')}
-            ${tile('ปิดงานแล้ว', closed.length, `${monthKey ? 'ปิดในเดือนนี้' : 'ปิดแล้วทั้งหมด'}${avgClose !== null ? ` • เฉลี่ย ${avgClose} วัน/งาน` : ''}`, 'is-ok')}
-            ${tile('งานค้างอยู่ตอนนี้', open.length, `รอดำเนินการ ${open.filter(j => j.status === 'รอดำเนินการ').length} • กำลังทำ ${open.filter(j => j.status === 'กำลังดำเนินการ').length}`)}
-            ${tile('ยังไม่มอบหมาย', unassigned.length, 'ต้องเลือกผู้รับผิดชอบ', unassigned.length ? 'is-warn' : '')}
-            ${tile('รอเอกสารเพิ่มเติม', waitingDocs.length, 'ต้องตามเอกสารจากลูกค้า', waitingDocs.length ? 'is-warn' : '')}
-            ${tile(`ค้างนานเกิน ${JOB_STALE_DAYS} วัน`, stale.length, 'นับจากวันที่แจ้งงาน', stale.length ? 'is-bad' : '')}
-        </div>
-        <div class="js-grid">
-            ${groupTable('แยกตามผู้รับผิดชอบ', 'ผู้รับผิดชอบ', j => j.assignedTo || '', k => k === '-' ? 'ยังไม่มอบหมาย' : getUserNameById(k))}
-            ${groupTable('แยกตามประเภทงาน', 'ประเภทงาน', j => getCleanJobTypeName(j.jobType), k => k)}
-            ${groupTable('นายจ้างที่มีงานมากที่สุด (10 อันดับ)', 'นายจ้าง', j => j.customerId || '', k => (customers.find(c => c.id === k) || {}).companyName || 'ไม่ระบุนายจ้าง', 10)}
-        </div>
-        <div class="js-grid">
-            ${jobListCard('นัดหมาย 7 วันข้างหน้า', appts, j => `${formatThaiDate(j.appointmentDate)}${j.appointmentTime ? ` ${escapeHtml(j.appointmentTime)}` : ''}${j.appointmentLocation ? ` • ${escapeHtml(j.appointmentLocation)}` : ''}`, 'ไม่มีนัดหมายใน 7 วันข้างหน้า')}
-            ${jobListCard(`งานค้างนานเกิน ${JOB_STALE_DAYS} วัน`, stale, j => `${j.status} • ${jobDaysOpen(j)} วัน${j.assignedTo ? ` • ${escapeHtml(getUserNameById(j.assignedTo))}` : ' • ยังไม่มอบหมาย'}`, 'ไม่มีงานค้างนาน')}
-            ${jobListCard('ยังไม่มอบหมายผู้รับผิดชอบ', unassigned, j => `${j.status} • แจ้งเมื่อ ${formatThaiDate(String(j.createdAt || '').slice(0, 10))}`, 'มอบหมายครบทุกงานแล้ว')}
+        <p class="js-hint text-muted">เลือกเดือน/ประเภทงาน/ผู้รับผิดชอบได้จากตัวกรองด้านบน • "ค้างอยู่" นับงานที่ยังไม่ปิด ณ วันนี้</p>
+        ${widgetBarHtml('jobs')}
+        <div class="widget-board" data-board="jobs">
+            ${widget('hero', 'block', hero)}
+            ${widget('status', 'block', statusCard)}
+            ${widget('pill-unassigned', 'pill', pill('orange', unassigned.length, 'งานที่ยังไม่มอบหมายผู้รับผิดชอบ'))}
+            ${widget('pill-stale', 'pill', pill('red', stale.length, `งานค้างนานเกิน ${JOB_STALE_DAYS} วัน`))}
+            ${widget('pill-appts', 'pill', pill('teal', appts.length, 'นัดหมาย 7 วันข้างหน้า'))}
+            ${widget('by-assignee', 'block', groupTable('แยกตามผู้รับผิดชอบ', 'ผู้รับผิดชอบ', j => j.assignedTo || '', k => k === '-' ? 'ยังไม่มอบหมาย' : getUserNameById(k)))}
+            ${widget('by-type', 'block', groupTable('แยกตามประเภทงาน', 'ประเภทงาน', j => getCleanJobTypeName(j.jobType), k => k))}
+            ${widget('by-customer', 'block', groupTable('นายจ้างที่มีงานมากที่สุด (10 อันดับ)', 'นายจ้าง', j => j.customerId || '', k => (customers.find(c => c.id === k) || {}).companyName || 'ไม่ระบุนายจ้าง', 10))}
+            ${widget('list-appts', 'block', jobListCard('นัดหมาย 7 วันข้างหน้า', appts, j => `${formatThaiDate(j.appointmentDate)}${j.appointmentTime ? ` ${escapeHtml(j.appointmentTime)}` : ''}${j.appointmentLocation ? ` • ${escapeHtml(j.appointmentLocation)}` : ''}`, 'ไม่มีนัดหมายใน 7 วันข้างหน้า'))}
+            ${widget('list-stale', 'block', jobListCard(`งานค้างนานเกิน ${JOB_STALE_DAYS} วัน`, stale, j => `${j.status} • ${jobDaysOpen(j)} วัน${j.assignedTo ? ` • ${escapeHtml(getUserNameById(j.assignedTo))}` : ' • ยังไม่มอบหมาย'}`, 'ไม่มีงานค้างนาน'))}
+            ${widget('list-unassigned', 'block', jobListCard('ยังไม่มอบหมายผู้รับผิดชอบ', unassigned, j => `${j.status} • แจ้งเมื่อ ${formatThaiDate(String(j.createdAt || '').slice(0, 10))}`, 'มอบหมายครบทุกงานแล้ว'))}
         </div>`;
+    mountWidgetBoard('jobs', wasEditing);
 }
 
 function renderJobs() {
@@ -5969,7 +5989,7 @@ async function saveJob(e) {
         });
     });
     if (conflicts.length > 0) {
-        uiAlert(`⚠️ ไม่สามารถเปิดงานซ้ำได้\n\nรายการต่อไปนี้ค้างอยู่แล้ว กรุณาแก้ไขหรือปิดงานเดิมก่อน:\n\n${conflicts.join('\n')}`);
+        uiAlert(`ไม่สามารถเปิดงานซ้ำได้\n\nรายการต่อไปนี้ค้างอยู่แล้ว กรุณาแก้ไขหรือปิดงานเดิมก่อน:\n\n${conflicts.join('\n')}`);
         return;
     }
 
@@ -6343,7 +6363,7 @@ function processExpenseSlipFile(file) {
 
         const uploadResult = await uploadDocumentFile(fileContent, fileName, "expenses", "", "expense-slip");
         if (uploadResult && uploadResult.aiRejected) {
-            statusEl.innerHTML = `<span class="ai-error">${getAiRejectedMessage(uploadResult.ocrError)}</span>`;
+            statusEl.innerHTML = `<span class="ai-error">${icon("warn", "amber")} ${getAiRejectedMessage(uploadResult.ocrError)}</span>`;
             return;
         }
         const storedUrl = uploadResult ? uploadResult.fileUrl : null;
@@ -8077,7 +8097,12 @@ function setBackupProgress(text) {
     const el = document.getElementById('backup-progress');
     if (!el) return;
     el.classList.toggle('hidden', !text);
-    el.innerText = text || '';
+    // อีโมจินำหน้า (⏳ ☁️ ✅ ...) → ไอคอนชุดเดียวกับแจ้งเตือน (TOAST_EMOJI_ICONS), อีโมจิอื่นในข้อความตัดทิ้ง
+    const t = String(text || '');
+    const lead = t.match(/^\s*(\p{Extended_Pictographic})️?\s*/u);
+    const iconName = lead ? TOAST_EMOJI_ICONS[lead[1]] : null;
+    const rest = (lead ? t.slice(lead[0].length) : t).replace(/\p{Extended_Pictographic}️?\s*/gu, '');
+    el.innerHTML = (iconName ? icon(iconName) + ' ' : '') + escapeHtml(rest);
 }
 
 // ดึงข้อมูลล่าสุดจากคลาวด์ตรง ๆ (ไม่ใช้ข้อมูลในแท็บนี้ที่อาจค้างเก่า และไม่ถอยไปใช้แคชในเครื่องแบบ loadData —
@@ -8240,7 +8265,7 @@ async function importSystemData(event) {
             (Array.isArray(imported.lineGroups) ? `, กลุ่ม LINE ${imported.lineGroups.length}` : '') +
             (zip ? `, ไฟล์เอกสาร/รูป ${fileEntries.length} ไฟล์` : '');
 
-        if (!(await uiConfirm(`⚠️ ยืนยันการกู้คืนข้อมูล? ข้อมูลในไฟล์จะเขียนทับรายการที่มี id เดียวกันในคลาวด์ (${summary})\nรายการที่มีอยู่ในระบบแต่ไม่มีในไฟล์จะไม่ถูกลบ`, { okText: "กู้คืนข้อมูล", card: { imageIcon: "inbox", imageIconColor: "blue", title: "ข้อมูลในไฟล์สำรอง", list: summary.split(", ") } }))) {
+        if (!(await uiConfirm(`ยืนยันการกู้คืนข้อมูล? ข้อมูลในไฟล์จะเขียนทับรายการที่มี id เดียวกันในคลาวด์ (${summary})\nรายการที่มีอยู่ในระบบแต่ไม่มีในไฟล์จะไม่ถูกลบ`, { okText: "กู้คืนข้อมูล", card: { imageIcon: "inbox", imageIconColor: "blue", title: "ข้อมูลในไฟล์สำรอง", list: summary.split(", ") } }))) {
             resetInput();
             return;
         }
@@ -8428,8 +8453,8 @@ function createAiRejectedError(ocrError) {
 
 function getAiRejectedMessage(ocrError) {
     return ocrError === 'busy'
-        ? "⚠️ AI ไม่ว่าง (Gemini มีผู้ใช้งานมาก) — ยังไม่ได้บันทึกไฟล์ กรุณาแนบใหม่อีกครั้งในอีกสักครู่"
-        : "⚠️ AI อ่านเอกสารไม่สำเร็จ — ยังไม่ได้บันทึกไฟล์ กรุณาตรวจไฟล์แล้วแนบใหม่";
+        ? "AI ไม่ว่าง (Gemini มีผู้ใช้งานมาก) — ยังไม่ได้บันทึกไฟล์ กรุณาแนบใหม่อีกครั้งในอีกสักครู่"
+        : "AI อ่านเอกสารไม่สำเร็จ — ยังไม่ได้บันทึกไฟล์ กรุณาตรวจไฟล์แล้วแนบใหม่";
 }
 
 // อัปโหลดไฟล์ขึ้น Supabase Storage (bucket worker-documents) แล้วเรียก Edge Function
@@ -8485,25 +8510,25 @@ let activeFolderCustomerId = null;
 let activeFolderCustomerDocType = null;
 
 const CUSTOMER_DOC_TYPES = [
-    { key: "cust-id-card", label: "🪪 บัตรประชาชนนายจ้าง" },
-    { key: "cust-cert", label: "📜 หนังสือรับรองบริษัท" },
-    { key: "cust-house", label: "🏠 ทะเบียนบ้านบริษัท" },
-    { key: "employer-house", label: "🏡 ทะเบียนบ้านนายจ้าง" },
-    { key: "cust-photos", label: "📸 รูปถ่ายกิจการ" },
-    { key: "cust-commerce", label: "💼 ทะเบียนพาณิชย์ (ถ้ามี)" },
-    { key: "cust-other", label: "📎 เอกสารอื่นๆ" }
+    { key: "cust-id-card", label: "บัตรประชาชนนายจ้าง", icon: "user" },
+    { key: "cust-cert", label: "หนังสือรับรองบริษัท", icon: "cert" },
+    { key: "cust-house", label: "ทะเบียนบ้านบริษัท", icon: "building" },
+    { key: "employer-house", label: "ทะเบียนบ้านนายจ้าง", icon: "home" },
+    { key: "cust-photos", label: "รูปถ่ายกิจการ", icon: "photo" },
+    { key: "cust-commerce", label: "ทะเบียนพาณิชย์ (ถ้ามี)", icon: "briefcase" },
+    { key: "cust-other", label: "เอกสารอื่นๆ", icon: "clip" }
 ];
 
 const WORKER_FOLDER_DOC_TYPES = [
-    { key: "worker-wp-doc", label: "📄 ใบอนุญาตทำงาน (Work Permit)", type: "ใบอนุญาตทำงาน" },
-    { key: "worker-passport", label: "✈️ หนังสือเดินทาง (Passport / CI)", type: "พาสปอร์ต" },
-    { key: "worker-myanmar-id", label: "🏡 บัตรประชาชน/ทะเบียนบ้านพม่า", type: "ทะเบียนบ้านพม่า" },
-    { key: "worker-pink-card", label: "🌸 บัตรชมพู (Pink Card)", type: "บัตรชมพู" },
-    { key: "worker-receipt", label: "🧾 ใบเสร็จรับเงิน (Receipt)", type: "ใบเสร็จ" },
-    { key: "worker-medical", label: "🩺 ใบรับรองแพทย์ (Medical Certificate)", type: "ใบรับรองแพทย์" },
-    { key: "worker-insurance-doc", label: "🛡️ ประกัน (เอกชน/รัฐ/ประกันสังคม)", type: "ประกัน" },
-    { key: "worker-application", label: "📝 ใบคำขอ (Application Form)", type: "ใบคำขอ" },
-    { key: "worker-other", label: "📎 เอกสารอื่นๆ", type: "เอกสารอื่นๆ" }
+    { key: "worker-wp-doc", label: "ใบอนุญาตทำงาน (Work Permit)", icon: "wp", type: "ใบอนุญาตทำงาน" },
+    { key: "worker-passport", label: "หนังสือเดินทาง (Passport / CI)", icon: "passport", type: "พาสปอร์ต" },
+    { key: "worker-myanmar-id", label: "บัตรประชาชน/ทะเบียนบ้านพม่า", icon: "home", type: "ทะเบียนบ้านพม่า" },
+    { key: "worker-pink-card", label: "บัตรชมพู (Pink Card)", icon: "pink", type: "บัตรชมพู" },
+    { key: "worker-receipt", label: "ใบเสร็จรับเงิน (Receipt)", icon: "receipt", type: "ใบเสร็จ" },
+    { key: "worker-medical", label: "ใบรับรองแพทย์ (Medical Certificate)", icon: "medical", type: "ใบรับรองแพทย์" },
+    { key: "worker-insurance-doc", label: "ประกัน (เอกชน/รัฐ/ประกันสังคม)", icon: "shield", type: "ประกัน" },
+    { key: "worker-application", label: "ใบคำขอ (Application Form)", icon: "edit", type: "ใบคำขอ" },
+    { key: "worker-other", label: "เอกสารอื่นๆ", icon: "clip", type: "เอกสารอื่นๆ" }
 ];
 
 // วาดไฟล์ตามคำค้นหาในช่อง "ค้นหาชื่อไฟล์ในแฟ้มนี้" (ถ้ามี) — เรียกซ้ำได้ทุกครั้งที่พิมพ์ โดยไม่ต้องเปิด modal ใหม่
@@ -8520,7 +8545,7 @@ function renderCustomerFolderTiles() {
             if (query && !(fItem.name || '').toLowerCase().includes(query)) return;
             tiles.push(renderCustomerDriveTile(docInfo, fItem, fIdx, c.companyName));
         });
-        if (!query) tiles.push(renderDriveAddTile(docInfo.label, `triggerCustomerFolderFileUpload('${docInfo.key}')`, `customer-folder:${docInfo.key}`));
+        if (!query) tiles.push(renderDriveAddTile(docInfo.label, `triggerCustomerFolderFileUpload('${docInfo.key}')`, `customer-folder:${docInfo.key}`, docInfo.icon));
     });
 
     const customerFolderListEl = document.getElementById("customer-folder-files-list");
@@ -8611,11 +8636,11 @@ function tryPdfThumbFallback(imgEl) {
 }
 
 // pasteTarget ("worker-folder:<ประเภท>" / "customer-folder:<ประเภท>") = ชี้เมาส์ที่ช่องนี้แล้วกด Ctrl+V วางภาพได้ (ดู findPasteTarget)
-function renderDriveAddTile(label, triggerCall, pasteTarget = '') {
+function renderDriveAddTile(label, triggerCall, pasteTarget = '', iconName = '') {
     return `
         <div class="drive-tile add-tile" onclick="${triggerCall}" ${pasteTarget ? `data-paste-target="${pasteTarget}"` : ''} title="แนบไฟล์: ${label}${pasteTarget ? ' — คลิกเลือกไฟล์ หรือชี้แล้วกด Ctrl+V วางภาพ' : ''}">
             <div class="add-tile-icon">${icon("plus")}</div>
-            <div class="add-tile-label">${label}</div>
+            <div class="add-tile-label">${iconName ? icon(iconName) + ' ' : ''}${label}</div>
         </div>
     `;
 }
@@ -8628,7 +8653,7 @@ function renderCustomerDriveTile(docInfo, fileItem, idx, entityName) {
         <div class="drive-tile">
             <a class="drive-tile-thumb-link" href="${data}" target="_blank" rel="noopener">${renderDriveThumbnail(data)}</a>
             <div class="drive-tile-body">
-                <span class="drive-tile-category" title="${docInfo.label}">${docInfo.label}</span>
+                <span class="drive-tile-category" title="${docInfo.label}">${icon(docInfo.icon)} ${docInfo.label}</span>
                 <input type="text" class="drive-tile-name" value="${fileItem.name}" title="${fileItem.name}" onchange="renameCustomerFolderFileIndex('${docInfo.key}', ${idx}, this.value)">
             </div>
             <div class="drive-tile-actions">
@@ -8904,7 +8929,7 @@ function shareAttachment(fileName, entityName, fileUrl = null) {
         return;
     }
 
-    const shareText = `🔗 เอกสารของ: ${entityName}\nไฟล์: ${fileName}\nลิงก์ดาวน์โหลด: ${fileUrl}`;
+    const shareText = `เอกสารของ: ${entityName}\nไฟล์: ${fileName}\nลิงก์ดาวน์โหลด: ${fileUrl}`;
 
     navigator.clipboard.writeText(shareText).then(() => {
         showToast("📋 คัดลอกลิงก์เอกสารเรียบร้อยแล้ว! วางส่งให้ลูกค้าทาง Line/Email ได้เลย (เปิดลิงก์ดาวน์โหลดได้ทันทีโดยไม่ต้องล็อกอิน)", "success");
@@ -9459,7 +9484,7 @@ function renderCompletedJobsStats() {
     const sortedCustomers = [...customers].sort((a, b) =>
         (a.companyName || "").localeCompare(b.companyName || "", 'th')
     );
-    employerSelect.innerHTML = '<option value="">🌐 ภาพรวมทั้งหมด (ทุกนายจ้าง)</option>' +
+    employerSelect.innerHTML = '<option value="">ภาพรวมทั้งหมด (ทุกนายจ้าง)</option>' +
         sortedCustomers.map(c => `<option value="${c.id}">${c.companyName}</option>`).join('');
     employerSelect.value = currentSelection;
     const selectedEmployerId = employerSelect.value;
@@ -9470,7 +9495,7 @@ function renderCompletedJobsStats() {
     if (agentSelect) {
         const currentAgentSelection = agentSelect.value;
         const sortedAgents = [...agents].sort((a, b) => (a.name || "").localeCompare(b.name || "", 'th'));
-        agentSelect.innerHTML = '<option value="">🤝 ทุก Agent (ไม่กรอง)</option>' +
+        agentSelect.innerHTML = '<option value="">ทุก Agent (ไม่กรอง)</option>' +
             sortedAgents.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
         agentSelect.value = currentAgentSelection;
         selectedAgentId = agentSelect.value;
@@ -9661,7 +9686,7 @@ function renderWorkerFolderTiles() {
         groups.push(`
             <div class="fv-group">
                 <div class="fv-group-head">
-                    <span>${file.label}</span>
+                    <span>${icon(file.icon)} ${file.label}</span>
                     <b>${items.length || ''}</b>
                     ${canAdd ? `<button type="button" class="fv-add" onclick="triggerFolderFileUpload('${file.key}')" data-paste-target="worker-folder:${file.key}" title="แนบไฟล์: ${file.label} — คลิกเลือกไฟล์ หรือชี้แล้วกด Ctrl+V วางภาพ">${icon('plus')} แนบ</button>` : ''}
                 </div>
@@ -9872,7 +9897,7 @@ function copyWorkerFolderLink(workerId) {
     if (!w) return;
     
     // Simulating copy direct worker folder link
-    const shareText = "🔗 แฟ้มเอกสารคนงานของ: คุณ " + w.firstName + " " + (w.lastName || "") + "\n(รวมใบอนุญาตทำงาน, พาสปอร์ต, บัตรชมพู, ทะเบียนบ้าน, ใบเสร็จ)\nเปิดคลังเอกสารได้ที่: http:" + "/" + "/localhost:3000/#worker-folder-" + w.id;
+    const shareText = "แฟ้มเอกสารคนงานของ: คุณ " + w.firstName + " " + (w.lastName || "") + "\n(รวมใบอนุญาตทำงาน, พาสปอร์ต, บัตรชมพู, ทะเบียนบ้าน, ใบเสร็จ)\nเปิดคลังเอกสารได้ที่: http:" + "/" + "/localhost:3000/#worker-folder-" + w.id;
     
     navigator.clipboard.writeText(shareText).then(() => {
         showToast("📋 คัดลอกลิงก์แฟ้มเอกสารไปที่คลิปบอร์ดเรียบร้อยแล้ว!", "success");
@@ -12856,8 +12881,16 @@ function attachTabSlider(host, getActive) {
 
     // ปุ่มเปลี่ยน class (เลือกแท็บใหม่ / ซ่อนเมนูตามสิทธิ์) → เลื่อนตาม
     new MutationObserver(place).observe(host, { subtree: true, attributes: true, attributeFilter: ['class'] });
-    // ขนาดเปลี่ยน (ย่อแถบเมนู / จอหมุน / กลุ่มแท็บเพิ่งถูกแสดงจากที่ซ่อนไว้) → วางใหม่
-    if (window.ResizeObserver) new ResizeObserver(place).observe(host);
+    // ขนาดเปลี่ยน (ย่อแถบเมนู / จอหมุน / กลุ่มแท็บเพิ่งถูกแสดงจากที่ซ่อนไว้) → วางใหม่ทันทีโดยไม่เลื่อน
+    // (ถ้าเลื่อนตาม ตัวเลือกจะวิ่งไล่หลังแถบเมนูที่กำลังหด = ดูกระตุก)
+    let resizeTimer = null;
+    const placeNow = () => {
+        slider.style.transition = 'none';
+        place();
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => { slider.style.transition = ''; }, 80);
+    };
+    if (window.ResizeObserver) new ResizeObserver(placeNow).observe(host);
     place();
 }
 
@@ -13164,6 +13197,23 @@ const WIDGET_BOARDS = {
             { id: 'panel-customers', kind: 'block', size: 'xl', els: () => [panelOf('db-finance-customers-table-wrap')] },
             { id: 'panel-expensecat', kind: 'block', size: 'xl', els: () => [panelOf('db-finance-expensecat-table-wrap')] }
         ]
+    },
+    // หน้าสรุปงาน (ระบบแจ้งงาน): HTML สร้างใหม่ใน renderJobsSummary() ทุกครั้ง → dynamic, ผูกด้วย mountWidgetBoard('jobs')
+    jobs: {
+        dynamic: true,
+        widgets: [
+            { id: 'hero', kind: 'block', size: 'l' },
+            { id: 'status', kind: 'block', size: 's' },
+            { id: 'pill-unassigned', kind: 'pill', size: 'l' },
+            { id: 'pill-stale', kind: 'pill', size: 'l' },
+            { id: 'pill-appts', kind: 'pill', size: 'l' },
+            { id: 'by-assignee', kind: 'block', size: 's' },
+            { id: 'by-type', kind: 'block', size: 's' },
+            { id: 'by-customer', kind: 'block', size: 's' },
+            { id: 'list-appts', kind: 'block', size: 's' },
+            { id: 'list-stale', kind: 'block', size: 's' },
+            { id: 'list-unassigned', kind: 'block', size: 's' }
+        ]
     }
 };
 
@@ -13233,7 +13283,7 @@ function applyWidgetLayout(boardName) {
     const defaultOrder = cfg.widgets.map(w => w.id);
     // ลำดับที่บันทึกไว้ก่อน แล้วต่อด้วยวิดเจ็ตใหม่ที่ยังไม่เคยอยู่ในลำดับที่บันทึก (เผื่อเพิ่มการ์ดทีหลัง)
     const order = [...(saved.order || []).filter(id => byId.has(id)), ...defaultOrder.filter(id => !(saved.order || []).includes(id))];
-    order.forEach(id => board.appendChild(byId.get(id)));
+    order.filter(id => byId.has(id)).forEach(id => board.appendChild(byId.get(id))); // ใบที่ไม่มีข้อมูลรอบนี้ (ไม่ได้สร้าง) ข้ามไป
     cfg.widgets.forEach(def => {
         const w = byId.get(def.id);
         if (!w) return;
@@ -13308,26 +13358,55 @@ function startWidgetDrag(e, widget) {
     shield.addEventListener('pointercancel', end);
 }
 
+// แถบปุ่ม แก้ไขหน้า / คืนค่าเริ่มต้น / เสร็จ ของกระดานหนึ่ง
+function widgetBarHtml(boardName) {
+    return `<div class="widget-board-bar" data-board="${boardName}">
+        <button type="button" class="widget-bar-btn widget-edit-btn" onclick="setWidgetEditing('${boardName}', true)">แก้ไขหน้า</button>
+        <button type="button" class="widget-bar-btn widget-reset-btn" onclick="resetWidgetLayout('${boardName}')">คืนค่าเริ่มต้น</button>
+        <button type="button" class="widget-bar-btn widget-done-btn" onclick="setWidgetEditing('${boardName}', false)">เสร็จ</button>
+    </div>`;
+}
+
+// ใส่ที่จับลาก (shield) + ปุ่มเลือกขนาดให้ .widget หนึ่งใบ
+function enhanceWidget(w, board) {
+    if (w._widgetReady) return;
+    w._widgetReady = true;
+    const kind = w.dataset.kind;
+
+    const shield = document.createElement('div');
+    shield.className = 'widget-shield';
+    shield.setAttribute('aria-hidden', 'true');
+    shield.addEventListener('pointerdown', e => startWidgetDrag(e, w));
+    w.appendChild(shield);
+
+    const ui = document.createElement('div');
+    ui.className = 'widget-edit-ui';
+    ui.innerHTML = Object.keys(WIDGET_SPANS[kind]).map(s => `<button type="button" data-size="${s}">${WIDGET_SIZE_LABELS[s]}</button>`).join('');
+    ui.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+        flipWidgets(board, () => setWidgetSize(w, b.dataset.size));
+        saveWidgetLayout(board.dataset.board);
+    }));
+    w.appendChild(ui);
+}
+
+// กระดานที่ HTML ถูกสร้างใหม่ทุกครั้งที่ render (เช่น หน้าสรุปงาน): เรียกหลัง innerHTML เพื่อผูกที่จับ + จัดตามที่บันทึก
+function mountWidgetBoard(boardName, wasEditing) {
+    const board = document.querySelector(`.widget-board[data-board="${boardName}"]`);
+    if (!board) return;
+    board.querySelectorAll(':scope > .widget').forEach(w => enhanceWidget(w, board));
+    applyWidgetLayout(boardName);
+    if (wasEditing) setWidgetEditing(boardName, true);
+}
+
 function buildWidgetBoard(boardName) {
     const cfg = WIDGET_BOARDS[boardName];
-    const anchor = cfg.anchor();
+    const anchor = cfg.anchor && cfg.anchor();
     if (!anchor || document.querySelector(`.widget-board[data-board="${boardName}"]`)) return;
 
-    const bar = document.createElement('div');
-    bar.className = 'widget-board-bar';
-    bar.dataset.board = boardName;
-    bar.innerHTML = `
-        <button type="button" class="widget-bar-btn widget-edit-btn">แก้ไขหน้า</button>
-        <button type="button" class="widget-bar-btn widget-reset-btn">คืนค่าเริ่มต้น</button>
-        <button type="button" class="widget-bar-btn widget-done-btn">เสร็จ</button>`;
-    bar.querySelector('.widget-edit-btn').addEventListener('click', () => setWidgetEditing(boardName, true));
-    bar.querySelector('.widget-done-btn').addEventListener('click', () => setWidgetEditing(boardName, false));
-    bar.querySelector('.widget-reset-btn').addEventListener('click', () => resetWidgetLayout(boardName));
-
+    anchor.insertAdjacentHTML('beforebegin', widgetBarHtml(boardName));
     const board = document.createElement('div');
     board.className = 'widget-board';
     board.dataset.board = boardName;
-    anchor.parentElement.insertBefore(bar, anchor);
     anchor.parentElement.insertBefore(board, anchor);
 
     const oldParents = new Set();
@@ -13343,23 +13422,8 @@ function buildWidgetBoard(boardName) {
             if (el.classList.contains('needs-finance')) w.classList.add('needs-finance');
             w.appendChild(el);
         });
-
-        const shield = document.createElement('div');
-        shield.className = 'widget-shield';
-        shield.setAttribute('aria-hidden', 'true');
-        shield.addEventListener('pointerdown', e => startWidgetDrag(e, w));
-        w.appendChild(shield);
-
-        const ui = document.createElement('div');
-        ui.className = 'widget-edit-ui';
-        ui.innerHTML = Object.keys(WIDGET_SPANS[def.kind]).map(s => `<button type="button" data-size="${s}">${WIDGET_SIZE_LABELS[s]}</button>`).join('');
-        ui.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
-            flipWidgets(board, () => setWidgetSize(w, b.dataset.size));
-            saveWidgetLayout(boardName);
-        }));
-        w.appendChild(ui);
-
         board.appendChild(w);
+        enhanceWidget(w, board);
         setWidgetSize(w, def.size);
     });
 
@@ -13368,7 +13432,7 @@ function buildWidgetBoard(boardName) {
 }
 
 function setupWidgetBoards() {
-    Object.keys(WIDGET_BOARDS).forEach(buildWidgetBoard);
+    Object.keys(WIDGET_BOARDS).filter(n => !WIDGET_BOARDS[n].dynamic).forEach(buildWidgetBoard);
     applyAllWidgetLayouts();
 }
 
