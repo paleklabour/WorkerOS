@@ -6,7 +6,7 @@
     --gold-hover: #243f86;      /* กรมท่าเข้มขึ้นตอน hover */
     --gold-light: rgba(45, 79, 163, 0.06); /* พื้นฟ้าอ่อนสำหรับเน้น */
     --gold-border: rgba(45, 79, 163, 0.14);
-    --gray-bg: #f1f4f9;         /* พื้นหลังเทาอมฟ้าอ่อน ให้การ์ดสีขาวลอยเด่น */
+    --gray-bg: #f2f2f7;         /* พื้นเทาแบบ iOS (systemGroupedBackground) ให้การ์ดขาวลอยเป็นชั้น — ธีม Layered 2026-10 */
     --gray-card: #ffffff;       /* Pure white card container */
     --text-dark: #334155;       /* Charcoal gray text - gentle for eyes */
     --text-muted: #64748b;      /* Muted gray text */
@@ -16,12 +16,14 @@
     --radius-sm: 10px;          /* ปุ่ม ช่องกรอก เมนู */
     --radius-md: 18px;          /* การ์ด/ตาราง */
     --radius-lg: 20px;          /* โมดอล */
-    /* ธีมโค้งมน: การ์ดไม่มีขอบ ใช้เงาบาง ๆ อมสีกรมท่าแทน */
-    --shadow-sm: 0 4px 14px rgba(45, 79, 163, 0.07);
-    --shadow-md: 0 6px 18px rgba(45, 79, 163, 0.09);
-    --shadow-lg: 0 12px 28px rgba(20, 32, 57, 0.12);
-    --font-head: 'Kanit', 'Sarabun', Tahoma, sans-serif;
-    --font-body: 'Sarabun', 'Kanit', Tahoma, sans-serif;
+    /* ธีม Layered แบบ iOS: การ์ดไม่มีขอบ ใช้เงา 2 ชั้น (เงาชิดขอบคม + เงากระจายนุ่ม) ให้ดูลอยเป็นชั้น */
+    --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05), 0 6px 18px rgba(15, 23, 42, 0.07);
+    --shadow-md: 0 1px 3px rgba(15, 23, 42, 0.06), 0 12px 32px rgba(15, 23, 42, 0.11);
+    --shadow-lg: 0 2px 6px rgba(15, 23, 42, 0.08), 0 20px 48px rgba(15, 23, 42, 0.16);
+    /* ฟอนต์แบบ iOS: เครื่อง Apple ใช้ SF Pro + Sukhumvit Set ของจริงจากระบบ (-apple-system)
+       เครื่องอื่นใช้ฟอนต์ฟรีที่หน้าตาใกล้เคียงที่สุด: Inter (อังกฤษ ~SF Pro) + Noto Sans Thai (ไทยไม่มีหัว ~Sukhumvit) */
+    --font-head: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', 'Sukhumvit Set', 'Noto Sans Thai', 'Segoe UI', Tahoma, sans-serif;
+    --font-body: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', 'Sukhumvit Set', 'Noto Sans Thai', 'Segoe UI', Tahoma, sans-serif;
     --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -38,7 +40,7 @@ body {
     color: var(--text-dark);
     line-height: 1.5;
     overflow-x: hidden;
-    font-size: 14px; /* Sarabun ตัวเล็กกว่า Prompt เล็กน้อย เลยขยับจาก 13.5px */
+    font-size: 14px;
 }
 
 /* Custom Scrollbars styled like Google AI Studio */
@@ -5284,4 +5286,178 @@ tr.is-voided-row td {
     .fv-layout { grid-template-columns: 1fr; }
     .fv-list { max-height: 36vh; }
     .fv-doc iframe { height: 55vh; }
+}
+
+/* ==================== หน้าโหลดตอนเปิดระบบ (แบบ iOS) ==================== */
+/* บังฟอร์มล็อกอินไว้ระหว่างเช็กว่าล็อกอินค้างอยู่ไหม/โหลดข้อมูล — hideAppSplash() ใน app.js ค่อย ๆ จางออก */
+#app-splash {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 22px;
+    background-color: var(--gray-bg);
+    transition: opacity 0.35s ease, visibility 0.35s ease;
+}
+
+#app-splash.is-done {
+    opacity: 0;
+    visibility: hidden;
+}
+
+.app-splash-logo {
+    width: 88px;
+    height: 88px;
+    object-fit: contain;
+    border-radius: 22px; /* มุมโค้งแบบไอคอนแอป iOS */
+    background-color: var(--dk-card, #ffffff);
+    box-shadow: var(--shadow-md);
+    padding: 10px;
+    animation: app-splash-in 0.5s ease both;
+}
+
+.app-splash-text {
+    font-size: 13px;
+    color: var(--text-muted);
+    letter-spacing: 0.2px;
+}
+
+@keyframes app-splash-in {
+    from { opacity: 0; transform: scale(0.92); }
+    to   { opacity: 1; transform: scale(1); }
+}
+
+/* วงหมุนแบบ iOS: 12 ขีดรอบวง ค่อย ๆ จางตามกัน */
+.ios-spinner {
+    position: relative;
+    width: 28px;
+    height: 28px;
+}
+
+.ios-spinner i {
+    position: absolute;
+    left: 12.5px;
+    top: 0;
+    width: 3px;
+    height: 8px;
+    border-radius: 2px;
+    background-color: var(--text-muted);
+    transform-origin: 1.5px 14px;
+    animation: ios-spinner-fade 1s linear infinite;
+}
+
+.ios-spinner i:nth-child(1)  { transform: rotate(0deg);   animation-delay: -0.917s; }
+.ios-spinner i:nth-child(2)  { transform: rotate(30deg);  animation-delay: -0.833s; }
+.ios-spinner i:nth-child(3)  { transform: rotate(60deg);  animation-delay: -0.75s; }
+.ios-spinner i:nth-child(4)  { transform: rotate(90deg);  animation-delay: -0.667s; }
+.ios-spinner i:nth-child(5)  { transform: rotate(120deg); animation-delay: -0.583s; }
+.ios-spinner i:nth-child(6)  { transform: rotate(150deg); animation-delay: -0.5s; }
+.ios-spinner i:nth-child(7)  { transform: rotate(180deg); animation-delay: -0.417s; }
+.ios-spinner i:nth-child(8)  { transform: rotate(210deg); animation-delay: -0.333s; }
+.ios-spinner i:nth-child(9)  { transform: rotate(240deg); animation-delay: -0.25s; }
+.ios-spinner i:nth-child(10) { transform: rotate(270deg); animation-delay: -0.167s; }
+.ios-spinner i:nth-child(11) { transform: rotate(300deg); animation-delay: -0.083s; }
+.ios-spinner i:nth-child(12) { transform: rotate(330deg); animation-delay: 0s; }
+
+@keyframes ios-spinner-fade {
+    from { opacity: 1; }
+    to   { opacity: 0.15; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ios-spinner i, .app-splash-logo { animation: none; }
+}
+
+/* ==================== Dropdown เด้งลงแบบ iOS ==================== */
+/* เมนูพวกนี้เปิด/ปิดด้วย .hidden (display:none) — พอ .hidden หลุด animation จะเล่นใหม่ทุกครั้งเอง ไม่ต้องแก้ JS */
+.theme-menu,
+.bell-panel,
+.search-suggest-dropdown {
+    animation: ios-dropdown-in 0.28s cubic-bezier(0.32, 1.25, 0.6, 1) both;
+}
+
+.theme-menu,
+.bell-panel { transform-origin: top right; }
+.search-suggest-dropdown { transform-origin: top center; }
+
+@keyframes ios-dropdown-in {
+    from { opacity: 0; transform: translateY(-6px) scale(0.92); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .theme-menu, .bell-panel, .search-suggest-dropdown { animation: none; }
+}
+
+/* ==================== ธีมสว่าง: Layered แบบ iOS ==================== */
+/* ปุ่มหลัก/เมนูที่เลือก/แท็บสลับมุมมอง มีเงาสีกรมท่าใต้ปุ่ม ให้ดูลอยกว่าการ์ดหนึ่งชั้น — เฉพาะธีมสว่าง (ชมพู/มืดคงเดิม) */
+:root:not([data-theme="dark"]):not([data-theme="pink"]) .btn-gold,
+:root:not([data-theme="dark"]):not([data-theme="pink"]) .menu-item.active {
+    box-shadow: 0 6px 16px rgba(45, 79, 163, 0.30);
+}
+
+:root:not([data-theme="dark"]):not([data-theme="pink"]) .btn-gold:hover {
+    box-shadow: 0 8px 20px rgba(45, 79, 163, 0.36);
+}
+
+/* แท็บสลับมุมมอง = segmented control แบบ iOS: รางเทา ปุ่มที่เลือกเป็นการ์ดขาวลอย */
+:root:not([data-theme="dark"]):not([data-theme="pink"]) .view-toggle-bar {
+    padding: 3px;
+    gap: 2px;
+    background-color: #e3e3e9;
+    border-radius: 12px;
+    box-shadow: none;
+}
+
+:root:not([data-theme="dark"]):not([data-theme="pink"]) .view-toggle-bar .btn {
+    border: none;
+    border-radius: 9px;
+    background-color: transparent;
+    color: #1c1c1e;
+    box-shadow: none;
+}
+
+:root:not([data-theme="dark"]):not([data-theme="pink"]) .view-toggle-bar .btn.btn-gold {
+    background-color: #ffffff;
+    color: var(--gold-primary);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12), 0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+/* ==================== ธีมสว่าง: แถบเมนูเทาเงินแบบ iPadOS (แบบ B, เลือก 2026-10-02) ==================== */
+/* แถบเมนูเทา ไม่มีเส้นขอบ เมนูที่เลือกเป็นการ์ดขาวลอย ตัวหนังสือกรมท่า — ชมพู/มืดมีสีแถบเมนูของตัวเองอยู่แล้ว */
+:root:not([data-theme="dark"]):not([data-theme="pink"]) .sidebar {
+    background-color: #ebebf0;
+    border-right: none;
+    --dk-line: rgba(60, 60, 67, 0.12);  /* เส้นคั่นในแถบเมนู (โลโก้/ผู้ใช้/ท้ายเมนู) ให้กลืนกับพื้นเทา */
+    --dk-subtle: rgba(255, 255, 255, 0.55);
+}
+
+:root:not([data-theme="dark"]):not([data-theme="pink"]) .sidebar .brand-logo-img {
+    content: url("assets/logo-transparent.png");  /* โลโก้เดิมพื้นขาว จะเป็นกล่องขาวบนพื้นเทา */
+}
+
+:root:not([data-theme="dark"]):not([data-theme="pink"]) .menu-item {
+    color: #3a3a40;
+}
+
+:root:not([data-theme="dark"]):not([data-theme="pink"]) .menu-item svg {
+    color: #6b6b73;
+}
+
+:root:not([data-theme="dark"]):not([data-theme="pink"]) .menu-item:hover {
+    background-color: rgba(255, 255, 255, 0.6);
+    color: #1c1c1e;
+}
+
+:root:not([data-theme="dark"]):not([data-theme="pink"]) .menu-item.active {
+    background-color: #ffffff;
+    color: var(--gold-primary);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.10), 0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+:root:not([data-theme="dark"]):not([data-theme="pink"]) .menu-item.active svg {
+    color: var(--gold-primary);
 }

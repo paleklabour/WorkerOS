@@ -6,10 +6,10 @@
     <meta name="description" content="ระบบบริหารจัดการข้อมูลคนงานต่างด้าวและลูกค้าผู้ว่าจ้าง พร้อมระบบแจ้งเตือนเอกสารหมดอายุ">
     <title>ระบบบริหารจัดการคนงานต่างด้าว (Migrant Worker Management System)</title>
     <link rel="icon" type="image/png" href="assets/logo.png">
-    <!-- Google Fonts: Kanit (หัวข้อ) & Sarabun (เนื้อหา) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- ฟอนต์แบบ iOS (สำรองสำหรับเครื่องที่ไม่ใช่ Apple) — ดู --font-head/--font-body ใน styles.css -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script>
         window.GAS_WEB_APP_URL = "<?!= webAppUrl ?>";
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
@@ -18,6 +18,15 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
+    <div id="app-splash" aria-live="polite">
+        <img src="assets/logo.png" alt="NKT Service" class="app-splash-logo">
+        <div class="ios-spinner" aria-hidden="true">
+            <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+        </div>
+        <p class="app-splash-text">กำลังโหลด…</p>
+    </div>
+
     <div id="app">
         <!-- ==================== LOGIN VIEW ==================== -->
         <section id="login-view" class="view active">

@@ -279,6 +279,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         localStorage.removeItem("mw_current_user");
         showLoginView();
     }
+    hideAppSplash();
 
     try {
         // Set Date in Header
@@ -302,6 +303,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         console.error("Failed to set header date or login listener:", err);
     }
 });
+
+// ซ่อนหน้าโหลดตอนเปิดระบบ (#app-splash ใน index.html) แบบค่อย ๆ จางออก แล้วเอาออกจาก DOM
+function hideAppSplash() {
+    const splash = document.getElementById("app-splash");
+    if (!splash) return;
+    splash.classList.add("is-done");
+    setTimeout(() => splash.remove(), 400);
+}
 
 function cleanupLargeAttachments() {
     let changed = false;
