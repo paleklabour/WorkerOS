@@ -132,7 +132,7 @@ customer; the real account is the one picked when recording the money. Schema:
 ## Themes: light / pink / dark (standing rule)
 
 The moon button in the top bar opens a theme menu (`setTheme()`): light (default),
-`pink` or `dark` on `<html data-theme>`, saved in localStorage `mw_theme`. When adding CSS, don't hard-code light-only colors.
+`pink` or `dark` on `<html data-theme>`, saved per account in `profiles.theme` (via `set_my_theme()` RPC; localStorage `mw_theme` only avoids a flash before login). When adding CSS, don't hard-code light-only colors.
 Use existing variables (`--gray-card`, `--text-dark`, …), or write
 `var(--dk-card, #ffffff)` / `--dk-subtle` / `--dk-line` / `--dk-head` /
 `--dk-muted` / `--dk-ok|bad|warn(-bg)`. Light mode leaves `--dk-*` undefined,
