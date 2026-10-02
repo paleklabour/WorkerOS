@@ -486,6 +486,15 @@ button {
     height: 17px;
 }
 
+/* ปุ่ม "เปิดแฟ้มเอกสาร": ไอคอนแฟ้มสีเหลืองทึบ (ทุกธีม) แทนสีขาวตามตัวหนังสือปุ่ม */
+.btn.btn-open-folder .ico {
+    --ic: #e0a106;
+}
+
+.btn.btn-open-folder .ico svg .fl {
+    fill: #fcc934;
+}
+
 /* ปุ่ม "ตรวจสอบรายชื่อ / แก้ไขนายจ้าง" ในตารางแจ้งเตือนวันหมดอายุบนแดชบอร์ด —
    เรียงซ้อนกัน กว้างเท่ากัน และห้ามตัดคำขึ้นบรรทัดใหม่ (คอลัมน์จัดการแคบ) */
 .alert-row-actions {
@@ -4609,32 +4618,27 @@ tr.is-voided-row td {
     border-color: #d5dce8;
 }
 
-/* ==================== ธีมชมพู ("ชมพู 1 — โรสอ่อน") — โหมดสว่างโทนชมพูกุหลาบ ====================
-   ใช้ระบบ --dk-* เดียวกับโหมดมืด (สีเทาอมฟ้าที่เขียนตายตัว → เปลี่ยนเป็นเทาอมชมพู) */
+/* ==================== ธีมชมพู ("ชมพู 1 — โรสอ่อน") — ชมพูเฉพาะพื้นหลัง/พื้นผิว ====================
+   ปุ่มทุกปุ่ม เมนูที่เลือก แท็บ ป้ายสถานะ กราฟ และตัวเลข/ตัวหนังสือข้อมูล ใช้สีปกติ (กรมท่า) เหมือนธีมสว่างทุกอย่าง
+   — ธีมนี้เปลี่ยนแค่พื้นหลังหน้า พื้นเมนูข้าง เส้นขอบ พื้นอ่อนในตาราง/กล่อง และเงา ให้เป็นโทนชมพู
+   (จึงไม่แตะ --gold-* / --navy-* / --text-* / --dk-head / --dk-muted) */
 :root[data-theme="pink"] {
-    --navy-dark: #2e1f27;
-    --navy-medium: #4a3640;
-    --navy-light: #8c7380;
-    --gold-primary: #d6457a;
-    --gold-hover: #bf3468;
-    --gold-light: rgba(214, 69, 122, 0.08);
-    --gold-border: rgba(214, 69, 122, 0.18);
     --gray-bg: #fbf3f6;
-    --gray-card: #ffffff;
-    --text-dark: #4a3640;
-    --text-muted: #8c7380;
     --shadow-sm: 0 4px 14px rgba(214, 69, 122, 0.08);
     --shadow-md: 0 6px 18px rgba(214, 69, 122, 0.10);
     --shadow-lg: 0 12px 28px rgba(70, 25, 45, 0.14);
-    --on-primary: #ffffff;
 
     --dk-card: #ffffff;
     --dk-subtle: #fcf4f7;
     --dk-line: #f1dfe6;
-    --dk-head: #2e1f27;
-    --dk-muted: #8c7380;
 }
-:root[data-theme="pink"] .sidebar { border-right-color: var(--dk-line); }
+:root[data-theme="pink"] .sidebar { background-color: #fff7fa; border-right-color: var(--dk-line); }
+/* ปุ่ม/ป้าย/แถบกราฟ ใช้สีปกติ — ยกเลิก --dk-* (initial → ใช้สีเดิมที่เป็นค่า fallback) เฉพาะในองค์ประกอบเหล่านี้ */
+:root[data-theme="pink"] :is(button, .btn, .badge, .demo-badge, .bar-track, .bar-fill, .job-worker-chip, .action-icon-btn, .stats-icon) {
+    --dk-card: initial;
+    --dk-subtle: initial;
+    --dk-line: initial;
+}
 :root[data-theme="pink"] input:focus,
 :root[data-theme="pink"] select:focus,
 :root[data-theme="pink"] textarea:focus { border-color: var(--gold-primary); }
