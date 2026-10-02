@@ -6316,3 +6316,184 @@ input[type="checkbox"], input[type="radio"], input[type="range"] {
 .completed-month-card { display: flex; flex-direction: column; justify-content: center; }
 .completed-month-card h3 { font-size: 40px; color: var(--gold-primary); }
 .widget > .fin-profit-card { flex-grow: 1; }
+
+/* ==================== เปลี่ยนหน้า/แท็บแบบ Fade-up ทั้งระบบ (เหมือนตอนเปลี่ยนเมนูใน sidebar) ==================== */
+/* กล่องเหล่านี้สลับด้วย .hidden (display:none) — พอแสดง animation จะเล่นเองทุกครั้ง ไม่ต้องแก้ JS
+   แท็บแดชบอร์ด/การเงิน, มุมมองงาน ตาราง/Kanban/สรุป, ตาราง↔กราฟวงกลม, แท็บในฟอร์มนายจ้าง
+   กล่องที่เปลี่ยนเนื้อหาด้วย innerHTML (พอร์ทัลนายจ้าง) ใช้ replayPageTransition() ใส่ .page-transition-in */
+.db-tab-content,
+#jobs-table-container,
+#jobs-kanban-container,
+#jobs-summary-container,
+[id^="db-finance-"][id$="-table-wrap"],
+[id^="db-finance-"][id$="-chart-wrap"],
+#cust-tab-general,
+#cust-tab-delivery,
+.page-transition-in {
+    animation: ios-page-in 0.38s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .db-tab-content, #jobs-table-container, #jobs-kanban-container, #jobs-summary-container,
+    [id^="db-finance-"][id$="-table-wrap"], [id^="db-finance-"][id$="-chart-wrap"],
+    #cust-tab-general, #cust-tab-delivery, .page-transition-in { animation: none; }
+}
+
+/* ==================== iPad / มือถือ (ปรับขนาดเฉพาะจอ 2026-10-02) ==================== */
+
+/* ---------- iPad (แนวตั้ง ~768–1024px และแนวนอน ~1024–1366px) ---------- */
+@media (max-width: 1024px) {
+    /* ตาราง: ไม่ให้คอลัมน์ถูกบีบจนชื่อขึ้นบรรทัดใหม่ทีละคำ — กว้างขั้นต่ำต่อคอลัมน์ แล้วเลื่อนแนวนอนในกล่องตารางแทน */
+    .data-table th { white-space: nowrap; }
+    .data-table td { min-width: 96px; }
+    .data-table td:first-child { min-width: 150px; }
+    .table-container, .panel-content { -webkit-overflow-scrolling: touch; }
+}
+/* iPad แนวตั้ง / จอกลาง: แคปซูลแถวละ 3 */
+@media (min-width: 641px) and (max-width: 900px) {
+    .widget[data-kind="pill"] { grid-column: span 4; }
+    .stat-pill { padding: 12px 16px; gap: 10px; }
+    .stat-pill h3 { font-size: 22px; }
+    .stat-pill p { font-size: 12.5px; }
+}
+
+/* ---------- มือถือ (แนวตั้ง ≤640px, แนวนอน = จอเตี้ย ≤500px) ---------- */
+@media (max-width: 640px), (max-height: 500px) and (max-width: 950px) {
+    /* หัวข้อหน้าบรรทัดเดียว ยาวเกินตัด … */
+    .page-title { min-width: 0; flex: 1; }
+    .page-title h2 {
+        font-size: 17px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    #header-date { display: none; }
+
+    /* แคปซูล: แถวละ 2 ตัวเลขอยู่บน ชื่ออยู่ล่าง (ประหยัดพื้นที่แนวตั้ง) */
+    .widget[data-kind="pill"] { grid-column: span 6; }
+    .widget-board { gap: 10px; }
+    .stat-pill {
+        position: relative;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+        min-height: 0;
+        padding: 12px 14px;
+        border-radius: 18px;
+    }
+    .stat-pill h3 { font-size: 22px; }
+    .stat-pill p { font-size: 12px; line-height: 1.3; }
+    .stat-pill[data-go]::after { position: absolute; top: 10px; right: 12px; font-size: 18px; }
+    .widget-board[data-board="finance"] .stat-pill h3 { font-size: 16px; }
+
+    /* ตัวกรอง/ช่องเลือก: ตัวหนังสือบรรทัดเดียว */
+    select, .select-filter { font-size: 13.5px; white-space: nowrap; text-overflow: ellipsis; }
+
+    /* บัตร Wallet ให้พอดีจอ */
+    .wallet-card { padding: 20px; gap: 14px; border-radius: 22px; }
+    .wallet-amount { font-size: 30px; }
+    .wallet-sub { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+    .wallet-sub h3 { font-size: 15px; }
+    .wallet-sub p { font-size: 11.5px; }
+
+    /* ---------- ตารางเป็นการ์ดรายการแบบ iOS (ชื่อคอลัมน์ทางซ้ายจาก data-label — ดู labelTableCells() ใน app.js) ---------- */
+    .data-table,
+    .data-table > tbody,
+    .data-table > tfoot,
+    .data-table > tbody > tr,
+    .data-table > tfoot > tr,
+    .data-table > tbody > tr > td,
+    .data-table > tfoot > tr > td { display: block; width: 100%; }
+    .data-table { min-width: 0 !important; background: transparent; box-shadow: none; border: none; }
+    .data-table > thead { display: none; }
+    .data-table > tbody > tr,
+    .data-table > tfoot > tr {
+        margin: 0 0 10px;
+        padding: 6px 14px;
+        border-radius: 16px;
+        background-color: var(--gray-card);
+        box-shadow: var(--shadow-sm);
+    }
+    .data-table > tbody > tr > td,
+    .data-table > tfoot > tr > td {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        min-width: 0 !important;
+        padding: 8px 0 !important;
+        border: none !important;
+        border-bottom: 1px solid var(--dk-line, rgba(60, 60, 67, 0.1)) !important;
+        text-align: right !important;
+        white-space: normal;
+        background: transparent !important;
+    }
+    .data-table > tbody > tr > td:last-child,
+    .data-table > tfoot > tr > td:last-child { border-bottom: none !important; }
+    .data-table > tbody > tr > td::before,
+    .data-table > tfoot > tr > td::before {
+        content: attr(data-label);
+        flex-shrink: 0;
+        max-width: 42%;
+        color: var(--text-muted);
+        font-size: 12.5px;
+        font-weight: 500;
+        text-align: left;
+    }
+    .data-table > tbody > tr > td[data-label=""]::before { display: none; }
+    .data-table > tbody > tr > td[data-label=""] { justify-content: flex-end; }
+    /* แถวข้อความ "ไม่พบข้อมูล" (colspan) */
+    .data-table > tbody > tr > td[colspan] { display: block; text-align: center !important; }
+    .data-table > tbody > tr > td[colspan]::before { display: none; }
+    /* กล่องรอบตารางไม่ต้องเป็นการ์ด/เลื่อนแนวนอนแล้ว */
+    .table-container { background: transparent !important; box-shadow: none !important; overflow: visible !important; border-radius: 0 !important; }
+    .dashboard-panel .panel-content { overflow-x: visible !important; }
+    .dashboard-panel .data-table > tbody > tr { box-shadow: none; background-color: var(--dk-subtle, #f6f7fa); }
+}
+
+/* แคปซูลปรับตาม "ความกว้างจริงของกระดาน" (container query) ไม่ใช่ความกว้างจอ —
+   iPad แนวนอนมีแถบเมนูกินที่ กระดานเหลือ ~900px ถ้ายังแถวละ 6 ตัวหนังสือจะแตกเป็นแนวตั้ง */
+.widget-board { container-type: inline-size; container-name: board; }
+@container board (max-width: 1100px) {
+    .widget[data-kind="pill"] { grid-column: span 4; }
+}
+@container board (max-width: 620px) {
+    .widget[data-kind="pill"] { grid-column: span 6; }
+}
+@container board (max-width: 1100px) {
+    .widget[data-kind="block"] { grid-column: span max(6, var(--span, 12)); }
+}
+@container board (max-width: 760px) {
+    .widget[data-kind="block"] { grid-column: span 12; }
+}
+
+/* แก้การ์ดตารางบนมือถือ: ช่องที่มีหลายบรรทัด (เลขบัตร/นายจ้าง) ต้องเรียงลงด้านขวา ไม่ใช่ต่อกันแนวนอนจนล้น
+   ป้ายชื่อคอลัมน์ลอยซ้าย 40% ส่วนเนื้อหาอยู่ฝั่งขวา 60% ชิดขวา */
+@media (max-width: 640px), (max-height: 500px) and (max-width: 950px) {
+    .data-table > tbody > tr > td,
+    .data-table > tfoot > tr > td {
+        display: block;
+        position: relative;
+        min-height: 34px;
+        padding: 8px 0 8px 42% !important;
+        overflow-wrap: anywhere;
+    }
+    .data-table > tbody > tr > td::before,
+    .data-table > tfoot > tr > td::before {
+        position: absolute;
+        left: 0;
+        top: 8px;
+        width: 40%;
+        max-width: none;
+    }
+    .data-table > tbody > tr > td[data-label=""],
+    .data-table > tbody > tr > td[colspan] { padding-left: 0 !important; }
+    .data-table > tbody > tr > td > * { max-width: 100%; }
+    .data-table > tbody > tr > td .employer-id-line,
+    .data-table > tbody > tr > td div { justify-content: flex-end; }
+}
+@media (max-width: 640px), (max-height: 500px) and (max-width: 950px) {
+    /* เลขบัตร/เลขนายจ้างยาว ๆ ในการ์ดตาราง: ให้ตัดบรรทัดได้ ไม่ล้นขอบการ์ด (ป้าย/badge ยังบรรทัดเดียว) */
+    .data-table > tbody > tr > td div,
+    .data-table > tbody > tr > td span:not(.badge):not(.ico) { white-space: normal !important; }
+}

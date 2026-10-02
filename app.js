@@ -1296,6 +1296,15 @@ function switchClientPortalTab(tab) {
         b.classList.toggle('btn-outline', b.dataset.portalTab !== tab);
     });
     renderClientPortal();
+    replayPageTransition(document.getElementById("client-portal-body"));
+}
+
+// เล่นแอนิเมชันเปลี่ยนหน้า (Fade-up, .page-transition-in ใน styles.css) ซ้ำกับกล่องที่ไม่ได้ถูกซ่อน/แสดง แต่เปลี่ยนเนื้อหาด้วย innerHTML
+function replayPageTransition(el) {
+    if (!el) return;
+    el.classList.remove('page-transition-in');
+    void el.offsetWidth;
+    el.classList.add('page-transition-in');
 }
 
 function renderClientPortal() {
@@ -13603,4 +13612,35 @@ document.addEventListener('keydown', e => {
         e.preventDefault();
         openStatTarget(e.target.dataset.go);
     }
+});
+
+// ==================== ตารางบนมือถือ: ติดชื่อหัวคอลัมน์ให้ทุกช่อง (ใช้กับ CSS การ์ดรายการบนจอเล็ก) ====================
+// บนมือถือ (ดู "ตารางเป็นการ์ด" ใน styles.css) แต่ละแถวกลายเป็นการ์ด ช่องแสดงชื่อคอลัมน์ทางซ้ายจาก data-label
+// ตารางถูก render ใหม่บ่อย (ค้นหา/กรอง) จึงดักการเปลี่ยนแปลงของ tbody แล้วติดป้ายใหม่ (เบา: แค่อ่านหัวตาราง)
+function labelTableCells(table) {
+    const heads = Array.from(table.querySelectorAll(':scope > thead th')).map(th => th.textContent.replace(/\s+/g, ' ').trim());
+    if (!heads.length) return;
+    table.querySelectorAll(':scope > tbody > tr, :scope > tfoot > tr').forEach(tr => {
+        let col = 0;
+        Array.from(tr.children).forEach(td => {
+            if (!td.hasAttribute('data-label')) td.setAttribute('data-label', heads[col] || '');
+            col += td.colSpan || 1;
+        });
+    });
+}
+
+function setupTableCardLabels() {
+    let queued = new Set(), scheduled = false;
+    const flush = () => { scheduled = false; queued.forEach(t => t.isConnected && labelTableCells(t)); queued = new Set(); };
+    const queue = t => { queued.add(t); if (!scheduled) { scheduled = true; requestAnimationFrame(flush); } };
+    document.querySelectorAll('table.data-table').forEach(queue);
+    new MutationObserver(records => records.forEach(r => {
+        const t = r.target.closest && r.target.closest('table.data-table');
+        if (t) queue(t);
+        r.addedNodes.forEach(n => n.nodeType === 1 && n.querySelectorAll && n.querySelectorAll('table.data-table').forEach(queue));
+    })).observe(document.body, { childList: true, subtree: true });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    try { setupTableCardLabels(); } catch (err) { console.error('Table label setup failed:', err); }
 });
