@@ -5403,29 +5403,6 @@ tr.is-voided-row td {
     box-shadow: 0 8px 20px rgba(45, 79, 163, 0.36);
 }
 
-/* แท็บสลับมุมมอง = segmented control แบบ iOS: รางเทา ปุ่มที่เลือกเป็นการ์ดขาวลอย */
-:root:not([data-theme="dark"]):not([data-theme="pink"]) .view-toggle-bar {
-    padding: 3px;
-    gap: 2px;
-    background-color: #e3e3e9;
-    border-radius: 12px;
-    box-shadow: none;
-}
-
-:root:not([data-theme="dark"]):not([data-theme="pink"]) .view-toggle-bar .btn {
-    border: none;
-    border-radius: 9px;
-    background-color: transparent;
-    color: #1c1c1e;
-    box-shadow: none;
-}
-
-:root:not([data-theme="dark"]):not([data-theme="pink"]) .view-toggle-bar .btn.btn-gold {
-    background-color: #ffffff;
-    color: var(--gold-primary);
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12), 0 1px 1px rgba(0, 0, 0, 0.04);
-}
-
 /* ==================== ธีมสว่าง: แถบเมนูเทาเงินแบบ iPadOS (แบบ B, เลือก 2026-10-02) ==================== */
 /* แถบเมนูเทา ไม่มีเส้นขอบ เมนูที่เลือกเป็นการ์ดขาวลอย ตัวหนังสือกรมท่า — ชมพู/มืดมีสีแถบเมนูของตัวเองอยู่แล้ว */
 :root:not([data-theme="dark"]):not([data-theme="pink"]) .sidebar {
@@ -5460,4 +5437,179 @@ tr.is-voided-row td {
 
 :root:not([data-theme="dark"]):not([data-theme="pink"]) .menu-item.active svg {
     color: var(--gold-primary);
+}
+
+/* ==================== แท็บแบบ iOS (segmented control + ตัวเลือกเลื่อนไหล) ==================== */
+/* setupSlidingTabs() ใน app.js ใส่ .seg-host ให้กลุ่มแท็บทุกกลุ่ม (.dashboard-tabs / .view-toggle-bar / ปุ่มตาราง-กราฟ)
+   แล้วเพิ่ม .tab-slider 1 ชิ้นที่เลื่อนไปอยู่ใต้ปุ่มที่เลือก (ปุ่มที่มี .btn-gold) — โค้ดเดิมที่สลับ btn-gold/btn-outline ไม่ต้องแก้ */
+:root {
+    --seg-rail: #e3e3e9;
+    --seg-thumb: #ffffff;
+    --seg-text: #1c1c1e;
+}
+:root[data-theme="pink"] {
+    --seg-rail: #f5e3ea;
+    --seg-thumb: #ffffff;
+    --seg-text: #4a2a37;
+}
+:root[data-theme="dark"] {
+    --seg-rail: #1d2333;
+    --seg-thumb: #3a445c;
+    --seg-text: #d3d9e6;
+}
+
+.seg-host {
+    position: relative;
+    display: inline-flex !important;
+    flex-wrap: nowrap !important;
+    gap: 2px !important;
+    width: fit-content;
+    max-width: 100%;
+    padding: 3px !important;
+    border: none !important;
+    border-radius: 12px;
+    background-color: var(--seg-rail);
+    box-shadow: none !important;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+.seg-host::-webkit-scrollbar { display: none; }
+
+.seg-host > .btn {
+    position: relative;
+    z-index: 1;
+    border: none !important;
+    border-radius: 9px !important;
+    background-color: transparent !important;
+    color: var(--seg-text) !important;
+    box-shadow: none !important;
+    transition: color 0.25s ease, opacity 0.2s ease;
+}
+.seg-host > .btn:hover { opacity: 0.75; }
+.seg-host > .btn.btn-gold { color: var(--gold-primary) !important; font-weight: 600; }
+.seg-host > .btn.btn-gold:hover { opacity: 1; }
+
+.tab-slider {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 0;
+    border-radius: 9px;
+    background-color: var(--seg-thumb);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12), 0 1px 1px rgba(0, 0, 0, 0.04);
+    pointer-events: none;
+    opacity: 0;
+}
+.tab-slider.is-on { opacity: 1; }
+.tab-slider.is-animated {
+    transition: transform 0.42s cubic-bezier(0.32, 0.72, 0, 1), width 0.42s cubic-bezier(0.32, 0.72, 0, 1),
+                height 0.42s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.2s ease;
+}
+
+/* แถบเมนูข้าง: เมนูที่เลือกเป็นตัวเลื่อนไหลเหมือนกัน */
+.sidebar-menu { position: relative; }
+.sidebar-menu > .menu-item { z-index: 1; }
+.sidebar-menu.has-slider > .menu-item.active,
+.sidebar-menu.has-slider > .menu-item.active:hover {
+    background-color: transparent !important;
+    box-shadow: none !important;
+}
+.sidebar-menu > .tab-slider {
+    border-radius: 12px;
+    background-color: var(--gold-primary);
+    box-shadow: 0 6px 16px rgba(45, 79, 163, 0.30);
+}
+:root:not([data-theme="dark"]):not([data-theme="pink"]) .sidebar-menu > .tab-slider {
+    background-color: #ffffff;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.10), 0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+/* ==================== Dropdown (<select>) แบบ iOS ==================== */
+/* เครื่องที่ใช้เมาส์: openIosSelect() ใน app.js เปิดเมนูนี้แทนรายการของเบราว์เซอร์ — <select> ตัวจริงยังอยู่ที่เดิม
+   ค่า/onchange/validation เดิมทำงานเหมือนเดิมทุกอย่าง  มือถือ/แท็บเล็ตใช้ตัวเลือกของเครื่อง (ของ iPhone เป็นแบบ iOS อยู่แล้ว) */
+.ios-select-menu {
+    position: fixed;
+    z-index: 10000;
+    min-width: 160px;
+    max-width: min(420px, calc(100vw - 16px));
+    overflow-y: auto;
+    padding: 6px;
+    background-color: var(--gray-card);
+    border-radius: 14px;
+    box-shadow: var(--shadow-lg), 0 0 0 1px var(--dk-line, #e2e8f0);
+    transform-origin: top center;
+    animation: ios-dropdown-in 0.28s cubic-bezier(0.32, 1.25, 0.6, 1) both;
+    font-size: 14px;
+}
+.ios-select-menu.is-above { transform-origin: bottom center; }
+
+.ios-select-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px 8px 30px;
+    border-radius: 9px;
+    color: var(--text-dark);
+    cursor: pointer;
+    position: relative;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.ios-select-option.is-active { background-color: var(--gold-light); }
+.ios-select-option.is-selected { color: var(--gold-primary); font-weight: 600; }
+.ios-select-option.is-selected::before {
+    content: "";
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    width: 5px;
+    height: 10px;
+    margin-top: -7px;
+    border: solid currentColor;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+.ios-select-option.is-disabled { opacity: 0.4; cursor: default; }
+.ios-select-group {
+    padding: 8px 12px 4px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+/* ==================== รายละเอียดอื่น ๆ แบบ iOS ==================== */
+/* กดปุ่มแล้วยุบลงนิดหนึ่ง */
+.btn:active:not(:disabled),
+.action-icon-btn:active:not(:disabled) {
+    transform: scale(0.97);
+}
+
+/* หน้าต่างป๊อปอัปเด้งขึ้นแบบ sheet ของ iOS */
+.modal-content {
+    animation: ios-sheet-in 0.42s cubic-bezier(0.32, 0.72, 0, 1);
+}
+@keyframes ios-sheet-in {
+    from { opacity: 0; transform: translateY(24px) scale(0.98); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* เปลี่ยนหน้า: เนื้อหาไหลขึ้นนุ่ม ๆ */
+.content-section {
+    animation: ios-page-in 0.38s cubic-bezier(0.32, 0.72, 0, 1);
+}
+@keyframes ios-page-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* checkbox / radio / slider ใช้สีหลักของธีม */
+input[type="checkbox"], input[type="radio"], input[type="range"] {
+    accent-color: var(--gold-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tab-slider.is-animated { transition: none; }
+    .ios-select-menu, .modal-content, .content-section { animation: none; }
+    .btn:active, .action-icon-btn:active { transform: none; }
 }

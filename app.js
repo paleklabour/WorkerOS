@@ -2258,7 +2258,7 @@ function renderPieChartInto(containerId, entries) {
     }).join('');
 
     container.innerHTML = `
-        <svg viewBox="0 0 200 200" width="220" height="220" style="transform: rotate(-90deg); flex-shrink: 0;">
+        <svg class="pie-chart" viewBox="0 0 200 200" width="220" height="220" style="transform: rotate(-90deg); flex-shrink: 0;">
             ${circles}
         </svg>
         <div>${legend}</div>
@@ -12776,3 +12776,298 @@ function confirmItemWorkers() {
     closeItemWorkersPicker();
     renderInvoiceItemsTable();
 }
+
+// ==================== หน้าตาแบบ iOS: แท็บเลื่อนไหล / dropdown / กราฟ magic move ====================
+// ทั้งหมดเป็นแค่ชั้นหน้าตา ไม่แตะตรรกะเดิม: แท็บยังสลับด้วย btn-gold/btn-outline หรือ .active เหมือนเดิม,
+// <select> ยังเป็นตัวเก็บค่าจริง (onchange/validation เดิมใช้ได้), กราฟยัง render ด้วย innerHTML เหมือนเดิม
+const IOS_EASE = 'cubic-bezier(0.32, 0.72, 0, 1)';
+const iosReducedMotion = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// ---------- แท็บ: ตัวเลือกเลื่อนไปใต้ปุ่มที่เลือก ----------
+// host = กล่องกลุ่มแท็บ, getActive = หาปุ่มที่เลือกอยู่ (null = ไม่มี)
+function attachTabSlider(host, getActive) {
+    if (!host || host._tabSlider) return;
+    const slider = document.createElement('div');
+    slider.className = 'tab-slider';
+    slider.setAttribute('aria-hidden', 'true');
+    host.insertBefore(slider, host.firstChild);
+    host._tabSlider = slider;
+
+    let animated = false;
+    const place = () => {
+        const btn = getActive();
+        if (!btn || !btn.offsetWidth) {
+            if (slider.classList.contains('is-on')) slider.classList.remove('is-on');
+            return;
+        }
+        slider.style.width = btn.offsetWidth + 'px';
+        slider.style.height = btn.offsetHeight + 'px';
+        slider.style.transform = `translate(${btn.offsetLeft}px, ${btn.offsetTop}px)`;
+        if (!slider.classList.contains('is-on')) slider.classList.add('is-on');
+        // ครั้งแรกวางเฉย ๆ ไม่ต้องเลื่อน (ไม่งั้นจะเห็นมันวิ่งมาจากมุมซ้ายบนตอนเปิดหน้า)
+        if (!animated && !iosReducedMotion()) {
+            animated = true;
+            requestAnimationFrame(() => requestAnimationFrame(() => slider.classList.add('is-animated')));
+        }
+    };
+
+    // ปุ่มเปลี่ยน class (เลือกแท็บใหม่ / ซ่อนเมนูตามสิทธิ์) → เลื่อนตาม
+    new MutationObserver(place).observe(host, { subtree: true, attributes: true, attributeFilter: ['class'] });
+    // ขนาดเปลี่ยน (ย่อแถบเมนู / จอหมุน / กลุ่มแท็บเพิ่งถูกแสดงจากที่ซ่อนไว้) → วางใหม่
+    if (window.ResizeObserver) new ResizeObserver(place).observe(host);
+    place();
+}
+
+function setupSlidingTabs() {
+    const sidebarMenu = document.querySelector('.sidebar-menu');
+    if (sidebarMenu) {
+        sidebarMenu.classList.add('has-slider');
+        attachTabSlider(sidebarMenu, () => sidebarMenu.querySelector(':scope > .menu-item.active:not(.hidden)'));
+    }
+    // ปุ่มสลับ ตาราง/กราฟวงกลม อยู่ใน div เปล่า ๆ — ติดป้ายให้เป็นกลุ่มแท็บด้วย
+    document.querySelectorAll('.btn-chart-toggle').forEach(b => b.parentElement && b.parentElement.classList.add('seg-chart-toggle'));
+    document.querySelectorAll('.dashboard-tabs, .view-toggle-bar, .seg-chart-toggle').forEach(host => {
+        host.classList.add('seg-host');
+        attachTabSlider(host, () => host.querySelector(':scope > .btn.btn-gold'));
+    });
+}
+
+// ---------- Dropdown (<select>) แบบ iOS ----------
+let _iosSelect = null; // { sel, menu, items, active }
+
+function iosSelectSupported(sel) {
+    return sel && !sel.multiple && !(sel.size > 1) && !sel.disabled
+        && window.matchMedia && window.matchMedia('(pointer: fine)').matches;
+}
+
+function closeIosSelect() {
+    if (!_iosSelect) return;
+    _iosSelect.menu.remove();
+    _iosSelect = null;
+}
+
+function setIosSelectActive(i) {
+    const s = _iosSelect;
+    if (!s || !s.items.length) return;
+    if (s.active >= 0 && s.items[s.active]) s.items[s.active].classList.remove('is-active');
+    s.active = Math.max(0, Math.min(s.items.length - 1, i));
+    const el = s.items[s.active];
+    el.classList.add('is-active');
+    el.scrollIntoView({ block: 'nearest' });
+}
+
+function moveIosSelectActive(step) {
+    const s = _iosSelect;
+    if (!s) return;
+    let i = s.active;
+    for (let n = 0; n < s.items.length; n++) {
+        i += step;
+        if (i < 0 || i >= s.items.length) return;
+        if (!s.items[i].classList.contains('is-disabled')) { setIosSelectActive(i); return; }
+    }
+}
+
+function chooseIosSelect(optIndex) {
+    const s = _iosSelect;
+    if (!s) return;
+    const sel = s.sel;
+    closeIosSelect();
+    if (sel.selectedIndex !== optIndex) {
+        sel.selectedIndex = optIndex;
+        sel.dispatchEvent(new Event('input', { bubbles: true }));
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    sel.focus();
+}
+
+function openIosSelect(sel) {
+    closeIosSelect();
+    const menu = document.createElement('div');
+    menu.className = 'ios-select-menu';
+    menu.setAttribute('role', 'listbox');
+    const items = [];
+    let selectedItem = -1;
+
+    const addOption = (opt) => {
+        if (opt.hidden || opt.style.display === 'none') return;
+        const el = document.createElement('div');
+        el.className = 'ios-select-option';
+        el.setAttribute('role', 'option');
+        el.textContent = opt.textContent;
+        el.title = opt.textContent;
+        if (opt.disabled) el.classList.add('is-disabled');
+        if (opt.selected) { el.classList.add('is-selected'); el.setAttribute('aria-selected', 'true'); selectedItem = items.length; }
+        el.dataset.index = opt.index;
+        el.addEventListener('mousedown', e => e.preventDefault()); // focus ค้างอยู่ที่ <select>
+        el.addEventListener('click', () => { if (!opt.disabled) chooseIosSelect(opt.index); });
+        el.addEventListener('mousemove', () => {
+            const i = items.indexOf(el);
+            if (_iosSelect && _iosSelect.active !== i && !opt.disabled) setIosSelectActive(i);
+        });
+        items.push(el);
+        menu.appendChild(el);
+    };
+    Array.from(sel.children).forEach(child => {
+        if (child.tagName === 'OPTGROUP') {
+            const head = document.createElement('div');
+            head.className = 'ios-select-group';
+            head.textContent = child.label;
+            menu.appendChild(head);
+            Array.from(child.children).forEach(addOption);
+        } else if (child.tagName === 'OPTION') {
+            addOption(child);
+        }
+    });
+    if (!items.length) return;
+
+    document.body.appendChild(menu);
+    const r = sel.getBoundingClientRect();
+    const below = window.innerHeight - r.bottom - 12;
+    const above = r.top - 12;
+    menu.style.minWidth = r.width + 'px';
+    if (below < 220 && above > below) {
+        menu.classList.add('is-above');
+        menu.style.bottom = (window.innerHeight - r.top + 6) + 'px';
+        menu.style.maxHeight = Math.min(340, above) + 'px';
+    } else {
+        menu.style.top = (r.bottom + 6) + 'px';
+        menu.style.maxHeight = Math.min(340, Math.max(below, 120)) + 'px';
+    }
+    const left = Math.min(r.left, window.innerWidth - menu.offsetWidth - 8);
+    menu.style.left = Math.max(8, left) + 'px';
+
+    _iosSelect = { sel, menu, items, active: -1 };
+    setIosSelectActive(selectedItem >= 0 ? selectedItem : 0);
+}
+
+function setupIosSelects() {
+    // คลิก <select> ด้วยเมาส์ → เปิดเมนูของเราแทนรายการของเบราว์เซอร์ (ผูกที่ document ครั้งเดียว ครอบ <select> ที่สร้างทีหลังด้วย)
+    document.addEventListener('mousedown', e => {
+        const sel = e.target.closest && e.target.closest('select');
+        if (_iosSelect && !(e.target.closest && e.target.closest('.ios-select-menu')) && sel !== _iosSelect.sel) closeIosSelect();
+        if (!sel || e.button !== 0 || !iosSelectSupported(sel)) return;
+        e.preventDefault();
+        sel.focus();
+        if (_iosSelect && _iosSelect.sel === sel) closeIosSelect();
+        else openIosSelect(sel);
+    }, true);
+
+    document.addEventListener('keydown', e => {
+        if (_iosSelect) {
+            const k = e.key;
+            if (k === 'ArrowDown') { e.preventDefault(); moveIosSelectActive(1); }
+            else if (k === 'ArrowUp') { e.preventDefault(); moveIosSelectActive(-1); }
+            else if (k === 'Home') { e.preventDefault(); setIosSelectActive(0); }
+            else if (k === 'End') { e.preventDefault(); setIosSelectActive(_iosSelect.items.length - 1); }
+            else if (k === 'Enter' || k === ' ') {
+                e.preventDefault();
+                const el = _iosSelect.items[_iosSelect.active];
+                if (el && !el.classList.contains('is-disabled')) chooseIosSelect(Number(el.dataset.index));
+            }
+            else if (k === 'Escape') { e.preventDefault(); e.stopPropagation(); const sel = _iosSelect.sel; closeIosSelect(); sel.focus(); }
+            else if (k === 'Tab') closeIosSelect();
+            else if (k.length === 1) {
+                // พิมพ์ตัวอักษร → กระโดดไปตัวเลือกแรกที่ขึ้นต้นด้วยตัวนั้น
+                const q = k.toLowerCase();
+                const i = _iosSelect.items.findIndex(el => el.textContent.trim().toLowerCase().startsWith(q));
+                if (i >= 0) setIosSelectActive(i);
+            }
+            return;
+        }
+        const sel = e.target;
+        if (sel && sel.tagName === 'SELECT' && iosSelectSupported(sel)
+            && (e.key === 'Enter' || e.key === ' ' || e.key === 'F4' || (e.altKey && e.key === 'ArrowDown'))) {
+            e.preventDefault();
+            openIosSelect(sel);
+        }
+    }, true);
+
+    // เลื่อนหน้าจอ/ย่อขยายหน้าต่าง → ปิดเมนู (ไม่งั้นเมนูจะลอยค้างไม่ตรงช่อง)
+    window.addEventListener('scroll', e => { if (_iosSelect && !_iosSelect.menu.contains(e.target)) closeIosSelect(); }, true);
+    window.addEventListener('resize', closeIosSelect);
+    window.addEventListener('blur', closeIosSelect);
+}
+
+// ---------- กราฟ magic move ----------
+// แท่งกราฟ (.bar-fill) และกราฟวงกลม (svg.pie-chart) ที่ render ใหม่ จะไหลจากค่าเดิมไปค่าใหม่
+// (ครั้งแรกงอกจาก 0) — เริ่มเล่นตอนกราฟโผล่บนจอจริง ๆ เพราะหลายกราฟ render ไว้ตอนยังซ่อนอยู่
+const _chartPrev = new Map();
+const _chartIO = window.IntersectionObserver ? new IntersectionObserver(entries => {
+    entries.forEach(en => {
+        if (!en.isIntersecting) return;
+        _chartIO.unobserve(en.target);
+        playChartMove(en.target);
+    });
+}) : null;
+
+function chartKey(el, selector) {
+    const owner = el.closest('[id]');
+    if (!owner) return null;
+    const idx = Array.prototype.indexOf.call(owner.querySelectorAll(selector), el);
+    return `${owner.id}|${selector}|${idx}`;
+}
+
+function prepareChartMove(el) {
+    if (el._chartPrepared) return;
+    el._chartPrepared = true;
+    if (el.classList.contains('bar-fill')) {
+        const key = chartKey(el, '.bar-fill');
+        const prev = key && _chartPrev.get(key);
+        el._chartMove = { key, target: { width: el.style.width } };
+        el.style.transition = 'none';
+        el.style.width = prev ? prev.width : '0%';
+    } else if (el.tagName.toLowerCase() === 'circle') {
+        const key = chartKey(el, 'svg.pie-chart circle');
+        const prev = key && _chartPrev.get(key);
+        const circumference = 2 * Math.PI * Number(el.getAttribute('r') || 0);
+        el._chartMove = { key, target: { dash: el.getAttribute('stroke-dasharray'), off: el.getAttribute('stroke-dashoffset') || '0' } };
+        el.style.transition = 'none';
+        el.style.strokeDasharray = prev ? prev.dash : `0 ${circumference}`;
+        el.style.strokeDashoffset = prev ? prev.off : '0';
+    }
+    const watchEl = el.tagName.toLowerCase() === 'circle' ? el.ownerSVGElement : el;
+    if (_chartIO && watchEl) _chartIO.observe(watchEl);
+    else playChartMove(el);
+}
+
+function playChartMove(target) {
+    const els = target.tagName.toLowerCase() === 'svg' ? Array.from(target.querySelectorAll('circle')) : [target];
+    els.forEach(el => {
+        const m = el._chartMove;
+        if (!m) return;
+        el._chartMove = null;
+        el.getBoundingClientRect(); // บังคับให้ค่าเริ่มต้นถูกวาดก่อน แล้วค่อยเปลี่ยนเป็นค่าจริง
+        if (el.tagName.toLowerCase() === 'circle') {
+            el.style.transition = `stroke-dasharray 0.9s ${IOS_EASE}, stroke-dashoffset 0.9s ${IOS_EASE}`;
+            el.style.strokeDasharray = m.target.dash;
+            el.style.strokeDashoffset = m.target.off;
+        } else {
+            el.style.transition = `width 0.8s ${IOS_EASE}`;
+            el.style.width = m.target.width;
+        }
+        if (m.key) _chartPrev.set(m.key, m.target);
+    });
+}
+
+function setupChartMagicMove() {
+    if (iosReducedMotion()) return;
+    const scan = root => {
+        if (!root.querySelectorAll) return;
+        if (root.matches && root.matches('.bar-fill, svg.pie-chart circle')) prepareChartMove(root);
+        root.querySelectorAll('.bar-fill, svg.pie-chart circle').forEach(prepareChartMove);
+    };
+    new MutationObserver(records => {
+        records.forEach(r => r.addedNodes.forEach(n => { if (n.nodeType === 1) scan(n); }));
+    }).observe(document.body, { childList: true, subtree: true });
+    scan(document.body);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    try {
+        setupSlidingTabs();
+        setupIosSelects();
+        setupChartMagicMove();
+    } catch (err) {
+        console.error('iOS UI setup failed:', err);
+    }
+});
