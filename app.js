@@ -784,7 +784,8 @@ async function initApp() {
         document.getElementById("user-avatar-initial").innerText = currentUser && currentUser.name ? currentUser.name.charAt(0) : "U";
 
         // Initial View
-        switchView('dashboard');
+        // บัญชีนายจ้าง (Client) เข้าหน้าพอร์ทัลของตัวเองเลย ไม่ใช่แดชบอร์ดภายใน
+        switchView(currentUser && currentUser.role === 'client' ? 'client-portal' : 'dashboard');
         setupFormPermissions();
         setupAllSearchSuggestions();
         setupAllSearchSelects();
@@ -1091,8 +1092,17 @@ function setupFormPermissions() {
     show("btn-add-job", can('ops') || (currentUser && currentUser.role === 'client'));
     show("btn-add-bank", can('finance'));
     show("btn-bulk-import-docs", can('ops'));
+    // บัญชีนายจ้าง (Client): เหลือเมนูเดียว "ข้อมูลของบริษัทฉัน" — ซ่อนหน้าภายในทั้งหมด
+    // (ตั้งทุกเมนูใหม่ทุกครั้ง เผื่อเครื่องเดียวกันสลับบัญชี client ↔ พนักงาน)
+    const isClient = !!currentUser && currentUser.role === 'client';
+    document.body.classList.toggle('is-client-portal', isClient);
+    document.querySelectorAll('.sidebar-menu .menu-item').forEach(item => {
+        item.classList.toggle('hidden', item.id === 'menu-client-portal' ? !isClient : isClient);
+    });
+    if (isClient) return;
     const toggleMenu = (id, on) => { const el = document.getElementById(id); if (el) el.classList.toggle('hidden', !on); };
     toggleMenu("menu-users", can('admin'));
+    toggleMenu("menu-backup", can('admin'));
     toggleMenu("menu-expenses", can('finance'));
     toggleMenu("menu-agents", can('manageAgents'));
 }
@@ -1252,6 +1262,191 @@ function hideMainLayout() {
 }
 
 // ==================== NAVIGATION / ROUTING ====================
+// ==================== พอร์ทัลนายจ้าง (บัญชี Client) ====================
+// นายจ้าง login ด้วยบัญชีของตัวเอง (role = client, profiles.customer_id) — ฐานข้อมูลกรองให้เห็นเฉพาะข้อมูลของตัวเอง (RLS)
+// แท็บ: คนงานของฉัน (+เอกสารลูกจ้าง) / งานที่แจ้ง (เลือกเดือน) / ยอดค้างชำระ / ใบเสร็จรับเงิน
+// ไม่แสดงเอกสารของนายจ้างเอง (เจ้าของระบบกำหนด 2026-10-02)
+let clientPortalTab = 'workers';
+const WORKER_STATUS_LABELS = { active: 'ปกติ', pending_register: 'รอขึ้นทะเบียน', archived: 'แจ้งออก/พ้นสภาพ' };
+
+function clientCustomerId() {
+    return (currentUser && currentUser.customer_id && currentUser.customer_id !== 'ALL') ? currentUser.customer_id : (customers[0] || {}).id;
+}
+
+function switchClientPortalTab(tab) {
+    clientPortalTab = tab;
+    document.querySelectorAll('[data-portal-tab]').forEach(b => {
+        b.classList.toggle('btn-gold', b.dataset.portalTab === tab);
+        b.classList.toggle('btn-outline', b.dataset.portalTab !== tab);
+    });
+    renderClientPortal();
+}
+
+function renderClientPortal() {
+    const custId = clientCustomerId();
+    const cust = customers.find(c => c.id === custId);
+    const myWorkers = workers.filter(w => w.employerId === custId && w.status !== 'deleted');
+    const myJobs = jobs.filter(j => j.customerId === custId);
+    const myInvoices = invoices.filter(i => i.customerId === custId && i.status !== 'void');
+    const outstanding = round2(myInvoices.filter(i => i.status === 'issued' || i.status === 'partial').reduce((s, i) => s + invoiceBalance(i), 0));
+    const head = document.getElementById("client-portal-head");
+    if (head) head.innerHTML = `
+        <div class="cp-company"><h3>${icon('building')} ${escapeHtml(cust ? cust.companyName : 'บริษัทของฉัน')}</h3>
+            <span class="text-muted">${cust && cust.taxId ? `เลขผู้เสียภาษี ${escapeHtml(cust.taxId)}` : ''}</span></div>
+        <div class="cp-stats">
+            <div><span>คนงานปัจจุบัน</span><strong>${myWorkers.filter(w => w.status !== 'archived').length}</strong></div>
+            <div><span>งานที่ยังไม่ปิด</span><strong>${myJobs.filter(j => isJobStatusOpen(j.status)).length}</strong></div>
+            <div class="${outstanding > 0 ? 'is-due' : ''}"><span>ยอดค้างชำระ</span><strong>${fmtMoney(outstanding)}</strong></div>
+        </div>`;
+
+    const body = document.getElementById("client-portal-body");
+    if (!body) return;
+    if (clientPortalTab === 'workers') body.innerHTML = renderClientWorkersTab(myWorkers);
+    else if (clientPortalTab === 'jobs') body.innerHTML = renderClientJobsTab(myJobs);
+    else if (clientPortalTab === 'balance') body.innerHTML = renderClientBalanceTab(myInvoices, custId);
+    else body.innerHTML = renderClientReceiptsTab(myInvoices, custId);
+}
+
+function renderClientWorkersTab(list) {
+    const q = (document.getElementById("cp-worker-search") || {}).value || '';
+    const query = q.trim().toLowerCase();
+    const shown = list.filter(w => !query || [w.firstName, w.lastName, w.workerUid, w.passportNo].filter(Boolean).join(' ').toLowerCase().includes(query))
+        .sort((a, b) => (a.status === 'archived') - (b.status === 'archived') || `${a.firstName}`.localeCompare(`${b.firstName}`));
+    const expiryCell = (d) => {
+        const dt = safeParseDate(d);
+        if (!dt) return '-';
+        const days = Math.ceil((dt - new Date()) / 86400000);
+        const cls = days < 0 ? 'text-danger' : days <= 60 ? 'text-warning' : '';
+        return `<span class="${cls}">${formatThaiDate(d)}${days < 0 ? ' (หมดอายุ)' : days <= 60 ? ` (อีก ${days} วัน)` : ''}</span>`;
+    };
+    return `
+        <div class="cp-card">
+            <div class="cp-toolbar"><div class="search-box"><input type="text" id="cp-worker-search" placeholder="ค้นหาชื่อ / เลขประจำตัว / พาสปอร์ต..." value="${escapeHtml(q)}" oninput="renderClientPortalKeepFocus('cp-worker-search')"></div>
+                <span class="text-muted">${shown.length} คน • กด "เอกสาร" เพื่อดู/ดาวน์โหลดเอกสารของคนงาน</span></div>
+            <div class="table-container"><table class="data-table">
+                <thead><tr><th>ชื่อ-สกุล</th><th>สัญชาติ</th><th>เลขประจำตัว</th><th>พาสปอร์ต/CI หมดอายุ</th><th>ใบอนุญาตทำงานหมดอายุ</th><th>สถานะ</th><th></th></tr></thead>
+                <tbody>${shown.length ? shown.map(w => `
+                    <tr class="${w.status === 'archived' ? 'is-voided-row' : ''}">
+                        <td><strong>${escapeHtml(`${w.title || ''} ${w.firstName || ''} ${w.lastName || ''}`.trim())}</strong></td>
+                        <td>${escapeHtml(w.nationality || '-')}</td>
+                        <td>${escapeHtml(w.workerUid || '-')}</td>
+                        <td>${expiryCell(w.passportExpiry)}</td>
+                        <td>${expiryCell(w.permitExpiry)}</td>
+                        <td><span class="badge">${escapeHtml(WORKER_STATUS_LABELS[w.status] || w.status || '-')}</span></td>
+                        <td class="actions-col"><button type="button" class="btn btn-sm btn-gold btn-open-folder" onclick="openWorkerFolderModal('${w.id}')">${icon('folder')} เอกสาร</button></td>
+                    </tr>`).join('') : `<tr><td colspan="7" class="text-muted" style="text-align:center; padding:24px;">ไม่พบคนงาน</td></tr>`}</tbody>
+            </table></div>
+        </div>`;
+}
+
+function renderClientJobsTab(list) {
+    const monthSel = document.getElementById("cp-job-month");
+    const month = monthSel ? monthSel.value : localDateISO(new Date()).slice(0, 7);
+    const months = [...new Set(list.map(jobMonthKey).filter(k => /^\d{4}-\d{2}$/.test(k)))];
+    const thisMonth = localDateISO(new Date()).slice(0, 7);
+    if (!months.includes(thisMonth)) months.push(thisMonth);
+    months.sort().reverse();
+    const shown = list.filter(j => !month || jobMonthKey(j) === month).sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+    const statusCls = { 'รอดำเนินการ': 'badge-warning', 'กำลังดำเนินการ': 'badge-gold', 'รอเอกสารเพิ่มเติม': 'badge-danger', 'ปิดงานแล้ว': 'badge-success' };
+    return `
+        <div class="cp-card">
+            <div class="cp-toolbar">
+                <select id="cp-job-month" class="select-filter" onchange="renderClientPortal()">
+                    <option value="">ทุกเดือน</option>${months.map(k => `<option value="${k}" ${k === month ? 'selected' : ''}>${monthLabelTh(k)}</option>`).join('')}
+                </select>
+                <span class="text-muted">${shown.length} งาน • ปิดแล้ว ${shown.filter(j => j.status === 'ปิดงานแล้ว').length} • ยังไม่ปิด ${shown.filter(j => isJobStatusOpen(j.status)).length}</span>
+                <button type="button" class="btn btn-gold" onclick="openJobModal()">${icon('plus')} แจ้งงานใหม่</button>
+            </div>
+            <div class="table-container"><table class="data-table">
+                <thead><tr><th>เลขที่แจ้งงาน</th><th>ประเภทงาน</th><th>คนงาน</th><th>วันที่แจ้ง</th><th>สถานะ</th><th>เอกสารปิดงาน</th></tr></thead>
+                <tbody>${shown.length ? shown.map(j => {
+                    const w = workers.find(x => x.id === j.workerId);
+                    const docs = Array.isArray(j.attachments) ? j.attachments : [];
+                    return `<tr>
+                        <td><strong>${getJobDisplayNo(j)}</strong></td>
+                        <td>${escapeHtml(getCleanJobTypeName(j.jobType))}</td>
+                        <td>${escapeHtml(w ? `${w.firstName} ${w.lastName}` : '-')}</td>
+                        <td>${formatThaiDate(String(j.createdAt || j.updatedAt || '').slice(0, 10))}</td>
+                        <td><span class="badge ${statusCls[j.status] || ''}">${escapeHtml(j.status || '-')}</span>${j.status === 'ปิดงานแล้ว' && j.closedAt ? `<br><small class="text-muted">ปิดเมื่อ ${formatThaiDate(j.closedAt)}</small>` : ''}${j.appointmentDate && isJobStatusOpen(j.status) ? `<br><small class="text-muted">นัด ${formatThaiDate(j.appointmentDate)}${j.appointmentTime ? ` ${escapeHtml(j.appointmentTime)}` : ''}</small>` : ''}</td>
+                        <td>${docs.length ? docs.map((f, k) => `<a href="${escapeHtml(f.url)}" target="_blank" rel="noopener" title="${escapeHtml(f.note || f.name || '')}">${icon('clip')} ${escapeHtml(f.name || `ไฟล์ ${k + 1}`)}</a>`).join('<br>') : '<span class="text-muted">-</span>'}</td>
+                    </tr>`;
+                }).join('') : `<tr><td colspan="6" class="text-muted" style="text-align:center; padding:24px;">ไม่มีงานที่แจ้งในเดือนนี้</td></tr>`}</tbody>
+            </table></div>
+        </div>`;
+}
+
+function renderClientBalanceTab(myInvoices, custId) {
+    const open = myInvoices.filter(i => (i.status === 'issued' || i.status === 'partial') && invoiceBalance(i) > 0)
+        .sort((a, b) => (a.issueDate || '').localeCompare(b.issueDate || ''));
+    const total = round2(open.reduce((s, i) => s + invoiceBalance(i), 0));
+    const credit = customerCredit(custId);
+    const bank = banks[0];
+    return `
+        <div class="cp-card">
+            <div class="pay-summary">
+                <div class="${total > 0 ? 'is-due' : 'is-done'}"><span>ยอดค้างชำระรวม</span><strong>${fmtMoney(total)}</strong></div>
+                <div><span>จำนวนบิลค้าง</span><strong>${open.length}</strong></div>
+                <div class="is-paid"><span>มัดจำ/เงินรับล่วงหน้าคงเหลือ</span><strong>${fmtMoney(credit)}</strong></div>
+            </div>
+            <div class="table-container"><table class="data-table">
+                <thead><tr><th>เลขที่บิล</th><th>วันที่ออกบิล</th><th>กำหนดชำระ</th><th class="inv-num">ยอดบิล</th><th class="inv-num">ชำระแล้ว</th><th class="inv-num">คงค้าง</th><th></th></tr></thead>
+                <tbody>${open.length ? open.map(i => `
+                    <tr>
+                        <td><strong>${escapeHtml(i.invoiceNo)}</strong></td>
+                        <td>${formatThaiDate(i.issueDate)}</td>
+                        <td>${escapeHtml(i.dueDateText || '-')}</td>
+                        <td class="inv-num">${fmtMoney(i.grandTotal)}</td>
+                        <td class="inv-num">${fmtMoney(invoicePaidAmount(i))}</td>
+                        <td class="inv-num"><strong class="text-danger">${fmtMoney(invoiceBalance(i))}</strong></td>
+                        <td class="actions-col"><button type="button" class="btn btn-sm btn-outline" onclick="openStoredInvoice('${i.id}')">${icon('receipt')} ดูบิล</button></td>
+                    </tr>`).join('') : `<tr><td colspan="7" class="text-muted" style="text-align:center; padding:24px;">${icon('ok')} ไม่มียอดค้างชำระ</td></tr>`}</tbody>
+            </table></div>
+            ${total > 0 ? `<p class="text-muted cp-pay-hint">ชำระได้ตามบัญชีที่ระบุในบิลแต่ละใบ แล้วส่งสลิปให้เจ้าหน้าที่ — ระบบจะออกใบเสร็จให้ในแท็บ "ใบเสร็จรับเงิน"</p>` : ''}
+        </div>`;
+}
+
+function renderClientReceiptsTab(myInvoices, custId) {
+    const invIds = new Set(myInvoices.map(i => i.id));
+    // ใบเสร็จแบบใหม่ (receipts) + การรับเงินแบบเก่าที่ไม่มีใบเสร็จแยก
+    const rows = [
+        ...receipts.filter(r => r.customerId === custId && !r.voided).map(r => ({
+            no: r.receiptNo, date: r.paidDate, amount: r.amount, method: r.method === 'cash' ? 'เงินสด' : paymentMethodLabel(r),
+            ref: [...new Set(liveAllocationsOf(r.id).map(p => (invoices.find(i => i.id === p.invoiceId) || {}).invoiceNo).filter(Boolean))].join(', ') || 'มัดจำ',
+            open: `openReceiptDoc('${r.id}')`
+        })),
+        ...payments.filter(p => !p.voided && !p.receiptId && invIds.has(p.invoiceId)).map(p => ({
+            no: p.receiptNo, date: p.paidDate, amount: p.amount, method: paymentMethodLabel(p),
+            ref: (invoices.find(i => i.id === p.invoiceId) || {}).invoiceNo || '-', open: `openReceiptModal('${p.id}')`
+        }))
+    ].sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+    const total = round2(rows.reduce((s, r) => s + (Number(r.amount) || 0), 0));
+    return `
+        <div class="cp-card">
+            <div class="cp-toolbar"><span class="text-muted">ใบเสร็จที่ฝ่ายบัญชีออกให้แล้ว ${rows.length} ใบ • รวม ${fmtMoney(total)} บาท — กด "ดู/พิมพ์" เพื่อเปิดใบเสร็จ</span></div>
+            <div class="table-container"><table class="data-table">
+                <thead><tr><th>เลขที่ใบเสร็จ</th><th>วันที่รับเงิน</th><th>อ้างอิงบิล</th><th>ช่องทาง</th><th class="inv-num">จำนวนเงิน</th><th></th></tr></thead>
+                <tbody>${rows.length ? rows.map(r => `
+                    <tr>
+                        <td><strong>${escapeHtml(r.no || '-')}</strong></td>
+                        <td>${formatThaiDate(r.date)}</td>
+                        <td>${escapeHtml(r.ref)}</td>
+                        <td>${escapeHtml(r.method)}</td>
+                        <td class="inv-num"><strong>${fmtMoney(r.amount)}</strong></td>
+                        <td class="actions-col"><button type="button" class="btn btn-sm btn-outline" onclick="${r.open}">${icon('print')} ดู/พิมพ์</button></td>
+                    </tr>`).join('') : `<tr><td colspan="6" class="text-muted" style="text-align:center; padding:24px;">ยังไม่มีใบเสร็จ</td></tr>`}</tbody>
+            </table></div>
+        </div>`;
+}
+
+// พิมพ์ค้นหาแล้ววาดแท็บใหม่ — คงเคอร์เซอร์ไว้ในช่องค้นหา
+function renderClientPortalKeepFocus(inputId) {
+    const el = document.getElementById(inputId);
+    const pos = el ? el.selectionStart : null;
+    renderClientPortal();
+    const again = document.getElementById(inputId);
+    if (again) { again.focus(); if (pos !== null) again.setSelectionRange(pos, pos); }
+}
+
 function switchView(viewName) {
     // Toggles sections
     const sections = document.querySelectorAll(".content-section");
@@ -1281,6 +1476,7 @@ function switchView(viewName) {
     if (viewName === 'agents') titleEl.innerText = "จัดการ Agent (ผู้ส่งงาน / ผู้แนะนำลูกค้า)";
     if (viewName === 'expenses') titleEl.innerText = "การเงิน, รายจ่าย และบัญชีธนาคาร";
     if (viewName === 'users') titleEl.innerText = "จัดการบัญชีผู้ใช้งานระบบ";
+    if (viewName === 'client-portal') titleEl.innerText = "ข้อมูลของบริษัทฉัน";
     if (viewName === 'backup') {
         titleEl.innerText = "สำรองและกู้คืนข้อมูลระบบ";
         renderLastBackupInfo();
@@ -1302,6 +1498,8 @@ function switchView(viewName) {
         renderAgentsList();
     } else if (viewName === 'expenses') {
         switchFinancePageTab('overview');
+    } else if (viewName === 'client-portal') {
+        renderClientPortal();
     } else if (viewName === 'users') {
         renderUsers();
     }
@@ -7380,6 +7578,7 @@ function closeInvoiceModal() {
 
 // แก้ไขรายการ/ราคาในบิลได้เฉพาะ ร่าง หรือบิลที่ออกแล้วแต่ยังไม่ได้รับเงินเลย (ป้องกันยอดบิลไม่ตรงกับเงินที่รับไปแล้ว)
 function isCurrentInvoiceEditable() {
+    if (!can('finance')) return false; // นายจ้าง (Client) / ฝ่ายงาน เปิดดูบิลได้อย่างเดียว
     if (!currentInvoiceId) return true;
     const inv = invoices.find(i => i.id === currentInvoiceId);
     return !!inv && inv.status === 'issued' && invoicePaidAmount(inv) === 0;

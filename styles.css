@@ -5020,3 +5020,78 @@ tr.is-voided-row td {
 
 .js-list-item small { font-size: 11.5px; color: var(--text-muted); }
 .js-list-item:hover { background-color: var(--gold-light); }
+
+/* ==================== พอร์ทัลนายจ้าง (บัญชี Client) ดู renderClientPortal ==================== */
+.client-portal-head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 16px;
+    padding: 18px 20px;
+    border-radius: var(--radius-md);
+    background-color: var(--gray-card);
+    box-shadow: var(--shadow-sm);
+}
+
+.cp-company h3 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 2px;
+    font-size: 18px;
+    color: var(--navy-dark);
+}
+
+.cp-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.cp-stats > div {
+    display: flex;
+    flex-direction: column;
+    min-width: 120px;
+    padding: 10px 16px;
+    border-radius: 14px;
+    background-color: var(--dk-subtle, #f3f6fc);
+}
+
+.cp-stats span { font-size: 12px; color: var(--text-muted); }
+.cp-stats strong { font-family: var(--font-head); font-size: 20px; font-weight: 500; color: var(--navy-dark); }
+.cp-stats .is-due strong { color: var(--danger); }
+
+.client-portal-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.cp-card {
+    padding: 16px 18px;
+    border-radius: var(--radius-md);
+    background-color: var(--gray-card);
+    box-shadow: var(--shadow-sm);
+}
+
+.cp-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 14px;
+    margin-bottom: 12px;
+    font-size: 13px;
+}
+
+.cp-toolbar .search-box { flex: 1; min-width: 220px; max-width: 420px; }
+.cp-toolbar .btn { margin-left: auto; }
+
+.cp-card .table-container { box-shadow: none; border: 1px solid var(--dk-line, #edf1f7); }
+
+.cp-pay-hint {
+    margin: 12px 0 0;
+    font-size: 12.5px;
+}
