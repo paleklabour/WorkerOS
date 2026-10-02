@@ -359,6 +359,9 @@ async function loadData() {
             payments = res.payments || [];
             receipts = res.receipts || [];
             servicePrices = res.servicePrices || [];
+            // เปลี่ยนธีมจากอีกเครื่องไว้ → ใช้ธีมล่าสุดของบัญชี (ตอนเปิดระบบ/กดรีเฟรช)
+            const me = currentUser ? users.find(u => u.id === currentUser.id) : null;
+            if (me) syncThemeFromAccount(me.theme);
 
             // Cache locally
             localStorage.setItem("mw_customers", JSON.stringify(customers));
@@ -1095,9 +1098,11 @@ async function handleLogin(e) {
                     email: result.user.email,
                     name: result.user.name,
                     role: result.user.role,
-                    customer_id: result.user.customer_id
+                    customer_id: result.user.customer_id,
+                    theme: result.user.theme || null
                 };
                 localStorage.setItem("mw_current_user", JSON.stringify(currentUser));
+                syncThemeFromAccount(result.user.theme);
                 showToast(`เข้าสู่ระบบสำเร็จในสิทธิ์ ${getRoleLabel(currentUser.role)}`, 'success');
                 await initApp();
             } else {
@@ -1614,12 +1619,36 @@ function updateThemeToggleTitle() {
     document.querySelectorAll('#theme-menu [data-theme-option]').forEach(b => b.classList.toggle('is-active', b.dataset.themeOption === currentTheme()));
 }
 
-function setTheme(name) {
+// ธีมผูกกับบัญชีผู้ใช้ (profiles.theme) — login เครื่องไหนก็ได้ธีมของตัวเอง
+// localStorage "mw_theme" เป็นแค่ค่าล่าสุดของเครื่องนี้ ไว้ให้หน้าเว็บ/หน้า login ไม่สว่างแวบก่อนรู้ว่าใครใช้งาน
+function applyThemeLocal(name) {
     if (name === 'dark' || name === 'pink') document.documentElement.setAttribute("data-theme", name);
     else document.documentElement.removeAttribute("data-theme");
-    try { localStorage.setItem("mw_theme", name); } catch (e) { /* ไม่เป็นไร แค่จำค่าไม่ได้ */ }
-    closeThemeMenu();
+    try { localStorage.setItem("mw_theme", name || 'light'); } catch (e) { /* ไม่เป็นไร แค่จำค่าไม่ได้ */ }
     updateThemeToggleTitle();
+}
+
+async function setTheme(name) {
+    applyThemeLocal(name);
+    closeThemeMenu();
+    if (currentUser && currentUser.id && window.supabaseAdapter) {
+        currentUser.theme = name;
+        try { localStorage.setItem("mw_current_user", JSON.stringify(currentUser)); } catch (e) { /* ไม่เป็นไร */ }
+        await callCloudAPI("setMyTheme", { theme: name });
+    }
+}
+
+// หลัง login / โหลดข้อมูลใหม่: ใช้ธีมที่บันทึกไว้ในบัญชี — ถ้าบัญชียังไม่เคยเลือก ให้บันทึกธีมที่ใช้อยู่ในเครื่องนี้เป็นค่าเริ่มต้น
+function syncThemeFromAccount(accountTheme) {
+    if (!currentUser || !currentUser.id || !window.supabaseAdapter) return;
+    if (accountTheme) {
+        currentUser.theme = accountTheme;
+        if (accountTheme !== currentTheme()) applyThemeLocal(accountTheme);
+    } else if (!currentUser.themeSynced) {
+        currentUser.themeSynced = true;
+        currentUser.theme = currentTheme();
+        callCloudAPI("setMyTheme", { theme: currentTheme() });
+    }
 }
 
 function toggleThemeMenu() {

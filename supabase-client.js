@@ -134,7 +134,7 @@
         }
         const { data: profile, error: profErr } = await sb
             .from("profiles")
-            .select("name, role, customer_id")
+            .select("name, role, customer_id, theme")
             .eq("id", data.user.id)
             .single();
         if (profErr || !profile) {
@@ -143,7 +143,7 @@
         }
         return {
             status: "success",
-            user: { id: data.user.id, email: data.user.email, name: profile.name, role: profile.role, customer_id: profile.customer_id }
+            user: { id: data.user.id, email: data.user.email, name: profile.name, role: profile.role, customer_id: profile.customer_id, theme: profile.theme || null }
         };
     }
 
@@ -179,7 +179,7 @@
             sb.from("workers").select("*"),
             sb.from("jobs").select("*"),
             sb.from("banks").select("*"),
-            sb.from("profiles").select("name, role, customer_id, id"),
+            sb.from("profiles").select("name, role, customer_id, id, theme"),
             sb.from("agents").select("*"),
             sb.from("expenses").select("*"),
             sb.from("free_invoices").select("*"),
@@ -216,7 +216,7 @@
             servicePrices: servicePricesRes.error ? [] : normalizeNumbers(toCamelList(servicePricesRes.data, SERVICE_PRICE_MAP), ["govFee", "serviceFee"]),
             freeInvoices: freeInvoicesRes.error ? [] : toCamelList(freeInvoicesRes.data, FREE_INVOICE_MAP),
             users: profilesRes.error ? [] : (profilesRes.data || []).map((p) => ({
-                id: p.id, email: p.id, name: p.name, role: p.role, customer_id: p.customer_id
+                id: p.id, email: p.id, name: p.name, role: p.role, customer_id: p.customer_id, theme: p.theme || null
             }))
         };
     }
@@ -582,6 +582,12 @@
                 return await upsertOne("invoices", INVOICE_MAP, payload.invoiceData);
             case "savePayment":
                 return await upsertOne("payments", PAYMENT_MAP, payload.paymentData);
+            case "setMyTheme": {
+                // แก้ได้เฉพาะธีมของแถวตัวเอง (profiles อื่น ๆ แก้ได้แค่ admin) — ดู 20261002035144_profile_theme.sql
+                const { error } = await sb.rpc("set_my_theme", { p_theme: payload.theme });
+                if (error) return { status: "error", message: error.message };
+                return { status: "success" };
+            }
             case "saveReceipt":
                 return await upsertOne("receipts", RECEIPT_MAP, payload.receiptData);
             case "saveServicePrice":
