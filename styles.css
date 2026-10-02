@@ -4671,6 +4671,9 @@ tr.is-voided-row td {
     --dk-line: #f1dfe6;
 }
 :root[data-theme="pink"] .sidebar { background-color: #fff7fa; border-right-color: var(--dk-line); }
+/* โลโก้ไฟล์เดิมมีพื้นขาว → ใช้ logo-transparent.png (พื้นโปร่งใส ตัวหนังสือสีเดิม) ให้กลืนกับพื้นชมพู */
+:root[data-theme="pink"] .brand-logo-img,
+:root[data-theme="pink"] .login-logo { content: url("assets/logo-transparent.png"); }
 /* ปุ่ม/ป้าย/แถบกราฟ ใช้สีปกติ — ยกเลิก --dk-* (initial → ใช้สีเดิมที่เป็นค่า fallback) เฉพาะในองค์ประกอบเหล่านี้ */
 :root[data-theme="pink"] :is(button, .btn, .badge, .demo-badge, .bar-track, .bar-fill, .job-worker-chip, .action-icon-btn, .stats-icon) {
     --dk-card: initial;
@@ -5094,4 +5097,191 @@ tr.is-voided-row td {
 .cp-pay-hint {
     margin: 12px 0 0;
     font-size: 12.5px;
+}
+
+/* ==================== แฟ้มเอกสารคนงาน: รายการ + พรีวิวใหญ่ (renderWorkerFolderTiles / renderWorkerFolderPreview) ==================== */
+.modal-content.fv-modal {
+    max-width: min(1280px, 96vw);
+    max-height: 94vh;
+}
+
+.fv-person {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+    padding: 12px 14px;
+    border-radius: var(--radius-md);
+    background-color: var(--dk-subtle, #f8fafc);
+    border: 1px solid var(--dk-line, #e2e8f0);
+}
+
+.fv-photo {
+    width: 92px;
+    height: 110px;
+    flex-shrink: 0;
+    padding: 0;
+    border: 2px solid var(--dk-line, #e2e8f0);
+    border-radius: 14px;
+    overflow: hidden;
+    background-color: var(--dk-line, #e2e8f0);
+    cursor: zoom-in;
+}
+
+.fv-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.fv-photo.is-active { border-color: var(--gold-primary); box-shadow: 0 0 0 3px var(--gold-light); }
+
+.fv-person-text { flex: 1; min-width: 200px; }
+.fv-person-text h4 { margin: 0 0 4px; font-size: 17px; font-weight: 600; color: var(--navy-dark); }
+.fv-person-text p { margin: 0; font-size: 12.5px; color: var(--text-muted); }
+.fv-search { flex: 0 1 300px; max-width: 100%; margin: 0; }
+
+.fv-layout {
+    display: grid;
+    grid-template-columns: minmax(260px, 340px) 1fr;
+    gap: 14px;
+    min-height: 60vh;
+}
+
+.fv-list {
+    max-height: 66vh;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.fv-group { margin-bottom: 10px; }
+
+.fv-group-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 4px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--navy-dark);
+}
+
+.fv-group-head span { flex: 1; }
+.fv-group-head b { font-size: 11.5px; color: var(--text-muted); }
+
+.fv-add {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 8px;
+    border: 1px dashed var(--gold-border);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--gold-primary);
+    font-family: inherit;
+    font-size: 11.5px;
+    cursor: pointer;
+}
+
+.fv-add:hover { background-color: var(--gold-light); }
+
+.fv-none { padding: 4px 8px 6px; font-size: 11.5px; color: var(--text-muted); }
+
+.fv-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 8px;
+    border-radius: 10px;
+    cursor: pointer;
+}
+
+.fv-item:hover { background-color: var(--gold-light); }
+.fv-item.is-active { background-color: var(--gold-light); box-shadow: inset 3px 0 0 var(--gold-primary); }
+.fv-item.is-expired { opacity: 0.7; }
+
+.fv-item .drive-tile-thumb {
+    width: 40px;
+    height: 50px;
+    flex-shrink: 0;
+    border-radius: 6px;
+    font-size: 16px;
+}
+
+.fv-item-text { min-width: 0; display: flex; flex-direction: column; }
+.fv-item-text b { font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fv-item-text small { font-size: 11px; color: var(--text-muted); }
+
+.tag-mini { display: inline-block; padding: 0 6px; border-radius: 999px; font-size: 10.5px; font-weight: 600; }
+.tag-mini.is-ok { background-color: var(--dk-ok-bg, #e5f5ed); color: var(--dk-ok, #1f9254); }
+.tag-mini.is-warn { background-color: var(--dk-warn-bg, #fff6e0); color: var(--dk-warn, #b7791f); }
+.tag-mini.is-bad { background-color: var(--dk-bad-bg, #fde8e8); color: var(--dk-bad, #d13b3b); }
+
+.fv-expired {
+    margin-top: 8px;
+    padding: 8px;
+    border: 1px dashed var(--dk-line, #cbd5e1);
+    border-radius: 12px;
+}
+
+.fv-expired h5 { margin: 0 0 6px; font-size: 12.5px; color: var(--text-muted); }
+.fv-expired h5 small { font-weight: normal; }
+.fv-empty { text-align: center; padding: 20px; }
+
+.fv-view {
+    display: flex;
+    flex-direction: column;
+    min-height: 60vh;
+    border: 1px solid var(--dk-line, #e2e8f0);
+    border-radius: var(--radius-md);
+    background-color: var(--dk-subtle, #f3f6fc);
+    overflow: hidden;
+}
+
+.fv-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 10px 12px;
+    background-color: var(--gray-card);
+    border-bottom: 1px solid var(--dk-line, #e2e8f0);
+}
+
+.fv-bar-title { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.fv-bar-title small { font-size: 11.5px; color: var(--text-muted); }
+
+.fv-name {
+    max-width: 420px;
+    padding: 4px 8px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: transparent;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--navy-dark);
+}
+
+.fv-name:hover, .fv-name:focus { border-color: var(--dk-line, #cbd5e1); background-color: var(--gray-card); outline: none; }
+
+.fv-bar-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.fv-bar-actions .drive-tile-action-btn.danger { width: auto; height: auto; }
+
+.fv-doc {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 14px;
+    min-height: 0;
+}
+
+.fv-doc img { max-width: 100%; max-height: 64vh; object-fit: contain; border-radius: 6px; box-shadow: var(--shadow-md); background: #fff; }
+.fv-doc iframe { width: 100%; height: 64vh; border: none; border-radius: 6px; background: #fff; }
+
+.fv-placeholder { margin: auto; text-align: center; color: var(--text-muted); padding: 30px; }
+.fv-placeholder .ico { width: 42px; height: 42px; }
+
+@media (max-width: 860px) {
+    .fv-layout { grid-template-columns: 1fr; }
+    .fv-list { max-height: 36vh; }
+    .fv-doc iframe { height: 55vh; }
 }

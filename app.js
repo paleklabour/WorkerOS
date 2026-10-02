@@ -9572,47 +9572,176 @@ function getAttachments(w, key) {
 }
 
 // ==================== WORKER DOCUMENTS FOLDER SYSTEM ====================
-// วาดไฟล์ตามคำค้นหาในช่อง "ค้นหาชื่อไฟล์ในแฟ้มนี้" (ถ้ามี) — เรียกซ้ำได้ทุกครั้งที่พิมพ์ โดยไม่ต้องเปิด modal ใหม่
+
+// แฟ้มเอกสารคนงาน แบบ "รายการ + พรีวิวใหญ่": รายการไฟล์แยกหมวดทางซ้าย กดแล้วแสดงเอกสารใหญ่ทางขวาทันที
+// ด้านบนแสดงรูปคนงาน (กดรูปเพื่อดูใหญ่ในช่องพรีวิว) — เลือกโดยเจ้าของระบบ 2026-10-02
+let activeFolderSel = null; // { kind: 'file', key, idx } | { kind: 'photo' }
+
+function workerFolderFileUrl(fItem) {
+    return (fItem && fItem.data) || '';
+}
+
+function isPdfUrl(url) {
+    return String(url).startsWith('data:application/pdf') || /\.pdf(\?|#|$)/i.test(String(url));
+}
+
 function renderWorkerFolderTiles() {
     const w = workers.find(item => item.id === activeFolderWorkerId);
     if (!w) return;
-
     const searchInput = document.getElementById("search-worker-folder");
     const query = searchInput ? searchInput.value.trim().toLowerCase() : "";
-    const entityName = `${w.firstName} ${w.lastName || ''}`;
+    const canAdd = can('ops');
 
-    const tiles = [];
-    const expiredTiles = [];
+    const groups = [];
+    const expiredItems = [];
+    const allFiles = [];
     WORKER_FOLDER_DOC_TYPES.forEach(file => {
         const list = getAttachments(w, file.key);
+        const items = [];
         list.forEach((fItem, fIdx) => {
             if (query && !(fItem.name || '').toLowerCase().includes(query)) return;
-            // อ้างอิงวันหมดอายุจริงที่ AI อ่านได้ตอนแนบไฟล์ (fItem.expiryDate) เป็นหลัก — ถ้าไม่มี (เอกสารประเภท
-            // ที่ไม่มีวันหมดอายุพิมพ์อยู่ หรือไฟล์เก่าก่อนมีฟีเจอร์นี้) ค่อย fallback ไปใช้ลำดับอัปโหลดแทน
             const isExpired = isWorkerDocFileExpired(fItem, fIdx, list, file.key);
-            const tile = renderWorkerDriveTile(file, fItem, fIdx, entityName, isExpired);
-            if (isExpired) expiredTiles.push(tile);
-            else tiles.push(tile);
+            allFiles.push({ key: file.key, idx: fIdx, isExpired });
+            const row = renderWorkerFolderItem(file, fItem, fIdx, isExpired);
+            if (isExpired) expiredItems.push(row); else items.push(row);
         });
-        if (!query) tiles.push(renderDriveAddTile(file.label, `triggerFolderFileUpload('${file.key}')`, `worker-folder:${file.key}`));
+        if (query && items.length === 0) return;
+        groups.push(`
+            <div class="fv-group">
+                <div class="fv-group-head">
+                    <span>${file.label}</span>
+                    <b>${items.length || ''}</b>
+                    ${canAdd ? `<button type="button" class="fv-add" onclick="triggerFolderFileUpload('${file.key}')" data-paste-target="worker-folder:${file.key}" title="แนบไฟล์: ${file.label} — คลิกเลือกไฟล์ หรือชี้แล้วกด Ctrl+V วางภาพ">${icon('plus')} แนบ</button>` : ''}
+                </div>
+                ${items.join('') || '<div class="fv-none">ยังไม่มีไฟล์</div>'}
+            </div>`);
     });
 
-    const workerFolderListEl = document.getElementById("worker-folder-files-list");
-    workerFolderListEl.innerHTML = tiles.join('') ||
-        `<p class="text-muted" style="grid-column:1/-1; text-align:center; padding:20px;">${icon("bad")} ไม่พบไฟล์ตามคำค้นหา</p>`;
-    hydratePdfThumbnails(workerFolderListEl);
+    // คงไฟล์ที่เลือกไว้ (เช่น หลังเปลี่ยนชื่อ/ลบ/แนบไฟล์ใหม่) — ถ้าไฟล์นั้นไม่อยู่แล้ว เลือกไฟล์ปัจจุบันไฟล์แรกแทน
+    const stillThere = activeFolderSel && activeFolderSel.kind === 'file' && allFiles.some(f => f.key === activeFolderSel.key && f.idx === activeFolderSel.idx);
+    if (!stillThere && !(activeFolderSel && activeFolderSel.kind === 'photo')) {
+        const first = allFiles.find(f => !f.isExpired) || allFiles[0];
+        activeFolderSel = first ? { kind: 'file', key: first.key, idx: first.idx } : (w.photo ? { kind: 'photo' } : null);
+    }
 
-    // โฟลเดอร์ "ไฟล์ที่หมดอายุ" โชว์ไว้ตลอดแม้ไม่มีไฟล์ (ไม่ซ่อน) เพื่อให้เป็นจุดลากไฟล์มาวางได้เสมอ เหมือนคอลัมน์ Kanban
+    const listEl = document.getElementById("worker-folder-files-list");
+    listEl.innerHTML = groups.join('') || `<p class="text-muted fv-empty">${icon("bad")} ไม่พบไฟล์ตามคำค้นหา</p>`;
+    hydratePdfThumbnails(listEl);
+
     const expiredSection = document.getElementById("worker-folder-expired-section");
     const expiredListEl = document.getElementById("worker-folder-expired-files-list");
     if (expiredSection && expiredListEl) {
-        expiredListEl.innerHTML = expiredTiles.join('') ||
-            `<p class="text-muted" style="grid-column:1/-1; text-align:center; padding:16px; font-size:12.5px;">ลากไฟล์จากด้านบนมาวางที่นี่เพื่อย้ายเป็น "หมดอายุ"</p>`;
+        expiredListEl.innerHTML = expiredItems.join('') || `<div class="fv-none">ลากไฟล์จากด้านบนมาวางที่นี่เพื่อย้ายเป็น "หมดอายุ"</div>`;
         hydratePdfThumbnails(expiredListEl);
         expiredSection.classList.remove("hidden");
     }
+    markWorkerFolderSelection();
+    renderWorkerFolderPreview();
 }
 
+function renderWorkerFolderItem(file, fItem, idx, isExpired) {
+    const exp = fItem.expiryDate ? safeParseDate(fItem.expiryDate) : null;
+    const days = exp ? Math.ceil((exp - new Date()) / 86400000) : null;
+    const expTag = isExpired ? '<span class="tag-mini is-bad">หมดอายุ</span>'
+        : days === null ? '' : days < 0 ? '<span class="tag-mini is-bad">หมดอายุ</span>'
+        : days <= 60 ? `<span class="tag-mini is-warn">อีก ${days} วัน</span>` : `<span class="tag-mini is-ok">ถึง ${formatThaiDate(fItem.expiryDate)}</span>`;
+    return `
+        <div class="fv-item${isExpired ? ' is-expired' : ''}" data-key="${file.key}" data-idx="${idx}" draggable="true"
+             ondragstart="onWorkerFileDragStart(event, '${file.key}', ${idx})" onclick="selectWorkerFolderFile('${file.key}', ${idx})" title="${escapeHtml(fItem.name || '')}">
+            ${renderDriveThumbnail(workerFolderFileUrl(fItem))}
+            <div class="fv-item-text"><b>${escapeHtml(fItem.name || '-')}</b><small>${fItem.uploadedAt ? formatThaiDate(String(fItem.uploadedAt).slice(0, 10)) : ''} ${expTag}</small></div>
+        </div>`;
+}
+
+function markWorkerFolderSelection() {
+    document.querySelectorAll('#worker-folder-modal .fv-item').forEach(el => {
+        el.classList.toggle('is-active', !!activeFolderSel && activeFolderSel.kind === 'file' && el.dataset.key === activeFolderSel.key && Number(el.dataset.idx) === activeFolderSel.idx);
+    });
+    const photoBtn = document.querySelector('#worker-folder-modal .fv-photo');
+    if (photoBtn) photoBtn.classList.toggle('is-active', !!activeFolderSel && activeFolderSel.kind === 'photo');
+}
+
+function selectWorkerFolderFile(key, idx) {
+    activeFolderSel = { kind: 'file', key, idx };
+    markWorkerFolderSelection();
+    renderWorkerFolderPreview();
+}
+
+function selectWorkerFolderPhoto() {
+    const w = workers.find(item => item.id === activeFolderWorkerId);
+    if (!w || !w.photo) return;
+    activeFolderSel = { kind: 'photo' };
+    markWorkerFolderSelection();
+    renderWorkerFolderPreview();
+}
+
+// ช่องพรีวิวใหญ่ทางขวา: รูป → <img>, PDF → <iframe>, ไม่รู้ชนิด → ลองเป็นรูปก่อนแล้วค่อยเปิดเป็น PDF
+function renderWorkerFolderPreview() {
+    const box = document.getElementById("worker-folder-preview");
+    const w = workers.find(item => item.id === activeFolderWorkerId);
+    if (!box || !w) return;
+    if (!activeFolderSel) {
+        box.innerHTML = `<div class="fv-placeholder">${icon('folder')}<p>ยังไม่มีเอกสารในแฟ้มนี้${can('ops') ? ' — กด "แนบ" ที่หมวดทางซ้ายเพื่อเพิ่มไฟล์' : ''}</p></div>`;
+        return;
+    }
+    if (activeFolderSel.kind === 'photo') {
+        box.innerHTML = `
+            <div class="fv-bar"><div class="fv-bar-title"><b>รูปคนงาน</b><small>${escapeHtml(`${w.firstName} ${w.lastName || ''}`)}</small></div>
+                <div class="fv-bar-actions"><a class="btn btn-sm btn-outline" href="${escapeHtml(w.photo)}" target="_blank" rel="noopener">${icon('link')} เปิดแท็บใหม่</a></div></div>
+            <div class="fv-doc"><img src="${escapeHtml(w.photo)}" alt="รูปคนงาน"></div>`;
+        return;
+    }
+    const type = WORKER_FOLDER_DOC_TYPES.find(t => t.key === activeFolderSel.key) || { label: '' };
+    const list = getAttachments(w, activeFolderSel.key);
+    const fItem = list[activeFolderSel.idx];
+    if (!fItem) { box.innerHTML = ''; return; }
+    const url = workerFolderFileUrl(fItem);
+    const canEdit = can('ops');
+    const viewer = isPdfUrl(url)
+        ? `<iframe src="${escapeHtml(url)}" title="${escapeHtml(fItem.name || '')}"></iframe>`
+        : `<img src="${escapeHtml(url)}" alt="${escapeHtml(fItem.name || '')}" onerror="this.outerHTML = '<iframe src=&quot;' + this.src + '&quot;></iframe>'">`;
+    box.innerHTML = `
+        <div class="fv-bar">
+            <div class="fv-bar-title">
+                ${canEdit ? `<input type="text" class="fv-name" value="${escapeHtml(fItem.name || '')}" title="แก้ชื่อไฟล์แล้วกด Enter" onchange="renameFolderFileIndex('${activeFolderSel.key}', ${activeFolderSel.idx}, this.value)">`
+                    : `<b>${escapeHtml(fItem.name || '-')}</b>`}
+                <small>${type.label}${fItem.expiryDate ? ` • หมดอายุ ${formatThaiDate(fItem.expiryDate)}` : ''}${fItem.note ? ` • ${escapeHtml(fItem.note)}` : ''}</small>
+            </div>
+            <div class="fv-bar-actions">
+                ${canEdit && !isPdfUrl(url) && w.photo !== url ? `<button type="button" class="btn btn-sm btn-outline" onclick="workerFolderAction('setPhoto')" title="ใช้รูปนี้เป็นรูปประจำตัวคนงาน (แสดงด้านบนแฟ้มและในตาราง)">${icon('photo')} ตั้งเป็นรูปคนงาน</button>` : ''}
+                <a class="btn btn-sm btn-outline" href="${escapeHtml(url)}" target="_blank" rel="noopener">${icon('link')} เปิดแท็บใหม่</a>
+                <button type="button" class="btn btn-sm btn-outline" onclick="workerFolderAction('download')">${icon('inbox')} ดาวน์โหลด</button>
+                <button type="button" class="btn btn-sm btn-outline" onclick="workerFolderAction('share')">${icon('link')} แชร์</button>
+                <button type="button" class="btn btn-sm btn-outline btn-danger-outline drive-tile-action-btn danger" onclick="deleteFolderFileIndex('${activeFolderSel.key}', ${activeFolderSel.idx})" title="ลบไฟล์">${icon('trash')}</button>
+            </div>
+        </div>
+        <div class="fv-doc">${viewer}</div>`;
+}
+
+// ปุ่มดาวน์โหลด/แชร์ของไฟล์ที่เลือก — ไม่ฝัง URL ยาว ๆ (บางไฟล์เป็น base64) ไว้ใน onclick
+function workerFolderAction(action) {
+    const w = workers.find(item => item.id === activeFolderWorkerId);
+    if (!w || !activeFolderSel || activeFolderSel.kind !== 'file') return;
+    const fItem = getAttachments(w, activeFolderSel.key)[activeFolderSel.idx];
+    if (!fItem) return;
+    if (action === 'download') downloadAttachment(fItem.name, workerFolderFileUrl(fItem));
+    else if (action === 'setPhoto') setWorkerPhotoFromFile(w, workerFolderFileUrl(fItem));
+    else shareAttachment(fItem.name, `${w.firstName} ${w.lastName || ''}`, workerFolderFileUrl(fItem));
+}
+
+// ตั้งรูปในแฟ้มเป็นรูปประจำตัวคนงาน (workers.photo) — ใช้แก้คนงานเก่าที่รูปไม่เคยถูกบันทึก (บั๊ก map ตกหล่น แก้ 2026-10-02)
+async function setWorkerPhotoFromFile(w, url) {
+    if (!can('ops') || !url) return;
+    const prev = w.photo;
+    w.photo = url;
+    const res = await callCloudAPI("saveWorker", { workerData: { id: w.id, firstName: w.firstName, photo: url } });
+    if (!res || res.status === "error") { w.photo = prev; return; }
+    saveData();
+    document.getElementById("worker-folder-avatar").src = url;
+    renderWorkerFolderPreview();
+    renderWorkers();
+    showToast(`🖼️ ตั้งรูปประจำตัวของ ${w.firstName} แล้ว`, "success");
+}
 // ==================== ลากไฟล์ในแฟ้มคนงานย้ายเข้า/ออกโฟลเดอร์ "ไฟล์ที่หมดอายุ" (เหมือนลากการ์ดใน Kanban) ====================
 function onWorkerFileDragStart(e, docType, idx) {
     e.dataTransfer.setData("text/plain", JSON.stringify({ docType, idx }));
@@ -9659,6 +9788,9 @@ async function moveWorkerFileExpiryState(e, markExpired) {
 }
 
 function openWorkerFolderModal(workerId) {
+    // เรียกซ้ำหลังแนบ/เปลี่ยนชื่อ/ลบไฟล์ (แฟ้มเดิมยังเปิดอยู่) → คงไฟล์ที่เลือกและคำค้นหาไว้
+    const reopening = workerId === activeFolderWorkerId && !document.getElementById("worker-folder-modal").classList.contains("hidden");
+    if (!reopening) activeFolderSel = null;
     activeFolderWorkerId = workerId;
     const w = workers.find(item => item.id === workerId);
     if (!w) return;
@@ -9672,31 +9804,11 @@ function openWorkerFolderModal(workerId) {
     document.getElementById("worker-folder-avatar").src = avatarUrl;
 
     const searchInput = document.getElementById("search-worker-folder");
-    if (searchInput) searchInput.value = '';
+    if (searchInput && !reopening) searchInput.value = '';
 
     renderWorkerFolderTiles();
     document.getElementById("btn-copy-worker-folder").setAttribute("onclick", `copyWorkerFolderLink('${w.id}')`);
     document.getElementById("worker-folder-modal").classList.remove("hidden");
-}
-
-function renderWorkerDriveTile(file, fileItem, idx, entityName, isExpired = false) {
-    const data = fileItem.data || '';
-    const safeName = (fileItem.name || '').replace(/'/g, "\\'");
-    const safeEntityName = (entityName || '').replace(/'/g, "\\'");
-    return `
-        <div class="drive-tile${isExpired ? ' drive-tile-expired' : ''}" draggable="true" ondragstart="onWorkerFileDragStart(event, '${file.key}', ${idx})">
-            <a class="drive-tile-thumb-link" href="${data}" target="_blank" rel="noopener" draggable="false">${renderDriveThumbnail(data)}</a>
-            <div class="drive-tile-body">
-                <span class="drive-tile-category" title="${file.label}">${file.label}${isExpired ? ' <span class="badge badge-danger" style="font-size:9px; vertical-align:middle;">หมดอายุ</span>' : ''}</span>
-                <input type="text" class="drive-tile-name" value="${fileItem.name}" title="${fileItem.name}" onchange="renameFolderFileIndex('${file.key}', ${idx}, this.value)">
-            </div>
-            <div class="drive-tile-actions">
-                <button type="button" class="drive-tile-action-btn" onclick="downloadAttachment('${safeName}', '${data}')" title="ดาวน์โหลด">${icon("inbox")}</button>
-                <button type="button" class="drive-tile-action-btn" onclick="shareAttachment('${safeName}', '${safeEntityName}', '${data}')" title="แชร์ลิงก์">${icon("link")}</button>
-                <button type="button" class="drive-tile-action-btn danger" onclick="deleteFolderFileIndex('${file.key}', ${idx})" title="ลบไฟล์">${icon("trash")}</button>
-            </div>
-        </div>
-    `;
 }
 
 function closeWorkerFolderModal() {

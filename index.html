@@ -2977,39 +2977,39 @@
         </div>
 
         <div id="worker-folder-modal" class="modal-backdrop hidden" style="z-index: 1050;">
-            <div class="modal-content" style="max-width: 1100px;">
+            <div class="modal-content fv-modal">
                 <div class="modal-header">
                     <h3 id="worker-folder-title"><span class="ico" data-icon="folder"></span> แฟ้มเอกสารของคนงานต่างด้าว</h3>
                     <button class="close-btn" onclick="closeWorkerFolderModal()">&times;</button>
                 </div>
                 <div class="modal-body" style="padding-top: 10px;">
                     <input type="file" id="folder-upload-input" accept="image/*,application/pdf" multiple style="display:none;" onchange="handleFolderFileUpload(event)">
-                    <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px; background-color: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0;">
-                        <div style="width: 50px; height: 50px; border-radius: 50%; overflow: hidden; background-color: #e2e8f0; border: 1px solid #cbd5e1; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-                            <img id="worker-folder-avatar" src="" style="width: 100%; height: 100%; object-fit: cover;">
+                    <!-- แฟ้มเอกสารคนงาน แบบ "รายการ + พรีวิวใหญ่" (เลือกโดยเจ้าของระบบ 2026-10-02) — ดู renderWorkerFolderTiles() / renderWorkerFolderPreview() -->
+                    <div class="fv-person">
+                        <button type="button" class="fv-photo" onclick="selectWorkerFolderPhoto()" title="ดูรูปคนงานขนาดใหญ่">
+                            <img id="worker-folder-avatar" src="" alt="รูปคนงาน">
+                        </button>
+                        <div class="fv-person-text">
+                            <h4 id="worker-folder-name"></h4>
+                            <p id="worker-folder-meta"></p>
                         </div>
-                        <div>
-                            <h4 id="worker-folder-name" style="margin: 0 0 4px 0; color: var(--navy-dark); font-size: 16px; font-weight: 600;"></h4>
-                            <p id="worker-folder-meta" style="margin: 0; font-size: 12.5px; color: var(--text-muted);"></p>
+                        <div class="search-box fv-search">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                            <input type="text" id="search-worker-folder" placeholder="ค้นหาชื่อไฟล์ในแฟ้มนี้..." oninput="renderWorkerFolderTiles()">
                         </div>
                     </div>
 
-                    <div class="search-box" style="max-width: 100%; margin-bottom: 14px;">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                        <input type="text" id="search-worker-folder" placeholder="ค้นหาชื่อไฟล์ในแฟ้มนี้..." oninput="renderWorkerFolderTiles()">
-                    </div>
-
-                    <div class="drive-grid" id="worker-folder-files-list" ondragover="onWorkerFileDragOver(event)" ondrop="onWorkerFileDropToCurrent(event)">
-                        <!-- Dynamic files will be rendered here -->
-                    </div>
-
-                    <div id="worker-folder-expired-section" class="hidden" style="margin-top: 24px;">
-                        <h4 style="margin: 0 0 10px 0; color: var(--text-muted); font-size: 14px; font-weight: 600;"><span class="ico" data-icon="folder"></span> ไฟล์ที่หมดอายุ (เอกสารเก่าที่ถูกแทนที่ แต่ยังเก็บไว้ในระบบ — ลากไฟล์มาวางที่นี่ได้)</h4>
-                        <div class="drive-grid" id="worker-folder-expired-files-list" ondragover="onWorkerFileDragOver(event)" ondrop="onWorkerFileDropToExpired(event)">
-                            <!-- Dynamic expired files will be rendered here -->
+                    <div class="fv-layout">
+                        <div class="fv-list">
+                            <div id="worker-folder-files-list" class="fv-groups" ondragover="onWorkerFileDragOver(event)" ondrop="onWorkerFileDropToCurrent(event)"></div>
+                            <div id="worker-folder-expired-section" class="fv-expired hidden">
+                                <h5><span class="ico" data-icon="folder"></span> ไฟล์ที่หมดอายุ <small>(ลากไฟล์มาวางที่นี่)</small></h5>
+                                <div id="worker-folder-expired-files-list" ondragover="onWorkerFileDragOver(event)" ondrop="onWorkerFileDropToExpired(event)"></div>
+                            </div>
                         </div>
+                        <div class="fv-view" id="worker-folder-preview"></div>
                     </div>
                 </div>
                 <div class="modal-footer" style="display: flex; gap: 10px; flex-wrap: wrap;">

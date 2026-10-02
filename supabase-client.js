@@ -43,7 +43,9 @@
         gender: "gender", position: "position", workplace: "workplace", refNo: "ref_no",
         drive_folder_id: "drive_folder_id", shareToken: "share_token",
         pinkCardNo: "pink_card_no", thaiName: "thai_name", insuranceNo: "insurance_no",
-        email: "email", skipNotifyEntry: "skip_notify_entry"
+        email: "email", skipNotifyEntry: "skip_notify_entry",
+        // มีคอลัมน์ในฐานข้อมูลตั้งแต่ 0001_init แต่ตกหล่นจาก map → รูป/ชื่อพ่อแม่ที่กรอกไม่เคยถูกบันทึก (แก้ 2026-10-02)
+        photo: "photo", fatherName: "father_name", motherName: "mother_name", attachmentNames: "attachment_names"
     };
     const JOB_MAP = {
         id: "id", customerId: "customer_id", workerId: "worker_id", jobType: "job_type",
