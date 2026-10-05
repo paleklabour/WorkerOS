@@ -1369,7 +1369,8 @@
                                     <th>ชื่อ</th>
                                     <th>อีเมล (Username)</th>
                                     <th>บทบาท (Role)</th>
-                                    <th>รหัสลูกค้า (สำหรับ role client)</th>
+                                    <th>นายจ้าง (สำหรับ role client)</th>
+                                    <th>สถานะ</th>
                                     <th style="text-align:center;">จัดการ</th>
                                 </tr>
                             </thead>
@@ -1400,7 +1401,7 @@
                                         <input type="text" id="user-password" required>
                                     </div>
                                     <p id="user-edit-note" class="text-muted hidden" style="font-size:12.5px; margin:-6px 0 12px;">
-                                        แก้ไขได้เฉพาะชื่อ/บทบาท/รหัสลูกค้า — เปลี่ยนอีเมลหรือรหัสผ่านต้องลบบัญชีนี้แล้วสร้างใหม่ (หรือใช้ระบบลืมรหัสผ่านสำหรับเปลี่ยนรหัสผ่าน)
+                                        แก้ไขได้เฉพาะชื่อ/บทบาท/นายจ้าง — เปลี่ยนรหัสผ่าน/อีเมล หรือระงับบัญชี ใช้ปุ่มในตารางผู้ใช้
                                     </p>
                                     <div class="form-group">
                                         <label for="user-role">บทบาท (Role) <span class="required">*</span></label>
@@ -1620,8 +1621,17 @@
 
                         <div id="cust-tab-general">
                         <div class="form-row">
+                            <div class="form-group col-12">
+                                <label>ประเภทนายจ้าง <span class="required">*</span></label>
+                                <div class="bt-checklist cust-entity-choice" role="radiogroup" aria-label="ประเภทนายจ้าง">
+                                    <label class="bt-option"><input type="radio" name="cust-entity-type" value="juristic" onchange="applyCustomerEntityType()"> นิติบุคคล (บริษัท/ห้างหุ้นส่วน)</label>
+                                    <label class="bt-option"><input type="radio" name="cust-entity-type" value="individual" onchange="applyCustomerEntityType()"> บุคคลธรรมดา</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-row">
                             <div class="form-group col-6">
-                                <label for="cust-tax-id">เลขประจำตัวผู้เสียภาษี / เลขทะเบียนบริษัท (13 หลัก) <span class="required">*</span></label>
+                                <label for="cust-tax-id" id="cust-tax-id-label">เลขประจำตัวผู้เสียภาษี / เลขทะเบียนบริษัท (13 หลัก) <span class="required">*</span></label>
                                 <input type="text" id="cust-tax-id" placeholder="กรอกเลขทะเบียน 13 หลัก" maxlength="13" required pattern="\d{13}">
                             </div>
                             <div class="form-group col-6">
@@ -1905,6 +1915,23 @@
         </div>
 
         <!-- ==================== MODAL: DELIVERY LABEL (ใบปะหน้า A5) ==================== -->
+        <!-- แบบ บต.46 หนังสือรับรองการจ้าง (รายบุคคล) — เติมจากข้อมูลคนงาน/นายจ้าง ช่องที่ขีดเส้นประคลิกแก้ได้ก่อนพิมพ์ -->
+        <div id="bt46-modal" class="modal-backdrop hidden">
+            <div class="modal-content printable-modal-content" style="max-width: 860px;">
+                <div class="modal-header no-print">
+                    <h3>แบบ บต.46 หนังสือรับรองการจ้าง</h3>
+                    <button class="close-btn" onclick="closeBt46Modal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="no-print bt46-toolbar">
+                        <span class="text-muted">คลิกช่องเส้นประเพื่อแก้ไข • คลิก ☐ เพื่อติ๊ก • ลายเซ็นมาจากแฟ้มนายจ้าง "ลายเซ็นนายจ้าง"</span>
+                        <button class="btn btn-gold" onclick="window.print()"><span class="ico" data-icon="print"></span> พิมพ์ (Print)</button>
+                    </div>
+                    <div class="bt46-sheet" id="bt46-sheet"></div>
+                </div>
+            </div>
+        </div>
+
         <div id="delivery-label-modal" class="modal-backdrop hidden">
             <div class="modal-content printable-modal-content" style="max-width: 520px;">
                 <div class="modal-header no-print">
@@ -2482,7 +2509,7 @@
                         <input type="hidden" id="job-close-id">
                         <p id="job-close-target-label" class="text-muted" style="font-size:13.5px; margin-bottom:12px;"></p>
                         <div class="form-group">
-                            <label for="job-close-file">แนบเอกสารยืนยันการปิดงาน <span class="required">*</span></label>
+                            <label for="job-close-file">แนบเอกสารยืนยันการปิดงาน <span class="required" id="job-close-file-required">*</span></label>
                             <input type="file" id="job-close-file" multiple required>
                         </div>
                         <div class="form-group">

@@ -538,6 +538,17 @@
         return await res.json();
     }
 
+    // -------------------- manageUser (list/set_password/change_email/suspend/unsuspend → Edge Function manage-user) --------------------
+    async function manageUser(payload) {
+        const headers = await getAuthHeaders();
+        const res = await fetch(`${FUNCTIONS_BASE}/manage-user`, {
+            method: "POST",
+            headers,
+            body: JSON.stringify(payload)
+        });
+        return await res.json();
+    }
+
     // -------------------- updateUserProfile (name/role/customer_id เท่านั้น — RLS อนุญาต admin แก้ profiles ได้ตรงๆ ไม่ต้องใช้ service role) --------------------
     async function updateUserProfile(userId, profileData) {
         const { error } = await sb.from("profiles").update({
@@ -638,6 +649,8 @@
                 return await saveUser(payload.userData, payload.pin);
             case "updateUserProfile":
                 return await updateUserProfile(payload.userId, payload.profileData);
+            case "manageUser":
+                return await manageUser(payload);
             case "deleteUser":
                 return await deleteUserAccount(payload.userId, payload.pin);
             case "deleteRecord":

@@ -2365,9 +2365,11 @@ function buildNotificationGroups() {
                 items: scope.filter(j => isJobStatusOpen(j.status) && !j.assignedTo).sort(sortNewest).map(j => bellJobItem(j)) });
             add({ key: 'new', icon: 'inbox', title: 'งานแจ้งใหม่ (รอดำเนินการ)', view: 'jobs',
                 items: scope.filter(j => j.status === 'รอดำเนินการ').sort(sortNewest).map(j => bellJobItem(j)) });
-        } else {
+        }
+        // Operation Manager ทำงานแบบ Staff ได้ด้วย — เห็น "งานของฉัน" เหมือน Staff
+        if (role !== 'admin') {
             add({ key: 'mine', icon: 'clipboard', title: 'งานของฉันที่ยังไม่ปิด', view: 'jobs',
-                items: scope.filter(j => isJobStatusOpen(j.status)).sort(sortNewest).map(j => bellJobItem(j, `${j.status} • ${(customers.find(c => c.id === j.customerId) || {}).companyName || '-'}`)) });
+                items: scope.filter(j => isJobStatusOpen(j.status) && mine(j)).sort(sortNewest).map(j => bellJobItem(j, `${j.status} • ${(customers.find(c => c.id === j.customerId) || {}).companyName || '-'}`)) });
         }
         add({ key: 'appt', icon: 'calendar', title: 'นัดหมายวันนี้ / พรุ่งนี้', view: 'jobs',
             items: scope.filter(j => isJobStatusOpen(j.status) && [today, tomorrow].includes(jobDate(j)))
@@ -3351,6 +3353,9 @@ function renderWorkers() {
                 <button class="btn btn-sm btn-gold btn-open-folder" onclick="openWorkerFolderModal('${w.id}')">
                     ${icon("folder")} เปิดแฟ้มเอกสาร
                 </button>
+                <button class="btn btn-sm btn-outline" onclick="openBt46Modal('${w.id}')" title="สร้างแบบ บต.46 หนังสือรับรองการจ้าง">
+                    ${icon("print")} บต.46
+                </button>
             </div>
         `;
 
@@ -3743,7 +3748,14 @@ function applyGeminiDataToCustomerForm(docType, parsedData) {
     };
 
     if (docType === 'cust-id-card') {
-        setVal("cust-director-id", parsedData.directorId);
+        if (getCustomerEntityType() === 'individual') {
+            // บุคคลธรรมดา: เลขบัตรประชาชนนายจ้าง = เลขประจำตัวผู้เสียภาษี, ชื่อบนบัตร = ชื่อผู้ว่าจ้าง
+            setVal("cust-tax-id", parsedData.directorId);
+            const nameInput = document.getElementById("cust-company-name");
+            if (parsedData.coordinatorName && nameInput && !nameInput.value) nameInput.value = parsedData.coordinatorName;
+        } else {
+            setVal("cust-director-id", parsedData.directorId);
+        }
         const coordInput = document.getElementById("cust-coordinator");
         if (parsedData.coordinatorName && coordInput && !coordInput.value) coordInput.value = parsedData.coordinatorName;
     } else if (docType === 'cust-cert' || docType === 'cust-commerce') {
@@ -4310,6 +4322,7 @@ function openCustomerModal(id = null) {
         document.getElementById("cust-tax-id").value = c.taxId;
         document.getElementById("cust-company-name").value = c.companyName;
         document.getElementById("cust-director-id").value = c.directorId || "";
+        applyCustomerEntityType(isIndividualCustomer(c) ? 'individual' : 'juristic');
         setCustomerBusinessTypes(c.businessType);
         document.getElementById("cust-coordinator").value = c.coordinator;
         document.getElementById("cust-phone").value = c.phone;
@@ -4324,6 +4337,7 @@ function openCustomerModal(id = null) {
     } else {
         modalTitle.innerText = "เพิ่มลูกค้า / นายจ้างใหม่";
         editIdInput.value = "";
+        applyCustomerEntityType('');
         refreshCustomerAgentDropdown();
         updateCertExpiryDisplay();
 
@@ -4476,6 +4490,77 @@ function openDeliveryLabelModal() {
     document.getElementById("delivery-label-modal").classList.remove("hidden");
 }
 
+// ==================== แบบ บต.46 หนังสือรับรองการจ้าง (รายบุคคล) ====================
+// เติมข้อมูลนายจ้าง/คนงานที่มีในระบบ ช่องที่ไม่มีข้อมูล (รายได้ ค่าจ้าง ฯลฯ) เป็นเส้นประให้คลิกพิมพ์เองก่อนพิมพ์
+// ลายเซ็น = ไฟล์ล่าสุดในแฟ้มนายจ้าง "cust-signature"
+function openBt46Modal(workerId) {
+    const w = workers.find(item => item.id === workerId);
+    if (!w) return;
+    const c = customers.find(item => item.id === w.employerId) || {};
+    const individual = isIndividualCustomer(c);
+    const sigs = getAttachments(c, 'cust-signature');
+    const sigUrl = sigs.length ? (sigs[sigs.length - 1].data || '') : '';
+    const f = (val, width) => `<span class="bt46-f" contenteditable="true" style="min-width:${width || 120}px">${escapeHtml(val || '')}</span>`;
+    const box = (on) => `<span class="bt46-box" onclick="this.textContent = this.textContent === '☑' ? '☐' : '☑'">${on ? '☑' : '☐'}</span>`;
+    const en = (t) => `<span class="bt46-en">${t}</span>`;
+    const workerName = [w.title, w.firstName, w.lastName].filter(Boolean).join(' ');
+    const address = getCustomerHQAddress(c.id) || w.workplace || '';
+    const signer = individual ? c.companyName : (c.coordinator || '');
+
+    document.getElementById("bt46-sheet").innerHTML = `
+        <div class="bt46-head">
+            <div class="bt46-formno">แบบ บต. ๔๖<br>${en('Form WP. 46')}</div>
+            <div class="bt46-title">หนังสือรับรองการจ้าง<br>${en('EMPLOYMENT CERTIFICATION')}</div>
+        </div>
+        <h4>๑. ข้อมูลนายจ้าง ${en('Particulars of employer')}</h4>
+        <p>๑.๑ ${box(!individual)} นิติบุคคลไทย จดทะเบียนเมื่อ ${f('', 120)} เลขที่ ${f(individual ? '' : c.taxId, 130)} ทุนจดทะเบียนชำระแล้ว ${f('', 100)} บาท</p>
+        <p class="bt46-ind">${box(false)} นิติบุคคลต่างด้าว จดทะเบียนเมื่อ ${f('', 120)} จำนวนเงินที่นำเข้ามาจากต่างประเทศ ${f('', 120)} บาท</p>
+        <p class="bt46-ind">${box(individual)} บุคคลธรรมดา บัตรประจำตัวประชาชนเลขที่ ${f(individual ? c.taxId : '', 150)} ใบอนุญาตทำงานเลขที่ ${f('', 110)}</p>
+        <p>ชื่อนายจ้าง/สถานประกอบการ ${en('Name of employer')} ${f(c.companyName, 380)}</p>
+        <p>ที่ตั้งสถานประกอบการ ${en('Address')} ${f(address, 470)}</p>
+        <p>ประเภทกิจการ ${en('Type of business')} ${f(String(c.businessType || '').split(BUSINESS_TYPE_SEP).join(', '), 470)}</p>
+        <p>๑.๒ สถานะด้านการเงิน ในรอบปีที่ผ่านมา ${en('Financial status of the company during the previous year')}</p>
+        <table class="bt46-table">
+            <tr><th>ปี พ.ศ.<br>${en('Years')}</th><th>รายได้<br>${en('Income')}</th><th>ภาษีเงินได้<br>${en('Tax')}</th></tr>
+            <tr><td contenteditable="true"></td><td contenteditable="true"></td><td contenteditable="true"></td></tr>
+        </table>
+        <p>รายได้ ปัจจุบัน ${en('Current income')} ${f('', 120)} บาท ในช่วงระยะเวลา ${en('For a duration of')} ${f('', 80)} เดือน</p>
+        <p>${box(false)} มูลค่าการส่งออก ${en('Value of export')} ${f('', 160)} บาท</p>
+        <p>${box(false)} ได้นำคนต่างประเทศเข้ามาท่องเที่ยวในรอบปีที่ผ่านมา ${f('', 100)} คน</p>
+        <p>${box(false)} มีพนักงานคนไทย ${en('Total number of Thai employees')} ${f('', 80)} คน</p>
+        <p>${box(true)} มีคนต่างด้าวทำงานอยู่ด้วยแล้ว ${en('Total number of foreign worker(s)')} ${f(String(workers.filter(x => x.employerId === c.id && x.status !== 'archived').length), 60)} คน</p>
+        <p>${box(false)} จำนวนห้องเรียน ${f('', 50)} ห้อง ${box(false)} จำนวนนักเรียน ${f('', 50)} คน</p>
+        <h4>๒. ข้อมูลการจ้าง ${en('Particulars of employment')}</h4>
+        <p>ข้าพเจ้าประสงค์จะจ้างคนต่างด้าวชื่อ ${en('I wish to employ a foreigner named')} ${f(workerName, 300)}</p>
+        <p>สัญชาติ ${en('Nationality')} ${f(w.nationality, 200)} หมู่โลหิต ${en('Blood type')} ${f('', 80)}</p>
+        <p>ที่อยู่ในประเทศไทย ${en('Address in Thailand')} ${f(w.workplace || address, 430)}</p>
+        <p>ประเภทงาน ${en('Type(s) of work')} ${f(w.position, 450)}</p>
+        <p>ลักษณะงาน ${en('Nature of work')} ${f('', 460)}</p>
+        <p>สถานที่ทำงานของคนต่างด้าว ${en('Place of work of the foreigner')} ${f(w.workplace || address, 330)}</p>
+        <p>ระยะเวลาการจ้าง ${f('', 50)} ปี ${f('', 50)} เดือน ${f('', 50)} วัน มีสัญญาจ้างถึงวันที่ ${f(w.permitExpiry ? formatThaiDate(w.permitExpiry) : '', 150)}</p>
+        <p>ค่าจ้างหรือรายได้ วันละ / เดือนละ ${f('', 110)} บาท ผลประโยชน์อื่น วันละ / เดือนละ ${f('', 110)} บาท</p>
+        <p>ระดับการศึกษาสูงสุด ${f('', 150)} ประสบการณ์ทำงาน ${f('', 40)} ปี สถานภาพ ${box(false)} โสด ${box(false)} สมรส</p>
+        <h4>๓. เหตุผลที่ไม่จ้างบุคคลสัญชาติไทยเข้าทำงาน ${en('Please specify the reason(s) for not employing a Thai national')}</h4>
+        <p>${f('ขาดแคลนแรงงานไทย', 640)}</p>
+        <div class="bt46-certify">ข้าพเจ้าขอรับรองว่า ข้อความข้างต้นนี้เป็นความจริงทุกประการ<br>${en('I hereby certify that all particulars given in this form are true and correct to the best of my knowledge and belief.')}</div>
+        <div class="bt46-sign">
+            <div>ลงชื่อ <span class="bt46-sigline">${sigUrl ? `<img src="${escapeHtml(sigUrl)}" alt="ลายเซ็น">` : ''}</span> นายจ้าง</div>
+            <div>( ${f(signer, 220)} )</div>
+            <div>ตำแหน่ง ${en('Title')} ${f(individual ? 'นายจ้าง' : 'กรรมการผู้มีอำนาจ', 180)}</div>
+            <div>ลงวันที่ ${en('Date')} ${f(formatThaiDate(new Date()), 180)}</div>
+        </div>
+        <div class="bt46-note">หมายเหตุ : ผู้ทำหนังสือรับรองนี้ จะต้องเป็นผู้มีอำนาจลงชื่อผูกพันสถานประกอบการ หรือได้รับมอบอำนาจให้ทำการแทน</div>
+    `;
+    if (!sigUrl) showToast("ยังไม่มีลายเซ็นนายจ้าง — อัปโหลดได้ที่แฟ้มเอกสารนายจ้าง หมวด \"ลายเซ็นนายจ้าง\"", "warning");
+    setPrintPageSize("size: A4 portrait; margin: 10mm;");
+    document.getElementById("bt46-modal").classList.remove("hidden");
+}
+
+function closeBt46Modal() {
+    document.getElementById("bt46-modal").classList.add("hidden");
+    setPrintPageSize("");
+}
+
 function closeDeliveryLabelModal() {
     document.getElementById("delivery-label-modal").classList.add("hidden");
     setPrintPageSize("");
@@ -4486,7 +4571,8 @@ async function saveCustomer(e) {
     const editId = document.getElementById("customer-edit-id").value;
     const taxId = document.getElementById("cust-tax-id").value;
     const companyName = document.getElementById("cust-company-name").value;
-    const directorId = document.getElementById("cust-director-id").value.trim();
+    if (!getCustomerEntityType()) { uiAlert("กรุณาเลือกประเภทนายจ้างก่อน: นิติบุคคล หรือ บุคคลธรรมดา"); return; }
+    const directorId = getCustomerEntityType() === 'individual' ? "" : document.getElementById("cust-director-id").value.trim();
     const businessTypes = readCustomerBusinessTypes();
     if (businessTypes.length === 0) { uiAlert("กรุณาเลือกประเภทกิจการอย่างน้อย 1 ประเภท"); return; }
     const businessType = businessTypes.join(BUSINESS_TYPE_SEP);
@@ -5167,6 +5253,30 @@ function getJobDisplayNo(job) {
 // เลขประจำตัวของนายจ้าง/ลูกค้า — มีเลขกรรมการ (directorId) แปลว่าเป็นนิติบุคคล (โชว์เลขบริษัท + เลขกรรมการ)
 // ไม่มีเลขกรรมการแปลว่าเป็นบุคคลธรรมดา (taxId คือเลขประจำตัวของตัวเขาเอง โชว์แค่เลขเดียว)
 // ใช้ร่วมกันทุกจุดที่แสดงนายจ้าง/ลูกค้าในระบบ ให้ label ตรงกับประเภทลูกค้าเสมอ
+// บุคคลธรรมดา = ไม่มีเลขกรรมการ และเลข 13 หลักไม่ได้ขึ้นต้นด้วย 0 (เลขนิติบุคคลขึ้นต้นด้วย 0 เสมอ)
+function isIndividualCustomer(cust) {
+    return !!cust && !cust.directorId && !!cust.taxId && !String(cust.taxId).startsWith('0');
+}
+
+function getCustomerEntityType() {
+    const r = document.querySelector('input[name="cust-entity-type"]:checked');
+    return r ? r.value : '';
+}
+
+// ฟอร์มลูกค้า: บุคคลธรรมดา → ปิดช่องเลขกรรมการ, ช่องเลขผู้เสียภาษีคือเลขบัตรประชาชนของนายจ้างเอง
+function applyCustomerEntityType(type) {
+    if (type !== undefined) {
+        document.querySelectorAll('input[name="cust-entity-type"]').forEach(r => { r.checked = r.value === type; });
+    }
+    const individual = getCustomerEntityType() === 'individual';
+    const dir = document.getElementById("cust-director-id");
+    dir.disabled = individual;
+    if (individual) dir.value = "";
+    document.getElementById("cust-tax-id-label").innerHTML = individual
+        ? 'เลขประจำตัวผู้เสียภาษี (เลขบัตรประชาชนนายจ้าง 13 หลัก) <span class="required">*</span>'
+        : 'เลขประจำตัวผู้เสียภาษี / เลขทะเบียนบริษัท (13 หลัก) <span class="required">*</span>';
+}
+
 function getEmployerIdParts(cust) {
     if (!cust) return [];
     if (cust.directorId) {
@@ -5620,7 +5730,7 @@ function fillJobAssigneeSelect(job) {
     sel.innerHTML = '<option value="">--- ยังไม่มอบหมาย ---</option>' +
         members.map(m => `<option value="${m.id}">${escapeHtml(m.name || '-')} — ${escapeHtml((ROLE_LABELS[m.role] || '').split(' (')[0])}</option>`).join('');
     const canAssign = can('assignJobs');
-    let value = job ? (job.assignedTo || '') : (currentUser && currentUser.role === 'staff' ? (currentUser.id || '') : '');
+    let value = job ? (job.assignedTo || '') : (currentUser && ['staff', 'operation_manager'].includes(currentUser.role) ? (currentUser.id || '') : '');
     // ผู้รับผิดชอบเดิมไม่อยู่ในรายชื่อแล้ว (ถูกลบ/เปลี่ยนตำแหน่ง) — ยังแสดงชื่อไว้ไม่ให้ค่าหาย
     if (value && !members.some(m => m.id === value)) sel.insertAdjacentHTML('beforeend', `<option value="${value}">${escapeHtml(getUserNameById(value))}</option>`);
     sel.value = value;
@@ -6602,12 +6712,21 @@ async function syncWorkerStatusForExitJob(job, targetStatus) {
     return { applied: true };
 }
 
+// ประเภทงานที่ปิดงานได้โดยไม่ต้องแนบเอกสาร/รูปยืนยัน
+const JOB_CLOSE_NO_FILE_TYPES = ["ออกใบรับรองแพทย์"];
+function jobCloseNeedsFile(j) {
+    return !JOB_CLOSE_NO_FILE_TYPES.includes(getCleanJobTypeName(j.jobType));
+}
+
 function openJobCloseModal(jobId) {
     const j = jobs.find(item => item.id === jobId);
     if (!j) return;
     if (!canEditJob(j)) { showToast("❌ ปิดงานได้เฉพาะงานที่ตัวเองเปิดหรือได้รับมอบหมาย", "danger"); return; }
 
     document.getElementById("job-close-id").value = jobId;
+    const needsFile = jobCloseNeedsFile(j);
+    document.getElementById("job-close-file").required = needsFile;
+    document.getElementById("job-close-file-required").classList.toggle("hidden", !needsFile);
     document.getElementById("job-close-file").value = "";
     document.getElementById("job-close-note").value = "";
     const cust = customers.find(c => c.id === j.customerId);
@@ -6631,7 +6750,7 @@ async function submitCloseJob(e) {
 
     const fileInput = document.getElementById("job-close-file");
     const note = document.getElementById("job-close-note").value.trim();
-    if (!fileInput.files || fileInput.files.length === 0) {
+    if (jobCloseNeedsFile(j) && (!fileInput.files || fileInput.files.length === 0)) {
         uiAlert("กรุณาแนบเอกสารยืนยันการปิดงานก่อน");
         return;
     }
@@ -6968,35 +7087,126 @@ async function saveBank(e) {
 }
 
 // ==================== USERS MANAGEMENT (Admin only) ====================
+// ข้อมูลจาก Supabase Auth (อีเมลจริง / เข้าระบบล่าสุด / ระงับ) — โหลดผ่าน Edge Function manage-user เฉพาะ Admin
+let userAuthInfo = null;
+let userAuthInfoLoading = false;
+
+async function loadUserAuthInfo(force = false) {
+    if (!currentUser || currentUser.role !== 'admin' || userAuthInfoLoading || (userAuthInfo && !force)) return;
+    userAuthInfoLoading = true;
+    try {
+        const res = await callCloudAPI("manageUser", { action: "list" });
+        if (res && res.status === "success") {
+            userAuthInfo = {};
+            (res.data || []).forEach(a => { userAuthInfo[a.id] = a; });
+        } else if (!userAuthInfo) {
+            userAuthInfo = {};
+        }
+    } catch (err) {
+        if (!userAuthInfo) userAuthInfo = {};
+    } finally {
+        userAuthInfoLoading = false;
+    }
+    renderUsers();
+}
+
 function renderUsers() {
     const tbody = document.getElementById("users-tbody");
     if (!tbody) return;
+    if (!userAuthInfo) loadUserAuthInfo();
+    const auth = userAuthInfo || {};
 
     const searchEl = document.getElementById("search-user");
     const search = searchEl ? searchEl.value.trim().toLowerCase() : "";
+    const emailOf = u => (auth[u.id] && auth[u.id].email) || (String(u.email || '').includes('@') ? u.email : '');
 
     const filtered = users.filter(u => {
         if (!search) return true;
-        return (u.name || "").toLowerCase().includes(search) || (u.email || "").toLowerCase().includes(search);
+        return (u.name || "").toLowerCase().includes(search) || emailOf(u).toLowerCase().includes(search);
     });
 
     if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:24px; color:var(--text-muted);">ไม่พบบัญชีผู้ใช้งาน</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:24px; color:var(--text-muted);">ไม่พบบัญชีผู้ใช้งาน</td></tr>`;
         return;
     }
 
-    tbody.innerHTML = filtered.map(u => `
+    tbody.innerHTML = filtered.map(u => {
+        const a = auth[u.id] || {};
+        const safeName = (u.name || '').replace(/'/g, "\\'");
+        const isSelf = u.id === currentUser.id;
+        const status = !userAuthInfo ? '<span class="text-muted">กำลังโหลด...</span>'
+            : a.suspended ? '<span class="badge badge-danger">ระงับอยู่</span>'
+            : `<span class="badge badge-success">ใช้งานได้</span><div class="text-muted" style="font-size:11.5px;">${a.lastSignInAt ? 'เข้าล่าสุด ' + formatThaiDate(a.lastSignInAt, true) : 'ยังไม่เคยเข้าระบบ'}</div>`;
+        return `
         <tr>
-            <td>${u.name || '-'}</td>
-            <td>${u.email || '-'}</td>
+            <td>${escapeHtml(u.name || '-')}</td>
+            <td>${escapeHtml(emailOf(u) || '-')}</td>
             <td><span class="badge">${getRoleLabel(u.role)}</span></td>
-            <td>${u.role === 'client' ? (u.customer_id || '-') : '-'}</td>
-            <td style="text-align:center;">
-                <button class="action-icon-btn" onclick="openUserModal('${u.id}')" title="แก้ไข">${icon("edit")}</button>
-                ${u.id !== currentUser.id ? `<button class="action-icon-btn delete-btn" onclick="deleteUserAccountUi('${u.id}', '${(u.name || '').replace(/'/g, "\\'")}')" title="ลบบัญชี">${icon("trash")}</button>` : ''}
+            <td>${u.role === 'client' ? escapeHtml((customers.find(c => c.id === u.customer_id) || {}).companyName || u.customer_id || '-') : '-'}</td>
+            <td>${status}</td>
+            <td style="text-align:center; white-space:nowrap;">
+                <button class="action-icon-btn" onclick="openUserModal('${u.id}')" title="แก้ไขชื่อ/บทบาท">${icon("edit")}</button>
+                <button class="action-icon-btn" onclick="adminSetUserPassword('${u.id}', '${safeName}')" title="ตั้งรหัสผ่านใหม่">${icon("lock")}</button>
+                <button class="action-icon-btn" onclick="adminChangeUserEmail('${u.id}', '${safeName}')" title="เปลี่ยนอีเมลเข้าระบบ">${icon("outbox")}</button>
+                ${isSelf ? '' : a.suspended
+                    ? `<button class="action-icon-btn" onclick="adminToggleUserSuspend('${u.id}', '${safeName}', false)" title="เปิดใช้งานบัญชี">${icon("unlock")}</button>`
+                    : `<button class="action-icon-btn" onclick="adminToggleUserSuspend('${u.id}', '${safeName}', true)" title="ระงับบัญชีชั่วคราว">${icon("ban")}</button>`}
+                ${isSelf ? '' : `<button class="action-icon-btn delete-btn" onclick="deleteUserAccountUi('${u.id}', '${safeName}')" title="ลบบัญชี">${icon("trash")}</button>`}
             </td>
-        </tr>
-    `).join('');
+        </tr>`;
+    }).join('');
+}
+
+async function askAdminPin() {
+    return await uiPrompt("กรอกรหัส PIN เพื่อยืนยัน:", { inputType: "password", placeholder: "PIN", okText: "ยืนยัน" });
+}
+
+async function runManageUser(payload, okMsg) {
+    showToast("กำลังบันทึก...", "warning");
+    const res = await callCloudAPI("manageUser", payload);
+    if (!res || res.status === "error") {
+        showToast("❌ ไม่สำเร็จ: " + (res && res.message ? res.message : "unknown error"), "danger");
+        return false;
+    }
+    showToast(okMsg, "success");
+    await loadUserAuthInfo(true);
+    return true;
+}
+
+// ตั้งรหัสผ่านใหม่ทันที ไม่ต้องส่งอีเมล (ไม่ติดโควตาอีเมลของ Supabase)
+async function adminSetUserPassword(userId, userName) {
+    if (currentUser.role !== 'admin') return;
+    const password = await uiPrompt(`ตั้งรหัสผ่านใหม่ให้ "${userName}" (อย่างน้อย 8 ตัวอักษร):`, { inputType: "password", placeholder: "รหัสผ่านใหม่", okText: "ถัดไป" });
+    if (!password) return;
+    if (password.length < 8) { uiAlert("รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร"); return; }
+    const again = await uiPrompt("พิมพ์รหัสผ่านใหม่อีกครั้ง:", { inputType: "password", placeholder: "ยืนยันรหัสผ่าน", okText: "ถัดไป" });
+    if (!again) return;
+    if (again !== password) { uiAlert("รหัสผ่านทั้งสองครั้งไม่ตรงกัน"); return; }
+    const pin = await askAdminPin();
+    if (!pin) return;
+    await runManageUser({ action: "set_password", userId, pin, password }, `ตั้งรหัสผ่านใหม่ให้ "${userName}" แล้ว — แจ้งรหัสให้เจ้าของบัญชี`);
+}
+
+async function adminChangeUserEmail(userId, userName) {
+    if (currentUser.role !== 'admin') return;
+    const current = (userAuthInfo && userAuthInfo[userId] && userAuthInfo[userId].email) || '';
+    const email = await uiPrompt(`อีเมลเข้าระบบใหม่ของ "${userName}"${current ? ` (ปัจจุบัน: ${current})` : ''}:`, { placeholder: "name@example.com", okText: "ถัดไป" });
+    if (!email) return;
+    const pin = await askAdminPin();
+    if (!pin) return;
+    await runManageUser({ action: "change_email", userId, pin, email }, `เปลี่ยนอีเมลของ "${userName}" แล้ว — ใช้อีเมลใหม่เข้าระบบได้ทันที`);
+}
+
+// ระงับ = เข้าระบบไม่ได้ แต่บัญชี/ประวัติงานยังอยู่ (ต่างจากลบบัญชี) — เปิดใช้ใหม่ได้ทุกเมื่อ
+async function adminToggleUserSuspend(userId, userName, suspend) {
+    if (currentUser.role !== 'admin') return;
+    const msg = suspend
+        ? `ระงับบัญชี "${userName}" หรือไม่? ผู้ใช้จะเข้าระบบไม่ได้จนกว่าจะเปิดใช้ใหม่ (ข้อมูลและประวัติงานยังอยู่ครบ)`
+        : `เปิดใช้งานบัญชี "${userName}" อีกครั้งหรือไม่?`;
+    if (!(await uiConfirm(msg, { okText: suspend ? "ระงับบัญชี" : "เปิดใช้งาน" }))) return;
+    const pin = await askAdminPin();
+    if (!pin) return;
+    await runManageUser({ action: suspend ? "suspend" : "unsuspend", userId, pin }, suspend ? `ระงับบัญชี "${userName}" แล้ว` : `เปิดใช้งานบัญชี "${userName}" แล้ว`);
 }
 
 function toggleUserCustomerField() {
@@ -8568,6 +8778,7 @@ const CUSTOMER_DOC_TYPES = [
     { key: "employer-house", label: "ทะเบียนบ้านนายจ้าง", icon: "home" },
     { key: "cust-photos", label: "รูปถ่ายกิจการ", icon: "photo" },
     { key: "cust-commerce", label: "ทะเบียนพาณิชย์ (ถ้ามี)", icon: "briefcase" },
+    { key: "cust-signature", label: "ลายเซ็นนายจ้าง (ใช้ใน บต.46)", icon: "edit" },
     { key: "cust-other", label: "เอกสารอื่นๆ", icon: "clip" }
 ];
 
@@ -8764,7 +8975,8 @@ function triggerCustomerFolderFileUpload(docType) {
 function applyOcrDataToCustomer(c, docType, p) {
     if (!p) return;
     if (docType === 'cust-id-card') {
-        if (p.directorId) c.directorId = p.directorId;
+        if (p.directorId && isIndividualCustomer(c)) c.taxId = p.directorId;
+        else if (p.directorId) c.directorId = p.directorId;
         if (p.coordinatorName && !c.coordinator) c.coordinator = p.coordinatorName;
     } else if (docType === 'cust-cert' || docType === 'cust-commerce') {
         if (p.companyName) c.companyName = p.companyName;
