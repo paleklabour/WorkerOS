@@ -5,6 +5,7 @@ let currentJobView = 'table';
 // Mock database structures
 let customers = [];
 let workers = [];
+let hiddenWorkers = []; // คนงานของนายจ้างที่ถูกปิดใช้งาน (inactive) — ซ่อนจากทุกหน้าของระบบ ดู applyInactiveEmployers()
 let jobs = [];
 let banks = [];
 let users = [];
@@ -372,6 +373,8 @@ async function loadData() {
             payments = res.payments || [];
             receipts = res.receipts || [];
             servicePrices = res.servicePrices || [];
+            hiddenWorkers = [];
+            applyInactiveEmployers();
             // เปลี่ยนธีมจากอีกเครื่องไว้ → ใช้ธีมล่าสุดของบัญชี (ตอนเปิดระบบ/กดรีเฟรช)
             const me = currentUser ? users.find(u => u.id === currentUser.id) : null;
             if (me) syncThemeFromAccount(me.theme);
@@ -383,7 +386,7 @@ async function loadData() {
 
             // Cache locally
             localStorage.setItem("mw_customers", JSON.stringify(customers));
-            localStorage.setItem("mw_workers", JSON.stringify(workers));
+            localStorage.setItem("mw_workers", JSON.stringify(allWorkers()));
             localStorage.setItem("mw_jobs", JSON.stringify(jobs));
             localStorage.setItem("mw_banks", JSON.stringify(banks));
             localStorage.setItem("mw_users", JSON.stringify(users));
@@ -409,6 +412,8 @@ async function loadData() {
     if (cachedCustomers && cachedWorkers && cachedJobs && cachedBanks) {
         customers = JSON.parse(cachedCustomers);
         workers = JSON.parse(cachedWorkers);
+        hiddenWorkers = [];
+        applyInactiveEmployers();
         jobs = JSON.parse(cachedJobs);
         banks = sortBanks(JSON.parse(cachedBanks));
         const cachedAgents = localStorage.getItem("mw_agents");
@@ -486,9 +491,51 @@ async function refreshAppData() {
     }
 }
 
+// นายจ้างที่ Admin ปิดใช้งาน (customers.status = 'inactive') → ย้ายคนงานของนายจ้างนั้นไปเก็บใน hiddenWorkers
+// ทุกหน้าที่อ่าน `workers` จึงไม่เห็นคนงานกลุ่มนี้เลย (รายชื่อ แดชบอร์ด กระดิ่ง ต่ออายุ เลือกคนงานในใบงาน ฯลฯ)
+function allWorkers() {
+    return workers.concat(hiddenWorkers);
+}
+
+function isCustomerInactive(c) {
+    return !!c && c.status === 'inactive';
+}
+
+function applyInactiveEmployers() {
+    const inactive = new Set(customers.filter(isCustomerInactive).map(c => c.id));
+    const all = allWorkers();
+    workers = all.filter(w => !inactive.has(w.employerId));
+    hiddenWorkers = all.filter(w => inactive.has(w.employerId));
+}
+
+async function toggleCustomerActive(customerId) {
+    if (currentUser.role !== 'admin') { showToast("❌ เฉพาะ Admin เท่านั้น", "danger"); return; }
+    const c = customers.find(item => item.id === customerId);
+    if (!c) return;
+    const deactivate = !isCustomerInactive(c);
+    const count = allWorkers().filter(w => w.employerId === c.id).length;
+    const msg = deactivate
+        ? `ปิดใช้งานนายจ้าง "${c.companyName}"? คนงาน ${count} คนของนายจ้างนี้จะไม่แสดงในระบบ (ข้อมูลยังอยู่ครบ เปิดใช้งานใหม่ได้ทุกเมื่อ)`
+        : `เปิดใช้งานนายจ้าง "${c.companyName}" อีกครั้ง? คนงาน ${count} คนจะกลับมาแสดงในระบบ`;
+    if (!(await uiConfirm(msg, { okText: deactivate ? "ปิดใช้งาน" : "เปิดใช้งาน" }))) return;
+
+    const updated = Object.assign({}, c, { status: deactivate ? 'inactive' : 'active' });
+    const res = await callCloudAPI("saveCustomer", { customerData: updated });
+    if (!res || res.status === "error") {
+        showToast("❌ บันทึกไม่สำเร็จ: " + (res && res.message ? res.message : "unknown error"), "danger");
+        return;
+    }
+    Object.assign(c, { status: updated.status });
+    applyInactiveEmployers();
+    saveData();
+    renderCustomers();
+    renderWorkers();
+    showToast(deactivate ? `ปิดใช้งาน "${c.companyName}" แล้ว` : `เปิดใช้งาน "${c.companyName}" แล้ว`, "success");
+}
+
 function saveData() {
     localStorage.setItem("mw_customers", JSON.stringify(customers));
-    localStorage.setItem("mw_workers", JSON.stringify(workers));
+    localStorage.setItem("mw_workers", JSON.stringify(allWorkers()));
     localStorage.setItem("mw_jobs", JSON.stringify(jobs));
     localStorage.setItem("mw_banks", JSON.stringify(banks));
     localStorage.setItem("mw_agents", JSON.stringify(agents));
@@ -816,6 +863,28 @@ async function initApp() {
 // getLabel/getSub: item -> ข้อความหลัก/รองที่โชว์ในรายการแนะนำ — ค่าที่คลิกแล้วเติมลงช่องค้นหาคือ getLabel เสมอ
 // renderFn: ฟังก์ชัน render ตารางเดิมของหน้านั้น (เรียกซ้ำหลังเลือกคำแนะนำ เพื่อกรองตารางทันที)
 const _searchSuggestRegistered = new Set();
+
+// ปุ่มลูกศรขึ้น/ลง เลื่อนเลือกรายการใน dropdown + Enter เลือก, Esc ปิด — ใช้ร่วมกันทั้ง registerSearchSuggest/registerSearchSelect
+// รายการที่เลือกได้ต้องมี data-idx (บรรทัด "ไม่พบข้อมูล" ไม่มี จึงข้ามไปเอง)
+function attachSuggestKeyboard(input, dropdown, pick, hide, reopen) {
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') { hide(); return; }
+        if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && dropdown.classList.contains('hidden') && reopen) reopen();
+        const items = Array.from(dropdown.querySelectorAll('.search-suggest-item[data-idx]'));
+        if (dropdown.classList.contains('hidden') || items.length === 0) return;
+        let cur = items.findIndex(el => el.classList.contains('active'));
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            cur = e.key === 'ArrowDown' ? (cur + 1) % items.length : (cur <= 0 ? items.length - 1 : cur - 1);
+            items.forEach((el, i) => el.classList.toggle('active', i === cur));
+            items[cur].scrollIntoView({ block: 'nearest' });
+        } else if (e.key === 'Enter' && cur >= 0) {
+            e.preventDefault();
+            pick(Number(items[cur].dataset.idx));
+        }
+    });
+}
+
 function registerSearchSuggest(inputId, getItems, getLabel, getSub, renderFn) {
     if (_searchSuggestRegistered.has(inputId)) return; // กัน event listener ซ้อนถ้า initApp() ถูกเรียกมากกว่า 1 ครั้ง (logout แล้ว login ใหม่)
     const input = document.getElementById(inputId);
@@ -850,11 +919,11 @@ function registerSearchSuggest(inputId, getItems, getLabel, getSub, renderFn) {
 
         if (matches.length === 0) { hide(); return; }
 
-        dropdown.innerHTML = matches.map((item) => {
+        dropdown.innerHTML = matches.map((item, idx) => {
             const label = getLabel(item) || '';
             const sub = getSub(item) || '';
             return `
-                <div class="search-suggest-item">
+                <div class="search-suggest-item" data-idx="${idx}">
                     <span class="search-suggest-label">${label}</span>
                     ${sub ? `<span class="search-suggest-sub">${sub}</span>` : ''}
                 </div>
@@ -862,23 +931,27 @@ function registerSearchSuggest(inputId, getItems, getLabel, getSub, renderFn) {
         }).join('');
         dropdown.classList.remove('hidden');
 
+        currentMatches = matches;
         Array.from(dropdown.children).forEach((el, idx) => {
             el.addEventListener('mousedown', (e) => {
                 e.preventDefault(); // กันไม่ให้ input blur ก่อนที่ click จะทำงาน
-                input.value = getLabel(matches[idx]) || '';
-                hide();
-                renderFn();
-                input.focus();
+                pick(idx);
             });
         });
+    }
+
+    let currentMatches = [];
+    function pick(idx) {
+        input.value = getLabel(currentMatches[idx]) || '';
+        hide();
+        renderFn();
+        input.focus();
     }
 
     input.addEventListener('input', showSuggestions);
     input.addEventListener('focus', showSuggestions);
     input.addEventListener('blur', () => setTimeout(hide, 150));
-    input.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') hide();
-    });
+    attachSuggestKeyboard(input, dropdown, pick, hide, showSuggestions);
 }
 
 // รวบรวมใบงาน (ใช้ทั้งหน้า "ระบบแจ้งงาน" และแท็บ "ออกบิล/รับเงิน") เป็นรายการแนะนำที่มี label/sub
@@ -897,8 +970,10 @@ function setupAllSearchSuggestions() {
     registerSearchSuggest('search-customer', () => customers,
         c => c.companyName, c => c.taxId, renderCustomers);
 
-    registerSearchSuggest('search-worker', () => workers,
-        w => `${w.firstName || ''} ${w.lastName || ''}`.trim(), w => w.workerUid || w.passportNo, renderWorkers);
+    // ช่องค้นหาคนงานแนะนำทั้งชื่อคนงานและชื่อนายจ้าง (แทน dropdown กรองนายจ้างเดิม) — renderWorkers() ค้นชื่อนายจ้างอยู่แล้ว
+    registerSearchSuggest('search-worker', () => workers.map(w => ({ label: `${w.firstName || ''} ${w.lastName || ''}`.trim(), sub: w.workerUid || w.passportNo }))
+            .concat(customers.filter(c => !isCustomerInactive(c)).map(c => ({ label: c.companyName, sub: `นายจ้าง${c.taxId ? ' · ' + c.taxId : ''}` }))),
+        x => x.label, x => x.sub, renderWorkers);
 
     registerSearchSuggest('search-job', buildJobSuggestItems,
         x => x.label, x => x.sub, renderJobs);
@@ -981,13 +1056,13 @@ function registerSearchSelect(key, config) {
             return;
         }
 
-        dropdown.innerHTML = matches.map((item) => {
+        dropdown.innerHTML = matches.map((item, idx) => {
             const label = cfg.getLabel(item) || '';
             const sub = cfg.getSub ? cfg.getSub(item) : '';
             const badge = cfg.getBadge ? cfg.getBadge(item) : '';
             const subLine = [sub, badge].filter(Boolean).join(' · ');
             return `
-                <div class="search-suggest-item">
+                <div class="search-suggest-item" data-idx="${idx}">
                     <span class="search-suggest-label">${label}</span>
                     ${subLine ? `<span class="search-suggest-sub">${subLine}</span>` : ''}
                 </div>
@@ -995,14 +1070,21 @@ function registerSearchSelect(key, config) {
         }).join('');
         dropdown.classList.remove('hidden');
 
+        currentMatches = matches;
         Array.from(dropdown.children).forEach((el, idx) => {
             el.addEventListener('mousedown', (e) => {
                 e.preventDefault(); // กันไม่ให้ input blur ก่อนที่ click จะทำงาน
-                selectSearchSelectItem(key, cfg.getId(matches[idx]));
-                hide();
-                input.focus();
+                pick(idx);
             });
         });
+    }
+
+    let currentMatches = [];
+    function pick(idx) {
+        const cfg = searchSelectConfigs[key];
+        selectSearchSelectItem(key, cfg.getId(currentMatches[idx]));
+        hide();
+        input.focus();
     }
 
     input.addEventListener('input', () => {
@@ -1016,9 +1098,7 @@ function registerSearchSelect(key, config) {
     });
     input.addEventListener('focus', showOptions);
     input.addEventListener('blur', () => setTimeout(hide, 150));
-    input.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') hide();
-    });
+    attachSuggestKeyboard(input, dropdown, pick, hide, showOptions);
 }
 
 // เลือกรายการโดยตรงด้วย id (ใช้ตอนคลิกเลือกจาก dropdown หรือเลือกให้อัตโนมัติจากโค้ด เช่น
@@ -2866,7 +2946,10 @@ function viewEmployerAlertedWorkers(employerId) {
     switchView('workers');
     const selectEmp = document.getElementById("filter-worker-employer");
     if (selectEmp) {
-        selectEmp.value = employerId;
+        selectEmp.value = "";
+        const searchWorker = document.getElementById("search-worker");
+        const empRec = customers.find(c => c.id === employerId);
+        if (searchWorker) searchWorker.value = empRec ? empRec.companyName : "";
     }
     const selectStatus = document.getElementById("filter-worker-employment-status");
     if (selectStatus) {
@@ -2936,10 +3019,14 @@ function renderCustomers() {
     fillCustomerFilterOptions();
     const businessFilter = (document.getElementById("filter-customer-business") || {}).value || '';
     const provinceFilter = (document.getElementById("filter-customer-province") || {}).value || '';
+    const entityFilter = (document.getElementById("filter-customer-entity") || {}).value || '';
 
     // Filter
     const filtered = customers.filter(c => {
         const isDeleted = c.status === 'deleted';
+        if (entityFilter === 'inactive' && !isCustomerInactive(c)) return false;
+        if (entityFilter === 'individual' && !isIndividualCustomer(c)) return false;
+        if (entityFilter === 'juristic' && isIndividualCustomer(c)) return false;
         if (businessFilter && !customerBusinessTypes(c).includes(businessFilter)) return false;
         if (provinceFilter && !customerProvinces(c).includes(provinceFilter)) return false;
         if (!query) {
@@ -2995,12 +3082,18 @@ function renderCustomers() {
         }
 
         // ไม่มีปุ่มดินสอ (แก้ไข) แล้ว — ดับเบิลคลิกที่แถวเพื่อเปิดข้อมูล/แก้ไขนายจ้างแทน (เหมือนตารางคนงาน)
-        const activeWorkersCount = workers.filter(w => w.employerId === c.id && w.status !== 'archived' && w.status !== 'deleted').length;
-        const totalWorkersCount = workers.filter(w => w.employerId === c.id && w.status !== 'deleted').length;
-        
+        const activeWorkersCount = allWorkers().filter(w => w.employerId === c.id && w.status !== 'archived' && w.status !== 'deleted').length;
+        const totalWorkersCount = allWorkers().filter(w => w.employerId === c.id && w.status !== 'deleted').length;
+
         const statusLabel = c.status === 'deleted' ?
             ' <span class="badge" style="background-color: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); font-size: 11.5px; padding: 2px 6px; margin-left: 4px;">ลบแล้ว/เก็บถาวร</span>' :
+            isCustomerInactive(c) ? ' <span class="badge badge-danger" style="font-size: 11.5px; padding: 2px 6px; margin-left: 4px;">ปิดใช้งาน (Inactive)</span>' :
             '';
+        if (currentUser.role === 'admin') {
+            deleteBtn = (isCustomerInactive(c)
+                ? `<button class="action-icon-btn" onclick="toggleCustomerActive('${c.id}')" title="เปิดใช้งานนายจ้าง">${icon("unlock")}</button>`
+                : `<button class="action-icon-btn" onclick="toggleCustomerActive('${c.id}')" title="ปิดใช้งานนายจ้าง (ซ่อนคนงานของนายจ้างนี้)">${icon("ban")}</button>`) + deleteBtn;
+        }
         const prepaymentLabel = c.requirePrepayment ?
             ' <span class="badge" style="background-color: #fffbeb; color: #92400e; border: 1px solid #fde68a; font-size: 11.5px; padding: 2px 6px; margin-left: 4px;" title="ต้องออกบิลและรับชำระก่อนย้ายใบงานเข้ากำลังดำเนินการ">' + icon("moneybag") + ' ต้องชำระก่อนดำเนินการ</span>' :
             '';
@@ -4632,7 +4725,7 @@ async function saveCustomer(e) {
             const oldDriveId = customers[idx].drive_folder_id || "";
             const oldAttachments = JSON.parse(JSON.stringify(customers[idx].attachments || {}));
             customerData = {
-                id: editId, taxId, companyName, directorId, businessType, coordinator, phone, referredByAgentId, billingNote, requirePrepayment, certIssueDate, certExpiry, deliveryAddress, branches: customerBranches, createdAt: oldCreatedAt, drive_folder_id: oldDriveId, attachments: oldAttachments
+                id: editId, status: customers[idx].status || "active", taxId, companyName, directorId, businessType, coordinator, phone, referredByAgentId, billingNote, requirePrepayment, certIssueDate, certExpiry, deliveryAddress, branches: customerBranches, createdAt: oldCreatedAt, drive_folder_id: oldDriveId, attachments: oldAttachments
             };
         }
     } else {
@@ -8340,7 +8433,7 @@ const BACKUP_COLLECTIONS = [
     { key: 'agents', label: 'Agent', save: 'saveAgent', payloadKey: 'agentData', get: () => agents, set: v => { agents = v; } },
     { key: 'banks', label: 'บัญชีธนาคาร', save: 'saveBank', payloadKey: 'bankData', get: () => banks, set: v => { banks = v; } },
     { key: 'customers', label: 'นายจ้าง', save: 'saveCustomer', payloadKey: 'customerData', get: () => customers, set: v => { customers = v; } },
-    { key: 'workers', label: 'คนงาน', save: 'saveWorker', payloadKey: 'workerData', get: () => workers, set: v => { workers = v; } },
+    { key: 'workers', label: 'คนงาน', save: 'saveWorker', payloadKey: 'workerData', get: () => allWorkers(), set: v => { workers = v; hiddenWorkers = []; } },
     // บิลต้องกู้คืนก่อนงาน (jobs.invoice_id อ้างถึงบิล) และก่อนการรับเงิน (payments.invoice_id)
     { key: 'invoices', label: 'บิล', save: 'saveInvoice', payloadKey: 'invoiceData', get: () => invoices, set: v => { invoices = v; } },
     { key: 'jobs', label: 'งาน', save: 'saveJob', payloadKey: 'jobData', get: () => jobs, set: v => { jobs = v; } },
@@ -8802,30 +8895,119 @@ function renderCustomerFolderTiles() {
     const searchInput = document.getElementById("search-customer-folder");
     const query = searchInput ? searchInput.value.trim().toLowerCase() : "";
 
-    const tiles = [];
+    const canAdd = can('ops');
+    const groups = [];
+    const allFiles = [];
     CUSTOMER_DOC_TYPES.forEach(docInfo => {
+        const items = [];
         getAttachments(c, docInfo.key).forEach((fItem, fIdx) => {
             if (query && !(fItem.name || '').toLowerCase().includes(query)) return;
-            tiles.push(renderCustomerDriveTile(docInfo, fItem, fIdx, c.companyName));
+            allFiles.push({ key: docInfo.key, idx: fIdx });
+            items.push(`
+                <div class="fv-item" data-key="${docInfo.key}" data-idx="${fIdx}" onclick="selectCustomerFolderFile('${docInfo.key}', ${fIdx})" title="${escapeHtml(fItem.name || '')}">
+                    ${renderDriveThumbnail(fItem.data || '')}
+                    <div class="fv-item-text"><b>${escapeHtml(fItem.name || '-')}</b><small>${fItem.uploadedAt ? formatThaiDate(String(fItem.uploadedAt).slice(0, 10)) : ''}</small></div>
+                </div>`);
         });
-        if (!query) tiles.push(renderDriveAddTile(docInfo.label, `triggerCustomerFolderFileUpload('${docInfo.key}')`, `customer-folder:${docInfo.key}`, docInfo.icon, `cameraCustomerFolderUpload('${docInfo.key}')`));
+        if (query && items.length === 0) return;
+        groups.push(`
+            <div class="fv-group">
+                <div class="fv-group-head">
+                    <span>${icon(docInfo.icon)} ${docInfo.label}</span>
+                    <b>${items.length || ''}</b>
+                    ${canAdd ? `<button type="button" class="fv-add" onclick="triggerCustomerFolderFileUpload('${docInfo.key}')" data-paste-target="customer-folder:${docInfo.key}" title="แนบไฟล์: ${docInfo.label} — คลิกเลือกไฟล์ หรือชี้แล้วกด Ctrl+V วางภาพ">${icon('plus')} แนบ</button>` : ''}${canAdd && isCameraDevice() ? cameraButtonHtml(`cameraCustomerFolderUpload('${docInfo.key}')`, 'fv-cam') : ''}
+                </div>
+                ${items.join('') || '<div class="fv-none">ยังไม่มีไฟล์</div>'}
+            </div>`);
     });
 
-    const customerFolderListEl = document.getElementById("customer-folder-files-list");
-    customerFolderListEl.innerHTML = tiles.join('') ||
-        `<p class="text-muted" style="grid-column:1/-1; text-align:center; padding:20px;">${icon("bad")} ไม่พบไฟล์ตามคำค้นหา</p>`;
-    hydratePdfThumbnails(customerFolderListEl);
+    // คงไฟล์ที่เลือกไว้ (หลังแนบ/เปลี่ยนชื่อ/ลบ) — ถ้าไม่อยู่แล้ว เลือกไฟล์แรกแทน
+    const sel = activeCustomerFolderSel;
+    if (!(sel && allFiles.some(f => f.key === sel.key && f.idx === sel.idx))) {
+        activeCustomerFolderSel = allFiles[0] ? { key: allFiles[0].key, idx: allFiles[0].idx } : null;
+    }
+
+    const listEl = document.getElementById("customer-folder-files-list");
+    listEl.innerHTML = groups.join('') || `<p class="text-muted fv-empty">${icon("bad")} ไม่พบไฟล์ตามคำค้นหา</p>`;
+    hydratePdfThumbnails(listEl);
+    markCustomerFolderSelection();
+    renderCustomerFolderPreview();
+}
+
+let activeCustomerFolderSel = null; // { key, idx } ไฟล์ที่เลือกดูในแฟ้มนายจ้าง
+
+function markCustomerFolderSelection() {
+    const sel = activeCustomerFolderSel;
+    document.querySelectorAll('#customer-folder-modal .fv-item').forEach(el => {
+        el.classList.toggle('is-active', !!sel && el.dataset.key === sel.key && Number(el.dataset.idx) === sel.idx);
+    });
+}
+
+function selectCustomerFolderFile(key, idx) {
+    activeCustomerFolderSel = { key, idx };
+    markCustomerFolderSelection();
+    renderCustomerFolderPreview();
+}
+
+// ช่องพรีวิวใหญ่ทางขวา (เหมือน renderWorkerFolderPreview)
+function renderCustomerFolderPreview() {
+    const box = document.getElementById("customer-folder-preview");
+    const c = customers.find(item => item.id === activeFolderCustomerId);
+    if (!box || !c) return;
+    const sel = activeCustomerFolderSel;
+    if (!sel) {
+        box.innerHTML = `<div class="fv-placeholder">${icon('folder')}<p>ยังไม่มีเอกสารในแฟ้มนี้${can('ops') ? ' — กด "แนบ" ที่หมวดทางซ้ายเพื่อเพิ่มไฟล์' : ''}</p></div>`;
+        return;
+    }
+    const type = CUSTOMER_DOC_TYPES.find(t => t.key === sel.key) || { label: '' };
+    const fItem = getAttachments(c, sel.key)[sel.idx];
+    if (!fItem) { box.innerHTML = ''; return; }
+    const url = fItem.data || '';
+    const canEdit = can('ops');
+    const viewer = isPdfUrl(url)
+        ? `<iframe src="${escapeHtml(url)}" title="${escapeHtml(fItem.name || '')}"></iframe>`
+        : `<img src="${escapeHtml(url)}" alt="${escapeHtml(fItem.name || '')}" onerror="this.outerHTML = '<iframe src=&quot;' + this.src + '&quot;></iframe>'">`;
+    box.innerHTML = `
+        <div class="fv-bar">
+            <div class="fv-bar-title">
+                ${canEdit ? `<input type="text" class="fv-name" value="${escapeHtml(fItem.name || '')}" title="แก้ชื่อไฟล์แล้วกด Enter" onchange="renameCustomerFolderFileIndex('${sel.key}', ${sel.idx}, this.value)">`
+                    : `<b>${escapeHtml(fItem.name || '-')}</b>`}
+                <small>${type.label}</small>
+            </div>
+            <div class="fv-bar-actions">
+                <a class="btn btn-sm btn-outline" href="${escapeHtml(url)}" target="_blank" rel="noopener">${icon('link')} เปิดแท็บใหม่</a>
+                <button type="button" class="btn btn-sm btn-outline" onclick="customerFolderAction('download')">${icon('inbox')} ดาวน์โหลด</button>
+                <button type="button" class="btn btn-sm btn-outline" onclick="customerFolderAction('share')">${icon('link')} แชร์</button>
+                <button type="button" class="btn btn-sm btn-outline btn-danger-outline drive-tile-action-btn danger" onclick="deleteCustomerFolderFileIndex('${sel.key}', ${sel.idx})" title="ลบไฟล์">${icon('trash')}</button>
+            </div>
+        </div>
+        <div class="fv-doc">${viewer}</div>`;
+}
+
+function customerFolderAction(action) {
+    const c = customers.find(item => item.id === activeFolderCustomerId);
+    const sel = activeCustomerFolderSel;
+    if (!c || !sel) return;
+    const fItem = getAttachments(c, sel.key)[sel.idx];
+    if (!fItem) return;
+    if (action === 'download') downloadAttachment(fItem.name, fItem.data || '');
+    else shareAttachment(fItem.name, c.companyName, fItem.data || '');
 }
 
 function openCustomerFolderModal(customerId) {
+    // เรียกซ้ำหลังแนบ/เปลี่ยนชื่อ/ลบไฟล์ (แฟ้มเดิมยังเปิดอยู่) → คงไฟล์ที่เลือกและคำค้นหาไว้
+    const reopening = customerId === activeFolderCustomerId && !document.getElementById("customer-folder-modal").classList.contains("hidden");
+    if (!reopening) activeCustomerFolderSel = null;
     activeFolderCustomerId = customerId;
     const c = customers.find(item => item.id === customerId);
     if (!c) return;
 
     document.getElementById("customer-folder-name").innerText = c.companyName || "ไม่ระบุชื่อบริษัท";
-    document.getElementById("customer-folder-meta").innerText = `เลขผู้เสียภาษี: ${c.taxId || '-'}`;
+    const workerCount = allWorkers().filter(w => w.employerId === c.id && w.status !== 'deleted').length;
+    document.getElementById("customer-folder-meta").innerText =
+        `${isIndividualCustomer(c) ? 'บุคคลธรรมดา' : 'นิติบุคคล'} | เลขผู้เสียภาษี: ${c.taxId || '-'} | ผู้ประสานงาน: ${c.coordinator || '-'} | คนงาน ${workerCount} คน`;
     const searchInput = document.getElementById("search-customer-folder");
-    if (searchInput) searchInput.value = '';
+    if (searchInput && !reopening) searchInput.value = '';
 
     renderCustomerFolderTiles();
     document.getElementById("customer-folder-modal").classList.remove("hidden");
@@ -9157,7 +9339,10 @@ function filterWorkersByEmployer(employerId) {
     switchView('workers');
     const selectEmp = document.getElementById("filter-worker-employer");
     if (selectEmp) {
-        selectEmp.value = employerId;
+        selectEmp.value = "";
+        const searchWorker = document.getElementById("search-worker");
+        const empRec = customers.find(c => c.id === employerId);
+        if (searchWorker) searchWorker.value = empRec ? empRec.companyName : "";
     }
     const selectStatus = document.getElementById("filter-worker-employment-status");
     if (selectStatus) {

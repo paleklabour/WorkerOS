@@ -192,3 +192,13 @@ Imported 2026-08-17 from an Antigravity-generated export
 snapshot). No prior git history existed. Restructured 2026-08-17 to version
 schema via `supabase/migrations/` and isolate the legacy GAS backend under
 `legacy/`, ahead of setting up GitHub + GitHub Pages.
+
+## Inactive employers (2026-10-05)
+
+Admin can deactivate an employer (`customers.status` = `active`/`inactive`,
+`toggleCustomerActive`). Workers of inactive employers are moved out of the
+global `workers` array into `hiddenWorkers` (`applyInactiveEmployers()`), so
+every page that reads `workers` skips them automatically. Use `allWorkers()`
+only where the full list is truly needed (localStorage cache, backup, the
+employer's own worker counts). Call `applyInactiveEmployers()` after changing
+any customer's status.

@@ -588,6 +588,12 @@
                             </div>
                             <div class="filter-box">
                             <!-- ตัวกรองประเภทธุรกิจ / จังหวัด (ตัวเลือกสร้างจากข้อมูลนายจ้างที่มีจริง ดู fillCustomerFilterOptions) -->
+                            <select id="filter-customer-entity" class="select-filter" onchange="customersCurrentPage = 1; renderCustomers()">
+                                <option value="">นิติบุคคล + บุคคลธรรมดา</option>
+                                <option value="juristic">นิติบุคคล</option>
+                                <option value="individual">บุคคลธรรมดา</option>
+                                <option value="inactive">ปิดใช้งาน (Inactive)</option>
+                            </select>
                             <select id="filter-customer-business" class="select-filter" onchange="customersCurrentPage = 1; renderCustomers()">
                                 <option value="">ทุกประเภทธุรกิจ</option>
                             </select>
@@ -639,7 +645,7 @@
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                                     </svg>
-                                    <input type="text" id="search-worker" placeholder="ค้นหาชื่อ-นามสกุล, เลขคนงาน, พาสปอร์ต..." oninput="renderWorkers()">
+                                    <input type="text" id="search-worker" placeholder="ค้นหาชื่อ-นามสกุล, เลขคนงาน, พาสปอร์ต, ชื่อนายจ้าง..." oninput="renderWorkers()">
                                 </div>
                                 <div class="filter-box">
                                     <select id="filter-worker-nationality" onchange="renderWorkers()">
@@ -649,7 +655,7 @@
                                         <option value="Laos">ลาว (Laos)</option>
                                         <option value="Vietnam">เวียดนาม (Vietnam)</option>
                                     </select>
-                                    <select id="filter-worker-employer" onchange="renderWorkers()">
+                                    <select id="filter-worker-employer" class="hidden" onchange="renderWorkers()">
                                         <option value="">ทุกนายจ้าง/บริษัท</option>
                                         <!-- Dynamic employers list -->
                                     </select>
@@ -2985,27 +2991,33 @@
         <!-- ==================== MODAL: WORKER DOCUMENTS FOLDER ==================== -->
         <!-- ==================== MODAL: CUSTOMER (นายจ้าง/ลูกค้าผู้ว่าจ้าง) DOCUMENTS FOLDER ==================== -->
         <div id="customer-folder-modal" class="modal-backdrop hidden" style="z-index: 1050;">
-            <div class="modal-content" style="max-width: 1100px;">
+            <div class="modal-content fv-modal">
                 <div class="modal-header">
                     <h3><span class="ico" data-icon="folder"></span> แฟ้มเอกสารของนายจ้าง / ลูกค้าผู้ว่าจ้าง</h3>
                     <button class="close-btn" onclick="closeCustomerFolderModal()">&times;</button>
                 </div>
                 <div class="modal-body" style="padding-top: 10px;">
                     <input type="file" id="customer-folder-upload-input" accept="image/*,application/pdf" multiple style="display:none;" onchange="handleCustomerFolderFileUpload(event)">
-                    <div style="margin-bottom: 20px; background-color: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0;">
-                        <h4 id="customer-folder-name" style="margin: 0 0 4px 0; color: var(--navy-dark); font-size: 16px; font-weight: 600;"></h4>
-                        <p id="customer-folder-meta" style="margin: 0; font-size: 13px; color: var(--text-muted);"></p>
+                    <!-- แฟ้มเอกสารนายจ้าง แบบ "รายการ + พรีวิวใหญ่" เหมือนแฟ้มคนงาน — ดู renderCustomerFolderTiles() / renderCustomerFolderPreview() -->
+                    <div class="fv-person">
+                        <div class="fv-photo fv-photo-icon"><span class="ico" data-icon="building"></span></div>
+                        <div class="fv-person-text">
+                            <h4 id="customer-folder-name"></h4>
+                            <p id="customer-folder-meta"></p>
+                        </div>
+                        <div class="search-box fv-search">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                            <input type="text" id="search-customer-folder" placeholder="ค้นหาชื่อไฟล์ในแฟ้มนี้..." oninput="renderCustomerFolderTiles()">
+                        </div>
                     </div>
 
-                    <div class="search-box" style="max-width: 100%; margin-bottom: 14px;">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                        <input type="text" id="search-customer-folder" placeholder="ค้นหาชื่อไฟล์ในแฟ้มนี้..." oninput="renderCustomerFolderTiles()">
-                    </div>
-
-                    <div class="drive-grid" id="customer-folder-files-list">
-                        <!-- Dynamic files will be rendered here -->
+                    <div class="fv-layout">
+                        <div class="fv-list">
+                            <div id="customer-folder-files-list" class="fv-groups"></div>
+                        </div>
+                        <div class="fv-view" id="customer-folder-preview"></div>
                     </div>
                 </div>
                 <div class="modal-footer" style="display:flex; gap:8px; flex-wrap:wrap;">

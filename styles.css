@@ -5140,6 +5140,7 @@ tr.is-voided-row td {
 
 .fv-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .fv-photo.is-active { border-color: var(--gold-primary); box-shadow: 0 0 0 3px var(--gold-light); }
+.fv-photo-icon { width: 72px; height: 72px; cursor: default; display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 30px; background-color: var(--dk-subtle, #f1f5f9); }
 
 .fv-person-text { flex: 1; min-width: 200px; }
 .fv-person-text h4 { margin: 0 0 4px; font-size: 17px; font-weight: 600; color: var(--navy-dark); }
