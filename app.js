@@ -13477,7 +13477,45 @@ function cashBalance() {
 // ---------- ราคามาตรฐาน (ภายใน): ค่าธรรมเนียมรัฐ + ค่าบริการ + ต้นทุน ต่อประเภทงาน ----------
 // ต้นทุน (costItems) = รายจ่ายของบริษัทต่องาน ที่ไม่ใช่ค่าธรรมเนียมรัฐ เช่น ค่าตรวจโรค ค่าแปล ค่าเดินทาง
 // กำไรต่องานโดยประมาณ = ค่าบริการ − ต้นทุนรวม (ค่าธรรมเนียมรัฐเป็นเงินเก็บแทน ไม่นับเป็นรายได้/ต้นทุน)
-const COST_ITEM_SUGGESTIONS = ['ค่าตรวจโรค/ใบรับรองแพทย์', 'ค่าแปลเอกสาร', 'ค่าเดินทาง', 'ค่าส่งเอกสาร/ไปรษณีย์', 'ค่าถ่ายเอกสาร/ปริ้น', 'ค่ารูปถ่าย', 'ค่าประกันสุขภาพ', 'ค่าคอม Agent', 'ค่านายหน้า/ผู้ประสานงาน', 'อื่นๆ'];
+const COST_ITEM_SUGGESTIONS = ['ค่าตรวจโรค/ใบรับรองแพทย์', 'ค่าแปลเอกสาร', 'ค่าเดินทาง', 'ค่าส่งเอกสาร/ไปรษณีย์', 'ค่าถ่ายเอกสาร/ปริ้น', 'ค่ารูปถ่าย', 'ค่าประกันสุขภาพ', 'ค่าคอม Agent', 'ค่านายหน้า/ผู้ประสานงาน'];
+// ชื่อที่ไม่แนะนำเป็นต้นทุน: "อื่นๆ" (กว้างเกินไป) และค่าธรรมเนียมรัฐ (มีช่อง "ค่าธรรมเนียมรัฐ (เก็บแทน)" ของตัวเองแล้ว ไม่นับเป็นต้นทุน)
+const COST_ITEM_EXCLUDED = /^(อื่น\s*ๆ|อื่นๆ)$|ค่าธรรมเนียม\s*(รัฐ|ราชการ)/;
+
+// รายชื่อต้นทุนที่แนะนำ = รายการสำเร็จรูป + ชื่อที่เคยพิมพ์ไว้ในประเภทงานอื่น
+function costItemSuggestions() {
+    const names = new Set(COST_ITEM_SUGGESTIONS);
+    servicePrices.forEach(p => (p.costItems || []).forEach(c => c.name && names.add(c.name.trim())));
+    return [...names].filter(n => n && !COST_ITEM_EXCLUDED.test(n));
+}
+
+// ช่องชื่อต้นทุน: dropdown แนะนำแบบเดียวกับช่องค้นหาอื่นในระบบ (.search-suggest-dropdown) แทน <datalist> ของเบราว์เซอร์
+// ช่องถูกสร้างใหม่ทุกครั้งที่วาดแถวต้นทุน จึงผูกทีละช่องหลังวาด (data-suggest-bound กันผูกซ้ำ)
+function bindCostNameSuggest(root) {
+    (root || document).querySelectorAll('input.price-cost-name:not([data-suggest-bound])').forEach(input => {
+        input.dataset.suggestBound = '1';
+        if (input.disabled) return;
+        const box = input.closest('.search-box');
+        if (!box) return;
+        const dropdown = document.createElement('div');
+        dropdown.className = 'search-suggest-dropdown hidden';
+        box.appendChild(dropdown);
+        let matches = [];
+        const hide = () => { dropdown.classList.add('hidden'); dropdown.innerHTML = ''; };
+        const pick = (idx) => { input.value = matches[idx] || input.value; hide(); input.focus(); };
+        const show = () => {
+            const q = input.value.trim().toLowerCase();
+            matches = costItemSuggestions().filter(n => !q || n.toLowerCase().includes(q)).slice(0, 30);
+            if (!matches.length) { hide(); return; }
+            dropdown.innerHTML = matches.map((n, idx) => `<div class="search-suggest-item" data-idx="${idx}"><span class="search-suggest-label">${escapeHtml(n)}</span></div>`).join('');
+            dropdown.classList.remove('hidden');
+            Array.from(dropdown.children).forEach((el, idx) => el.addEventListener('mousedown', (e) => { e.preventDefault(); pick(idx); }));
+        };
+        input.addEventListener('input', show);
+        input.addEventListener('focus', show);
+        input.addEventListener('blur', () => setTimeout(hide, 150));
+        attachSuggestKeyboard(input, dropdown, pick, hide, show);
+    });
+}
 
 function costItemsTotal(items) {
     return round2((items || []).reduce((s, c) => s + (Number(c.amount) || 0), 0));
@@ -13489,12 +13527,6 @@ function renderServicePrices() {
     const canEdit = can('finance');
     const types = Array.from(document.querySelectorAll("input[name='job-type-checkbox']")).map(cb => cb.value);
     servicePrices.forEach(p => { if (!types.includes(p.jobType)) types.push(p.jobType); });
-
-    // ชื่อต้นทุนที่แนะนำ = รายการสำเร็จรูป + ชื่อที่เคยพิมพ์ไว้ในประเภทงานอื่น
-    const names = new Set(COST_ITEM_SUGGESTIONS);
-    servicePrices.forEach(p => (p.costItems || []).forEach(c => c.name && names.add(c.name)));
-    const datalist = document.getElementById("cost-item-suggestions");
-    if (datalist) datalist.innerHTML = [...names].map(n => `<option value="${escapeHtml(n)}"></option>`).join('');
 
     tbody.innerHTML = types.map((t, i) => {
         const p = getServicePrice(t) || { govFee: 0, serviceFee: 0, costItems: [] };
@@ -13517,13 +13549,14 @@ function renderServicePrices() {
             </tr>`;
     }).join('');
     types.forEach((t, i) => updateServicePriceTotal(i));
+    bindCostNameSuggest(tbody);
 }
 
 function renderCostItemsEditor(i, costs, canEdit) {
     const dis = canEdit ? '' : 'disabled';
     const rows = costs.map((c, k) => `
         <div class="price-cost-item">
-            <input type="text" class="price-cost-name" id="sp-cost-name-${i}-${k}" list="cost-item-suggestions" placeholder="ชื่อต้นทุน เช่น ค่าตรวจโรค" value="${escapeHtml(c.name || '')}" ${dis}>
+            <div class="search-box price-cost-name-box"><input type="text" class="price-cost-name" id="sp-cost-name-${i}-${k}" placeholder="ชื่อต้นทุน เช่น ค่าตรวจโรค" autocomplete="off" value="${escapeHtml(c.name || '')}" ${dis}></div>
             <input type="number" min="0" step="0.01" class="price-input" id="sp-cost-amt-${i}-${k}" value="${Number(c.amount) || 0}" ${dis} oninput="updateServicePriceTotal(${i})">
             ${canEdit ? `<button type="button" class="btn btn-sm btn-outline btn-danger-outline" onclick="removeServicePriceCost(${i}, ${k})" title="ลบรายการนี้">${icon('trash')}</button>` : ''}
         </div>`).join('');
@@ -13550,6 +13583,7 @@ function readServicePriceCosts(i, keepEmpty) {
 function rerenderServicePriceCosts(i, costs) {
     const panel = document.getElementById(`sp-cost-panel-${i}`);
     panel.innerHTML = renderCostItemsEditor(i, costs, panel.dataset.canEdit === '1');
+    bindCostNameSuggest(panel);
     updateServicePriceTotal(i);
 }
 

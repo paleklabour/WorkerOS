@@ -211,3 +211,11 @@ Admin/Account Manager can set or undo it (`markJobNoCharge` /
 `unmarkJobNoCharge`; DB trigger `guard_job_no_charge`). Use
 `jobAwaitingBill(j)` — not `!getJobInvoice(j)` — anywhere you mean "still
 needs a bill". No-charge jobs carry no agent commission.
+
+## Cache-busting on deploy (2026-10-06)
+
+GitHub Pages serves everything with `Cache-Control: max-age=600`, so after a
+push browsers can keep the old `app.js`/`styles.css` for ~10 minutes (and mix
+them with a newer `index.html`). `index.html` loads them as
+`styles.css?v=…` / `supabase-client.js?v=…` / `app.js?v=…` — bump that `v`
+value (all three together) in any commit that changes those files.

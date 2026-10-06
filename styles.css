@@ -6971,3 +6971,7 @@ body.has-camera .upload-hint { display: none; }
     color: var(--text-muted);
 }
 .renewal-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+/* ช่องชื่อต้นทุนในราคามาตรฐาน — ใช้ dropdown แบบ .search-suggest-dropdown (bindCostNameSuggest) แต่ไม่มีไอคอนแว่นขยาย */
+.search-box.price-cost-name-box { width: 260px; max-width: 100%; }
+.search-box.price-cost-name-box input.price-cost-name { width: 100%; padding: 7px 10px; border-radius: 10px; }
