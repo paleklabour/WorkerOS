@@ -64,7 +64,9 @@
         commissionAmount: "commission_amount", commissionPaidAt: "commission_paid_at", commissionExpenseId: "commission_expense_id",
         assignedTo: "assigned_to",
         // งานไม่เรียกเก็บเงิน (20261006090000_job_no_charge.sql)
-        noChargeReason: "no_charge_reason", noChargeBy: "no_charge_by", noChargeAt: "no_charge_at"
+        noChargeReason: "no_charge_reason", noChargeBy: "no_charge_by", noChargeAt: "no_charge_at",
+        // หมายเหตุสั้น ≤ 20 ตัวอักษร (20261006140000_job_remark.sql)
+        remark: "remark"
     };
     const AGENT_MAP = { id: "id", name: "name", phone: "phone", createdAt: "created_at", defaultCommission: "default_commission" };
     const EXPENSE_MAP = {
@@ -506,6 +508,11 @@
                 return { status: "error", aiRejected: true, ocrError: ocr.ocrError, message: "AI อ่านเอกสารไม่สำเร็จ ยังไม่ได้บันทึกไฟล์" };
             }
             parsedData = ocr.parsedData;
+        }
+        // options.confirmParsed(parsedData) = ถามผู้ใช้หลัง AI อ่านเสร็จ ก่อนอัปโหลดจริง — ตอบ false = ยกเลิก ไม่เก็บไฟล์
+        // (เช่น เลข 13 หลักในเอกสารไม่ตรงกับคนงาน — ดู confirmWorkerUidChange ใน app.js)
+        if (typeof options.confirmParsed === "function" && parsedData && !(await options.confirmParsed(parsedData))) {
+            return { status: "cancelled", message: "ผู้ใช้ยกเลิก ไม่ได้อัปโหลดไฟล์" };
         }
         // options.nameFromOcr(parsedData) = ตั้งชื่อไฟล์ใหม่จากข้อมูลที่ AI อ่านได้ (เช่น ใบอนุญาตทำงาน → เลข 13 หลัก_ชื่อ)
         if (typeof options.nameFromOcr === "function") {

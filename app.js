@@ -4244,13 +4244,13 @@ function applyGeminiTitleToWorkerForm(parsedData) {
 
 // กฎอ่านเอกสาร (2026-10-06): AI อ่านเลขประจำตัวคนต่างด้าว 13 หลักจากเอกสารที่แนบได้ แต่ไม่ตรงกับเลขเดิมของคนงาน
 // → ถามก่อนพร้อมชื่อ + เลข 13 หลักของเดิมและของใหม่ว่าจะเปลี่ยนไหม (อาจแนบเอกสารผิดคน)
-// คืน true = ใช้ข้อมูลจากเอกสาร (รวมเลขใหม่), false = คงข้อมูลเดิม ไม่เอาข้อมูลจากเอกสารนี้ไปกรอก (ไฟล์ยังแนบไว้)
+// คืน true = อัปโหลด + ใช้ข้อมูลจากเอกสาร (รวมเลขใหม่), false = ไม่อัปโหลดไฟล์เลย คงข้อมูลเดิม (ส่งเป็น options.confirmParsed ให้ uploadFile)
 async function confirmWorkerUidChange(old, parsed, fileName) {
     const digits = v => String(v || '').replace(/\D/g, '');
     const oldUid = digits(old.uid), newUid = digits(parsed && parsed.uid);
     if (oldUid.length !== 13 || newUid.length !== 13 || oldUid === newUid) return true;
     const name = (f, l) => `${f || ''} ${l || ''}`.trim() || '-';
-    return uiConfirm(`เลขประจำตัวคนต่างด้าว 13 หลักในเอกสาร${fileName ? ` "${fileName}"` : ''} ไม่ตรงกับข้อมูลเดิมของคนงาน — อาจแนบเอกสารผิดคน\nต้องการเปลี่ยนเป็นข้อมูลจากเอกสารนี้หรือไม่?`, {
+    return uiConfirm(`เลขประจำตัวคนต่างด้าว 13 หลักในเอกสาร${fileName ? ` "${fileName}"` : ''} ไม่ตรงกับข้อมูลเดิมของคนงาน — อาจแนบเอกสารผิดคน\nต้องการอัปโหลดและเปลี่ยนเป็นข้อมูลจากเอกสารนี้หรือไม่? (กด "ไม่อัปโหลด" = ไม่เก็บไฟล์นี้ และคงข้อมูลเดิม)`, {
         title: 'เลข 13 หลักไม่ตรงกับข้อมูลเดิม',
         summary: [
             { heading: 'ข้อมูลเดิม' },
@@ -4261,7 +4261,7 @@ async function confirmWorkerUidChange(old, parsed, fileName) {
             { label: 'เลขประจำตัว 13 หลัก', value: newUid },
         ],
         okText: 'เปลี่ยนเป็นข้อมูลใหม่',
-        cancelText: 'ไม่เปลี่ยน (คงข้อมูลเดิม)',
+        cancelText: 'ไม่อัปโหลด',
         danger: false
     });
 }
@@ -4579,7 +4579,17 @@ function processUploadedFile(file, docType) {
             const known = { uid: workerUid, firstName: document.getElementById("worker-first-name").value.trim(), lastName: document.getElementById("worker-last-name").value.trim() };
             let fileName = workerDocFileName(known.uid, known.firstName, known.lastName, docType, suffix, ext);
 
-            const uploadResult = await uploadDocumentFile(fileContent, fileName, employerId, editId, docType, workerDocNameOptions(known, docType, suffix, ext));
+            // เลข 13 หลักในเอกสารไม่ตรงกับในฟอร์ม → ถามก่อนอัปโหลด (กด "ไม่อัปโหลด" = ไม่เก็บไฟล์)
+            const uploadResult = await uploadDocumentFile(fileContent, fileName, employerId, editId, docType, {
+                ...workerDocNameOptions(known, docType, suffix, ext),
+                confirmParsed: (p) => confirmWorkerUidChange(known, p, file.name)
+            });
+            if (uploadResult && uploadResult.cancelled) {
+                renderWorkerAttachmentStatus(docType);
+                statusEl.insertAdjacentHTML('afterbegin', `<span class="ai-error">${icon("warn", "amber")} ไม่ได้อัปโหลด "${escapeHtml(file.name)}" — เลข 13 หลักไม่ตรงกับคนงานนี้</span>`);
+                resolve();
+                return;
+            }
             if (uploadResult && uploadResult.fileName) fileName = uploadResult.fileName;
             if (uploadResult && uploadResult.aiRejected) {
                 renderWorkerAttachmentStatus(docType);
@@ -4594,13 +4604,8 @@ function processUploadedFile(file, docType) {
             tempWorkerAttachments[docType] = updatedList;
 
             if (uploadResult && uploadResult.parsedData) {
-                const formOld = { uid: workerUid, firstName: known.firstName, lastName: known.lastName };
-                if (await confirmWorkerUidChange(formOld, uploadResult.parsedData, fileName)) {
-                    applyGeminiDataToWorkerForm(docType, uploadResult.parsedData);
-                    showToast("✨ AI อ่านข้อมูลจากเอกสารและกรอกฟอร์มให้อัตโนมัติแล้ว กรุณาตรวจสอบความถูกต้องอีกครั้ง", "success");
-                } else {
-                    showToast("คงข้อมูลเดิมไว้ — ไฟล์ยังแนบอยู่ แต่ไม่นำข้อมูลจากเอกสารนี้ไปกรอก", "warning");
-                }
+                applyGeminiDataToWorkerForm(docType, uploadResult.parsedData);
+                showToast("✨ AI อ่านข้อมูลจากเอกสารและกรอกฟอร์มให้อัตโนมัติแล้ว กรุณาตรวจสอบความถูกต้องอีกครั้ง", "success");
             }
 
             if (uploadResult) {
@@ -5925,8 +5930,10 @@ function renderJobs() {
                 <td><strong>${getJobDisplayNo(j)}</strong>${batchBadge}</td>
                 <td><span class="badge badge-gold">${cleanJobType}</span>${siblingPills}</td>
                 <td><div class="employer-name">${custName}</div>${custIdLines}${agentLine}</td>
-                <td>${workName}</td>
-                <td>${work && work.email ? work.email : '<span class="text-muted">-</span>'}</td>
+                <td>${workName}${work && work.email ? `<div class="job-worker-email">${escapeHtml(work.email)}</div>` : ''}</td>
+                <td onclick="event.stopPropagation()">${canEditJob(j)
+                    ? `<input type="text" class="job-remark-input" id="job-remark-${j.id}" maxlength="20" value="${escapeHtml(j.remark || '')}" placeholder="หมายเหตุ" title="หมายเหตุสั้น ไม่เกิน 20 ตัวอักษร — พิมพ์แล้วกด Enter หรือคลิกที่อื่นเพื่อบันทึก" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}" onchange="saveJobRemark('${j.id}', this)">`
+                    : (j.remark ? escapeHtml(j.remark) : '<span class="text-muted">-</span>')}</td>
                 <td><span class="badge ${statusClass}">${displayStatus}</span><br>${paymentBadge}${prepaymentBadge}</td>
                 <td onclick="event.stopPropagation()">
                     <div class="order-no-field${j.orderNo ? ' is-locked' : ''}">
@@ -5981,6 +5988,26 @@ function handleJobOrderNoButton(jobId) {
     }
 }
 
+// หมายเหตุสั้นต่อใบงาน (≤ 20 ตัวอักษร, jobs.remark) — พิมพ์ในตารางระบบจัดการแจ้งงานแล้วบันทึกทันที
+async function saveJobRemark(jobId, input) {
+    const j = jobs.find(item => item.id === jobId);
+    if (!j || !canEditJob(j)) return;
+    const remark = String(input.value || '').trim().slice(0, 20);
+    input.value = remark;
+    if ((j.remark || '') === remark) return;
+    const jobData = Object.assign({}, j, { remark: remark || null });
+    const res = await callCloudAPI("saveJob", { jobData });
+    if (!res || res.status === "error") {
+        input.value = j.remark || '';
+        showToast("❌ บันทึกหมายเหตุไม่สำเร็จ: " + (res && res.message ? res.message : "กรุณาลองใหม่"), "danger");
+        return;
+    }
+    const idx = jobs.findIndex(item => item.id === jobId);
+    if (idx !== -1) jobs[idx] = jobData;
+    saveData();
+    showToast(`💾 บันทึกหมายเหตุของ ${getJobDisplayNo(jobData)} แล้ว`, "success");
+}
+
 // บันทึกเลข Order No. แบบแก้ไขในตารางใบงานโดยตรง (แทนการกรอกในฟอร์มแจ้งงาน) แล้วล็อกช่องไว้ไม่ให้พิมพ์ซ้ำ
 async function saveJobOrderNo(jobId) {
     const input = document.getElementById(`job-order-no-${jobId}`);
@@ -5995,14 +6022,17 @@ async function saveJobOrderNo(jobId) {
     // บันทึก Order No. แล้ว = ถือว่าเริ่มดำเนินการแล้ว ย้ายไปคอลัมน์ "กำลังดำเนินการ" ให้อัตโนมัติ
     // (ยกเว้นงานที่ปิดไปแล้ว ไม่ไปแตะสถานะปิดงานให้เปิดขึ้นมาเอง)
     const movesToProgress = !!orderNo && j.status !== 'กำลังดำเนินการ' && j.status !== 'ปิดงานแล้ว';
-    if (movesToProgress) {
-        jobData.status = 'กำลังดำเนินการ';
+    // ลบ Order No. ออก = ยังไม่ได้เริ่มจริง ย้ายกลับไป "รอดำเนินการ" (เฉพาะงานที่อยู่ "กำลังดำเนินการ" — ไม่แตะงานรอเอกสาร/ปิดแล้ว)
+    const movesBackToPending = !orderNo && !!j.orderNo && j.status === 'กำลังดำเนินการ';
+    if (movesToProgress || movesBackToPending) {
+        jobData.status = movesToProgress ? 'กำลังดำเนินการ' : 'รอดำเนินการ';
         jobData.updatedAt = new Date().toISOString().split('T')[0];
     }
 
     if (!(await confirmBeforeSave(null, `ตรวจสอบ Order No. ของ ${getJobDisplayNo(j)}`, [
         { label: "Order No.", value: orderNo || "(ลบออก)" },
-        ...(movesToProgress ? [{ label: "สถานะใบงาน", value: "จะย้ายเป็น \"กำลังดำเนินการ\"" }] : [])
+        ...(movesToProgress ? [{ label: "สถานะใบงาน", value: "จะย้ายเป็น \"กำลังดำเนินการ\"" }] : []),
+        ...(movesBackToPending ? [{ label: "สถานะใบงาน", value: "จะย้ายกลับเป็น \"รอดำเนินการ\"" }] : [])
     ]))) return;
     const res = await callCloudAPI("saveJob", { jobData });
     if (!res || res.status === "error") {
@@ -6017,6 +6047,11 @@ async function saveJobOrderNo(jobId) {
     if (movesToProgress) {
         renderJobs();
         showToast(`💾 บันทึก Order No. และย้ายใบงาน ${getJobDisplayNo(jobData)} ไปสถานะ "กำลังดำเนินการ" สำเร็จ`, "success");
+        return;
+    }
+    if (movesBackToPending) {
+        renderJobs();
+        showToast(`💾 ลบ Order No. และย้ายใบงาน ${getJobDisplayNo(jobData)} กลับไปสถานะ "รอดำเนินการ" แล้ว`, "success");
         return;
     }
 
@@ -6086,12 +6121,48 @@ function readJobAssignee() {
 }
 
 // เอกสารที่แนบตอนปิดงาน (jobs.attachments จาก submitCloseJob) — แสดงในแบนเนอร์ "ปิดงานแล้ว" ของหน้าต่างใบงาน
+// + ปุ่ม "แนบเอกสารปิดงานเพิ่ม" แนบย้อนหลังได้หลายไฟล์ (addJobCloseDocs) สำหรับคนที่แก้ใบงานนี้ได้
 function jobCloseDocsHtml(j) {
     const docs = Array.isArray(j.attachments) ? j.attachments : [];
-    if (!docs.length) return `<div class="job-close-docs text-muted">ไม่มีเอกสารแนบตอนปิดงาน</div>`;
+    const addBtn = canEditJob(j)
+        ? `<label class="btn btn-sm btn-outline job-close-add-btn">${icon('plus')} แนบเอกสารปิดงานเพิ่ม
+               <input type="file" multiple hidden onchange="addJobCloseDocs('${j.id}', this)"></label>`
+        : '';
+    if (!docs.length) return `<div class="job-close-docs text-muted">ไม่มีเอกสารแนบตอนปิดงาน ${addBtn}</div>`;
     return `<div class="job-close-docs"><strong>เอกสารปิดงาน:</strong>${docs.map((f, k) =>
-        `<a href="${escapeHtml(f.url)}" target="_blank" rel="noopener">${icon('clip')} ${escapeHtml(f.name || `ไฟล์ ${k + 1}`)}</a>`).join('')}` +
+        `<a href="${escapeHtml(f.url)}" target="_blank" rel="noopener">${icon('clip')} ${escapeHtml(f.name || `ไฟล์ ${k + 1}`)}</a>`).join('')}${addBtn}` +
         `${docs.find(f => f.note) ? `<small class="text-muted">หมายเหตุ: ${escapeHtml(docs.find(f => f.note).note)}</small>` : ''}</div>`;
+}
+
+// แนบเอกสารปิดงานย้อนหลัง (งานที่ปิดไปแล้ว) — เพิ่มต่อท้าย jobs.attachments ไม่ทับของเดิม
+async function addJobCloseDocs(jobId, input) {
+    const j = jobs.find(item => item.id === jobId);
+    const files = Array.from((input && input.files) || []);
+    if (input) input.value = '';
+    if (!j || !files.length || !canEditJob(j)) return;
+    const uploadedAt = new Date().toISOString();
+    const added = [];
+    for (const file of files) {
+        const dataUrl = await readFileAsDataUrl(file);
+        const up = await uploadDocumentFile(dataUrl, file.name, j.customerId, j.workerId, "job-close-doc");
+        if (!up || !up.fileUrl) { showToast(`❌ อัปโหลด "${file.name}" ไม่สำเร็จ`, "danger"); continue; }
+        added.push({ name: file.name, url: up.fileUrl, note: null, uploadedAt, uploadedBy: currentUser.id || null });
+    }
+    if (!added.length) return;
+    const jobData = Object.assign({}, j, { attachments: (Array.isArray(j.attachments) ? j.attachments : []).concat(added) });
+    const res = await callCloudAPI("saveJob", { jobData });
+    if (!res || res.status === "error") {
+        showToast("❌ บันทึกเอกสารปิดงานไม่สำเร็จ: " + (res && res.message ? res.message : "กรุณาลองใหม่"), "danger");
+        return;
+    }
+    const idx = jobs.findIndex(item => item.id === jobId);
+    if (idx !== -1) jobs[idx] = jobData;
+    saveData();
+    const bannerText = document.getElementById("job-closed-banner-text");
+    const docsEl = bannerText && bannerText.querySelector('.job-close-docs');
+    if (docsEl) docsEl.outerHTML = jobCloseDocsHtml(jobData);
+    renderJobs();
+    showToast(`📎 แนบเอกสารปิดงานเพิ่ม ${added.length} ไฟล์ให้ ${getJobDisplayNo(jobData)} แล้ว`, "success");
 }
 
 function openJobModal(id = null) {
@@ -9114,6 +9185,13 @@ function createAiRejectedError(ocrError) {
     return err;
 }
 
+// ผู้ใช้กด "ไม่อัปโหลด" (เลข 13 หลักไม่ตรง — confirmWorkerUidChange) — ไม่มีไฟล์ถูกเก็บ ไม่ใช่ข้อผิดพลาด
+function createUploadCancelledError() {
+    const err = new Error('ไม่ได้อัปโหลด — เลข 13 หลักไม่ตรงกับคนงาน');
+    err.cancelled = true;
+    return err;
+}
+
 function getAiRejectedMessage(ocrError) {
     return ocrError === 'busy'
         ? "AI ไม่ว่าง (Gemini มีผู้ใช้งานมาก) — ยังไม่ได้บันทึกไฟล์ กรุณาแนบใหม่อีกครั้งในอีกสักครู่"
@@ -9140,6 +9218,10 @@ async function uploadDocumentFile(fileDataUrl, fileName, customerId = "", worker
                 parsedData: resData.parsedData,
                 ocrAttempted: !!resData.ocrAttempted
             };
+        } else if (resData && resData.status === 'cancelled') {
+            // ผู้ใช้กดไม่อัปโหลดหลัง AI อ่าน (options.confirmParsed) — ไม่มีไฟล์ถูกเก็บ
+            showToast("ไม่ได้อัปโหลดไฟล์ — คงข้อมูลเดิมไว้", "warning");
+            return { cancelled: true };
         } else if (resData && resData.aiRejected) {
             // เอกสารประเภทที่ใช้ AI แต่ AI อ่านไม่สำเร็จ — ไฟล์ยังไม่ถูกเก็บ ให้ผู้ใช้เลือก:
             //   manual = อัปโหลดไฟล์เดิมอีกรอบแบบไม่ผ่าน AI แล้วกรอกข้อมูลเอง
@@ -10813,8 +10895,12 @@ async function attachDocumentToWorker(w, docType, fileContent, preParsed = null)
     const nameOptions = workerDocNameOptions({ uid: w.workerUid, firstName: w.firstName, lastName: w.lastName }, docType, suffix, ext);
     let fileName = nameOptions.nameFromOcr(preParsed);
 
-    const uploadOptions = { ...(preParsed ? { skipOcr: true } : nameOptions) };
+    // เลข 13 หลักในเอกสารไม่ตรงกับคนงาน → ถามก่อนอัปโหลด กด "ไม่อัปโหลด" = ไม่เก็บไฟล์ ไม่แก้ข้อมูลคนงาน (throw .cancelled)
+    const known = { uid: w.workerUid, firstName: w.firstName, lastName: w.lastName };
+    if (preParsed && !(await confirmWorkerUidChange(known, preParsed, fileName))) throw createUploadCancelledError();
+    const uploadOptions = preParsed ? { skipOcr: true } : { ...nameOptions, confirmParsed: (p) => confirmWorkerUidChange(known, p, fileName) };
     const uploadResult = await uploadDocumentFile(fileContent, fileName, w.employerId, w.id, docType, uploadOptions);
+    if (uploadResult && uploadResult.cancelled) throw createUploadCancelledError();
     if (uploadResult && uploadResult.aiRejected) throw createAiRejectedError(uploadResult.ocrError);
     if (uploadResult && uploadResult.fileName) fileName = uploadResult.fileName;
     const storedUrl = uploadResult ? uploadResult.fileUrl : null;
@@ -10829,9 +10915,7 @@ async function attachDocumentToWorker(w, docType, fileContent, preParsed = null)
     });
 
     const parsedForWorker = preParsed || (uploadResult && uploadResult.parsedData);
-    if (parsedForWorker && await confirmWorkerUidChange({ uid: w.workerUid, firstName: w.firstName, lastName: w.lastName }, parsedForWorker, fileName)) {
-        applyOcrDataToWorker(w, docType, parsedForWorker);
-    }
+    if (parsedForWorker) applyOcrDataToWorker(w, docType, parsedForWorker);
 
     // Auto-transition from pending_register to active when both Work Permit and Receipt are uploaded
     const hasWp = getAttachments(w, 'worker-wp-doc').length > 0;
@@ -10875,6 +10959,7 @@ async function handleFolderFileUpload(event) {
     let anyAiRead = false;
     let failCount = 0;
     let aiRejectedCount = 0; // AI อ่านไม่สำเร็จ = ไม่ได้บันทึกไฟล์ (ต้องแนบใหม่)
+    let cancelledCount = 0; // กด "ไม่อัปโหลด" (เลข 13 หลักไม่ตรง) = ไม่ได้บันทึกไฟล์ตามที่ผู้ใช้เลือก
     let needsManualEntry = false; // มีไฟล์ที่ผู้ใช้เลือก "บันทึกไฟล์ กรอกเอง"
     beginAiRejectedBatch();
     for (const file of files) {
@@ -10891,6 +10976,7 @@ async function handleFolderFileUpload(event) {
                 showToast(`🎉 อัปโหลดใบอนุญาตทำงานและใบเสร็จแล้ว! เปลี่ยนสถานะคุณ ${w.firstName} เป็น ปกติ (Active) อัตโนมัติ`, "success");
             }
         } catch (err) {
+            if (err && err.cancelled) { cancelledCount++; continue; }
             console.error("attachDocumentToWorker failed:", err);
             if (err && err.aiRejected) aiRejectedCount++; else failCount++;
         }
@@ -10898,9 +10984,10 @@ async function handleFolderFileUpload(event) {
 
     endAiRejectedBatch();
     if (anyAiRead) showToast("✨ AI อ่านข้อมูลจากเอกสารสำเร็จ กำลังอัปเดตข้อมูลคนงาน", "success");
+    if (cancelledCount > 0) showToast(`ไม่ได้อัปโหลด ${cancelledCount} จาก ${files.length} ไฟล์ — เลข 13 หลักไม่ตรงกับคนงานนี้`, "warning");
     if (aiRejectedCount > 0) showToast(`⚠️ AI อ่านไม่สำเร็จ ${aiRejectedCount} จาก ${files.length} ไฟล์ — ไฟล์เหล่านี้ยังไม่ได้บันทึก กรุณาแนบใหม่อีกครั้งในอีกสักครู่`, "warning");
     if (failCount > 0) showToast(`❌ อัปโหลดไม่สำเร็จ ${failCount} จาก ${files.length} ไฟล์`, "danger");
-    else if (aiRejectedCount === 0) showToast("✅ อัปโหลดไฟล์และอัปเดตแฟ้มคนงานต่างด้าวสำเร็จ!", "success");
+    else if (aiRejectedCount === 0 && cancelledCount < files.length) showToast("✅ อัปโหลดไฟล์และอัปเดตแฟ้มคนงานต่างด้าวสำเร็จ!", "success");
 
     saveData();
     renderWorkers();
@@ -11255,6 +11342,7 @@ function renderBulkImportTable() {
         else if (row.status === 'success' && row.aiStatus === 'manual') statusBadge = `<button type="button" class="btn btn-sm btn-outline" style="font-size:11.5px; padding:2px 8px; white-space:nowrap;" onclick="openManualEntryForm('worker', '${row.workerId}', '${row.docType}')" title="ไฟล์เข้าระบบแล้ว (ไม่ผ่าน AI) — กดเพื่อเปิดฟอร์มคนงานไปกรอกข้อมูล">${icon("sign")} กรอกข้อมูล</button>`;
         else if (row.status === 'success' && row.aiStatus === 'filled') statusBadge = '<span class="badge badge-success" style="font-size:11.5px;">' + icon("ok") + ' นำเข้าแล้ว • AI เติมข้อมูลแล้ว</span>';
         else if (row.status === 'success') statusBadge = '<span class="badge badge-success" style="font-size:11.5px;">' + icon("ok") + ' นำเข้าแล้ว</span>';
+        else if (row.status === 'failed' && row.aiStatus === 'cancelled') statusBadge = '<span class="badge badge-warning" style="font-size:11.5px;" title="เลข 13 หลักในเอกสารไม่ตรงกับคนงานที่จับคู่ไว้ — เลือกไม่อัปโหลด ไฟล์นี้ไม่ได้บันทึก">' + icon("warn") + ' ไม่อัปโหลด • เลข 13 หลักไม่ตรง</span>';
         else if (row.status === 'failed') statusBadge = '<span class="badge badge-danger" style="font-size:11.5px;">' + icon("bad") + ' ล้มเหลว</span>';
         else if (row.confidence === 'high') statusBadge = '<span class="badge badge-success" style="font-size:11.5px;">' + icon("ok") + ' ตรงเลข 13 หลัก</span>';
         else if (row.confidence === 'medium') statusBadge = '<span class="badge badge-gold" style="font-size:11.5px;">' + icon("dot") + ' จับคู่จากชื่อ</span>';
@@ -11654,7 +11742,7 @@ async function runBulkImport() {
         } catch (err) {
             console.error('Bulk import failed for', row.fileName, err);
             row.status = 'failed';
-            row.aiStatus = err && err.aiRejected ? (err.ocrError === 'busy' ? 'busy' : 'failed') : null;
+            row.aiStatus = err && err.cancelled ? 'cancelled' : err && err.aiRejected ? (err.ocrError === 'busy' ? 'busy' : 'failed') : null;
             failCount++;
         }
         renderBulkImportTable();

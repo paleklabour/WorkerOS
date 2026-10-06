@@ -7021,3 +7021,19 @@ body.has-camera .upload-hint { display: none; }
     .ui-dialog.ui-dialog-wide { overflow-y: auto; }
 }
 .ui-dialog-wide .ui-dialog-icon { display: none; } /* หน้าต่างดูข้อมูล ไม่ใช่คำเตือน — ไม่ต้องมีไอคอนเตือน */
+
+/* ระบบจัดการแจ้งงาน: อีเมลใต้ชื่อคนงาน + ช่องหมายเหตุสั้น ≤ 20 ตัวอักษร (saveJobRemark) */
+.job-worker-email { font-size: 12px; color: var(--text-muted); margin-top: 2px; overflow-wrap: anywhere; }
+.job-remark-input {
+    width: 100%;
+    min-width: 120px;
+    padding: 6px 8px;
+    border: 1px solid var(--dk-line, #e2e8f0);
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 13px;
+    background-color: var(--dk-card, #ffffff);
+    color: var(--text-dark);
+}
+.job-remark-input:focus { outline: none; border-color: var(--gold-primary); }
+.job-close-add-btn { cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
