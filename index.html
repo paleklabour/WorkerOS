@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261006b">
+    <link rel="stylesheet" href="styles.css?v=20261006f">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -895,16 +895,6 @@
                             </div>
                             <!-- ตัวกรองหน้าต่ออายุ/ทำเล่ม — กรองคนงาน "ภายใน" แต่ละกลุ่ม (กลุ่มยังจัดจากคนงานทั้งหมด) ดู renderRenewalGroups() -->
                             <div class="filter-box renewal-filters">
-                                <!-- <select> ซ่อนไว้เก็บค่าจริง (ว่าง = ทุกนายจ้าง) — ช่องที่พิมพ์ค้นหาคือ filter-renewal-employer-search (registerSearchSelect) -->
-                                <select id="filter-renewal-employer" class="hidden" onchange="renderRenewalGroups()">
-                                    <option value="">ทุกนายจ้าง/บริษัท</option>
-                                </select>
-                                <div class="search-box renewal-employer-search">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                    </svg>
-                                    <input type="text" id="filter-renewal-employer-search" placeholder="ค้นหานายจ้าง (ว่าง = ทุกนายจ้าง)" autocomplete="off">
-                                </div>
                                 <select id="filter-renewal-nationality" onchange="renderRenewalGroups()">
                                     <option value="">ทุกสัญชาติ</option>
                                     <option value="Myanmar">เมียนมา (Myanmar)</option>
@@ -3256,7 +3246,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261006b"></script>
+    <script src="supabase-client.js?v=20261006f"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3267,6 +3257,6 @@
     </script>
 
     <!-- Application Script -->
-    <script src="app.js?v=20261006b"></script>
+    <script src="app.js?v=20261006f"></script>
 </body>
 </html>

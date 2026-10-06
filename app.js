@@ -1416,36 +1416,153 @@ function renderClientPortal() {
     else body.innerHTML = renderClientReceiptsTab(myInvoices, custId);
 }
 
+// พอร์ทัลนายจ้าง: ดับเบิลคลิกแถวคนงาน → ป๊อปอัปข้อมูลคนงานทั้งหมด (ดูอย่างเดียว แก้ไม่ได้)
+// หน้าตาเดียวกับหน้าต่างตรวจสอบก่อนบันทึก (showUiDialog + card + summary) พร้อมรูปคนงาน
+function openClientWorkerView(workerId) {
+    const w = workers.find(x => x.id === workerId);
+    if (!w) return;
+    const d = (v) => v ? formatThaiDate(v) : '';
+    const rows = [
+        { heading: 'ข้อมูลส่วนตัว' },
+        { label: 'คำนำหน้า', value: w.title },
+        { label: 'ชื่อ (อังกฤษ)', value: w.firstName },
+        { label: 'นามสกุล (อังกฤษ)', value: w.lastName },
+        { label: 'ชื่อไทย (บัตรชมพู)', value: w.thaiName },
+        { label: 'เพศ', value: w.gender },
+        { label: 'สัญชาติ', value: w.nationality },
+        { label: 'วันเกิด', value: d(w.dob) },
+        { label: 'ชื่อพ่อ', value: w.fatherName },
+        { label: 'ชื่อแม่', value: w.motherName },
+        { label: 'อีเมล', value: w.email },
+        { heading: 'ใบอนุญาตทำงาน / เลขประจำตัว' },
+        { label: 'เลขอ้างอิง', value: w.refNo },
+        { label: 'เลขประจำตัวคนต่างด้าว', value: w.workerUid },
+        { label: 'เลขที่ใบอนุญาตทำงาน', value: w.permitNo },
+        { label: 'ใบอนุญาตหมดอายุ', value: d(w.permitExpiry) },
+        { label: 'เลขบัตรชมพู', value: w.pinkCardNo },
+        { label: 'ตำแหน่งงาน', value: w.position },
+        { label: 'สถานที่ทำงาน', value: w.workplace },
+        { heading: 'พาสปอร์ต / CI' },
+        { label: 'เลขพาสปอร์ต', value: w.passportNo },
+        { label: 'สถานที่ออก', value: w.passportPob },
+        { label: 'ผู้ออก', value: w.passportAuth },
+        { label: 'วันออก', value: d(w.passportIssue) },
+        { label: 'วันหมดอายุ', value: d(w.passportExpiry) },
+        { heading: 'อื่น ๆ' },
+        { label: 'เลขกรมธรรม์ประกัน', value: w.insuranceNo },
+        { label: 'สถานะ', value: WORKER_STATUS_LABELS[w.status] || w.status },
+        { label: 'โน้ตถึงเจ้าหน้าที่', value: w.clientNote },
+    ];
+    // ตัดช่องว่าง และหัวข้อที่ไม่มีข้อมูลใต้หัวข้อนั้นเลย
+    const summary = [];
+    let pendingHeading = null;
+    rows.forEach(r => {
+        if (r.heading) { pendingHeading = r; return; }
+        if (r.value == null || String(r.value).trim() === '') return;
+        if (pendingHeading) { summary.push(pendingHeading); pendingHeading = null; }
+        summary.push(r);
+    });
+    uiAlert('ดูข้อมูลอย่างเดียว — ถ้าข้อมูลไม่ถูกต้อง กด "เขียนโน้ต" แจ้งเจ้าหน้าที่ได้', {
+        title: 'ข้อมูลคนงาน',
+        okText: 'ปิด',
+        card: { image: w.photo || '', imageIcon: 'user', title: workerFullName(w), subtitle: [w.nationality, w.workerUid].filter(Boolean).join(' • '), rows: [] },
+        summary
+    });
+}
+
+// แท็บ "คนงานของฉัน" — ตารางแบบเดียวกับหน้าข้อมูลคนงานต่างด้าว (รูป, เลขคนงาน/บัตร, พาสปอร์ต, วันหมดอายุ, สถานะเอกสาร)
+// แบ่งกลุ่มตามวันที่ใบอนุญาตทำงานหมดอายุ (ใกล้หมดก่อน) — ไม่มีวันหมดอายุ / แจ้งออกแล้ว อยู่กลุ่มท้าย
 function renderClientWorkersTab(list) {
     const q = (document.getElementById("cp-worker-search") || {}).value || '';
     const query = q.trim().toLowerCase();
-    const shown = list.filter(w => !query || [w.firstName, w.lastName, w.workerUid, w.passportNo].filter(Boolean).join(' ').toLowerCase().includes(query))
-        .sort((a, b) => (a.status === 'archived') - (b.status === 'archived') || `${a.firstName}`.localeCompare(`${b.firstName}`));
-    const expiryCell = (d) => {
-        const dt = safeParseDate(d);
-        if (!dt) return '-';
-        const days = Math.ceil((dt - new Date()) / 86400000);
-        const cls = days < 0 ? 'text-danger' : days <= 60 ? 'text-warning' : '';
-        return `<span class="${cls}">${formatThaiDate(d)}${days < 0 ? ' (หมดอายุ)' : days <= 60 ? ` (อีก ${days} วัน)` : ''}</span>`;
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const daysTo = (d) => d ? Math.ceil((d - today) / 86400000) : null;
+    const shown = list.filter(w => !query || [w.firstName, w.lastName, w.thaiName, w.refNo, w.workerUid, w.passportNo, w.permitNo, w.pinkCardNo, w.nationality]
+        .filter(Boolean).join(' ').toLowerCase().includes(query));
+
+    // จัดกลุ่ม: วันหมดอายุใบอนุญาต (yyyy-mm-dd) → คนงาน
+    const groups = {};
+    shown.forEach(w => {
+        const exp = safeParseDate(w.permitExpiry);
+        const key = w.status === 'archived' ? 'z-archived' : exp ? localDateISO(exp) : 'y-none';
+        (groups[key] = groups[key] || { key, date: exp, list: [] }).list.push(w);
+    });
+    const ordered = Object.values(groups).sort((a, b) => a.key.localeCompare(b.key));
+
+    const statusBadgeOf = (w) => {
+        const pd = daysTo(safeParseDate(w.passportExpiry)), wd = daysTo(safeParseDate(w.permitExpiry));
+        if (w.status === 'archived') return '<span class="badge badge-lg cp-badge-archived">พ้นสภาพ/แจ้งออก</span>';
+        if (w.status === 'pending_register') return '<span class="badge badge-lg badge-gold">รอขึ้นทะเบียน</span>';
+        if ((pd !== null && pd < 0) || (wd !== null && wd < 0)) return '<span class="badge badge-lg badge-danger">หมดอายุ</span>';
+        if ((pd !== null && pd <= 180) || (wd !== null && wd <= 60)) return '<span class="badge badge-lg badge-warning">ใกล้หมดอายุ</span>';
+        return '<span class="badge badge-lg badge-success">ปกติ</span>';
     };
+
+    const row = (w) => {
+        const pExp = safeParseDate(w.passportExpiry), wpExp = safeParseDate(w.permitExpiry);
+        return `
+            <tr class="clickable-row ${w.status === 'archived' ? 'is-voided-row' : ''}" ondblclick="handleRowDblClick(event) && openClientWorkerView('${w.id}')" title="ดับเบิลคลิกเพื่อดูข้อมูลคนงาน">
+                <td>
+                    <div><strong>${escapeHtml(w.refNo || '-')}</strong></div>
+                    <div class="worker-id-line"><span>เลขประจำตัวคนต่างด้าว</span> <b>${escapeHtml(w.workerUid || '-')}</b></div>
+                    <div class="worker-id-line"><span>เลขที่ใบอนุญาตทำงาน</span> <b>${escapeHtml(w.permitNo || '-')}</b></div>
+                </td>
+                <td>
+                    <div class="renewal-worker-cell">
+                        <div class="renewal-avatar"><img src="${w.photo ? escapeHtml(w.photo) : WORKER_AVATAR_PLACEHOLDER}" alt="" loading="lazy"></div>
+                        <div>
+                            <strong>${escapeHtml(`${w.title ? w.title + ' ' : ''}${w.firstName || '-'} ${w.lastName || ''}`.trim())}</strong>
+                            ${w.thaiName ? `<div><small class="text-muted">ชื่อไทย (บัตรชมพู): ${escapeHtml(w.thaiName)}</small></div>` : ''}
+                            <div><small class="text-muted">เพศ: ${escapeHtml(w.gender || '-')}</small></div>
+                        </div>
+                    </div>
+                </td>
+                <td><span class="badge badge-gold">${escapeHtml(w.nationality || '-')}</span></td>
+                <td><div>เล่ม: ${escapeHtml(w.passportNo || '-')}</div></td>
+                <td class="worker-expiry-cell">
+                    ${renderWorkerExpiryLine('ใบอนุญาต', wpExp, daysTo(wpExp), 60)}
+                    ${renderWorkerExpiryLine('พาสปอร์ต', pExp, daysTo(pExp), 180)}
+                </td>
+                <td>${statusBadgeOf(w)}</td>
+                <td class="cp-note-cell">${w.clientNote ? `<span class="cp-note-text" title="${escapeHtml(w.clientNote)}">${escapeHtml(w.clientNote)}</span>` : '<span class="text-muted">-</span>'}</td>
+                <td class="actions-col">
+                    <div class="cp-worker-actions">
+                        <button type="button" class="btn btn-sm btn-gold btn-open-folder" onclick="openWorkerFolderModal('${w.id}')">${icon('folder')} เปิดแฟ้มเอกสาร</button>
+                        <button type="button" class="btn btn-sm btn-outline" onclick="openClientWorkerNote('${w.id}')">${icon('edit')} ${w.clientNote ? 'แก้โน้ต' : 'เขียนโน้ต'}</button>
+                    </div>
+                </td>
+            </tr>`;
+    };
+
+    const groupTitle = (g) => g.key === 'z-archived' ? 'พ้นสภาพ / แจ้งออกแล้ว'
+        : g.key === 'y-none' ? 'ยังไม่มีวันหมดอายุใบอนุญาต'
+        : `ใบอนุญาตหมดอายุ ${formatThaiDate(g.date)}`;
+    const groupHint = (g) => {
+        if (!g.date || g.key === 'z-archived') return '';
+        const d = daysTo(g.date);
+        return d < 0 ? `<span class="text-danger">หมดอายุแล้ว ${-d} วัน</span>` : d <= 60 ? `<span class="text-warning">อีก ${d} วัน</span>` : `<span class="text-muted">อีก ${d} วัน</span>`;
+    };
+
+    const panels = ordered.map(g => `
+        <div class="dashboard-panel cp-worker-group">
+            <div class="panel-header">
+                <h3>${icon('calendar')} ${groupTitle(g)}</h3>
+                <span class="cp-worker-group-meta">${g.list.length} คน ${groupHint(g)}</span>
+            </div>
+            <div class="panel-content" style="padding: 0; overflow-x: auto;">
+                <table class="data-table cp-workers-table" style="box-shadow: none; border: none; border-radius: 0;">
+                    <colgroup><col class="cw-id"><col class="cw-name"><col class="cw-nat"><col class="cw-pp"><col class="cw-exp"><col class="cw-status"><col class="cw-note"><col class="cw-act"></colgroup>
+                    <thead><tr><th>เลขคนงาน / บัตร</th><th>ชื่อ-นามสกุล</th><th>สัญชาติ</th><th>ข้อมูลพาสปอร์ต</th><th>วันหมดอายุ</th><th>สถานะเอกสาร</th><th>โน้ตถึงเจ้าหน้าที่</th><th class="actions-col">เอกสาร / โน้ต</th></tr></thead>
+                    <tbody>${[...g.list].sort((a, b) => `${a.firstName}`.localeCompare(`${b.firstName}`)).map(row).join('')}</tbody>
+                </table>
+            </div>
+        </div>`).join('');
+
     return `
         <div class="cp-card">
-            <div class="cp-toolbar"><div class="search-box"><input type="text" id="cp-worker-search" placeholder="ค้นหาชื่อ / เลขประจำตัว / พาสปอร์ต..." value="${escapeHtml(q)}" oninput="renderClientPortalKeepFocus('cp-worker-search')"></div>
-                <span class="text-muted">${shown.length} คน • กด "เอกสาร" เพื่อดู/ดาวน์โหลดเอกสารของคนงาน</span></div>
-            <div class="table-container"><table class="data-table">
-                <thead><tr><th>ชื่อ-สกุล</th><th>สัญชาติ</th><th>เลขประจำตัว</th><th>พาสปอร์ต/CI หมดอายุ</th><th>ใบอนุญาตทำงานหมดอายุ</th><th>สถานะ</th><th>โน้ตถึงเจ้าหน้าที่</th><th></th></tr></thead>
-                <tbody>${shown.length ? shown.map(w => `
-                    <tr class="${w.status === 'archived' ? 'is-voided-row' : ''}">
-                        <td><strong>${escapeHtml(`${w.title || ''} ${w.firstName || ''} ${w.lastName || ''}`.trim())}</strong></td>
-                        <td>${escapeHtml(w.nationality || '-')}</td>
-                        <td>${escapeHtml(w.workerUid || '-')}</td>
-                        <td>${expiryCell(w.passportExpiry)}</td>
-                        <td>${expiryCell(w.permitExpiry)}</td>
-                        <td><span class="badge">${escapeHtml(WORKER_STATUS_LABELS[w.status] || w.status || '-')}</span></td>
-                        <td class="cp-note-cell">${w.clientNote ? `<span class="cp-note-text" title="${escapeHtml(w.clientNote)}">${escapeHtml(w.clientNote)}</span>` : '<span class="text-muted">-</span>'}</td>
-                        <td class="actions-col"><button type="button" class="btn btn-sm btn-outline" onclick="openClientWorkerNote('${w.id}')">${icon('edit')} ${w.clientNote ? 'แก้โน้ต' : 'เขียนโน้ต'}</button> <button type="button" class="btn btn-sm btn-gold btn-open-folder" onclick="openWorkerFolderModal('${w.id}')">${icon('folder')} เอกสาร</button></td>
-                    </tr>`).join('') : `<tr><td colspan="8" class="text-muted" style="text-align:center; padding:24px;">ไม่พบคนงาน</td></tr>`}</tbody>
-            </table></div>
+            <div class="cp-toolbar"><div class="search-box"><input type="text" id="cp-worker-search" placeholder="ค้นหาชื่อ-นามสกุล, เลขคนงาน, พาสปอร์ต..." value="${escapeHtml(q)}" oninput="renderClientPortalKeepFocus('cp-worker-search')"></div>
+                <span class="text-muted">${shown.length} คน • แบ่งกลุ่มตามวันที่ใบอนุญาตทำงานหมดอายุ • กด "เปิดแฟ้มเอกสาร" เพื่อดู/ดาวน์โหลดเอกสาร</span></div>
+            ${panels || '<p class="text-muted" style="text-align:center; padding:24px;">ไม่พบคนงาน</p>'}
         </div>`;
 }
 
@@ -1465,7 +1582,6 @@ function renderClientJobsTab(list) {
                     <option value="">ทุกเดือน</option>${months.map(k => `<option value="${k}" ${k === month ? 'selected' : ''}>${monthLabelTh(k)}</option>`).join('')}
                 </select>
                 <span class="text-muted">${shown.length} งาน • ปิดแล้ว ${shown.filter(j => j.status === 'ปิดงานแล้ว').length} • ยังไม่ปิด ${shown.filter(j => isJobStatusOpen(j.status)).length}</span>
-                <button type="button" class="btn btn-gold" onclick="openJobModal()">${icon('plus')} แจ้งงานใหม่</button>
             </div>
             <div class="table-container"><table class="data-table">
                 <thead><tr><th>เลขที่แจ้งงาน</th><th>ประเภทงาน</th><th>คนงาน</th><th>วันที่แจ้ง</th><th>สถานะ</th><th>เอกสารปิดงาน</th></tr></thead>
@@ -2038,18 +2154,15 @@ function renderRenewalGroups() {
     const searchInput = document.getElementById("search-renewal");
     const query = searchInput ? searchInput.value.trim().toLowerCase() : "";
     const filterVal = id => (document.getElementById(id) || {}).value || "";
-    const empFilter = filterVal("filter-renewal-employer");
     const natFilter = filterVal("filter-renewal-nationality");
     const statusFilter = filterVal("filter-renewal-status");
     const bookFilter = filterVal("filter-renewal-book");
     const groupFilter = filterVal("filter-renewal-group");
-    populateRenewalEmployerFilter(empFilter);
 
     // จัดกลุ่มจากคนงาน "ทั้งหมด" ก่อน แล้วค่อยกรองภายในกลุ่ม — ไม่งั้นค้นหาจนเหลือคนเดียวในกลุ่มมติ ครม.
     // จะทำให้คนนั้นถูกย้ายไปอยู่กลุ่ม MOU ผิด ๆ (กลุ่มนิยามจาก "มีคนวันหมดอายุตรงกันตั้งแต่ 2 คน")
     const relevant = workers.filter(w => w.status !== 'archived' && w.status !== 'deleted' && w.permitExpiry);
     const matchesFilters = (w) => {
-        if (empFilter && w.employerId !== empFilter) return false;
         if (natFilter && w.nationality !== natFilter) return false;
         if (statusFilter) {
             const d = daysLeftOf(w);
@@ -2065,7 +2178,7 @@ function renderRenewalGroups() {
             .filter(Boolean).join(' | ').toLowerCase();
         return hay.includes(query);
     };
-    const anyFilter = !!(query || empFilter || natFilter || statusFilter || bookFilter || groupFilter);
+    const anyFilter = !!(query || natFilter || statusFilter || bookFilter || groupFilter);
 
     const byDateKey = {};
     relevant.forEach(w => {
@@ -2170,7 +2283,12 @@ function renderRenewalGroups() {
                     </span>
                 </div>
                 <div class="panel-content" style="padding: 0; overflow-x: auto;">
-                    <table class="data-table" style="box-shadow: none; border: none; border-radius: 0;">
+                    <!-- แต่ละกลุ่มเป็นตารางแยกกัน — ล็อกความกว้างคอลัมน์ (.renewal-table) ให้ทุกกลุ่มตรงกัน -->
+                    <table class="data-table renewal-table" style="box-shadow: none; border: none; border-radius: 0;">
+                        <colgroup>
+                            <col class="rc-id"><col class="rc-name"><col class="rc-nat"><col class="rc-emp">
+                            <col class="rc-exp"><col class="rc-status"><col class="rc-book"><col class="rc-bookexp">
+                        </colgroup>
                         <thead>
                             <tr>
                                 <th>เลขคนงาน</th><th>ชื่อ-นามสกุล</th><th>สัญชาติ</th><th>นายจ้าง</th>
@@ -2214,26 +2332,8 @@ function renderRenewalGroups() {
 }
 
 // เติมรายชื่อนายจ้างในตัวกรองหน้าต่ออายุ (เฉพาะนายจ้างที่มีคนงานในหน้านี้) — คงค่าที่เลือกไว้
-// นายจ้างที่มีคนงานอยู่ในหน้าต่ออายุ — ใช้ทั้ง <select> ที่ซ่อนไว้ และรายการค้นหาของช่อง filter-renewal-employer-search
-function renewalEmployers() {
-    const empIds = new Set(workers.filter(w => w.status !== 'archived' && w.status !== 'deleted' && w.permitExpiry).map(w => w.employerId));
-    return customers.filter(c => empIds.has(c.id)).sort((a, b) => (a.companyName || '').localeCompare(b.companyName || '', 'th'));
-}
-
-function populateRenewalEmployerFilter(selected) {
-    const sel = document.getElementById("filter-renewal-employer");
-    if (!sel) return;
-    const list = renewalEmployers();
-    sel.innerHTML = '<option value="">ทุกนายจ้าง/บริษัท</option>' +
-        list.map(c => `<option value="${c.id}">${escapeHtml(c.companyName || '-')}</option>`).join('');
-    sel.value = list.some(c => c.id === selected) ? selected : '';
-    // นายจ้างที่เลือกไว้ไม่มีคนงานในหน้านี้แล้ว → ล้างชื่อในช่องค้นหาให้ตรงกับค่าจริง (ทุกนายจ้าง)
-    const input = document.getElementById("filter-renewal-employer-search");
-    if (input && selected && !sel.value && document.activeElement !== input) input.value = '';
-}
-
 function clearRenewalFilters() {
-    ["search-renewal", "filter-renewal-employer", "filter-renewal-employer-search", "filter-renewal-nationality", "filter-renewal-status", "filter-renewal-book", "filter-renewal-group"]
+    ["search-renewal", "filter-renewal-nationality", "filter-renewal-status", "filter-renewal-book", "filter-renewal-group"]
         .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     renderRenewalGroups();
 }
@@ -8068,20 +8168,6 @@ function setupAllSearchSelects() {
         getSub: c => c.taxId ? 'ภาษี ' + c.taxId : '',
         emptyText: 'ไม่พบนายจ้างที่ตรงกับคำค้นหา',
         onSelect: () => onJobCustomerChange() // ล็อก Agent + กรองรายชื่อลูกจ้างตามนายจ้างที่เลือก เหมือน onchange เดิม
-    });
-
-    // หน้า "ข้อมูลคนงานต่ออายุ/ทำเล่ม": กรองตามนายจ้าง — <select id="filter-renewal-employer"> ซ่อนไว้เก็บค่าจริง, ช่องว่าง = ทุกนายจ้าง
-    registerSearchSelect('renewal-employer', {
-        inputId: 'filter-renewal-employer-search',
-        getValue: () => document.getElementById('filter-renewal-employer').value,
-        setValue: (v) => { document.getElementById('filter-renewal-employer').value = v || ''; },
-        getPool: () => renewalEmployers(),
-        getId: c => c.id,
-        getLabel: c => c.companyName,
-        getSub: c => c.taxId ? 'ภาษี ' + c.taxId : '',
-        emptyText: 'ไม่พบนายจ้างที่ตรงกับคำค้นหา',
-        onSelect: () => renderRenewalGroups(),
-        onClear: () => renderRenewalGroups()
     });
 
     // แดชบอร์ด > "สรุปงานที่แจ้งสำเร็จ": กรองตามนายจ้าง / Agent — <select> ซ่อนไว้เก็บค่าจริง, ช่องว่าง = ทั้งหมด
