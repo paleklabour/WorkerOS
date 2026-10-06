@@ -212,9 +212,10 @@ function findOpenJobConflict(workerId, typeName, excludeJobId) {
 }
 
 // ดึง "ใบงานพี่น้อง" ที่ถูกเปิดมาพร้อมกันในการแจ้งงานครั้งเดียวกัน (batch เดียวกัน)
-function getJobBatchSiblings(job) {
+// sameWorkerOnly = เฉพาะใบงานของคนงานคนเดียวกัน (แจ้งครั้งเดียวให้หลายคน batch จะมีใบงานของคนอื่นปนอยู่)
+function getJobBatchSiblings(job, sameWorkerOnly = false) {
     if (!job || !job.batchId) return [];
-    return jobs.filter(j => j.batchId === job.batchId && j.id !== job.id);
+    return jobs.filter(j => j.batchId === job.batchId && j.id !== job.id && (!sameWorkerOnly || j.workerId === job.workerId));
 }
 
 // ==================== CLOUD API CONNECTOR (Supabase) ====================
@@ -3100,7 +3101,7 @@ function viewEmployerAlertedWorkers(employerId) {
     }
     const selectStatus = document.getElementById("filter-worker-employment-status");
     if (selectStatus) {
-        selectStatus.value = "all"; // show all to find both active and archived workers
+        selectStatus.value = "all"; // ทุกคนที่ยังไม่พ้นสภาพ (ปกติ + รอขึ้นทะเบียน) — คนพ้นสภาพดูได้จากตัวกรอง "เฉพาะแจ้งออก/พ้นสภาพ"
     }
     renderWorkers();
 }
@@ -3508,17 +3509,16 @@ function renderWorkers() {
         if (statusFilter === 'expired') matchStatus = isExpired;
 
         // Employment status filter (active/pending_register/archived)
+        // คนงานพ้นสภาพ/แจ้งออก (และที่ลบแล้ว) ไม่แสดงในหน้านี้เลย — ยกเว้นเลือกตัวกรอง "เฉพาะแจ้งออก/พ้นสภาพ" (เจ้าของระบบกำหนด 2026-10-06)
+        // เดิมพิมพ์ค้นหาแล้วตัวกรองสถานะถูกข้ามทั้งหมด ทำให้คนที่พ้นสภาพโผล่มาปน
         const wStatus = w.status || 'active';
-        let matchEmpStatus = true;
-        if (!searchVal) {
-            if (wStatus === 'deleted') return false; // Hide completely in default view
-            if (empStatusFilter === 'active') matchEmpStatus = wStatus === 'active';
-            if (empStatusFilter === 'pending_register') matchEmpStatus = wStatus === 'pending_register';
-            if (empStatusFilter === 'archived') matchEmpStatus = wStatus === 'archived';
-        } else {
-            // Search query matches both active and deleted
-            matchEmpStatus = true;
-        }
+        const isGone = wStatus === 'archived' || wStatus === 'deleted';
+        let matchEmpStatus;
+        if (empStatusFilter === 'archived') matchEmpStatus = isGone;
+        else if (isGone) matchEmpStatus = false;
+        else if (empStatusFilter === 'pending_register') matchEmpStatus = wStatus === 'pending_register';
+        else if (empStatusFilter === 'active') matchEmpStatus = searchVal ? true : wStatus === 'active'; // ค้นหา = เจอทั้งปกติและรอขึ้นทะเบียน
+        else matchEmpStatus = true; // "all" = ทุกคนที่ยังไม่พ้นสภาพ
 
         return matchSearch && matchNat && matchEmp && matchStatus && matchEmpStatus;
     });
@@ -4242,6 +4242,30 @@ function applyGeminiTitleToWorkerForm(parsedData) {
     }
 }
 
+// กฎอ่านเอกสาร (2026-10-06): AI อ่านเลขประจำตัวคนต่างด้าว 13 หลักจากเอกสารที่แนบได้ แต่ไม่ตรงกับเลขเดิมของคนงาน
+// → ถามก่อนพร้อมชื่อ + เลข 13 หลักของเดิมและของใหม่ว่าจะเปลี่ยนไหม (อาจแนบเอกสารผิดคน)
+// คืน true = ใช้ข้อมูลจากเอกสาร (รวมเลขใหม่), false = คงข้อมูลเดิม ไม่เอาข้อมูลจากเอกสารนี้ไปกรอก (ไฟล์ยังแนบไว้)
+async function confirmWorkerUidChange(old, parsed, fileName) {
+    const digits = v => String(v || '').replace(/\D/g, '');
+    const oldUid = digits(old.uid), newUid = digits(parsed && parsed.uid);
+    if (oldUid.length !== 13 || newUid.length !== 13 || oldUid === newUid) return true;
+    const name = (f, l) => `${f || ''} ${l || ''}`.trim() || '-';
+    return uiConfirm(`เลขประจำตัวคนต่างด้าว 13 หลักในเอกสาร${fileName ? ` "${fileName}"` : ''} ไม่ตรงกับข้อมูลเดิมของคนงาน — อาจแนบเอกสารผิดคน\nต้องการเปลี่ยนเป็นข้อมูลจากเอกสารนี้หรือไม่?`, {
+        title: 'เลข 13 หลักไม่ตรงกับข้อมูลเดิม',
+        summary: [
+            { heading: 'ข้อมูลเดิม' },
+            { label: 'ชื่อ', value: name(old.firstName, old.lastName) },
+            { label: 'เลขประจำตัว 13 หลัก', value: oldUid },
+            { heading: 'จากเอกสารที่แนบ' },
+            { label: 'ชื่อ', value: name(parsed.firstName, parsed.lastName) },
+            { label: 'เลขประจำตัว 13 หลัก', value: newUid },
+        ],
+        okText: 'เปลี่ยนเป็นข้อมูลใหม่',
+        cancelText: 'ไม่เปลี่ยน (คงข้อมูลเดิม)',
+        danger: false
+    });
+}
+
 function applyGeminiDataToWorkerForm(docType, parsedData) {
     if (!parsedData) return;
     const setVal = (id, val) => {
@@ -4570,8 +4594,13 @@ function processUploadedFile(file, docType) {
             tempWorkerAttachments[docType] = updatedList;
 
             if (uploadResult && uploadResult.parsedData) {
-                applyGeminiDataToWorkerForm(docType, uploadResult.parsedData);
-                showToast("✨ AI อ่านข้อมูลจากเอกสารและกรอกฟอร์มให้อัตโนมัติแล้ว กรุณาตรวจสอบความถูกต้องอีกครั้ง", "success");
+                const formOld = { uid: workerUid, firstName: known.firstName, lastName: known.lastName };
+                if (await confirmWorkerUidChange(formOld, uploadResult.parsedData, fileName)) {
+                    applyGeminiDataToWorkerForm(docType, uploadResult.parsedData);
+                    showToast("✨ AI อ่านข้อมูลจากเอกสารและกรอกฟอร์มให้อัตโนมัติแล้ว กรุณาตรวจสอบความถูกต้องอีกครั้ง", "success");
+                } else {
+                    showToast("คงข้อมูลเดิมไว้ — ไฟล์ยังแนบอยู่ แต่ไม่นำข้อมูลจากเอกสารนี้ไปกรอก", "warning");
+                }
             }
 
             if (uploadResult) {
@@ -5875,7 +5904,7 @@ function renderJobs() {
         }
 
         const cleanJobType = (j.jobType || "").replace(/\s*\(\d+\)/g, "");
-        const siblings = getJobBatchSiblings(j);
+        const siblings = getJobBatchSiblings(j, true); // เฉพาะงานของคนงานคนนี้
         const batchBadge = siblings.length > 0
             ? `<br><span class="badge" style="font-size:11.5px; margin-top:3px; background:#eef2ff; color:#4338ca; display:inline-block;">${icon("clip")} ชุดงานเดียวกัน • ${siblings.length + 1} รายการ</span>`
             : '';
@@ -6392,14 +6421,21 @@ function renderJobBatchHint(job, workerIdForNew) {
     }
 
     if (job && job.batchId) {
+        // แจ้งงานครั้งเดียวให้หลายคน → batch เดียวกันมีใบงานของคนงานคนอื่นปนอยู่ด้วย
+        // แสดงเฉพาะงานอื่นของ "คนงานคนนี้" เป็นรายการ ส่วนคนงานคนอื่นในชุดเดียวกันแค่บอกชื่อ (ไม่ปนเป็นงานของคนนี้)
         const siblings = getJobBatchSiblings(job);
-        if (siblings.length > 0) {
+        const mine = siblings.filter(s => s.workerId === job.workerId);
+        const otherWorkerIds = [...new Set(siblings.filter(s => s.workerId !== job.workerId).map(s => s.workerId))];
+        if (mine.length > 0 || otherWorkerIds.length > 0) {
+            const chip = (s) => `<span style="display:inline-block; margin:2px 4px; padding:2px 8px; border-radius:10px; background:white; border:1px solid #c7d2fe;">${getCleanJobTypeName(s.jobType)} <em style="font-style:normal; color:#64748b;">(${s.status})</em></span>`;
+            const otherNames = otherWorkerIds.map(id => { const w = workers.find(x => x.id === id); return w ? `${w.firstName} ${w.lastName || ''}`.trim() : '-'; });
             hintBox.style.display = 'block';
             hintBox.style.background = '#eef2ff';
             hintBox.style.color = '#3730a3';
             hintBox.style.border = '1px solid #c7d2fe';
-            hintBox.innerHTML = `${icon("clip")} ใบงานนี้ถูกแจ้งมาพร้อมกับอีก <strong>${siblings.length}</strong> รายการในครั้งเดียวกัน: ` +
-                siblings.map(s => `<span style="display:inline-block; margin:2px 4px; padding:2px 8px; border-radius:10px; background:white; border:1px solid #c7d2fe;">${getCleanJobTypeName(s.jobType)} <em style="font-style:normal; color:#64748b;">(${s.status})</em></span>`).join('');
+            hintBox.innerHTML =
+                (mine.length ? `${icon("clip")} คนงานคนนี้มีงานอื่นที่แจ้งมาพร้อมกันอีก <strong>${mine.length}</strong> รายการ: ${mine.map(chip).join('')}` : '') +
+                (otherWorkerIds.length ? `<div style="margin-top:${mine.length ? '6px' : '0'};">${icon("users")} แจ้งพร้อมกันให้คนงานอื่นอีก <strong>${otherWorkerIds.length}</strong> คน (ใบงานแยกของแต่ละคน): ${escapeHtml(otherNames.join(', '))}</div>` : '');
             return;
         }
     }
@@ -9619,7 +9655,7 @@ function filterWorkersByEmployer(employerId) {
     }
     const selectStatus = document.getElementById("filter-worker-employment-status");
     if (selectStatus) {
-        selectStatus.value = "all"; // show all to find both active and archived workers
+        selectStatus.value = "all"; // ทุกคนที่ยังไม่พ้นสภาพ (ปกติ + รอขึ้นทะเบียน) — คนพ้นสภาพดูได้จากตัวกรอง "เฉพาะแจ้งออก/พ้นสภาพ"
     }
     renderWorkers();
 }
@@ -10792,8 +10828,9 @@ async function attachDocumentToWorker(w, docType, fileContent, preParsed = null)
         expiryDate: extractDocExpiryDate(docType, preParsed || (uploadResult && uploadResult.parsedData))
     });
 
-    if (preParsed || (uploadResult && uploadResult.parsedData)) {
-        applyOcrDataToWorker(w, docType, preParsed || uploadResult.parsedData);
+    const parsedForWorker = preParsed || (uploadResult && uploadResult.parsedData);
+    if (parsedForWorker && await confirmWorkerUidChange({ uid: w.workerUid, firstName: w.firstName, lastName: w.lastName }, parsedForWorker, fileName)) {
+        applyOcrDataToWorker(w, docType, parsedForWorker);
     }
 
     // Auto-transition from pending_register to active when both Work Permit and Receipt are uploaded
@@ -11973,7 +12010,7 @@ function renderJobsKanban(filtered) {
             const cleanJobType = (j.jobType || "").replace(/\s*\(\d+\)/g, "");
 
             // ป้ายบอกว่าใบงานนี้ถูกเปิดมาพร้อมกับงานอื่นในชุดเดียวกัน (batch เดียวกัน)
-            const siblings = getJobBatchSiblings(j);
+            const siblings = getJobBatchSiblings(j, true); // เฉพาะงานของคนงานคนนี้
             const batchTag = siblings.length > 0
                 ? `<div style="font-size:11.5px; color:#4338ca; display:flex; align-items:center; gap:4px; flex-wrap:wrap;">${icon("clip")} ชุดเดียวกัน (${siblings.length + 1} งาน):
                     ${siblings.map(s => {

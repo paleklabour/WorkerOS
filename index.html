@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261006g">
+    <link rel="stylesheet" href="styles.css?v=20261006j">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -682,7 +682,7 @@
                                         <option value="active">เฉพาะคนงานปัจจุบัน (Active)</option>
                                         <option value="pending_register">เฉพาะรอขึ้นทะเบียน (Pending Register)</option>
                                         <option value="archived">เฉพาะแจ้งออก/พ้นสภาพ (Archived)</option>
-                                        <option value="all">คนงานทั้งหมด (Show All)</option>
+                                        <option value="all">คนงานทั้งหมด ยกเว้นพ้นสภาพ (Show All)</option>
                                     </select>
                                 </div>
                             </div>
@@ -2398,32 +2398,12 @@
                             <div id="job-type-checkboxes-container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: var(--radius-sm); padding: 12px;">
                                 <div style="display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
                                     <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
-                                        <input type="checkbox" name="job-type-checkbox" value="ขึ้นทะเบียนแรงงานต่างด้าว" style="width: 16px; height: 16px;"> ขึ้นทะเบียนแรงงานฯ
-                                    </label>
-                                </div>
-                                <div style="display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
-                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
-                                        <input type="checkbox" name="job-type-checkbox" value="ต่อเล่ม CI/Passport" style="width: 16px; height: 16px;"> ต่อเล่ม CI/Passport
-                                    </label>
-                                </div>
-                                <div style="display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
-                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
-                                        <input type="checkbox" name="job-type-checkbox" value="ตี VISA" style="width: 16px; height: 16px;"> ตี VISA
-                                    </label>
-                                </div>
-                                <div style="display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
-                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
-                                        <input type="checkbox" name="job-type-checkbox" value="ย้ายตรา" style="width: 16px; height: 16px;"> ย้ายตรา
-                                    </label>
-                                </div>
-                                <div style="display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
-                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
                                         <input type="checkbox" name="job-type-checkbox" value="แจ้งเข้าคนงานต่างด้าว" style="width: 16px; height: 16px;"> แจ้งเข้าคนงานฯ
                                     </label>
                                 </div>
                                 <div style="display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
                                     <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
-                                        <input type="checkbox" name="job-type-checkbox" value="แจ้งออกคนงานต่างด้าว" style="width: 16px; height: 16px;"> แจ้งออกคนงานฯ
+                                        <input type="checkbox" name="job-type-checkbox" value="ขึ้นทะเบียนแรงงานต่างด้าว" style="width: 16px; height: 16px;"> ขึ้นทะเบียนแรงงานฯ
                                     </label>
                                 </div>
                                 <div style="display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
@@ -2433,7 +2413,32 @@
                                 </div>
                                 <div style="display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
                                     <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
-                                        <input type="checkbox" name="job-type-checkbox" value="ออกใบรับรองแพทย์" style="width: 16px; height: 16px;"> ออกใบรับรองแพทย์
+                                        <input type="checkbox" name="job-type-checkbox" value="ต่อเล่ม CI/Passport" style="width: 16px; height: 16px;"> ต่อเล่ม CI/Passport
+                                    </label>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
+                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
+                                        <input type="checkbox" name="job-type-checkbox" value="แจ้งออกคนงานต่างด้าว" style="width: 16px; height: 16px;"> แจ้งออกคนงานฯ
+                                    </label>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
+                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
+                                        <input type="checkbox" name="job-type-checkbox" value="ตี VISA" style="width: 16px; height: 16px;"> ตี VISA
+                                    </label>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
+                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
+                                        <input type="checkbox" name="job-type-checkbox" value="แจ้งเข้าประกันสังคม" style="width: 16px; height: 16px;"> แจ้งเข้าประกันสังคม
+                                    </label>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
+                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
+                                        <input type="checkbox" name="job-type-checkbox" value="ย้ายตรา" style="width: 16px; height: 16px;"> ย้ายตรา
+                                    </label>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
+                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
+                                        <input type="checkbox" name="job-type-checkbox" value="แจ้งที่พัก TM.30" style="width: 16px; height: 16px;"> แจ้งที่พัก TM.30
                                     </label>
                                 </div>
                                 <div style="display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
@@ -2448,12 +2453,7 @@
                                 </div>
                                 <div style="display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
                                     <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
-                                        <input type="checkbox" name="job-type-checkbox" value="แจ้งเข้าประกันสังคม" style="width: 16px; height: 16px;"> แจ้งเข้าประกันสังคม
-                                    </label>
-                                </div>
-                                <div style="display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
-                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
-                                        <input type="checkbox" name="job-type-checkbox" value="แจ้งที่พัก TM.30" style="width: 16px; height: 16px;"> แจ้งที่พัก TM.30
+                                        <input type="checkbox" name="job-type-checkbox" value="ออกใบรับรองแพทย์" style="width: 16px; height: 16px;"> ออกใบรับรองแพทย์
                                     </label>
                                 </div>
                                 <div style="display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm); grid-column: span 2;">
@@ -3246,7 +3246,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261006g"></script>
+    <script src="supabase-client.js?v=20261006j"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3257,6 +3257,6 @@
     </script>
 
     <!-- Application Script -->
-    <script src="app.js?v=20261006g"></script>
+    <script src="app.js?v=20261006j"></script>
 </body>
 </html>
