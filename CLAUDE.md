@@ -219,3 +219,11 @@ push browsers can keep the old `app.js`/`styles.css` for ~10 minutes (and mix
 them with a newer `index.html`). `index.html` loads them as
 `styles.css?v=…` / `supabase-client.js?v=…` / `app.js?v=…` — bump that `v`
 value (all three together) in any commit that changes those files.
+
+## Voided invoices (2026-10-06)
+
+Voided invoices are hidden everywhere (billing "all", CSV export, reports,
+portal); only Admin sees them via the "บิลที่ยกเลิก" filter. Owner's policy:
+keep voided invoices as evidence — `deleteVoidInvoice` (Admin) is only for
+invoices issued by mistake. Document numbers (`next_doc_no`) only count up and
+are never reused, so a deleted invoice leaves a gap.

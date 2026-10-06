@@ -670,6 +670,23 @@
                 return await deleteUserAccount(payload.userId, payload.pin);
             case "deleteRecord":
                 return await deleteRecord(payload.sheetName, payload.id);
+            case "deleteVoidInvoice": {
+                // Admin ลบบิลที่ยกเลิกแล้วถาวร — payments.invoice_id เป็น on delete restrict จึงลบการรับเงินของบิลนี้ก่อน
+                // (บิลที่ยกเลิกได้ต้องยกเลิกการรับเงินทุกงวดแล้ว — ถ้ายังมีงวดที่ไม่ได้ยกเลิก ไม่ลบอะไรเลย)
+                const id = payload.invoiceId;
+                const { data: inv, error: invErr } = await sb.from("invoices").select("id, status").eq("id", id).maybeSingle();
+                if (invErr) return { status: "error", message: invErr.message };
+                if (!inv || inv.status !== "void") return { status: "error", message: "ลบได้เฉพาะบิลที่ยกเลิกแล้ว" };
+                const { data: live, error: liveErr } = await sb.from("payments").select("id").eq("invoice_id", id).eq("voided", false);
+                if (liveErr) return { status: "error", message: liveErr.message };
+                if (live && live.length) return { status: "error", message: "บิลนี้ยังมีการรับเงินที่ยังไม่ได้ยกเลิก" };
+                const { error: payErr } = await sb.from("payments").delete().eq("invoice_id", id);
+                if (payErr) return { status: "error", message: payErr.message };
+                const { error, count } = await sb.from("invoices").delete({ count: "exact" }).eq("id", id);
+                if (error) return { status: "error", message: error.message };
+                if (!count) return { status: "error", message: "ไม่มีสิทธิ์ลบบิลนี้ (เฉพาะ Admin)" };
+                return { status: "success" };
+            }
             case "deleteRecordByRow":
                 // แนวคิด "แถวที่เท่าไหร่" ไม่มีอยู่แล้วใน SQL (ไม่ใช่ชีต) — ใช้ id แทนเสมอ
                 return { status: "error", message: "deleteRecordByRow ไม่รองรับแล้วบน Supabase — กรุณาใช้ deleteRecord ด้วย id" };

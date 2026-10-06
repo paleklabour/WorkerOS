@@ -2803,10 +2803,15 @@ function renderBillingTab() {
     const receiveBtn = document.getElementById("btn-receive-money");
     if (receiveBtn) receiveBtn.classList.toggle('hidden', !can('finance'));
 
+    // ตัวเลือก "บิลที่ยกเลิก" เห็นเฉพาะ Admin (ไว้ลบทิ้ง) — ตำแหน่งอื่นไม่เห็นบิลที่ยกเลิกเลย
+    const voidOpt = statusFilterEl && statusFilterEl.querySelector('option[value="void"]');
+    if (voidOpt) voidOpt.hidden = voidOpt.disabled = currentUser.role !== 'admin';
+
     const showUnbilled = ['pending', 'unbilled', 'all'].includes(statusFilter);
     const invoiceStatuses = {
         pending: ['issued', 'partial'], unbilled: [], outstanding: ['issued', 'partial'], overdue: ['issued', 'partial'],
-        paid: ['paid'], void: ['void'], nocharge: [], all: ['issued', 'partial', 'paid', 'void']
+        // บิลที่ยกเลิกไม่แสดงที่ไหน (รวม "ทั้งหมด") — ยกเว้นตัวกรอง "บิลที่ยกเลิก" ของ Admin ไว้ลบทิ้ง (deleteVoidInvoice)
+        paid: ['paid'], void: currentUser.role === 'admin' ? ['void'] : [], nocharge: [], all: ['issued', 'partial', 'paid']
     }[statusFilter] || ['issued', 'partial'];
 
     const matchesJobQuery = j => {
@@ -2862,6 +2867,7 @@ function renderBillingTab() {
                 <td><span class="badge badge-lg ${meta.cls}">${icon(meta.icon)} ${meta.label}</span></td>
                 <td class="actions-col">
                     <button class="btn btn-sm btn-gold" onclick="openStoredInvoice('${inv.id}')" style="white-space: nowrap;">${icon("receipt")} เปิดบิล</button>
+                    ${inv.status === 'void' && currentUser.role === 'admin' ? `<button class="btn btn-sm btn-outline btn-danger-outline" onclick="deleteVoidInvoice('${inv.id}')" style="white-space: nowrap;" title="ลบถาวร — ใช้เฉพาะบิลที่ออกผิดจริง ๆ (ปกติให้เก็บบิลที่ยกเลิกไว้เป็นหลักฐาน)">${icon("trash")} ลบบิล</button>` : ''}
                 </td>
             </tr>`;
     }).join('');
@@ -12835,6 +12841,7 @@ function renderInvoiceStatusUi() {
     show('btn-issue-invoice', !inv && canManage);
     show('btn-save-invoice-edits', !!inv && editable && canManage);
     show('btn-void-invoice', !!inv && status !== 'void' && canManage);
+    show('btn-delete-void-invoice', !!inv && status === 'void' && currentUser.role === 'admin');
 
     // ช่องแก้ไขข้อความบนหัวบิล (ชื่อ/ที่อยู่/กำหนดชำระ/หมายเหตุ) แก้ได้เฉพาะตอนแก้ไขบิลได้
     ['inv-cust-name', 'inv-cust-addr', 'inv-cust-tax', 'inv-due-date', 'inv-notes'].forEach(id => {
@@ -13308,6 +13315,30 @@ function registerReceiveMoneySearchSelect() {
 }
 
 // ยกเลิกบิล (admin/manager) — ต้องยกเลิกการรับเงินทุกงวดก่อน; ใบงานกลับเป็น "ยังไม่ออกบิล" ออกบิลใหม่ได้
+// Admin ลบบิลที่ยกเลิกแล้วออกจากระบบถาวร (รวมรายการรับเงินที่ยกเลิกไปแล้วของบิลนั้น) — กู้คืนไม่ได้
+async function deleteVoidInvoice(invoiceId) {
+    if (currentUser.role !== 'admin') { showToast("❌ เฉพาะ Admin เท่านั้น", "danger"); return; }
+    const inv = invoices.find(i => i.id === invoiceId);
+    if (!inv || inv.status !== 'void') { uiAlert("ลบได้เฉพาะบิลที่ยกเลิกแล้ว"); return; }
+    if (payments.some(p => p.invoiceId === inv.id && !p.voided)) { uiAlert("บิลนี้ยังมีการรับเงินที่ยังไม่ได้ยกเลิก — ยกเลิกการรับเงินก่อน"); return; }
+    // แนวทาง (เจ้าของระบบเลือก 2026-10-06): ยกเลิกบิลไว้เป็นหลักฐานเป็นหลัก — ลบเฉพาะบิลที่ออกผิดจริง ๆ
+    // เลขที่บิลไม่ถูกนำกลับมาใช้ (next_doc_no นับขึ้นอย่างเดียว) ลบแล้วเลขจะขาดช่วงโดยไม่มีหลักฐานว่าทำไม
+    if (!(await uiConfirm(`ลบบิล ${inv.invoiceNo} (${inv.customerName || '-'}) ยอด ${fmtMoney(inv.grandTotal)} บาท ออกจากระบบถาวร?\n\n` +
+        `แนะนำ: ปล่อยบิลที่ยกเลิกไว้เป็นหลักฐาน (ไม่แสดงในรายการไหนอยู่แล้ว) — ลบเฉพาะบิลที่ออกผิดจริง ๆ\n` +
+        `เลข ${inv.invoiceNo} จะไม่ถูกนำกลับมาใช้ ลบแล้วเลขบิลจะขาดช่วงโดยไม่เหลือหลักฐานเหตุผลที่ยกเลิก${inv.voidReason ? ` ("${inv.voidReason}")` : ''} และกู้คืนไม่ได้`, {
+        title: 'ลบบิลที่ยกเลิก — แน่ใจหรือไม่?', okText: 'บิลออกผิด ลบถาวร', cancelText: 'เก็บไว้เป็นหลักฐาน', danger: true }))) return;
+    const res = await callCloudAPI("deleteVoidInvoice", { invoiceId: inv.id });
+    if (!res || res.status === "error") { showToast("❌ ลบบิลไม่สำเร็จ: " + (res && res.message ? res.message : "กรุณาลองใหม่"), "danger"); return; }
+    invoices = invoices.filter(i => i.id !== inv.id);
+    payments = payments.filter(p => p.invoiceId !== inv.id);
+    jobs.forEach(j => { if (j.invoiceId === inv.id) j.invoiceId = null; });
+    saveData();
+    if (currentInvoiceId === inv.id) closeInvoiceModal();
+    renderBillingTab();
+    renderDashboard();
+    showToast(`🗑️ ลบบิล ${inv.invoiceNo} ออกจากระบบแล้ว`, "success");
+}
+
 async function voidCurrentInvoice() {
     const inv = currentInvoiceId ? invoices.find(i => i.id === currentInvoiceId) : null;
     if (!inv || !can('finance')) return;
@@ -13587,7 +13618,7 @@ function exportFinanceCsv(kind) {
     } else if (kind === 'invoices') {
         header = ['เลขที่บิล', 'วันที่ออกบิล', 'ประเภท', 'นายจ้าง/ลูกค้า', 'ยอดบิล', 'ค่าธรรมเนียมรัฐ (ภายใน)', 'รับแล้ว', 'คงเหลือ', 'อายุหนี้ (วัน)', 'สถานะ', 'เหตุผลยกเลิก'];
         const today = new Date();
-        rows = invoices.filter(i => inPeriod(i.issueDate)).sort((a, b) => (a.invoiceNo || '').localeCompare(b.invoiceNo || '')).map(i => {
+        rows = invoices.filter(i => i.status !== 'void' && inPeriod(i.issueDate)).sort((a, b) => (a.invoiceNo || '').localeCompare(b.invoiceNo || '')).map(i => {
             const bal = i.status === 'void' ? 0 : invoiceBalance(i);
             const days = bal > 0 ? Math.floor((today - (safeParseDate(i.issueDate) || today)) / 86400000) : '';
             return [i.invoiceNo, formatThaiDate(i.issueDate), { job: 'บิลใบงาน', combined: 'บิลรวม', free: 'บิลอิสระ' }[i.kind] || i.kind,
