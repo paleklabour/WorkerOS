@@ -5776,8 +5776,16 @@ function renderJobsSummary(baseJobs, monthKey) {
     mountWidgetBoard('jobs', wasEditing);
 }
 
+// งาน "จบครบแล้ว" = ปิดงาน + ปิดบิล (ชำระครบ หรือไม่เรียกเก็บเงิน) และจบไปตั้งแต่เดือนก่อน ๆ
+// (เดือนที่จบ = เดือนล่าสุดระหว่างวันปิดงานกับวันรับเงิน) — งานที่จบในเดือนนี้ยังแสดงอยู่จนหมดเดือน
+function isJobArchived(j) {
+    if (!j || j.status !== 'ปิดงานแล้ว' || !(isJobPaid(j) || isJobNoCharge(j))) return false;
+    const doneMonth = [j.closedAt, isJobPaid(j) ? j.paidAt : null].map(d => String(d || '').slice(0, 7)).sort().pop();
+    return !!doneMonth && doneMonth < localDateISO(new Date()).slice(0, 7);
+}
+
 // ---------- เรียงตารางระบบจัดการแจ้งงานตามหัวคอลัมน์ ----------
-// คลิกหัวคอลัมน์ = เรียงน้อยไปมาก, คลิกซ้ำ = มากไปน้อย, คลิกครั้งที่ 3 = กลับเป็นลำดับเดิม
+// คลิกหัวคอลัมน์ = เรียงน้อยไปมาก, คลิกซ้ำ = มากไปน้อย, คลิกครั้งที่ 3 = กลับเป็นค่าเริ่มต้น (งานใหม่ล่าสุดอยู่บน)
 let jobsSort = { key: null, dir: 1 };
 const JOB_STATUS_SORT_ORDER = ['รอดำเนินการ', 'กำลังดำเนินการ', 'รอเอกสารเพิ่มเติม', 'ปิดงานแล้ว'];
 
@@ -5806,7 +5814,11 @@ function jobSortValue(j, key) {
 }
 
 function sortJobsList(list) {
-    if (!jobsSort.key) return list;
+    // ค่าเริ่มต้น (ยังไม่ได้คลิกเรียง): งานที่เปิดใหม่ล่าสุดอยู่บนสุดเสมอ (เจ้าของระบบกำหนด 2026-10-06)
+    if (!jobsSort.key) {
+        return list.sort((a, b) => String(b.createdAt || b.updatedAt || '').localeCompare(String(a.createdAt || a.updatedAt || ''))
+            || String(b.id).localeCompare(String(a.id), undefined, { numeric: true }));
+    }
     const { key, dir } = jobsSort;
     return list.sort((a, b) => {
         const va = jobSortValue(a, key), vb = jobSortValue(b, key);
@@ -5845,7 +5857,7 @@ function renderJobs() {
         const matchSearch = j.id.toLowerCase().includes(query) || custName.includes(query) || workName.includes(query) || getJobDisplayNo(j).toLowerCase().includes(query);
 
         const matchType = typeFilter === "" || (j.jobType && j.jobType.includes(typeFilter));
-        const matchStatus = statusFilter === "" || (statusFilter === "__open" ? JOB_OPEN_STATUSES.includes(j.status) : j.status === statusFilter);
+        const matchStatus = statusFilter === "" || (statusFilter === "__open" ? JOB_OPEN_STATUSES.includes(j.status) : statusFilter === "__archived" ? j.status === "ปิดงานแล้ว" : j.status === statusFilter);
         const matchAssignee = !assigneeFilter
             || (assigneeFilter === 'me' && j.assignedTo === currentUser.id)
             || (assigneeFilter === 'none' && !j.assignedTo)
@@ -5853,7 +5865,12 @@ function renderJobs() {
 
         return matchSearch && matchType && matchStatus && matchAssignee;
     });
-    const filtered = monthFilter ? baseFiltered.filter(j => jobMonthKey(j) === monthFilter) : baseFiltered;
+    let filtered = monthFilter ? baseFiltered.filter(j => jobMonthKey(j) === monthFilter) : baseFiltered;
+    // งานที่จบครบแล้ว (ปิดงาน + ปิดบิล) ตั้งแต่เดือนก่อน ๆ ไม่แสดง — ยกเว้นเลือกดูเอง:
+    // ตัวกรองสถานะ "ปิดงานแล้ว" / "งานที่จบครบแล้ว" หรือเลือกเดือน (หน้าสรุปยังนับทุกงานตามเดิม)
+    const showArchived = statusFilter === 'ปิดงานแล้ว' || statusFilter === '__archived' || !!monthFilter;
+    if (statusFilter === '__archived') filtered = filtered.filter(isJobArchived);
+    else if (!showArchived) filtered = filtered.filter(j => !isJobArchived(j));
 
     if (currentJobView === 'summary') {
         renderJobsSummary(baseFiltered, monthFilter);
@@ -5861,7 +5878,7 @@ function renderJobs() {
     }
 
     if (currentJobView === 'kanban') {
-        renderJobsKanban(filtered);
+        renderJobsKanban(sortJobsList(filtered)); // งานใหม่ล่าสุดอยู่บนของแต่ละคอลัมน์ด้วย
         return;
     }
 

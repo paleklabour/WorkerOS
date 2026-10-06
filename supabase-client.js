@@ -182,9 +182,10 @@
     async function handleGetData() {
         const [customersRes, workersRes, jobsRes, banksRes, profilesRes, agentsRes, expensesRes, freeInvoicesRes,
                invoicesRes, paymentsRes, servicePricesRes, receiptsRes, teamRes, settingsRes] = await Promise.all([
-            sb.from("customers").select("*"),
-            sb.from("workers").select("*"),
-            sb.from("jobs").select("*"),
+            // เรียงตามวันที่สร้าง (+id) เสมอ — ไม่ระบุลำดับ Postgres คืนแถวที่เพิ่งแก้ไขในตำแหน่งใหม่ ทำให้รายการในตารางกระโดด
+            sb.from("customers").select("*").order("created_at", { ascending: true }).order("id", { ascending: true }),
+            sb.from("workers").select("*").order("created_at", { ascending: true }).order("id", { ascending: true }),
+            sb.from("jobs").select("*").order("created_at", { ascending: true }).order("id", { ascending: true }),
             sb.from("banks").select("*"),
             sb.from("profiles").select("name, role, customer_id, id, theme, ui_layout"),
             sb.from("agents").select("*"),
