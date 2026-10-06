@@ -29,6 +29,8 @@ language plpgsql security definer set search_path = public as $$
 begin
   if can_finance() then return new; end if;
   if tg_op = 'INSERT' then
+    -- หน้าเว็บบันทึกใบงานด้วย upsert — trigger INSERT ทำงานก่อนแม้แถวมีอยู่แล้ว (จะกลายเป็น UPDATE ซึ่งเช็กแยกด้านล่าง)
+    if exists (select 1 from public.jobs where id = new.id) then return new; end if;
     if new.payment_status = 'ไม่เรียกเก็บเงิน' or new.no_charge_at is not null then
       raise exception 'เฉพาะ Admin / Account Manager เท่านั้นที่ตั้งงานเป็น "ไม่เรียกเก็บเงิน" ได้';
     end if;
