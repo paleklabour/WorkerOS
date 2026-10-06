@@ -1464,6 +1464,7 @@ function openClientWorkerView(workerId) {
     });
     uiAlert('ดูข้อมูลอย่างเดียว — ถ้าข้อมูลไม่ถูกต้อง กด "เขียนโน้ต" แจ้งเจ้าหน้าที่ได้', {
         title: 'ข้อมูลคนงาน',
+        wide: true, // หน้าต่างใหญ่ แบ่งหัวข้อเป็นคอลัมน์ ไม่ต้องเลื่อนลง
         okText: 'ปิด',
         card: { image: w.photo || '', imageIcon: 'user', title: workerFullName(w), subtitle: [w.nationality, w.workerUid].filter(Boolean).join(' • '), rows: [] },
         summary
@@ -1845,7 +1846,7 @@ document.addEventListener("DOMContentLoaded", () => hydrateIcons());
 // - คืนค่าเป็น Promise เสมอ — ฟังก์ชันที่เรียก uiConfirm/uiPrompt ต้องเป็น async แล้ว await
 // - card: แสดงข้อมูลของรายการที่กำลังจะลบ/แก้ไข { image, imageIcon, title, subtitle, rows: [[ป้าย, ค่า], ...], list: [...] }
 //   (สร้างด้วย dialogCardForWorker/Customer/Job/... ด้านล่าง) — ทุกค่าใส่ผ่าน textContent/src ไม่ตีความ HTML
-function showUiDialog({ kind, message, title, okText, cancelText, danger, inputType, placeholder, card, summary }) {
+function showUiDialog({ kind, message, title, okText, cancelText, danger, inputType, placeholder, card, summary, wide }) {
     return new Promise(resolve => {
         const isDanger = danger ?? (kind === 'confirm' && /ลบ|ยกเลิกลิงก์/.test(message));
         const iconName = kind === 'alert' ? 'warn' : isDanger ? 'trash' : kind === 'prompt' ? 'lock' : 'clipboard';
@@ -1853,7 +1854,7 @@ function showUiDialog({ kind, message, title, okText, cancelText, danger, inputT
         const backdrop = document.createElement('div');
         backdrop.className = 'ui-dialog-backdrop';
         backdrop.innerHTML = `
-            <div class="ui-dialog${isDanger ? ' is-danger' : ''}" role="${kind === 'alert' ? 'alertdialog' : 'dialog'}" aria-modal="true">
+            <div class="ui-dialog${isDanger ? ' is-danger' : ''}${wide ? ' ui-dialog-wide' : ''}" role="${kind === 'alert' ? 'alertdialog' : 'dialog'}" aria-modal="true">
                 <div class="ui-dialog-icon ui-dialog-icon-${iconColor}">${icon(iconName, iconColor)}</div>
                 <h3 class="ui-dialog-title"></h3>
                 <p class="ui-dialog-message"></p>
@@ -1870,7 +1871,7 @@ function showUiDialog({ kind, message, title, okText, cancelText, danger, inputT
         // ตัดอีโมจินำหน้าข้อความเดิมทิ้ง — หน้าต่างมีไอคอนของตัวเองอยู่แล้ว
         backdrop.querySelector('.ui-dialog-message').textContent = String(message ?? '').replace(/^\s*(?:\p{Extended_Pictographic}️?\s*)+/u, '');
         if (card) fillUiDialogCard(backdrop.querySelector('.ui-dialog-card'), card);
-        if (summary && summary.length) fillUiDialogSummary(backdrop.querySelector('.ui-dialog-summary'), summary);
+        if (summary && summary.length) fillUiDialogSummary(backdrop.querySelector('.ui-dialog-summary'), summary, wide);
         const okBtn = backdrop.querySelector('.ui-dialog-ok');
         const cancelBtn = backdrop.querySelector('.ui-dialog-cancel');
         const input = backdrop.querySelector('.ui-dialog-input');
@@ -10433,7 +10434,7 @@ function renderWorkerFolderTiles() {
     const expiredSection = document.getElementById("worker-folder-expired-section");
     const expiredListEl = document.getElementById("worker-folder-expired-files-list");
     if (expiredSection && expiredListEl) {
-        expiredListEl.innerHTML = expiredItems.join('') || `<div class="fv-none">ลากไฟล์จากด้านบนมาวางที่นี่เพื่อย้ายเป็น "หมดอายุ"</div>`;
+        expiredListEl.innerHTML = expiredItems.join('') || `<div class="fv-none">${can('ops') ? 'ลากไฟล์จากด้านบนมาวางที่นี่เพื่อย้ายเป็น "หมดอายุ"' : 'ไม่มีไฟล์ที่หมดอายุ'}</div>`;
         hydratePdfThumbnails(expiredListEl);
         expiredSection.classList.remove("hidden");
     }
@@ -10448,7 +10449,7 @@ function renderWorkerFolderItem(file, fItem, idx, isExpired) {
         : days === null ? '' : days < 0 ? '<span class="tag-mini is-bad">หมดอายุ</span>'
         : days <= 60 ? `<span class="tag-mini is-warn">อีก ${days} วัน</span>` : `<span class="tag-mini is-ok">ถึง ${formatThaiDate(fItem.expiryDate)}</span>`;
     return `
-        <div class="fv-item${isExpired ? ' is-expired' : ''}" data-key="${file.key}" data-idx="${idx}" draggable="true"
+        <div class="fv-item${isExpired ? ' is-expired' : ''}" data-key="${file.key}" data-idx="${idx}" draggable="${can('ops') ? 'true' : 'false'}"
              ondragstart="onWorkerFileDragStart(event, '${file.key}', ${idx})" onclick="selectWorkerFolderFile('${file.key}', ${idx})" title="${escapeHtml(fItem.name || '')}">
             ${renderDriveThumbnail(workerFolderFileUrl(fItem))}
             <div class="fv-item-text"><b>${escapeHtml(fItem.name || '-')}</b><small>${fItem.uploadedAt ? formatThaiDate(String(fItem.uploadedAt).slice(0, 10)) : ''} ${expTag}</small></div>
@@ -10514,7 +10515,7 @@ function renderWorkerFolderPreview() {
                 <a class="btn btn-sm btn-outline" href="${escapeHtml(url)}" target="_blank" rel="noopener">${icon('link')} เปิดแท็บใหม่</a>
                 <button type="button" class="btn btn-sm btn-outline" onclick="workerFolderAction('download')">${icon('inbox')} ดาวน์โหลด</button>
                 <button type="button" class="btn btn-sm btn-outline" onclick="workerFolderAction('share')">${icon('link')} แชร์</button>
-                <button type="button" class="btn btn-sm btn-outline btn-danger-outline drive-tile-action-btn danger" onclick="deleteFolderFileIndex('${activeFolderSel.key}', ${activeFolderSel.idx})" title="ลบไฟล์">${icon('trash')}</button>
+                ${canEdit ? `<button type="button" class="btn btn-sm btn-outline btn-danger-outline drive-tile-action-btn danger" onclick="deleteFolderFileIndex('${activeFolderSel.key}', ${activeFolderSel.idx})" title="ลบไฟล์">${icon('trash')}</button>` : ''}
             </div>
         </div>
         <div class="fv-doc">${viewer}</div>`;
@@ -10546,6 +10547,7 @@ async function setWorkerPhotoFromFile(w, url) {
 }
 // ==================== ลากไฟล์ในแฟ้มคนงานย้ายเข้า/ออกโฟลเดอร์ "ไฟล์ที่หมดอายุ" (เหมือนลากการ์ดใน Kanban) ====================
 function onWorkerFileDragStart(e, docType, idx) {
+    if (!can('ops')) { e.preventDefault(); return; }
     e.dataTransfer.setData("text/plain", JSON.stringify({ docType, idx }));
 }
 
@@ -10564,6 +10566,7 @@ async function onWorkerFileDropToCurrent(e) {
 }
 
 async function moveWorkerFileExpiryState(e, markExpired) {
+    if (!can('ops')) return; // นายจ้าง/บัญชีดูอย่างเดียว ย้ายไฟล์ไม่ได้
     const raw = e.dataTransfer.getData("text/plain");
     if (!raw) return;
     let payload;
@@ -10633,6 +10636,7 @@ function copyWorkerFolderLink(workerId) {
 
 // Trigger hidden file input upload inside Folder modal
 function triggerFolderFileUpload(docType) {
+    if (!can('ops')) return; // แก้/ลบ/แนบไฟล์ในแฟ้มคนงานได้เฉพาะเจ้าหน้าที่ (ไม่ใช่นายจ้าง)
     activeFolderDocType = docType;
     const fileInput = document.getElementById("folder-upload-input");
     if (fileInput) {
@@ -10825,6 +10829,7 @@ function readFileAsDataUrl(file) {
 
 // Handle folder file upload (Appends file(s) to the array) — แนบได้หลายไฟล์พร้อมกันในครั้งเดียว
 async function handleFolderFileUpload(event) {
+    if (!can('ops')) return; // แก้/ลบ/แนบไฟล์ในแฟ้มคนงานได้เฉพาะเจ้าหน้าที่ (ไม่ใช่นายจ้าง)
     const files = Array.from(event.target.files || []);
     if (files.length === 0 || !activeFolderWorkerId || !activeFolderDocType) return;
 
@@ -11646,6 +11651,7 @@ async function runBulkImport() {
 
 // Rename file inside folder modal
 async function renameFolderFileIndex(docType, index, newName) {
+    if (!can('ops')) return; // แก้/ลบ/แนบไฟล์ในแฟ้มคนงานได้เฉพาะเจ้าหน้าที่ (ไม่ใช่นายจ้าง)
     if (!activeFolderWorkerId) return;
     const nameClean = newName.trim();
     if (!nameClean) {
@@ -11678,6 +11684,7 @@ async function renameFolderFileIndex(docType, index, newName) {
 
 // เรียกตอนกดปุ่ม 🗑️ ในการ์ดไฟล์ — แค่เปิด modal ให้ดูว่ากำลังจะลบไฟล์ไหน ยังไม่ลบจริง (ดู performDeleteWorkerFolderFile)
 function deleteFolderFileIndex(docType, index) {
+    if (!can('ops')) return; // แก้/ลบ/แนบไฟล์ในแฟ้มคนงานได้เฉพาะเจ้าหน้าที่ (ไม่ใช่นายจ้าง)
     if (!activeFolderWorkerId) return;
     const w = workers.find(item => item.id === activeFolderWorkerId);
     const list = w ? getAttachments(w, docType) : [];
@@ -14844,13 +14851,20 @@ document.addEventListener('DOMContentLoaded', () => {
 // ก่อนส่งข้อมูลขึ้นคลาวด์ แสดงรายการ "ชื่อช่อง : ค่าที่กรอก" (เฉพาะช่องที่มีข้อมูล) ให้ผู้ใช้ตรวจอีกรอบ
 // ดึงจากฟอร์มอัตโนมัติ (collectFormSummary) — ฟอร์มใหม่ใช้ได้เลยไม่ต้องเขียนรายการเอง
 // รูปแบบรายการ: [{ label, value }] หรือ { heading } เป็นหัวข้อกลุ่ม
-function fillUiDialogSummary(box, rows) {
+// grouped = หน้าต่างแบบกว้าง (wide) — แต่ละหัวข้อ + รายการใต้หัวข้อห่อใน .ui-sum-section ให้ CSS วางเป็นคอลัมน์ ไม่ต้องเลื่อนลง
+function fillUiDialogSummary(box, rows, grouped) {
+    let target = box;
     rows.forEach(r => {
         if (r.heading) {
+            if (grouped) {
+                target = document.createElement('div');
+                target.className = 'ui-sum-section';
+                box.appendChild(target);
+            }
             const h = document.createElement('div');
             h.className = 'ui-sum-heading';
             h.textContent = r.heading;
-            box.appendChild(h);
+            target.appendChild(h);
             return;
         }
         const row = document.createElement('div');
@@ -14862,7 +14876,7 @@ function fillUiDialogSummary(box, rows) {
         v.className = 'ui-sum-value';
         v.textContent = r.value;
         row.append(l, v);
-        box.appendChild(row);
+        target.appendChild(row);
     });
 }
 
@@ -15151,6 +15165,7 @@ function cameraCustomerFolderUpload(docType) {
 }
 
 function cameraWorkerFolderUpload(docType) {
+    if (!can('ops')) return; // แก้/ลบ/แนบไฟล์ในแฟ้มคนงานได้เฉพาะเจ้าหน้าที่ (ไม่ใช่นายจ้าง)
     activeFolderDocType = docType;
     cameraToInput(document.getElementById('folder-upload-input'));
 }

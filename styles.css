@@ -7002,3 +7002,22 @@ body.has-camera .upload-hint { display: none; }
 .cp-workers-table .cw-act { width: 13%; }
 .cp-worker-actions { display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
 .cp-badge-archived { background-color: #64748b; color: #ffffff; }
+
+/* หน้าต่างแบบกว้าง (showUiDialog wide) — เช่น ข้อมูลคนงานในพอร์ทัลนายจ้าง: หัวข้อเรียงเป็นคอลัมน์ ไม่ต้องเลื่อนลง */
+.ui-dialog.ui-dialog-wide { max-width: min(1100px, calc(100vw - 32px)); max-height: calc(100vh - 32px); }
+.ui-dialog-wide .ui-dialog-card { flex-direction: row; align-items: center; }
+.ui-dialog-wide .ui-dialog-card-pic { width: 88px; height: 88px; }
+.ui-dialog-wide .ui-dialog-summary {
+    max-height: none;
+    overflow: visible;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 4px 24px;
+    padding: 8px 16px 12px;
+}
+.ui-dialog-wide .ui-sum-row { padding: 6px 0; }
+@media (max-width: 720px) {
+    /* จอมือถือแคบเกินจะวางหลายคอลัมน์ — ให้เลื่อนในหน้าต่างได้ตามปกติ */
+    .ui-dialog.ui-dialog-wide { overflow-y: auto; }
+}
+.ui-dialog-wide .ui-dialog-icon { display: none; } /* หน้าต่างดูข้อมูล ไม่ใช่คำเตือน — ไม่ต้องมีไอคอนเตือน */
