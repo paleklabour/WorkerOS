@@ -2138,9 +2138,14 @@ function renderRenewalGroups() {
                         <div class="worker-id-line"><span>เลขที่ใบอนุญาตทำงาน</span> <b>${w.permitNo || '-'}</b></div>
                     </td>
                     <td>
-                        <div>${w.firstName || ''} ${w.lastName || ''}</div>
-                        ${w.thaiName ? `<div><small class="text-muted">ชื่อไทย (บัตรชมพู): ${w.thaiName}</small></div>` : ''}
-                        <small class="text-muted">เพศ: ${w.gender || '-'}</small>
+                        <div class="renewal-worker-cell">
+                            <div class="renewal-avatar">${w.photo ? `<img src="${escapeHtml(w.photo)}" alt="" loading="lazy">` : icon('user')}</div>
+                            <div>
+                                <div>${w.firstName || ''} ${w.lastName || ''}</div>
+                                ${w.thaiName ? `<div><small class="text-muted">ชื่อไทย (บัตรชมพู): ${w.thaiName}</small></div>` : ''}
+                                <small class="text-muted">เพศ: ${w.gender || '-'}</small>
+                            </div>
+                        </div>
                     </td>
                     <td>${w.nationality || '-'}</td>
                     <td>${emp ? emp.companyName : '-'}</td>
@@ -2205,18 +2210,26 @@ function renderRenewalGroups() {
 }
 
 // เติมรายชื่อนายจ้างในตัวกรองหน้าต่ออายุ (เฉพาะนายจ้างที่มีคนงานในหน้านี้) — คงค่าที่เลือกไว้
+// นายจ้างที่มีคนงานอยู่ในหน้าต่ออายุ — ใช้ทั้ง <select> ที่ซ่อนไว้ และรายการค้นหาของช่อง filter-renewal-employer-search
+function renewalEmployers() {
+    const empIds = new Set(workers.filter(w => w.status !== 'archived' && w.status !== 'deleted' && w.permitExpiry).map(w => w.employerId));
+    return customers.filter(c => empIds.has(c.id)).sort((a, b) => (a.companyName || '').localeCompare(b.companyName || '', 'th'));
+}
+
 function populateRenewalEmployerFilter(selected) {
     const sel = document.getElementById("filter-renewal-employer");
     if (!sel) return;
-    const empIds = new Set(workers.filter(w => w.status !== 'archived' && w.status !== 'deleted' && w.permitExpiry).map(w => w.employerId));
-    const list = customers.filter(c => empIds.has(c.id)).sort((a, b) => (a.companyName || '').localeCompare(b.companyName || '', 'th'));
+    const list = renewalEmployers();
     sel.innerHTML = '<option value="">ทุกนายจ้าง/บริษัท</option>' +
         list.map(c => `<option value="${c.id}">${escapeHtml(c.companyName || '-')}</option>`).join('');
     sel.value = list.some(c => c.id === selected) ? selected : '';
+    // นายจ้างที่เลือกไว้ไม่มีคนงานในหน้านี้แล้ว → ล้างชื่อในช่องค้นหาให้ตรงกับค่าจริง (ทุกนายจ้าง)
+    const input = document.getElementById("filter-renewal-employer-search");
+    if (input && selected && !sel.value && document.activeElement !== input) input.value = '';
 }
 
 function clearRenewalFilters() {
-    ["search-renewal", "filter-renewal-employer", "filter-renewal-nationality", "filter-renewal-status", "filter-renewal-book", "filter-renewal-group"]
+    ["search-renewal", "filter-renewal-employer", "filter-renewal-employer-search", "filter-renewal-nationality", "filter-renewal-status", "filter-renewal-book", "filter-renewal-group"]
         .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     renderRenewalGroups();
 }
@@ -8051,6 +8064,20 @@ function setupAllSearchSelects() {
         getSub: c => c.taxId ? 'ภาษี ' + c.taxId : '',
         emptyText: 'ไม่พบนายจ้างที่ตรงกับคำค้นหา',
         onSelect: () => onJobCustomerChange() // ล็อก Agent + กรองรายชื่อลูกจ้างตามนายจ้างที่เลือก เหมือน onchange เดิม
+    });
+
+    // หน้า "ข้อมูลคนงานต่ออายุ/ทำเล่ม": กรองตามนายจ้าง — <select id="filter-renewal-employer"> ซ่อนไว้เก็บค่าจริง, ช่องว่าง = ทุกนายจ้าง
+    registerSearchSelect('renewal-employer', {
+        inputId: 'filter-renewal-employer-search',
+        getValue: () => document.getElementById('filter-renewal-employer').value,
+        setValue: (v) => { document.getElementById('filter-renewal-employer').value = v || ''; },
+        getPool: () => renewalEmployers(),
+        getId: c => c.id,
+        getLabel: c => c.companyName,
+        getSub: c => c.taxId ? 'ภาษี ' + c.taxId : '',
+        emptyText: 'ไม่พบนายจ้างที่ตรงกับคำค้นหา',
+        onSelect: () => renderRenewalGroups(),
+        onClear: () => renderRenewalGroups()
     });
 
     // แดชบอร์ด > "สรุปงานที่แจ้งสำเร็จ": กรองตามนายจ้าง / Agent — <select> ซ่อนไว้เก็บค่าจริง, ช่องว่าง = ทั้งหมด

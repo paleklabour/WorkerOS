@@ -895,9 +895,16 @@
                             </div>
                             <!-- ตัวกรองหน้าต่ออายุ/ทำเล่ม — กรองคนงาน "ภายใน" แต่ละกลุ่ม (กลุ่มยังจัดจากคนงานทั้งหมด) ดู renderRenewalGroups() -->
                             <div class="filter-box renewal-filters">
-                                <select id="filter-renewal-employer" onchange="renderRenewalGroups()">
+                                <!-- <select> ซ่อนไว้เก็บค่าจริง (ว่าง = ทุกนายจ้าง) — ช่องที่พิมพ์ค้นหาคือ filter-renewal-employer-search (registerSearchSelect) -->
+                                <select id="filter-renewal-employer" class="hidden" onchange="renderRenewalGroups()">
                                     <option value="">ทุกนายจ้าง/บริษัท</option>
                                 </select>
+                                <div class="search-box renewal-employer-search">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                    </svg>
+                                    <input type="text" id="filter-renewal-employer-search" placeholder="ค้นหานายจ้าง (ว่าง = ทุกนายจ้าง)" autocomplete="off">
+                                </div>
                                 <select id="filter-renewal-nationality" onchange="renderRenewalGroups()">
                                     <option value="">ทุกสัญชาติ</option>
                                     <option value="Myanmar">เมียนมา (Myanmar)</option>

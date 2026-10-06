@@ -6951,3 +6951,23 @@ body.has-camera .upload-hint { display: none; }
 .payment-slip-item a { font-weight: 500; color: var(--navy-dark); }
 .payment-slip-item small { flex: 1; min-width: 160px; }
 .payment-slip-item .btn { padding: 3px 8px; font-size: 11.5px; }
+
+/* ช่องค้นหานายจ้างในตัวกรองหน้าต่ออายุ/ทำเล่ม (registerSearchSelect 'renewal-employer') */
+.renewal-employer-search { min-width: 220px; flex: 1 1 220px; max-width: 320px; }
+
+/* รูปคนงานในตารางหน้าต่ออายุ/ทำเล่ม (renderRenewalGroups) — วงกลมแบบเดียวกับตารางคนงาน */
+.renewal-worker-cell { display: flex; align-items: center; gap: 10px; }
+.renewal-avatar {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--dk-subtle, #f1f5f9);
+    border: 1px solid var(--dk-line, #cbd5e1);
+    color: var(--text-muted);
+}
+.renewal-avatar img { width: 100%; height: 100%; object-fit: cover; }
