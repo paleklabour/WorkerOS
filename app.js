@@ -989,8 +989,10 @@ function setupAllSearchSuggestions() {
 
     registerSearchSuggest('search-user', () => users, u => u.name, u => u.email, renderUsers);
 
-    registerSearchSuggest('search-renewal', () => workers,
-        w => `${w.firstName || ''} ${w.lastName || ''}`.trim(), w => w.workerUid, renderRenewalGroups);
+    // เหมือนช่องค้นหาหน้าคนงาน: แนะนำทั้งชื่อคนงานและชื่อนายจ้าง
+    registerSearchSuggest('search-renewal', () => workers.map(w => ({ label: `${w.firstName || ''} ${w.lastName || ''}`.trim(), sub: w.workerUid || w.passportNo }))
+            .concat(customers.filter(c => !isCustomerInactive(c)).map(c => ({ label: c.companyName, sub: `นายจ้าง${c.taxId ? ' · ' + c.taxId : ''}` }))),
+        x => x.label, x => x.sub, renderRenewalGroups);
 
     registerSearchSuggest('search-dashboard-employer-alerts', () => customers,
         c => c.companyName, c => c.taxId, renderEmployerAlerts);
@@ -2023,6 +2025,9 @@ window.addEventListener("resize", () => {
 //   - วันหมดอายุตรงกันตั้งแต่ 2 คนขึ้นไป = กลุ่มมติ/รอบลงทะเบียน (batch) ตั้งชื่อกลุ่มตามวันที่นั้นเลย
 //     กลุ่มใหม่จะโผล่ขึ้นเองทุกครั้งที่เพิ่มปีใหม่ ไม่ต้องแก้โค้ด
 //   - วันหมดอายุไม่ซ้ำกับใครเลย = เหมารวมไว้ในกลุ่ม MOU (แต่ละคนหมดอายุคนละวัน)
+// รูปคนงานตอนยังไม่มีรูป — ไอคอนคนสีเทา เหมือนตารางหน้าข้อมูลคนงานต่างด้าว
+const WORKER_AVATAR_PLACEHOLDER = 'data:image/svg+xml;utf8,<svg xmlns=%22http:' + '/' + '/www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 width=%2232%22 height=%2232%22 fill=%22%2394a3b8%22><path d=%22M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4.42 0-8 3.58-8 8v1h16v-1c0-4.42-3.58-8-8-8z%22/></svg>';
+
 function renderRenewalGroups() {
     const container = document.getElementById("renewal-groups-container");
     if (!container) return;
@@ -2054,13 +2059,11 @@ function renderRenewalGroups() {
         if (bookFilter && (bookFilter === 'has') !== hasBook(w)) return false;
         if (!query) return true;
         const emp = customers.find(c => c.id === w.employerId);
-        const empName = emp ? (emp.companyName || "").toLowerCase() : "";
-        return (w.firstName || "").toLowerCase().includes(query) ||
-            (w.lastName || "").toLowerCase().includes(query) ||
-            (w.workerUid || "").toLowerCase().includes(query) ||
-            (w.permitNo || "").toLowerCase().includes(query) ||
-            (w.nationality || "").toLowerCase().includes(query) ||
-            empName.includes(query);
+        // ครอบคลุมเท่าช่องค้นหาหน้าคนงาน (renderWorkers) + ชื่อไทย/เลขอ้างอิง/เลขผู้เสียภาษีนายจ้าง
+        const hay = [w.firstName, w.lastName, `${w.firstName || ''} ${w.lastName || ''}`, w.thaiName, w.refNo, w.workerUid,
+            w.passportNo, w.permitNo, w.nationality, w.pinkCardNo, emp && emp.companyName, emp && emp.taxId]
+            .filter(Boolean).join(' | ').toLowerCase();
+        return hay.includes(query);
     };
     const anyFilter = !!(query || empFilter || natFilter || statusFilter || bookFilter || groupFilter);
 
@@ -2138,12 +2141,13 @@ function renderRenewalGroups() {
                         <div class="worker-id-line"><span>เลขที่ใบอนุญาตทำงาน</span> <b>${w.permitNo || '-'}</b></div>
                     </td>
                     <td>
+                        <!-- รูป + ชื่อ แบบเดียวกับตารางหน้าข้อมูลคนงานต่างด้าว (renderWorkers) -->
                         <div class="renewal-worker-cell">
-                            <div class="renewal-avatar">${w.photo ? `<img src="${escapeHtml(w.photo)}" alt="" loading="lazy">` : icon('user')}</div>
+                            <div class="renewal-avatar"><img src="${w.photo ? escapeHtml(w.photo) : WORKER_AVATAR_PLACEHOLDER}" alt="" loading="lazy"></div>
                             <div>
-                                <div>${w.firstName || ''} ${w.lastName || ''}</div>
+                                <strong>${w.title ? w.title + ' ' : ''}${w.firstName || '-'} ${w.lastName || ''}</strong>
                                 ${w.thaiName ? `<div><small class="text-muted">ชื่อไทย (บัตรชมพู): ${w.thaiName}</small></div>` : ''}
-                                <small class="text-muted">เพศ: ${w.gender || '-'}</small>
+                                <div><small class="text-muted">เพศ: ${w.gender || '-'}</small></div>
                             </div>
                         </div>
                     </td>

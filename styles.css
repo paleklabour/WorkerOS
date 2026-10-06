@@ -6958,8 +6958,8 @@ body.has-camera .upload-hint { display: none; }
 /* รูปคนงานในตารางหน้าต่ออายุ/ทำเล่ม (renderRenewalGroups) — วงกลมแบบเดียวกับตารางคนงาน */
 .renewal-worker-cell { display: flex; align-items: center; gap: 10px; }
 .renewal-avatar {
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
     flex-shrink: 0;
     border-radius: 50%;
     overflow: hidden;
