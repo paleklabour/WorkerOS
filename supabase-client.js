@@ -270,7 +270,7 @@
 
     // -------------------- OCR (edge function ocr-document) --------------------
     // ต้องตรงกับ ALLOWED_DOC_TYPES ใน supabase/functions/ocr-document/index.ts
-    const OCR_DOC_TYPES = ["worker-passport", "worker-wp-doc", "worker-visa", "worker-myanmar-id", "worker-pink-card", "worker-insurance-doc", "worker-receipt", "cust-id-card", "cust-cert", "expense-slip", "job-appointment", "worker-auto"];
+    const OCR_DOC_TYPES = ["worker-passport", "worker-wp-doc", "worker-visa", "worker-myanmar-id", "worker-pink-card", "worker-insurance-doc", "worker-receipt", "cust-id-card", "cust-cert", "expense-slip", "payment-slip", "job-appointment", "worker-auto"];
 
     // คืน { parsedData, ocrError } — ocrError: null (สำเร็จ) / "busy" (Gemini ไม่ว่าง/โควตาหมด) / "failed"
     // เอกสารคนงาน: อ่าน QR ของกรมการจัดหางานคู่ไปกับ AI — ถ้าเจอ ข้อมูลจากกรมทับค่าที่ AI อ่าน (แม่นกว่า)

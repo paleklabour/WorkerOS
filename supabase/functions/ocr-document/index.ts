@@ -23,6 +23,7 @@ const ALLOWED_DOC_TYPES = [
   "worker-receipt", // ใบเสร็จกรมการจัดหางาน: ชื่อ, เลขประจำตัวคนต่างด้าว, อีเมล (ใช้ prompt คนงานทั่วไป)
   "cust-id-card", "cust-cert", "cust-house", "cust-commerce",
   "expense-slip",
+  "payment-slip", // สลิปรับเงินจากลูกค้า (บิล/มัดจำ)
   "job-appointment",
   "worker-auto", // Bulk Import: ยังไม่รู้ประเภทเอกสาร ให้ AI จำแนกประเภทเอง + อ่านข้อมูลคนงานในคราวเดียว
 ];
@@ -68,6 +69,30 @@ function buildExpenseSlipPrompt(): string {
     `  "date": "transaction/receipt date in DD/MM/YYYY format",\n` +
     `  "description": "short description — payee name, memo, or what this payment is for",\n` +
     `  "category": "one value from the fixed category list above, only if it clearly matches"\n` +
+    `}`;
+}
+
+// สลิปรับเงินค่าบริการจากลูกค้า (หน้าบิล / รับเงิน-มัดจำ ใน app.js — ดู applyPaymentSlipsToForm)
+// toAccount/toBank ใช้จับคู่บัญชีที่เงินเข้า, transactionRef ใช้เตือนสลิปซ้ำ
+function buildPaymentSlipPrompt(): string {
+  return `You are a professional bookkeeping assistant. Parse this Thai bank transfer slip / payment confirmation ` +
+    `(e.g. K PLUS, SCB EASY, Krungthai NEXT, PromptPay) for money RECEIVED from a customer. Convert the date to DD/MM/YYYY format${BE_YEAR_RULE} ` +
+    `Only fill fields you can actually read from the image — leave a field out entirely (do not guess or invent values) if it is ` +
+    `not clearly present. For "amount", output digits only (no currency symbol, no commas, e.g. "1500.00"). Copy account numbers ` +
+    `exactly as printed, including any masking characters such as x or *. ` +
+    `Output ONLY a valid JSON object matching this schema, without markdown wrapping, json declaration, or backticks:\n` +
+    `{\n` +
+    `  "amount": "transferred amount, numeric only, e.g. 1500.00",\n` +
+    `  "date": "transfer date in DD/MM/YYYY format",\n` +
+    `  "time": "transfer time, e.g. 14:05",\n` +
+    `  "transactionRef": "transaction reference / เลขที่รายการ / รหัสอ้างอิง",\n` +
+    `  "fromName": "sender (payer) name as printed",\n` +
+    `  "fromBank": "sender's bank name",\n` +
+    `  "fromAccount": "sender's account number as printed (may be masked)",\n` +
+    `  "toName": "receiver (payee) name as printed",\n` +
+    `  "toBank": "receiver's bank name",\n` +
+    `  "toAccount": "receiver's account number or PromptPay ID as printed (may be masked)",\n` +
+    `  "memo": "note / memo on the slip if any"\n` +
     `}`;
 }
 
@@ -128,6 +153,7 @@ function buildInsurancePrompt(): string {
 
 function buildPrompt(docType: string): string {
   if (docType === "expense-slip") return buildExpenseSlipPrompt();
+  if (docType === "payment-slip") return buildPaymentSlipPrompt();
   if (docType === "job-appointment") return buildAppointmentPrompt();
   if (docType === "worker-insurance-doc") return buildInsurancePrompt();
   if (CUSTOMER_DOC_TYPES.includes(docType)) return buildCustomerDocPrompt(docType);

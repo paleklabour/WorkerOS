@@ -68,7 +68,7 @@ have two open jobs of the same type simultaneously (open = status in
 
 ## AI autofill on document uploads (standing default)
 
-Every file-attachment point in the app (worker docs, customer docs, expense
+Every file-attachment point in the app (worker docs, customer docs, expense and payment
 slips, job appointment docs, bulk import) should call the OCR-capable upload
 path (`uploadDocumentFile` in `app.js`, which hits the `ocr-document` Edge
 Function) **immediately on file select**, not deferred until after a parent

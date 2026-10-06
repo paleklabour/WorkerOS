@@ -7701,6 +7701,7 @@ function openStoredInvoice(invoiceId) {
     if (!inv) { showToast("❌ ไม่พบบิลนี้ในระบบ", "danger"); return; }
     setPrintPageSize(INVOICE_PAGE_CSS);
 
+    if (currentInvoiceId !== inv.id) paymentSlipState.pay = []; // สลิปที่แนบค้างไว้เป็นของบิลเดิม
     currentInvoiceId = inv.id;
     currentInvoiceKind = inv.kind || 'job';
     currentInvoiceJobIds = [...(inv.jobIds || [])];
@@ -7980,6 +7981,32 @@ function setupAllSearchSelects() {
         getSub: c => c.taxId ? 'ภาษี ' + c.taxId : '',
         emptyText: 'ไม่พบนายจ้างที่ตรงกับคำค้นหา',
         onSelect: () => onJobCustomerChange() // ล็อก Agent + กรองรายชื่อลูกจ้างตามนายจ้างที่เลือก เหมือน onchange เดิม
+    });
+
+    // แดชบอร์ด > "สรุปงานที่แจ้งสำเร็จ": กรองตามนายจ้าง / Agent — <select> ซ่อนไว้เก็บค่าจริง, ช่องว่าง = ทั้งหมด
+    registerSearchSelect('db-completed-employer', {
+        inputId: 'db-completed-employer-search',
+        getValue: () => document.getElementById('db-completed-select-employer').value,
+        setValue: (v) => { document.getElementById('db-completed-select-employer').value = v || ''; },
+        getPool: () => customers,
+        getId: c => c.id,
+        getLabel: c => c.companyName,
+        getSub: c => c.taxId ? 'ภาษี ' + c.taxId : '',
+        emptyText: 'ไม่พบนายจ้างที่ตรงกับคำค้นหา',
+        onSelect: () => renderCompletedJobsStats(),
+        onClear: () => renderCompletedJobsStats()
+    });
+    registerSearchSelect('db-completed-agent', {
+        inputId: 'db-completed-agent-search',
+        getValue: () => document.getElementById('db-completed-select-agent').value,
+        setValue: (v) => { document.getElementById('db-completed-select-agent').value = v || ''; },
+        getPool: () => agents,
+        getId: a => a.id,
+        getLabel: a => a.name,
+        getSub: a => a.phone || '',
+        emptyText: 'ไม่พบ Agent ที่ตรงกับคำค้นหา',
+        onSelect: () => renderCompletedJobsStats(),
+        onClear: () => renderCompletedJobsStats()
     });
 
     // นายจ้างในหน้าต่าง "รวมใบสั่งงานออกบิลชุด" — <select id="combine-cust-select"> ซ่อนไว้เป็นแหล่งเก็บค่าจริง
@@ -12064,6 +12091,150 @@ function paymentReceiptNo(p) {
     return r ? r.receiptNo : (p ? p.receiptNo : '');
 }
 
+// ---------- สลิปรับเงิน (หน้าบิล "pay" / หน้าต่างรับเงิน-มัดจำ "receive") ----------
+// แบบเดียวกับสลิปรายจ่าย: เลือกไฟล์ปุ๊บ อัปโหลด + AI (ocr-document, docType "payment-slip") อ่านทันที
+// แล้วเติมยอดเงิน/วันที่โอน/บัญชีที่เงินเข้าในฟอร์มให้ตรวจก่อนบันทึก — ข้อมูลที่ AI อ่าน (เลขอ้างอิง/ผู้โอน/ธนาคาร)
+// เก็บติดไปกับไฟล์ใน receipts.proof_urls[].slip
+const paymentSlipState = { pay: [], receive: [] };
+const PAYMENT_SLIP_FIELDS = {
+    pay: { amount: 'pay-amount', date: 'pay-date', method: 'pay-method', customerId: () => (invoices.find(i => i.id === currentInvoiceId) || {}).customerId },
+    receive: { amount: 'receive-amount', date: 'receive-date', method: 'receive-method', customerId: () => receiveCustomerId, after: () => distributeReceiveAmount() }
+};
+
+function paymentSlipBoxHtml(prefix) {
+    return `
+        <div class="upload-box highlight-box payment-slip-box" id="drop-${prefix}-slip" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)" ondrop="dropPaymentSlipHandler(event, '${prefix}')">
+            <div class="upload-box-trigger">
+                <input type="file" id="file-${prefix}-slip" class="file-input" accept="image/*,application/pdf" multiple onchange="paymentSlipFileSelected(event, '${prefix}')">
+                <div class="upload-icon">${icon('receipt')}</div>
+                <span class="doc-title">สลิปการโอนเงิน</span>
+                <span class="upload-hint">ลากไฟล์วางที่นี่ หรือคลิกเพื่ออัปโหลด — AI อ่านยอดเงิน วันที่โอน และบัญชีที่เงินเข้าให้</span>
+            </div>
+            <div class="ocr-status" id="status-${prefix}-slip"></div>
+        </div>
+        <div class="payment-slip-list" id="${prefix}-slip-list">${paymentSlipListHtml(prefix)}</div>`;
+}
+
+function paymentSlipListHtml(prefix) {
+    return paymentSlipState[prefix].map((s, i) => {
+        const d = s.slip || {};
+        const info = [d.amount ? `${fmtMoney(parseFloat(String(d.amount).replace(/,/g, '')) || 0)} บาท` : '', d.date || '', d.fromName ? `จาก ${d.fromName}` : '', d.transactionRef ? `อ้างอิง ${d.transactionRef}` : '']
+            .filter(Boolean).join(' • ');
+        return `<div class="payment-slip-item">
+            <a href="${escapeHtml(s.url)}" target="_blank" rel="noopener">${icon('clip')} ${escapeHtml(s.name)}</a>
+            ${info ? `<small class="text-muted">${escapeHtml(info)}</small>` : ''}
+            <button type="button" class="btn btn-sm btn-outline delete-btn" onclick="removePaymentSlip('${prefix}', ${i})">ลบ</button>
+        </div>`;
+    }).join('');
+}
+
+function resetPaymentSlips(prefix) {
+    paymentSlipState[prefix] = [];
+    const list = document.getElementById(`${prefix}-slip-list`);
+    if (list) list.innerHTML = '';
+    const status = document.getElementById(`status-${prefix}-slip`);
+    if (status) status.innerHTML = '';
+    const box = document.getElementById(`drop-${prefix}-slip`);
+    if (box) box.classList.remove('success-upload');
+    const input = document.getElementById(`file-${prefix}-slip`);
+    if (input) input.value = '';
+}
+
+function removePaymentSlip(prefix, idx) {
+    paymentSlipState[prefix].splice(idx, 1);
+    const list = document.getElementById(`${prefix}-slip-list`);
+    if (list) list.innerHTML = paymentSlipListHtml(prefix);
+    if (!paymentSlipState[prefix].length) resetPaymentSlips(prefix);
+}
+
+function dropPaymentSlipHandler(e, prefix) {
+    e.preventDefault();
+    e.currentTarget.classList.remove("dragover");
+    if (e.dataTransfer.files && e.dataTransfer.files.length) processPaymentSlipFiles(prefix, Array.from(e.dataTransfer.files));
+}
+
+function paymentSlipFileSelected(e, prefix) {
+    if (e.target.files && e.target.files.length) processPaymentSlipFiles(prefix, Array.from(e.target.files));
+    e.target.value = ''; // เลือกไฟล์เดิมซ้ำได้ (ไฟล์ที่แนบแล้วอยู่ใน paymentSlipState)
+}
+
+async function processPaymentSlipFiles(prefix, files) {
+    const f = PAYMENT_SLIP_FIELDS[prefix];
+    const statusEl = document.getElementById(`status-${prefix}-slip`);
+    const box = document.getElementById(`drop-${prefix}-slip`);
+    let added = 0, readByAi = 0;
+    for (const file of files) {
+        if (statusEl) statusEl.innerHTML = `<span class="ai-processing">${icon("bot")} กำลังอัปโหลดและให้ AI อ่านสลิป "${escapeHtml(file.name)}"...</span>`;
+        const dataUrl = await readFileAsDataUrl(file);
+        const up = await uploadDocumentFile(dataUrl, file.name, f.customerId() || "", "", "payment-slip");
+        if (!up || up.aiRejected || !up.fileUrl) {
+            if (statusEl) statusEl.innerHTML = up && up.aiRejected
+                ? `<span class="ai-error">${icon("warn", "amber")} ${getAiRejectedMessage(up.ocrError)}</span>`
+                : `<span class="ai-error">${icon("bad")} อัปโหลด "${escapeHtml(file.name)}" ไม่สำเร็จ</span>`;
+            continue;
+        }
+        paymentSlipState[prefix].push({ name: file.name, url: up.fileUrl, slip: up.parsedData || null });
+        added++;
+        if (up.parsedData) readByAi++;
+    }
+    const list = document.getElementById(`${prefix}-slip-list`);
+    if (list) list.innerHTML = paymentSlipListHtml(prefix);
+    if (!added) return;
+    if (box) box.classList.add('success-upload');
+    if (statusEl) statusEl.innerHTML = `<span class="ai-success">${icon("ok")} แนบสลิปแล้ว ${paymentSlipState[prefix].length} ไฟล์${readByAi ? ' — AI กรอกข้อมูลให้แล้ว กรุณาตรวจสอบ' : ''}</span>`;
+    if (readByAi) applyPaymentSlipsToForm(prefix);
+    warnDuplicatePaymentSlips(prefix);
+}
+
+// เติมฟอร์มจากสลิปทุกใบที่แนบ: ยอดเงิน = ผลรวมยอดทุกสลิป, วันที่ = วันที่โอนล่าสุด, บัญชีเงินเข้า = จับคู่เลขบัญชี/ชื่อธนาคาร
+function applyPaymentSlipsToForm(prefix) {
+    const f = PAYMENT_SLIP_FIELDS[prefix];
+    const slips = paymentSlipState[prefix].map(s => s.slip).filter(Boolean);
+    if (!slips.length) return;
+    const amounts = slips.map(s => parseFloat(String(s.amount || '').replace(/,/g, ''))).filter(n => n > 0);
+    if (amounts.length) document.getElementById(f.amount).value = round2(amounts.reduce((a, b) => a + b, 0));
+    const dates = slips.map(s => parseDateInput(s.date || '')).filter(Boolean).sort();
+    const today = localDateISO(new Date());
+    if (dates.length) document.getElementById(f.date).value = dates[dates.length - 1] > today ? today : dates[dates.length - 1];
+    const bank = slips.map(matchBankFromSlip).find(Boolean);
+    const methodEl = document.getElementById(f.method);
+    if (bank && methodEl && Array.from(methodEl.options).some(o => o.value === bank.id)) {
+        methodEl.value = bank.id;
+        methodEl.dispatchEvent(new Event('change'));
+    }
+    if (f.after) f.after();
+}
+
+// สลิปมักปิดเลขบัญชีบางหลัก (xxx-x-x1234-x) — เทียบเลขท้ายที่อ่านได้กับบัญชีของเรา ถ้าไม่ได้ค่อยเทียบชื่อธนาคาร
+function matchBankFromSlip(slip) {
+    if (!slip) return null;
+    const digits = String(slip.toAccount || '').replace(/\D/g, '');
+    if (digits.length >= 3) {
+        const tail = digits.slice(-4);
+        const hits = banks.filter(b => String(b.accountNumber || '').replace(/\D/g, '').includes(tail));
+        if (hits.length === 1) return hits[0];
+    }
+    const name = String(slip.toBank || '').toLowerCase().replace(/\s+/g, '');
+    if (name) {
+        const hits = banks.filter(b => {
+            const bn = String(b.bankName || '').toLowerCase().replace(/\s+/g, '');
+            return bn && (bn.includes(name) || name.includes(bn));
+        });
+        if (hits.length === 1) return hits[0];
+    }
+    return null;
+}
+
+// สลิปเดียวกันเคยบันทึกรับเงินไปแล้ว (เลขอ้างอิงซ้ำ) → เตือน กันบันทึกเงินเข้าซ้ำ
+function warnDuplicatePaymentSlips(prefix) {
+    for (const s of paymentSlipState[prefix]) {
+        const ref = s.slip && String(s.slip.transactionRef || '').trim();
+        if (!ref) continue;
+        const dup = receipts.find(r => !r.voided && (r.proofUrls || []).some(u => u.slip && String(u.slip.transactionRef || '').trim() === ref));
+        if (dup) uiAlert(`สลิป "${s.name}" (เลขอ้างอิง ${ref}) เคยบันทึกรับเงินไปแล้วในใบเสร็จ ${dup.receiptNo || '-'} — ตรวจสอบก่อนบันทึกซ้ำ`, { title: 'สลิปนี้อาจถูกบันทึกแล้ว' });
+    }
+}
+
 function paymentProofUrls(p) {
     const r = paymentReceipt(p);
     return [...(r ? r.proofUrls || [] : []), ...(p.proofUrls || [])];
@@ -12125,14 +12296,9 @@ function newPaymentId() { return 'pay-' + Date.now().toString(36) + Math.random(
 // บันทึกเงินเข้า 1 ก้อน: อัปโหลดสลิป → ออกเลข RC → บันทึกใบเสร็จ → ตัดยอดเข้าบิลตาม allocations [{inv, amount}]
 // ส่วนที่ไม่ได้ตัดเข้าบิลเป็นมัดจำของลูกค้า — ถ้าตัดเข้าบิลไหนไม่สำเร็จ เงินส่วนนั้นก็ยังอยู่เป็นมัดจำ ไม่หาย
 // คืน { receipt, failedAllocs, jobFails } หรือ null ถ้ายังไม่ได้บันทึกอะไรเลย
-async function createReceiptWithAllocations({ customerId, snapshot, amount, paidDate, methodVal, note, proofFiles, allocations }) {
-    const proofUrls = [];
-    for (const file of proofFiles || []) {
-        const dataUrl = await readFileAsDataUrl(file);
-        const up = await uploadDocumentFile(dataUrl, file.name, customerId || "", "", "payment-proof");
-        if (!up) { showToast(`❌ อัปโหลดสลิป "${file.name}" ไม่สำเร็จ ยังไม่ได้บันทึกรับเงิน`, "danger"); return null; }
-        proofUrls.push({ name: file.name, url: up.fileUrl });
-    }
+// proofUploads = สลิปที่อัปโหลด + AI อ่านไว้แล้วตอนเลือกไฟล์ (paymentSlipState) — [{ name, url, slip }]
+async function createReceiptWithAllocations({ customerId, snapshot, amount, paidDate, methodVal, note, proofUploads, allocations }) {
+    const proofUrls = (proofUploads || []).map(u => u.slip ? { name: u.name, url: u.url, slip: u.slip } : { name: u.name, url: u.url });
 
     const noRes = await callCloudAPI("nextDocNo", { prefix: "RC" });
     if (!noRes || !noRes.docNo) return null;
@@ -12317,7 +12483,7 @@ function renderInvoicePaymentsPanel(inv) {
             <td><strong>${escapeHtml(paymentReceiptNo(p) || '-')}</strong>${tag}${p.voided ? `<br><small class="text-danger">ยกเลิก: ${escapeHtml(p.voidReason || '-')}</small>` : ''}</td>
             <td>${p.method === 'cash' ? `${icon('cash')} เงินสด` : `${renderBankLogoBadge(paymentMethodLabel(p), 18)} ${escapeHtml(paymentMethodLabel(p))}`}</td>
             <td class="inv-num"><strong>${fmtMoney(p.amount)}</strong></td>
-            <td>${proofs.map((f, k) => `<a href="${escapeHtml(f.url)}" target="_blank" rel="noopener">${icon('clip')} สลิป ${k + 1}</a>`).join(' ') || '-'}</td>
+            <td>${proofs.map((f, k) => `<a href="${escapeHtml(f.url)}" target="_blank" rel="noopener" title="${escapeHtml(f.slip ? [f.slip.fromName && `ผู้โอน ${f.slip.fromName}`, f.slip.fromBank, f.slip.transactionRef && `อ้างอิง ${f.slip.transactionRef}`].filter(Boolean).join(' • ') : '')}">${icon('clip')} สลิป ${k + 1}</a>${f.slip && f.slip.transactionRef ? `<br><small class="text-muted">อ้างอิง ${escapeHtml(f.slip.transactionRef)}</small>` : ''}`).join(' ') || '-'}</td>
             <td class="pay-actions">
                 ${p.voided ? '' : `<button type="button" class="btn btn-sm btn-outline" onclick="openReceiptModal('${p.id}')">${icon('print')} ใบเสร็จ</button>`}
                 ${!p.voided && isAdmin && r && r.customerId ? `<button type="button" class="btn btn-sm btn-outline" onclick="unapplyPayment('${p.id}')" title="เงินยังอยู่ ย้ายไปเป็นมัดจำของลูกค้า">${icon('refresh')} ถอนออกจากบิล</button>` : ''}
@@ -12358,13 +12524,13 @@ function renderInvoicePaymentsPanel(inv) {
                 <div class="form-group"><label for="pay-date">วันที่รับเงินจริง</label>
                     <input type="date" id="pay-date" value="${localDateISO(new Date())}" max="${localDateISO(new Date())}"></div>
                 <div class="form-group"><label for="pay-method">รับเงินทาง</label>
-                    <select id="pay-method" onchange="document.getElementById('pay-proof-wrap').classList.toggle('hidden', this.value === 'cash')">
+                    <select id="pay-method">
                         ${BANK_SELECT_HEAD}${cashOptionHtml()}${bankOptions}</select></div>
                 <div class="form-group"><label for="pay-note">หมายเหตุ</label>
                     <input type="text" id="pay-note" placeholder="เช่น มัดจำงวดแรก"></div>
             </div>
-            <div class="form-group hidden" id="pay-proof-wrap"><label for="pay-proof">${icon('clip')} แนบหลักฐานการโอน (สลิป)</label>
-                <input type="file" id="pay-proof" accept="image/*,application/pdf" multiple></div>
+            <div class="form-group" id="pay-proof-wrap"><label>${icon('clip')} แนบหลักฐานการโอน (สลิป — AI อ่านและกรอกด้านบนให้อัตโนมัติ)</label>
+                ${paymentSlipBoxHtml('pay')}</div>
             <div class="pay-form-actions">
                 <span class="text-muted">รับไม่ครบยอดได้ (แบ่งจ่าย) ออกใบเสร็จให้ทุกงวด • รับเกินยอดได้ ส่วนเกินเก็บเป็นมัดจำของนายจ้างไว้หักบิลถัดไป</span>
                 <button type="button" class="btn btn-gold" id="btn-record-payment" onclick="recordInvoicePayment()">${icon('ok')} บันทึกรับเงิน</button>
@@ -12382,8 +12548,7 @@ async function recordInvoicePayment() {
     const paidDate = document.getElementById("pay-date").value;
     const methodVal = document.getElementById("pay-method").value;
     const note = document.getElementById("pay-note").value.trim();
-    const proofInput = document.getElementById("pay-proof");
-    const proofFiles = methodVal !== 'cash' && proofInput && proofInput.files ? Array.from(proofInput.files) : [];
+    const proofUploads = paymentSlipState.pay.slice();
 
     if (!(amount > 0)) { uiAlert("กรุณากรอกจำนวนเงินที่รับมากกว่า 0 บาท"); return; }
     if (!paidDate) { uiAlert("กรุณาเลือกวันที่รับเงิน"); return; }
@@ -12393,7 +12558,7 @@ async function recordInvoicePayment() {
         if (!(await uiConfirm(`รับเงิน ${fmtMoney(amount)} บาท มากกว่ายอดคงเหลือของบิล ${fmtMoney(balance)} บาท\nส่วนเกิน ${fmtMoney(excess)} บาท จะเก็บเป็นมัดจำของ "${inv.customerName || '-'}" ไว้หักบิลถัดไป`, {
             title: 'รับเงินเกินยอดบิล', okText: 'บันทึก (เก็บส่วนเกินเป็นมัดจำ)', danger: false }))) return;
     }
-    if (methodVal !== 'cash' && proofFiles.length === 0) {
+    if (methodVal !== 'cash' && proofUploads.length === 0) {
         const bank = banks.find(b => b.id === methodVal);
         if (!(await uiConfirm("ยังไม่ได้แนบหลักฐานการโอนเงิน ต้องการบันทึกรับเงินโดยไม่มีหลักฐานหรือไม่?", { okText: "บันทึกรับเงิน", card: dialogCardForBank(bank) }))) return;
     }
@@ -12405,10 +12570,11 @@ async function recordInvoicePayment() {
         const result = await createReceiptWithAllocations({
             customerId: inv.customerId,
             snapshot: { name: inv.customerName, addr: inv.customerAddr, tax: inv.customerTax },
-            amount, paidDate, methodVal, note, proofFiles,
+            amount, paidDate, methodVal, note, proofUploads,
             allocations: [{ inv, amount: Math.min(amount, balance) }]
         });
         if (!result) return;
+        resetPaymentSlips('pay');
         afterReceiptSaved(result);
     } finally {
         if (btn) btn.disabled = false;
@@ -12557,9 +12723,9 @@ function openReceiveMoneyModal(customerId, invoiceId) {
     document.getElementById("receive-date").value = localDateISO(new Date());
     document.getElementById("receive-date").max = localDateISO(new Date());
     document.getElementById("receive-method").innerHTML = BANK_SELECT_HEAD + cashOptionHtml() + banks.map(b => bankOptionHtml(b)).join('');
-    document.getElementById("receive-proof-wrap").classList.toggle('hidden', document.getElementById("receive-method").value === 'cash');
     document.getElementById("receive-note").value = '';
-    document.getElementById("receive-proof").value = '';
+    paymentSlipState.receive = [];
+    document.getElementById("receive-slip-box").innerHTML = paymentSlipBoxHtml('receive');
     document.getElementById("receive-body").classList.add('hidden');
     document.getElementById("btn-confirm-receive").disabled = true;
     document.getElementById("receive-money-modal").classList.remove("hidden");
@@ -12663,8 +12829,7 @@ async function confirmReceiveMoney() {
     const paidDate = document.getElementById("receive-date").value;
     const methodVal = document.getElementById("receive-method").value;
     const note = document.getElementById("receive-note").value.trim();
-    const proofInput = document.getElementById("receive-proof");
-    const proofFiles = methodVal !== 'cash' && proofInput.files ? Array.from(proofInput.files) : [];
+    const proofUploads = paymentSlipState.receive.slice();
     const allocs = readReceiveAllocations();
     const allocTotal = round2(allocs.reduce((s, a) => s + a.amount, 0));
     const deposit = round2(amount - allocTotal);
@@ -12676,7 +12841,7 @@ async function confirmReceiveMoney() {
     const rows = [['ยอดรับ', `${fmtMoney(amount)} บาท`], ['รับทาง', bank ? bank.bankName : 'เงินสด'], ['วันที่', formatThaiDate(paidDate)]];
     if (allocs.length) rows.push(['ตัดบิล', allocs.map(a => `${a.inv.invoiceNo} (${fmtMoney(a.amount)})`).join(', ')]);
     if (deposit > 0) rows.push(['เก็บเป็นมัดจำ', `${fmtMoney(deposit)} บาท`]);
-    if (!(await uiConfirm(methodVal !== 'cash' && proofFiles.length === 0 ? "ยังไม่ได้แนบสลิปการโอน — ยืนยันบันทึกรับเงินโดยไม่มีหลักฐานหรือไม่?" : "ตรวจสอบยอดก่อนบันทึก ระบบจะออกใบเสร็จ 1 ใบสำหรับเงินก้อนนี้", {
+    if (!(await uiConfirm(methodVal !== 'cash' && proofUploads.length === 0 ? "ยังไม่ได้แนบสลิปการโอน — ยืนยันบันทึกรับเงินโดยไม่มีหลักฐานหรือไม่?" : "ตรวจสอบยอดก่อนบันทึก ระบบจะออกใบเสร็จ 1 ใบสำหรับเงินก้อนนี้", {
         title: 'ยืนยันรับเงิน', okText: 'บันทึกรับเงิน', danger: false,
         card: { imageIcon: 'cash', imageIconColor: 'teal', title: cust.companyName, subtitle: cust.taxId ? `ภาษี ${cust.taxId}` : '', rows }
     }))) return;
@@ -12689,7 +12854,7 @@ async function confirmReceiveMoney() {
         const snapshot = refInv ? { name: refInv.customerName, addr: refInv.customerAddr, tax: refInv.customerTax } : customerDocSnapshot(cust);
         const result = await createReceiptWithAllocations({
             customerId: cust.id, snapshot, amount, paidDate, methodVal,
-            note: note || (allocs.length === 0 ? 'มัดจำ' : ''), proofFiles, allocations: allocs
+            note: note || (allocs.length === 0 ? 'มัดจำ' : ''), proofUploads, allocations: allocs
         });
         if (!result) return;
         closeReceiveMoneyModal();

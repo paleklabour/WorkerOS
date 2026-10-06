@@ -492,14 +492,27 @@
                             <div class="panel-header fin-period-bar" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; padding: 0;">
                                 <h4 style="font-size: 14.5px; font-weight: 700; color: var(--navy-dark); margin: 0;"><span class="ico" data-icon="search"></span> ค้นหางานที่แจ้งสำเร็จ</h4>
                                 <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                                    <select id="db-completed-select-employer" class="select-filter" onchange="renderCompletedJobsStats()" style="min-width: 240px;">
+                                    <!-- <select> ซ่อนไว้เป็นแหล่งเก็บค่าจริง (ค่าว่าง = ทั้งหมด) — ช่องที่พิมพ์ค้นหาคือ db-completed-*-search (registerSearchSelect ใน app.js) -->
+                                    <select id="db-completed-select-employer" class="hidden" onchange="renderCompletedJobsStats()">
                                         <option value="">ภาพรวมทั้งหมด (ทุกนายจ้าง)</option>
                                         <!-- Dynamic employer options -->
                                     </select>
-                                    <select id="db-completed-select-agent" class="select-filter" onchange="renderCompletedJobsStats()" style="min-width: 240px;">
+                                    <select id="db-completed-select-agent" class="hidden" onchange="renderCompletedJobsStats()">
                                         <option value="">ทุก Agent (ไม่กรอง)</option>
                                         <!-- Dynamic agent options -->
                                     </select>
+                                    <div class="search-box" style="min-width: 240px;">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                        </svg>
+                                        <input type="text" id="db-completed-employer-search" placeholder="ค้นหานายจ้าง (ว่าง = ทุกนายจ้าง)" autocomplete="off">
+                                    </div>
+                                    <div class="search-box" style="min-width: 240px;">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                        </svg>
+                                        <input type="text" id="db-completed-agent-search" placeholder="ค้นหา Agent (ว่าง = ทุก Agent)" autocomplete="off">
+                                    </div>
                                 </div>
                             </div>
 
@@ -2898,16 +2911,17 @@
                         <div class="form-row">
                             <div class="form-group col-6">
                                 <label for="receive-method">รับเงินทาง (แบงค์ที่เงินเข้าจริง)</label>
-                                <select id="receive-method" onchange="document.getElementById('receive-proof-wrap').classList.toggle('hidden', this.value === 'cash')"></select>
+                                <select id="receive-method"></select>
                             </div>
                             <div class="form-group col-6">
                                 <label for="receive-note">หมายเหตุ</label>
                                 <input type="text" id="receive-note" placeholder="เช่น โอนรวม 3 บิล, มัดจำงานต่อวีซ่า">
                             </div>
                         </div>
-                        <div class="form-group hidden" id="receive-proof-wrap">
-                            <label for="receive-proof"><span class="ico" data-icon="clip"></span> แนบสลิปการโอน (ครั้งเดียว ใช้กับทุกบิลที่ตัดยอด)</label>
-                            <input type="file" id="receive-proof" accept="image/*,application/pdf" multiple>
+                        <div class="form-group" id="receive-proof-wrap">
+                            <label><span class="ico" data-icon="clip"></span> แนบสลิปการโอน (ครั้งเดียว ใช้กับทุกบิลที่ตัดยอด — AI อ่านและกรอกยอดเงิน/วันที่/บัญชีให้)</label>
+                            <!-- กล่องแนบสลิปสร้างใน openReceiveMoneyModal() ด้วย paymentSlipBoxHtml('receive') -->
+                            <div id="receive-slip-box"></div>
                         </div>
                         <div class="receive-summary" id="receive-summary"></div>
                     </div>
