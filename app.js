@@ -5776,6 +5776,56 @@ function renderJobsSummary(baseJobs, monthKey) {
     mountWidgetBoard('jobs', wasEditing);
 }
 
+// ---------- เรียงตารางระบบจัดการแจ้งงานตามหัวคอลัมน์ ----------
+// คลิกหัวคอลัมน์ = เรียงน้อยไปมาก, คลิกซ้ำ = มากไปน้อย, คลิกครั้งที่ 3 = กลับเป็นลำดับเดิม
+let jobsSort = { key: null, dir: 1 };
+const JOB_STATUS_SORT_ORDER = ['รอดำเนินการ', 'กำลังดำเนินการ', 'รอเอกสารเพิ่มเติม', 'ปิดงานแล้ว'];
+
+function sortJobsBy(key) {
+    if (jobsSort.key !== key) jobsSort = { key, dir: 1 };
+    else if (jobsSort.dir === 1) jobsSort.dir = -1;
+    else jobsSort = { key: null, dir: 1 };
+    jobsCurrentPage = 1;
+    renderJobs();
+}
+
+function jobSortValue(j, key) {
+    const w = workers.find(x => x.id === j.workerId);
+    const c = customers.find(x => x.id === j.customerId);
+    switch (key) {
+        case 'no': return String(j.createdAt || j.updatedAt || '') + '|' + getJobDisplayNo(j);
+        case 'type': return getCleanJobTypeName(j.jobType);
+        case 'customer': return c ? c.companyName || '' : '';
+        case 'worker': return w ? `${w.firstName || ''} ${w.lastName || ''}`.trim() : '';
+        case 'remark': return j.remark || '';
+        case 'status': { const i = JOB_STATUS_SORT_ORDER.indexOf(j.status); return i === -1 ? 99 : i; }
+        case 'orderNo': return j.orderNo || '';
+        case 'openedBy': return j.openedBy ? getUserNameById(j.openedBy) : '';
+        default: return '';
+    }
+}
+
+function sortJobsList(list) {
+    if (!jobsSort.key) return list;
+    const { key, dir } = jobsSort;
+    return list.sort((a, b) => {
+        const va = jobSortValue(a, key), vb = jobSortValue(b, key);
+        if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir;
+        // ค่าว่างอยู่ท้ายเสมอ ไม่ว่าเรียงทางไหน
+        if (!va && vb) return 1;
+        if (va && !vb) return -1;
+        return String(va).localeCompare(String(vb), 'th', { numeric: true }) * dir;
+    });
+}
+
+function markJobSortHeaders() {
+    document.querySelectorAll('#jobs-table th.sortable-th').forEach(th => {
+        const active = th.dataset.sort === jobsSort.key;
+        th.classList.toggle('is-sorted', active);
+        th.dataset.dir = active ? (jobsSort.dir === 1 ? 'asc' : 'desc') : '';
+    });
+}
+
 function renderJobs() {
     const query = document.getElementById("search-job").value.toLowerCase();
     const typeFilter = document.getElementById("filter-job-type").value;
@@ -5814,6 +5864,10 @@ function renderJobs() {
         renderJobsKanban(filtered);
         return;
     }
+
+    // คลิกหัวคอลัมน์เพื่อเรียง (sortJobsBy) — เรียงก่อนแบ่งหน้า ทุกหน้าจึงเรียงต่อเนื่องกัน
+    sortJobsList(filtered);
+    markJobSortHeaders();
 
     // Pagination calculations
     const totalPages = Math.ceil(filtered.length / jobsPageSize) || 1;

@@ -7037,3 +7037,11 @@ body.has-camera .upload-hint { display: none; }
 }
 .job-remark-input:focus { outline: none; border-color: var(--gold-primary); }
 .job-close-add-btn { cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
+
+/* หัวคอลัมน์ที่คลิกเรียงได้ (ตารางระบบจัดการแจ้งงาน — sortJobsBy) */
+th.sortable-th { cursor: pointer; user-select: none; white-space: nowrap; }
+th.sortable-th::after { content: '↕'; margin-left: 4px; font-size: 11.5px; opacity: 0.35; }
+th.sortable-th.is-sorted { color: var(--gold-primary); }
+th.sortable-th.is-sorted[data-dir="asc"]::after { content: '▲'; opacity: 1; }
+th.sortable-th.is-sorted[data-dir="desc"]::after { content: '▼'; opacity: 1; }
+th.sortable-th:hover::after { opacity: 0.8; }

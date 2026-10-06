@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261006m">
+    <link rel="stylesheet" href="styles.css?v=20261006n">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -808,14 +808,14 @@
                             <table class="data-table" id="jobs-table">
                                 <thead>
                                     <tr>
-                                        <th>เลขที่แจ้งงาน</th>
-                                        <th>ประเภทงาน</th>
-                                        <th>นายจ้าง/ผู้ว่าจ้าง</th>
-                                        <th>คนงานต่างด้าว</th>
-                                        <th>หมายเหตุ</th>
-                                        <th>สถานะดำเนินการ</th>
-                                        <th>Order No.</th>
-                                        <th>เปิดงานโดย</th>
+                                        <th class="sortable-th" data-sort="no" onclick="sortJobsBy('no')">เลขที่แจ้งงาน</th>
+                                        <th class="sortable-th" data-sort="type" onclick="sortJobsBy('type')">ประเภทงาน</th>
+                                        <th class="sortable-th" data-sort="customer" onclick="sortJobsBy('customer')">นายจ้าง/ผู้ว่าจ้าง</th>
+                                        <th class="sortable-th" data-sort="worker" onclick="sortJobsBy('worker')">คนงานต่างด้าว</th>
+                                        <th class="sortable-th" data-sort="remark" onclick="sortJobsBy('remark')">หมายเหตุ</th>
+                                        <th class="sortable-th" data-sort="status" onclick="sortJobsBy('status')">สถานะดำเนินการ</th>
+                                        <th class="sortable-th" data-sort="orderNo" onclick="sortJobsBy('orderNo')">Order No.</th>
+                                        <th class="sortable-th" data-sort="openedBy" onclick="sortJobsBy('openedBy')">เปิดงานโดย</th>
                                         <th class="actions-col">จัดการ</th>
                                     </tr>
                                 </thead>
@@ -3246,7 +3246,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261006m"></script>
+    <script src="supabase-client.js?v=20261006n"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3257,6 +3257,6 @@
     </script>
 
     <!-- Application Script -->
-    <script src="app.js?v=20261006m"></script>
+    <script src="app.js?v=20261006n"></script>
 </body>
 </html>
