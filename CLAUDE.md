@@ -202,3 +202,12 @@ every page that reads `workers` skips them automatically. Use `allWorkers()`
 only where the full list is truly needed (localStorage cache, backup, the
 employer's own worker counts). Call `applyInactiveEmployers()` after changing
 any customer's status.
+
+## No-charge jobs (2026-10-06)
+
+A job the company deliberately doesn't bill gets `payment_status` =
+`ไม่เรียกเก็บเงิน` plus `no_charge_reason/by/at` (no 0-baht invoice). Only
+Admin/Account Manager can set or undo it (`markJobNoCharge` /
+`unmarkJobNoCharge`; DB trigger `guard_job_no_charge`). Use
+`jobAwaitingBill(j)` — not `!getJobInvoice(j)` — anywhere you mean "still
+needs a bill". No-charge jobs carry no agent commission.

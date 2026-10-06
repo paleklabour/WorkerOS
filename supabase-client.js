@@ -62,7 +62,9 @@
         // ระบบบัญชี (20261001082230_accounting_ledger.sql)
         invoiceId: "invoice_id", paidAt: "paid_at", paidBy: "paid_by", govFee: "gov_fee",
         commissionAmount: "commission_amount", commissionPaidAt: "commission_paid_at", commissionExpenseId: "commission_expense_id",
-        assignedTo: "assigned_to"
+        assignedTo: "assigned_to",
+        // งานไม่เรียกเก็บเงิน (20261006090000_job_no_charge.sql)
+        noChargeReason: "no_charge_reason", noChargeBy: "no_charge_by", noChargeAt: "no_charge_at"
     };
     const AGENT_MAP = { id: "id", name: "name", phone: "phone", createdAt: "created_at", defaultCommission: "default_commission" };
     const EXPENSE_MAP = {

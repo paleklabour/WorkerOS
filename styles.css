@@ -6912,3 +6912,23 @@ body.has-camera .upload-hint { display: none; }
     .bt46-sheet { padding: 0; border-radius: 0; font-size: 12.5px; line-height: 1.6; }
     .bt46-f:hover, .bt46-f:focus { background: none; }
 }
+
+/* ใบงาน "ไม่เรียกเก็บเงิน" (isJobNoCharge ใน app.js) — โทนเทาอมเขียว แยกจาก "ชำระแล้ว" */
+.badge-nocharge {
+    font-size: 11.5px;
+    padding: 2px 6px;
+    background-color: var(--dk-subtle, #f1f5f9);
+    color: var(--dk-muted, #475569);
+    border: 1px dashed var(--dk-line, #cbd5e1);
+}
+
+/* เอกสารที่แนบตอนปิดงาน — ในแบนเนอร์ "ปิดงานแล้ว" ของหน้าต่างใบงาน (jobCloseDocsHtml) */
+.job-close-docs {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 12px;
+    margin-top: 8px;
+    font-size: 13px;
+}
+.job-close-docs small { flex-basis: 100%; }

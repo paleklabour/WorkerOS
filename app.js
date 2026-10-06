@@ -190,7 +190,7 @@ function jobPrepaymentBlockReason(customerId, targetStatus, currentPaymentStatus
     if (targetStatus !== 'กำลังดำเนินการ') return null;
     const cust = customers.find(c => c.id === customerId);
     if (!cust || !cust.requirePrepayment) return null;
-    if (currentPaymentStatus === 'ชำระเงินแล้ว') return null;
+    if (currentPaymentStatus === 'ชำระเงินแล้ว' || currentPaymentStatus === JOB_NO_CHARGE) return null;
     return `ย้ายเข้า "กำลังดำเนินการ" ไม่ได้: นายจ้าง "${cust.companyName}" ตั้งไว้ว่าต้องออกบิลและรับชำระเงินก่อนเริ่มดำเนินการ`;
 }
 
@@ -1279,6 +1279,8 @@ async function handleLogin(e) {
 function logout() {
     localStorage.removeItem("mw_current_user");
     currentUser = null;
+    closeNotificationPanel();
+    updateNotificationBell(); // ไม่มีผู้ใช้ = 0 → ซ่อนตัวเลข ไม่ให้ค้างไปถึงบัญชีที่ login ถัดไป
     hideMainLayout();
     showLoginView();
     showToast("ออกจากระบบเรียบร้อยแล้ว", "success");
@@ -1609,6 +1611,8 @@ function switchView(viewName) {
     } else if (viewName === 'users') {
         renderUsers();
     }
+    // ตัวเลขบนกระดิ่งต้องตรงกับผู้ใช้/ข้อมูลปัจจุบันทุกหน้า (เดิมอัปเดตแค่ตอนวาดแดชบอร์ด — บัญชี client ไม่เคยเข้าแดชบอร์ด เลยเห็นเลขค้างของบัญชีก่อนหน้า)
+    if (viewName !== 'dashboard') updateNotificationBell();
 
     // บนจอมือถือ/แท็บเล็ต เมนูข้างเป็นลิ้นชักเลื่อนออกมา — เลือกเมนูแล้วปิดลิ้นชักให้อัตโนมัติ
     closeMobileSidebar();
@@ -2474,10 +2478,10 @@ function buildNotificationGroups() {
 
     // ---------- บิลและการเงิน (Admin, Account Manager) ----------
     if (can('finance')) {
-        const unbilledClosed = jobs.filter(j => j.status === 'ปิดงานแล้ว' && !getJobInvoice(j));
+        const unbilledClosed = jobs.filter(j => j.status === 'ปิดงานแล้ว' && jobAwaitingBill(j));
         add({ key: 'unbilled', icon: 'receipt', title: 'ปิดงานแล้ว ยังไม่ออกบิล', view: 'billing',
             items: unbilledClosed.map(j => ({ ...bellJobItem(j), action: `openInvoiceModal('${j.id}')` })) });
-        const prepay = jobs.filter(j => isJobStatusOpen(j.status) && !isJobPaid(j) && (customers.find(c => c.id === j.customerId) || {}).requirePrepayment);
+        const prepay = jobs.filter(j => isJobStatusOpen(j.status) && !isJobPaid(j) && !isJobNoCharge(j) && (customers.find(c => c.id === j.customerId) || {}).requirePrepayment);
         add({ key: 'prepay', icon: 'lock', title: 'ลูกค้าต้องชำระก่อนเริ่มงาน (ยังไม่ได้รับเงิน)', view: 'billing',
             items: prepay.map(j => ({ ...bellJobItem(j, `${j.paymentStatus || 'ยังไม่ออกบิล'} • ${(customers.find(c => c.id === j.customerId) || {}).companyName || '-'}`),
                 action: getJobInvoice(j) ? `openStoredInvoice('${getJobInvoice(j).id}')` : `openInvoiceModal('${j.id}')` })) });
@@ -2515,7 +2519,7 @@ function updateNotificationBell() {
 
 function renderNotificationPanel(groups = buildNotificationGroups()) {
     const panel = document.getElementById("bell-panel");
-    if (!panel) return;
+    if (!panel || !currentUser) return;
     const roleName = (ROLE_LABELS[currentUser.role] || '').split(' (')[0];
     panel.innerHTML = `
         <div class="bell-panel-head"><strong>การแจ้งเตือน</strong><span>${escapeHtml(roleName)}</span></div>
@@ -2537,7 +2541,7 @@ function toggleNotificationPanel() {
     const panel = document.getElementById("bell-panel");
     if (!panel) return;
     const open = panel.classList.toggle('hidden') === false;
-    if (open) { closeThemeMenu(); renderNotificationPanel(); }
+    if (open) { closeThemeMenu(); updateNotificationBell(); } // คำนวณตัวเลขและรายการใหม่พร้อมกัน ให้ตรงกันเสมอ
 }
 
 function closeNotificationPanel() {
@@ -2652,7 +2656,9 @@ function switchFinancePageTab(tabName) {
 // badge สถานะการเงิน ใช้ร่วมกันทั้งบิลที่ผูกใบงานจริง (jobs) และบิลอิสระ (freeInvoices) ในตาราง "ออกบิล/รับเงิน"
 function buildFinancePaymentBadge(paymentStatus, paymentMethod, isClosedUnpaid) {
     let badge = `<span class="badge badge-warning" style="font-size: 11.5px; padding: 2px 6px;">${icon("hourglass")} ยังไม่ออกบิล</span>`;
-    if (isClosedUnpaid && paymentStatus === 'ยังไม่ออกบิล') {
+    if (paymentStatus === JOB_NO_CHARGE) {
+        badge = `<span class="badge badge-nocharge">${icon("ok")} ไม่เรียกเก็บเงิน</span>`;
+    } else if (isClosedUnpaid && paymentStatus === 'ยังไม่ออกบิล') {
         badge = `<span class="badge badge-danger" style="font-size: 11.5px; padding: 2px 6px;">${icon("warn")} ยังไม่ออกบิล/ยังไม่ชำระ</span>`;
     } else if (isClosedUnpaid && paymentStatus === 'ออกบิลแล้ว') {
         badge = `<span class="badge badge-danger" style="font-size: 11.5px; padding: 2px 6px;">${icon("warn")} ออกบิลแล้ว รอชำระ</span>`;
@@ -2681,17 +2687,20 @@ function renderBillingTab() {
     const showUnbilled = ['pending', 'unbilled', 'all'].includes(statusFilter);
     const invoiceStatuses = {
         pending: ['issued', 'partial'], unbilled: [], outstanding: ['issued', 'partial'], overdue: ['issued', 'partial'],
-        paid: ['paid'], void: ['void'], all: ['issued', 'partial', 'paid', 'void']
+        paid: ['paid'], void: ['void'], nocharge: [], all: ['issued', 'partial', 'paid', 'void']
     }[statusFilter] || ['issued', 'partial'];
 
-    const unbilledJobs = !showUnbilled ? [] : jobs.filter(j => !getJobInvoice(j)).filter(j => {
+    const matchesJobQuery = j => {
         if (!query) return true;
         const cust = customers.find(c => c.id === j.customerId);
         const work = workers.find(w => w.id === j.workerId);
-        const hay = [getJobDisplayNo(j), j.jobType, cust && cust.companyName, work && `${work.firstName} ${work.lastName}`, work && work.workerUid]
+        const hay = [getJobDisplayNo(j), j.jobType, cust && cust.companyName, work && `${work.firstName} ${work.lastName}`, work && work.workerUid, j.noChargeReason]
             .filter(Boolean).join(' ').toLowerCase();
         return hay.includes(query);
-    });
+    };
+    const unbilledJobs = !showUnbilled ? [] : jobs.filter(jobAwaitingBill).filter(matchesJobQuery);
+    const noChargeJobs = !['nocharge', 'all'].includes(statusFilter) ? [] : jobs.filter(isJobNoCharge).filter(matchesJobQuery)
+        .sort((a, b) => String(b.noChargeAt || '').localeCompare(String(a.noChargeAt || '')));
 
     const overdueIds = statusFilter === 'overdue' ? new Set(overdueInvoices().map(i => i.id)) : null; // ค้างเกินกำหนด (นิยามเดียวกับกระดิ่ง)
     const shownInvoices = invoices.filter(inv => invoiceStatuses.includes(inv.status) && (!overdueIds || overdueIds.has(inv.id))).filter(inv => {
@@ -2703,7 +2712,7 @@ function renderBillingTab() {
         return hay.includes(query);
     }).sort((a, b) => (b.issueDate || '').localeCompare(a.issueDate || '') || (b.invoiceNo || '').localeCompare(a.invoiceNo || ''));
 
-    if (unbilledJobs.length === 0 && shownInvoices.length === 0) {
+    if (unbilledJobs.length === 0 && shownInvoices.length === 0 && noChargeJobs.length === 0) {
         const emptyMsg = statusFilter === 'pending' ? `${icon("ok")} ไม่มีงานที่ค้างออกบิลหรือค้างรับเงิน` : `${icon("search")} ไม่พบรายการ`;
         tbody.innerHTML = `<tr><td colspan="8" class="text-muted" style="text-align: center; padding: 40px;">${emptyMsg}</td></tr>`;
         return;
@@ -2758,11 +2767,31 @@ function renderBillingTab() {
                 <td><span class="badge ${isClosed ? 'badge-danger' : 'badge-gold'}">${isClosed ? `${icon("warn")} ปิดงานแล้ว ยังไม่ออกบิล` : escapeHtml(j.status || '-')}</span></td>
                 <td class="actions-col">
                     <button class="btn btn-sm btn-gold" onclick="openInvoiceModal('${j.id}')" style="white-space: nowrap;">${icon("receipt")} ออกบิล</button>
+                    ${can('finance') ? `<button class="btn btn-sm btn-outline" onclick="markJobNoCharge('${j.id}')" style="white-space: nowrap;" title="งานนี้ไม่คิดเงินลูกค้า — ไม่ต้องออกบิล">ไม่เรียกเก็บเงิน</button>` : ''}
                 </td>
             </tr>`;
     }).join('');
 
-    tbody.innerHTML = jobRows + invoiceRows;
+    // งานที่ตั้งเป็น "ไม่เรียกเก็บเงิน" — แสดงเฉพาะตัวกรอง "ไม่เรียกเก็บเงิน" / "ทั้งหมด"
+    const noChargeRows = noChargeJobs.map(j => {
+        const cust = customers.find(c => c.id === j.customerId);
+        const work = workers.find(w => w.id === j.workerId);
+        return `
+            <tr>
+                <td><strong>${getJobDisplayNo(j)}</strong></td>
+                <td>${noChargeBadgeHtml(j)}</td>
+                <td><div class="employer-name">${escapeHtml(cust ? cust.companyName : "ไม่พบนายจ้าง")}</div>${buildEmployerIdLinesHtml(cust)}</td>
+                <td>${escapeHtml(getCleanJobTypeName(j.jobType))}<br><small class="text-muted">${escapeHtml(work ? `${work.firstName} ${work.lastName}` : 'ไม่พบข้อมูลคนงาน')}</small></td>
+                <td class="inv-num"><strong>0.00</strong></td>
+                <td class="inv-num text-muted">-</td>
+                <td><small>${escapeHtml(j.noChargeReason || '-')}</small><br><small class="text-muted">${j.noChargeBy ? `โดย ${escapeHtml(getUserNameById(j.noChargeBy))} • ` : ''}${j.noChargeAt ? formatThaiDate(j.noChargeAt, true) : ''}</small></td>
+                <td class="actions-col">
+                    ${can('finance') ? `<button class="btn btn-sm btn-outline" onclick="unmarkJobNoCharge('${j.id}')" style="white-space: nowrap;">กลับไปเรียกเก็บเงิน</button>` : ''}
+                </td>
+            </tr>`;
+    }).join('');
+
+    tbody.innerHTML = jobRows + noChargeRows + invoiceRows;
 }
 
 function renderDashboardOverview() {
@@ -5621,11 +5650,13 @@ function renderJobs() {
             paymentBadge = `<span class="badge" style="font-size: 11.5px; padding: 2px 6px; background-color: #3b82f6; color: white;">${icon("receipt")} ออกบิลแล้ว</span>`;
         } else if (paymentStatus === 'ชำระเงินแล้ว') {
             paymentBadge = `<span class="badge badge-success" style="font-size: 11.5px; padding: 2px 6px;">${icon("ok")} ชำระเงินแล้ว${j.paymentMethod ? ` (${j.paymentMethod})` : ''}</span>`;
+        } else if (paymentStatus === JOB_NO_CHARGE) {
+            paymentBadge = noChargeBadgeHtml(j);
         }
 
         // นายจ้างบางรายตั้งไว้ว่าต้องออกบิล+รับชำระก่อนถึงจะเริ่ม "กำลังดำเนินการ" ได้ (customers.requirePrepayment)
         // โชว์เตือนไว้ในตารางใบงานเลยเพื่อให้เจ้าหน้าที่เห็นล่วงหน้า ไม่ต้องเปิดไปเช็กที่หน้านายจ้างก่อน
-        const prepaymentBadge = (cust && cust.requirePrepayment && paymentStatus !== 'ชำระเงินแล้ว')
+        const prepaymentBadge = (cust && cust.requirePrepayment && paymentStatus !== 'ชำระเงินแล้ว' && paymentStatus !== JOB_NO_CHARGE)
             ? `<br><span class="badge" style="background-color: #fffbeb; color: #92400e; border: 1px solid #fde68a; font-size: 11.5px; padding: 2px 6px;" title="นายจ้าง &quot;${custName}&quot; ตั้งไว้ว่าต้องออกบิลและรับชำระเงินก่อนย้ายเข้ากำลังดำเนินการ">${icon("moneybag")} ต้องออกบิลและรับชำระเงินก่อน</span>`
             : '';
 
@@ -5837,6 +5868,15 @@ function readJobAssignee() {
     return sel && sel.value ? sel.value : null;
 }
 
+// เอกสารที่แนบตอนปิดงาน (jobs.attachments จาก submitCloseJob) — แสดงในแบนเนอร์ "ปิดงานแล้ว" ของหน้าต่างใบงาน
+function jobCloseDocsHtml(j) {
+    const docs = Array.isArray(j.attachments) ? j.attachments : [];
+    if (!docs.length) return `<div class="job-close-docs text-muted">ไม่มีเอกสารแนบตอนปิดงาน</div>`;
+    return `<div class="job-close-docs"><strong>เอกสารปิดงาน:</strong>${docs.map((f, k) =>
+        `<a href="${escapeHtml(f.url)}" target="_blank" rel="noopener">${icon('clip')} ${escapeHtml(f.name || `ไฟล์ ${k + 1}`)}</a>`).join('')}` +
+        `${docs.find(f => f.note) ? `<small class="text-muted">หมายเหตุ: ${escapeHtml(docs.find(f => f.note).note)}</small>` : ''}</div>`;
+}
+
 function openJobModal(id = null) {
     if (customers.length === 0) {
         uiAlert("กรุณาเพิ่มข้อมูลนายจ้างอย่างน้อย 1 รายก่อนสั่งงาน");
@@ -5908,7 +5948,8 @@ function openJobModal(id = null) {
             closedBanner.style.display = 'block';
             document.getElementById("job-closed-banner-text").innerHTML =
                 `${icon("lock")} ปิดงานแล้วเมื่อ ${j.closedAt ? formatThaiDate(j.closedAt, true) : '-'}` +
-                (j.closedBy ? ` โดย ${getUserNameById(j.closedBy)}` : '');
+                (j.closedBy ? ` โดย ${getUserNameById(j.closedBy)}` : '') +
+                jobCloseDocsHtml(j);
         } else {
             statusGroup.style.display = '';
             closedBanner.style.display = 'none';
@@ -7771,6 +7812,7 @@ async function issueCurrentInvoice() {
             }
             j.invoiceId = inv.id;
             j.paymentStatus = 'ออกบิลแล้ว';
+            if (j.noChargeAt) { j.noChargeReason = null; j.noChargeBy = null; j.noChargeAt = null; }
             j.updatedAt = localDateISO(new Date());
             const r = await callCloudAPI("saveJob", { jobData: j });
             if (!r || r.status === "error") { Object.assign(j, prev); failCount++; }
@@ -7938,6 +7980,19 @@ function setupAllSearchSelects() {
         getSub: c => c.taxId ? 'ภาษี ' + c.taxId : '',
         emptyText: 'ไม่พบนายจ้างที่ตรงกับคำค้นหา',
         onSelect: () => onJobCustomerChange() // ล็อก Agent + กรองรายชื่อลูกจ้างตามนายจ้างที่เลือก เหมือน onchange เดิม
+    });
+
+    // นายจ้างในหน้าต่าง "รวมใบสั่งงานออกบิลชุด" — <select id="combine-cust-select"> ซ่อนไว้เป็นแหล่งเก็บค่าจริง
+    registerSearchSelect('combine-cust', {
+        inputId: 'combine-cust-search',
+        getValue: () => document.getElementById('combine-cust-select').value,
+        setValue: (v) => { document.getElementById('combine-cust-select').value = v || ''; },
+        getPool: () => customers,
+        getId: c => c.id,
+        getLabel: c => c.companyName,
+        getSub: c => c.taxId ? 'ภาษี ' + c.taxId : '',
+        emptyText: 'ไม่พบนายจ้างที่ตรงกับคำค้นหา',
+        onSelect: () => onCombineCustomerChange()
     });
 
     // นายจ้างในฟอร์ม "เพิ่ม/แก้ไขคนงานต่างด้าว" — <select id="worker-employer-id"> ซ่อนไว้เป็นแหล่งเก็บค่าจริงเหมือนเดิม
@@ -8262,6 +8317,8 @@ function openCombineBillsModal() {
     document.getElementById("combine-cust-select").innerHTML = 
         '<option value="" disabled selected>--- เลือกนายจ้าง/ลูกค้าผู้ว่าจ้าง ---</option>' +
         customers.map(c => `<option value="${c.id}">${c.companyName}</option>`).join('');
+    const combineSearch = document.getElementById("combine-cust-search");
+    if (combineSearch) combineSearch.value = '';
 
     document.getElementById("combine-jobs-list").innerHTML = `
         <span class="text-muted" style="font-size: 13.5px; text-align: center; display: block; padding: 20px 0;">
@@ -8299,7 +8356,7 @@ function onCombineCustomerChange() {
 
     // Filter unpaid jobs under this customer
     // เฉพาะใบงานที่ยังไม่ได้อยู่ในบิลใด (บิลที่ออกแล้วรับเงินผ่านหน้าบิลนั้นแทน)
-    const unpaidJobs = jobs.filter(j => j.customerId === custId && !getJobInvoice(j));
+    const unpaidJobs = jobs.filter(j => j.customerId === custId && jobAwaitingBill(j));
 
     if (unpaidJobs.length === 0) {
         listContainer.innerHTML = `
@@ -9594,7 +9651,7 @@ function renderFinanceStats() {
     const inPeriod = (d) => !periodValue || (d || '').startsWith(periodValue);
     const periodPayments = payments.filter(p => !p.voided && inPeriod(p.paidDate));
     const periodInvoices = invoices.filter(i => i.status !== 'void' && inPeriod(i.issueDate));
-    const unbilledJobs = periodJobs.filter(j => !getJobInvoice(j));
+    const unbilledJobs = periodJobs.filter(jobAwaitingBill);
     const unbilledAmount = unbilledJobs.reduce((s, j) => s + jobEstimatedFee(j), 0);
 
     const totalRevenue = periodInvoices.reduce((s, i) => s + (Number(i.grandTotal) || 0), 0) + unbilledAmount;
@@ -10029,6 +10086,9 @@ function quickCombineInvoice(customerId) {
     const select = document.getElementById("combine-cust-select");
     if (select) {
         select.value = customerId;
+        const cust = customers.find(c => c.id === customerId);
+        const search = document.getElementById("combine-cust-search");
+        if (search) search.value = cust ? cust.companyName : '';
         onCombineCustomerChange();
     }
 }
@@ -11632,7 +11692,7 @@ function renderJobsKanban(filtered) {
 
         // จบครบแล้วจริงๆ (ปิดงาน + ลูกค้าชำระเงินครบแล้ว) ไม่ต้องค้างโชว์บนบอร์ด Kanban อีกต่อไป —
         // ดูย้อนหลังได้ที่หน้ารายการ (ตาราง) หรือแท็บ "ออกบิล/รับเงิน" > ตัวกรอง "ชำระแล้ว"/"ทั้งหมด" แทน
-        if (displayStatus === 'ปิดงานแล้ว' && j.paymentStatus === 'ชำระเงินแล้ว') return;
+        if (displayStatus === 'ปิดงานแล้ว' && (j.paymentStatus === 'ชำระเงินแล้ว' || isJobNoCharge(j))) return; // ไม่เรียกเก็บเงิน = จบครบเหมือนชำระแล้ว
 
         const container = containers[displayStatus] || containers["รอดำเนินการ"];
         if (container) {
@@ -11648,7 +11708,7 @@ function renderJobsKanban(filtered) {
             const paymentStatus = j.paymentStatus || 'ยังไม่ออกบิล';
             // ปิดงานแล้วแต่ยังไม่ได้รับชำระ (ไม่ว่าจะออกบิลไปแล้วหรือยังไม่ออกก็ตาม) ถือเป็นเรื่องเร่งด่วนกว่างานที่ยังเปิดอยู่
             // (ซึ่งยังไม่ออกบิลถือว่าปกติ) — ต้องยังโชว์เด่นไว้จนกว่าลูกค้าจะชำระเงินครบจริง ๆ เท่านั้น
-            const isClosedUnpaid = displayStatus === 'ปิดงานแล้ว' && paymentStatus !== 'ชำระเงินแล้ว';
+            const isClosedUnpaid = displayStatus === 'ปิดงานแล้ว' && paymentStatus !== 'ชำระเงินแล้ว' && paymentStatus !== JOB_NO_CHARGE;
             if (isClosedUnpaid) closedUnbilledCount++;
 
             let paymentBadge = `<span class="badge badge-warning" style="font-size: 11.5px; padding: 2px 6px;">${icon("hourglass")} ยังไม่ออกบิล</span>`;
@@ -11660,10 +11720,12 @@ function renderJobsKanban(filtered) {
                 paymentBadge = `<span class="badge" style="font-size: 11.5px; padding: 2px 6px; background-color: #3b82f6; color: white;">${icon("receipt")} ออกบิลแล้ว</span>`;
             } else if (paymentStatus === 'ชำระเงินแล้ว') {
                 paymentBadge = `<span class="badge badge-success" style="font-size: 11.5px; padding: 2px 6px;">${icon("ok")} ชำระเงินแล้ว</span>`;
+            } else if (paymentStatus === JOB_NO_CHARGE) {
+                paymentBadge = noChargeBadgeHtml(j);
             }
 
             // นายจ้างบางรายตั้งไว้ว่าต้องออกบิล+รับชำระก่อนถึงจะเริ่ม "กำลังดำเนินการ" ได้ (customers.requirePrepayment)
-            const prepaymentBadge = (cust && cust.requirePrepayment && paymentStatus !== 'ชำระเงินแล้ว')
+            const prepaymentBadge = (cust && cust.requirePrepayment && paymentStatus !== 'ชำระเงินแล้ว' && paymentStatus !== JOB_NO_CHARGE)
                 ? `<div style="font-size: 11.5px;"><span class="badge" style="background-color: #fffbeb; color: #92400e; border: 1px solid #fde68a; font-size: 11.5px; padding: 2px 6px;" title="นายจ้าง &quot;${custName}&quot; ตั้งไว้ว่าต้องออกบิลและรับชำระเงินก่อนย้ายเข้ากำลังดำเนินการ">${icon("moneybag")} ต้องออกบิลและรับชำระเงินก่อน</span></div>`
                 : '';
 
@@ -11910,6 +11972,77 @@ function getJobInvoice(j) {
     if (!j || !j.invoiceId) return null;
     const inv = invoices.find(i => i.id === j.invoiceId);
     return inv && inv.status !== 'void' ? inv : null;
+}
+
+// ---------- งาน "ไม่เรียกเก็บเงิน" (2026-10-06) ----------
+// งานที่ตั้งใจไม่คิดเงินลูกค้า — ไม่ต้องออกบิล 0 บาท, ไม่ขึ้นเตือนค้างออกบิล, ไม่มีค่าคอม Agent
+// กด/ยกเลิกได้เฉพาะ Admin / Account Manager (can('finance')) — ฐานข้อมูลบังคับซ้ำด้วย trigger ใน 20261006090000_job_no_charge.sql
+const JOB_NO_CHARGE = 'ไม่เรียกเก็บเงิน';
+function isJobNoCharge(j) {
+    return !!(j && j.paymentStatus === JOB_NO_CHARGE);
+}
+
+// ใบงานที่ยังต้องออกบิล = ยังไม่อยู่ในบิลใด และไม่ได้ตั้งเป็น "ไม่เรียกเก็บเงิน"
+function jobAwaitingBill(j) {
+    return !getJobInvoice(j) && !isJobNoCharge(j);
+}
+
+function noChargeBadgeHtml(j) {
+    const tip = `ไม่เรียกเก็บเงิน: ${j.noChargeReason || '-'}${j.noChargeBy ? ` • โดย ${getUserNameById(j.noChargeBy)}` : ''}${j.noChargeAt ? ` • ${formatThaiDate(j.noChargeAt, true)}` : ''}`;
+    return `<span class="badge badge-nocharge" title="${escapeHtml(tip)}">${icon("ok")} ไม่เรียกเก็บเงิน</span>`;
+}
+
+async function markJobNoCharge(jobId) {
+    if (!can('finance')) return;
+    const j = jobs.find(x => x.id === jobId);
+    if (!j) return;
+    if (getJobInvoice(j)) { uiAlert(`ใบงาน ${getJobDisplayNo(j)} อยู่ในบิลแล้ว — ต้องยกเลิกบิลก่อนถึงจะตั้งเป็น "ไม่เรียกเก็บเงิน" ได้`); return; }
+    const reason = await uiPrompt(`ใบงาน ${getJobDisplayNo(j)} • ${getCleanJobTypeName(j.jobType)}\nจะไม่ออกบิลและไม่มีค่าคอม Agent สำหรับงานนี้ — กรุณาระบุเหตุผล`, {
+        title: 'ไม่เรียกเก็บเงิน', okText: 'บันทึก', placeholder: 'เช่น แถมลูกค้าประจำ / แก้งานที่เราผิดเอง / รวมในบิลอื่นแล้ว' });
+    if (reason === null || reason === undefined) return;
+    if (!String(reason).trim()) { uiAlert('กรุณาระบุเหตุผลที่ไม่เรียกเก็บเงิน'); return; }
+    const before = { ...j };
+    j.paymentStatus = JOB_NO_CHARGE;
+    j.noChargeReason = String(reason).trim();
+    j.noChargeBy = currentUser.id || null;
+    j.noChargeAt = new Date().toISOString();
+    j.updatedAt = localDateISO(new Date());
+    const r = await callCloudAPI("saveJob", { jobData: j });
+    if (!r || r.status === "error") {
+        Object.assign(j, before);
+        showToast(`บันทึกไม่สำเร็จ: ${(r && r.message) || 'เชื่อมต่อไม่ได้'}`, "danger");
+        return;
+    }
+    saveData();
+    renderBillingTab();
+    renderJobs();
+    renderDashboard();
+    showToast(`ตั้งใบงาน ${getJobDisplayNo(j)} เป็น "ไม่เรียกเก็บเงิน" แล้ว`, "success");
+}
+
+async function unmarkJobNoCharge(jobId) {
+    if (!can('finance')) return;
+    const j = jobs.find(x => x.id === jobId);
+    if (!j || !isJobNoCharge(j)) return;
+    if (!(await uiConfirm(`ยกเลิก "ไม่เรียกเก็บเงิน" ของใบงาน ${getJobDisplayNo(j)}?\nใบงานจะกลับเป็น "ยังไม่ออกบิล" และออกบิลได้ตามปกติ`, {
+        title: 'กลับไปเรียกเก็บเงิน', okText: 'ยืนยัน', danger: false }))) return;
+    const before = { ...j };
+    j.paymentStatus = 'ยังไม่ออกบิล';
+    j.noChargeReason = null;
+    j.noChargeBy = null;
+    j.noChargeAt = null;
+    j.updatedAt = localDateISO(new Date());
+    const r = await callCloudAPI("saveJob", { jobData: j });
+    if (!r || r.status === "error") {
+        Object.assign(j, before);
+        showToast(`บันทึกไม่สำเร็จ: ${(r && r.message) || 'เชื่อมต่อไม่ได้'}`, "danger");
+        return;
+    }
+    saveData();
+    renderBillingTab();
+    renderJobs();
+    renderDashboard();
+    showToast(`ใบงาน ${getJobDisplayNo(j)} กลับเป็น "ยังไม่ออกบิล" แล้ว`, "success");
 }
 
 function paymentMethodLabel(p) {
@@ -12828,7 +12961,7 @@ function renderReceivablesAging() {
         const r = rowOf(inv.customerId, cust ? cust.companyName : (inv.customerName || 'ไม่ระบุนายจ้าง'));
         if (days <= 30) r.b0 += bal; else if (days <= 60) r.b31 += bal; else if (days <= 90) r.b61 += bal; else r.b91 += bal;
     });
-    jobs.filter(j => !getJobInvoice(j)).forEach(j => {
+    jobs.filter(jobAwaitingBill).forEach(j => {
         const cust = customers.find(c => c.id === j.customerId);
         const r = rowOf(j.customerId, cust ? cust.companyName : 'ไม่ระบุนายจ้าง');
         r.unbilled += jobEstimatedFee(j);
@@ -12924,7 +13057,7 @@ function exportFinanceCsv(kind) {
 // ---------- ค่าคอมมิชชั่น Agent ----------
 // ค่าคอมของใบงาน = ยอดที่ตั้งไว้ในใบงาน (commissionAmount) หรือค่าคอมเริ่มต้นของ Agent
 function jobCommissionAmount(j) {
-    if (!j || !j.agentId) return 0;
+    if (!j || !j.agentId || isJobNoCharge(j)) return 0; // งานไม่เรียกเก็บเงินไม่มีค่าคอม
     if (Number(j.commissionAmount) > 0) return Number(j.commissionAmount);
     const ag = agents.find(a => a.id === j.agentId);
     return ag ? Number(ag.defaultCommission) || 0 : 0;
@@ -14696,3 +14829,28 @@ function openClientWorkerNote(workerId) {
     document.body.appendChild(backdrop);
     input.focus();
 }
+
+// =============== เลื่อนเฉพาะกล่องที่เมาส์ชี้ ===============
+// หมุนล้อเมาส์ในกล่องที่เลื่อนได้ (ตาราง, รายการ, dropdown, modal) เมื่อเลื่อนสุดแล้ว
+// ไม่ให้ทะลุไปเลื่อนทั้งหน้าหรือกล่องชั้นนอกต่อ
+(function setupScrollContain() {
+    const canScrollY = (el) => {
+        if (el.scrollHeight <= el.clientHeight + 1) return false;
+        const oy = getComputedStyle(el).overflowY;
+        return oy === 'auto' || oy === 'scroll' || oy === 'overlay';
+    };
+    document.addEventListener('wheel', (e) => {
+        if (e.ctrlKey || e.defaultPrevented) return;
+        if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+        let el = e.target instanceof Element ? e.target : null;
+        while (el && el !== document.body && el !== document.documentElement) {
+            if (!el.classList.contains('main-panel') && canScrollY(el)) {
+                const atTop = el.scrollTop <= 0;
+                const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 1;
+                if ((e.deltaY < 0 && atTop) || (e.deltaY > 0 && atBottom)) e.preventDefault();
+                return;
+            }
+            el = el.parentElement;
+        }
+    }, { passive: false });
+})();
