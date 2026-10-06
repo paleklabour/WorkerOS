@@ -225,5 +225,7 @@ value (all three together) in any commit that changes those files.
 Voided invoices are hidden everywhere (billing "all", CSV export, reports,
 portal); only Admin sees them via the "บิลที่ยกเลิก" filter. Owner's policy:
 keep voided invoices as evidence — `deleteVoidInvoice` (Admin) is only for
-invoices issued by mistake. Document numbers (`next_doc_no`) only count up and
+invoices issued by mistake; `restoreVoidInvoice` (Admin) un-voids one voided by
+mistake after checking none of its jobs were re-billed or set no-charge.
+Document numbers (`next_doc_no`) only count up and
 are never reused, so a deleted invoice leaves a gap.

@@ -2867,6 +2867,7 @@ function renderBillingTab() {
                 <td><span class="badge badge-lg ${meta.cls}">${icon(meta.icon)} ${meta.label}</span></td>
                 <td class="actions-col">
                     <button class="btn btn-sm btn-gold" onclick="openStoredInvoice('${inv.id}')" style="white-space: nowrap;">${icon("receipt")} เปิดบิล</button>
+                    ${inv.status === 'void' && currentUser.role === 'admin' ? `<button class="btn btn-sm btn-outline" onclick="restoreVoidInvoice('${inv.id}')" style="white-space: nowrap;" title="กู้คืนบิลที่ยกเลิกผิดใบ — ตรวจใบงานซ้ำก่อนกู้">${icon("refresh")} กู้คืน</button>` : ''}
                     ${inv.status === 'void' && currentUser.role === 'admin' ? `<button class="btn btn-sm btn-outline btn-danger-outline" onclick="deleteVoidInvoice('${inv.id}')" style="white-space: nowrap;" title="ลบถาวร — ใช้เฉพาะบิลที่ออกผิดจริง ๆ (ปกติให้เก็บบิลที่ยกเลิกไว้เป็นหลักฐาน)">${icon("trash")} ลบบิล</button>` : ''}
                 </td>
             </tr>`;
@@ -12842,6 +12843,7 @@ function renderInvoiceStatusUi() {
     show('btn-save-invoice-edits', !!inv && editable && canManage);
     show('btn-void-invoice', !!inv && status !== 'void' && canManage);
     show('btn-delete-void-invoice', !!inv && status === 'void' && currentUser.role === 'admin');
+    show('btn-restore-void-invoice', !!inv && status === 'void' && currentUser.role === 'admin');
 
     // ช่องแก้ไขข้อความบนหัวบิล (ชื่อ/ที่อยู่/กำหนดชำระ/หมายเหตุ) แก้ได้เฉพาะตอนแก้ไขบิลได้
     ['inv-cust-name', 'inv-cust-addr', 'inv-cust-tax', 'inv-due-date', 'inv-notes'].forEach(id => {
@@ -13315,6 +13317,68 @@ function registerReceiveMoneySearchSelect() {
 }
 
 // ยกเลิกบิล (admin/manager) — ต้องยกเลิกการรับเงินทุกงวดก่อน; ใบงานกลับเป็น "ยังไม่ออกบิล" ออกบิลใหม่ได้
+// Admin กู้คืนบิลที่ยกเลิกไปแล้ว (ยกเลิกผิดใบ) — บิลกลับมาเป็น "ออกบิลแล้ว" + ผูกใบงานกลับ (syncJobsWithInvoice)
+// ตรวจก่อนเสมอ: ใบงานในบิลต้องยังอยู่ ยังไม่ถูกออกบิลใหม่ไปแล้ว และไม่ได้ตั้งเป็น "ไม่เรียกเก็บเงิน" ไม่งั้นใบงานจะซ้ำใน 2 บิล
+// การรับเงินที่ยกเลิก/ถอนออกไปก่อนยกเลิกบิลไม่กลับมาเอง — เงินที่ถอนไว้ยังเป็นมัดจำ หักเข้าบิลนี้ได้ตอนกู้คืน
+async function restoreVoidInvoice(invoiceId) {
+    if (currentUser.role !== 'admin') { showToast("❌ เฉพาะ Admin เท่านั้น", "danger"); return; }
+    const inv = invoices.find(i => i.id === invoiceId);
+    if (!inv || inv.status !== 'void') { uiAlert("กู้คืนได้เฉพาะบิลที่ยกเลิกแล้ว"); return; }
+
+    const problems = [];
+    const jobList = [];
+    (inv.jobIds || []).forEach(id => {
+        const j = jobs.find(x => x.id === id);
+        if (!j) { problems.push(`• ใบงาน ${id} ถูกลบไปแล้ว`); return; }
+        const other = getJobInvoice(j);
+        if (other && other.id !== inv.id) problems.push(`• ${getJobDisplayNo(j)} ถูกออกบิลใหม่แล้ว (${other.invoiceNo})`);
+        else if (isJobNoCharge(j)) problems.push(`• ${getJobDisplayNo(j)} ตั้งเป็น "ไม่เรียกเก็บเงิน" แล้ว`);
+        jobList.push(`${getJobDisplayNo(j)} • ${getCleanJobTypeName(j.jobType)}`);
+    });
+    if (problems.length) {
+        uiAlert(`กู้คืนบิล ${inv.invoiceNo} ไม่ได้ — ใบงานในบิลนี้จะซ้ำกับบิลอื่น:\n\n${problems.join('\n')}\n\nถ้าต้องการใช้บิลนี้จริง ให้ยกเลิกบิลใหม่ (หรือยกเลิก "ไม่เรียกเก็บเงิน") ของใบงานเหล่านี้ก่อน`, { title: 'กู้คืนบิลไม่ได้' });
+        return;
+    }
+
+    if (!(await uiConfirm(`กู้คืนบิล ${inv.invoiceNo} ให้กลับมาใช้งาน?\n` +
+        `บิลจะกลับเป็น "ออกบิลแล้ว (รอชำระ)" และใบงานในบิลจะถูกผูกกลับ — ลูกค้าจะเห็นยอดค้างของบิลนี้อีกครั้ง\n` +
+        `การรับเงินที่ยกเลิก/ถอนออกไปก่อนหน้า จะไม่กลับมาเอง`, {
+        title: '⚠️ กู้คืนบิลที่ยกเลิก', okText: 'กู้คืนบิล', cancelText: 'ไม่กู้คืน', danger: false,
+        card: { imageIcon: 'receipt', imageIconColor: 'amber', title: `${inv.invoiceNo} • ${fmtMoney(inv.grandTotal)} บาท`, subtitle: inv.customerName || '',
+            rows: [['ยกเลิกเมื่อ', inv.voidedAt ? formatThaiDate(inv.voidedAt, true) : ''], ['เหตุผลที่ยกเลิก', inv.voidReason || ''], ['ยกเลิกโดย', inv.voidedBy ? getUserNameById(inv.voidedBy) : '']],
+            list: jobList }
+    }))) return;
+
+    const restored = { ...inv, status: 'issued' };
+    const status = deriveInvoiceStatus(restored);
+    const patch = { id: inv.id, invoiceNo: inv.invoiceNo, status, voidReason: null, voidedAt: null, voidedBy: null, updatedAt: new Date().toISOString() };
+    const res = await callCloudAPI("saveInvoice", { invoiceData: patch });
+    if (!res || res.status === "error") { showToast("❌ กู้คืนบิลไม่สำเร็จ: " + (res && res.message ? res.message : "กรุณาลองใหม่"), "danger"); return; }
+    Object.assign(inv, patch);
+    const failCount = await syncJobsWithInvoice(inv);
+
+    saveData();
+    renderBillingTab();
+    renderJobs();
+    renderDashboard();
+    if (currentInvoiceId === inv.id) { renderInvoiceItemsTable(); renderInvoiceStatusUi(); }
+    showToast(failCount > 0 ? `⚠️ กู้คืนบิล ${inv.invoiceNo} แล้ว แต่ผูกใบงานไม่สำเร็จ ${failCount} ใบ` : `♻️ กู้คืนบิล ${inv.invoiceNo} แล้ว`, failCount > 0 ? "danger" : "success");
+
+    // นายจ้างมีมัดจำค้าง (เช่น เงินที่ถอนออกจากบิลนี้ก่อนยกเลิก) → ถามหักเข้าบิลที่กู้คืนทันที
+    const credit = inv.customerId ? customerCredit(inv.customerId) : 0;
+    if (credit > 0 && invoiceBalance(inv) > 0) {
+        const take = Math.min(credit, invoiceBalance(inv));
+        if (await uiConfirm(`"${inv.customerName || '-'}" มีมัดจำคงเหลือ ${fmtMoney(credit)} บาท\nต้องการหักเข้าบิล ${inv.invoiceNo} จำนวน ${fmtMoney(take)} บาท เลยไหม?`, {
+            title: 'หักมัดจำเข้าบิลนี้?', okText: 'หักมัดจำ', cancelText: 'ไว้ทีหลัง', danger: false })) {
+            await applyCustomerCredit(inv, take);
+            renderBillingTab();
+            renderJobs();
+            renderDashboard();
+            if (currentInvoiceId === inv.id) renderInvoiceStatusUi();
+        }
+    }
+}
+
 // Admin ลบบิลที่ยกเลิกแล้วออกจากระบบถาวร (รวมรายการรับเงินที่ยกเลิกไปแล้วของบิลนั้น) — กู้คืนไม่ได้
 async function deleteVoidInvoice(invoiceId) {
     if (currentUser.role !== 'admin') { showToast("❌ เฉพาะ Admin เท่านั้น", "danger"); return; }
