@@ -507,15 +507,20 @@
             }
             parsedData = ocr.parsedData;
         }
+        // options.nameFromOcr(parsedData) = ตั้งชื่อไฟล์ใหม่จากข้อมูลที่ AI อ่านได้ (เช่น ใบอนุญาตทำงาน → เลข 13 หลัก_ชื่อ)
+        if (typeof options.nameFromOcr === "function") {
+            const renamed = options.nameFromOcr(parsedData);
+            if (renamed) fileName = renamed;
+        }
 
-        const path = `${customerId || "misc"}/${workerId || "employer"}/${Date.now()}_${sanitizeStorageFileName(fileName)}`;
+        const path =`${customerId || "misc"}/${workerId || "employer"}/${Date.now()}_${sanitizeStorageFileName(fileName)}`;
         const { error: upErr } = await sb.storage.from("worker-documents").upload(path, bytes, { contentType: mimeType, upsert: true });
         if (upErr) return { status: "error", message: upErr.message };
 
         const { data: pub } = sb.storage.from("worker-documents").getPublicUrl(path);
         const fileUrl = pub.publicUrl;
 
-        return { status: "success", fileUrl, viewUrl: fileUrl, fileId: path, parsedData, ocrAttempted };
+        return { status: "success", fileUrl, viewUrl: fileUrl, fileId: path, fileName, parsedData, ocrAttempted };
     }
 
     // -------------------- saveUser (needs service role -> Edge Function) --------------------

@@ -4345,6 +4345,76 @@ function extFromDataUrl(dataUrl) {
 }
 
 // แนบไฟล์เอกสารคนงาน แล้วอัปโหลดขึ้น Supabase Storage (ไม่มีการอ่านข้อมูลด้วย AI ปลอมๆ อีกต่อไป — ใช้ Gemini จริงเท่านั้น)
+// ชื่อไฟล์เอกสารคนงาน = เลขประจำตัวคนต่างด้าว 13 หลัก_ชื่อ_ประเภทเอกสาร (เช่น 1234567890123_AUNG_NAING_WP.pdf)
+// ไม่มีเลข 13 หลักครบ = ขึ้นต้นด้วยชื่อ, ไฟล์ที่ 2 ขึ้นไปของประเภทเดียวกันต่อท้าย _2, _3
+// ประเภทเป็นภาษาอังกฤษ — ชื่อไฟล์ใน Storage ใช้ได้เฉพาะ A-Z/0-9 (ภาษาไทยจะกลายเป็น _)
+const WORKER_DOC_FILE_CODES = {
+    'worker-wp-doc': 'WP', 'worker-passport': 'Passport', 'worker-visa': 'Visa', 'worker-myanmar-id': 'MyanmarID',
+    'worker-pink-card': 'PinkCard', 'worker-receipt': 'Receipt', 'worker-medical': 'Medical',
+    'worker-insurance-doc': 'Insurance', 'worker-application': 'Application', 'worker-other': 'Other'
+};
+function workerDocFileName(uid, firstName, lastName, docType, suffix, ext) {
+    const digits = String(uid || '').replace(/\D/g, '');
+    const name = [firstName, lastName].map(s => String(s || '').trim()).filter(Boolean).join(' ').replace(/\s+/g, '_') || 'worker';
+    const code = WORKER_DOC_FILE_CODES[docType] || String(docType || 'doc').replace(/^worker-/, '');
+    return `${digits.length === 13 ? `${digits}_` : ''}${name}_${code}${suffix}${ext}`;
+}
+
+// ให้ uploadDocumentFile ตั้งชื่อไฟล์จากข้อมูลคนงานที่มีอยู่ ส่วนที่ยังว่าง (เช่น เพิ่มคนงานใหม่ เลข 13 หลัก/ชื่อยังไม่ได้กรอก)
+// เติมจากที่ AI อ่านได้จากเอกสารใบนั้น
+function workerDocNameOptions(known, docType, suffix, ext) {
+    return {
+        nameFromOcr: (p) => {
+            const knownUid = String(known.uid || '').replace(/\D/g, '').length === 13;
+            const uid = knownUid ? known.uid : (p && p.uid) || known.uid;
+            const useOcrName = !String(known.firstName || '').trim() && p && p.firstName;
+            return workerDocFileName(uid, useOcrName ? p.firstName : known.firstName, useOcrName ? (p.lastName || '') : known.lastName, docType, suffix, ext);
+        }
+    };
+}
+
+// เปลี่ยนชื่อไฟล์เอกสารคนงานที่แนบไว้แล้วทั้งหมดให้เป็นรูปแบบเดียวกัน (Admin, หน้าสำรองข้อมูล)
+// เปลี่ยนเฉพาะชื่อที่แสดง/ชื่อตอนดาวน์โหลด — ลิงก์ไฟล์ใน Storage คงเดิม ไม่ต้องอัปโหลดใหม่
+async function renameAllWorkerDocFiles() {
+    if (currentUser.role !== 'admin') { showToast("❌ เฉพาะ Admin เท่านั้น", "danger"); return; }
+    const pending = [];
+    allWorkers().forEach(w => {
+        const atts = w.attachments || {};
+        let changed = 0;
+        const next = {};
+        Object.keys(atts).forEach(docType => {
+            // getAttachments แปลงไฟล์แบบเก่า (string เดี่ยว) เป็นรายการให้ด้วย — ห้ามทิ้งไฟล์ที่ไม่ใช่ array
+            const list = getAttachments(w, docType);
+            next[docType] = list.map((f, idx) => {
+                if (!f || typeof f !== 'object') return f;
+                const m = String(f.name || '').match(/\.[A-Za-z0-9]{1,5}$/);
+                const ext = m ? m[0] : extFromDataUrl(String(f.data || ''));
+                const name = workerDocFileName(w.workerUid, w.firstName, w.lastName, docType, idx > 0 ? `_${idx + 1}` : '', ext);
+                if (name === f.name) return f;
+                changed++;
+                return { ...f, name };
+            });
+        });
+        if (changed) pending.push({ w, next, changed });
+    });
+    if (!pending.length) { uiAlert("ชื่อไฟล์เอกสารคนงานทุกไฟล์เป็นรูปแบบใหม่อยู่แล้ว"); return; }
+    const files = pending.reduce((s, p) => s + p.changed, 0);
+    if (!(await uiConfirm(`จะเปลี่ยนชื่อไฟล์ ${files} ไฟล์ ของคนงาน ${pending.length} คน\nเป็นรูปแบบ เลข13หลัก_ชื่อ_ประเภท (เช่น 1234567890123_AUNG_NAING_WP.pdf)\nลิงก์ไฟล์เดิมยังใช้ได้ ไม่ต้องอัปโหลดใหม่`, {
+        title: 'เปลี่ยนชื่อไฟล์เอกสารคนงานย้อนหลัง', okText: 'เปลี่ยนชื่อ', danger: false }))) return;
+    let ok = 0, fail = 0;
+    for (const { w, next } of pending) {
+        const before = w.attachments;
+        w.attachments = next;
+        const res = await callCloudAPI("saveWorker", { workerData: w });
+        if (!res || res.status === "error") { w.attachments = before; fail++; } else ok++;
+        if ((ok + fail) % 20 === 0) showToast(`กำลังเปลี่ยนชื่อไฟล์... ${ok + fail}/${pending.length} คน`, "warning");
+    }
+    saveData();
+    renderWorkers();
+    if (fail) showToast(`⚠️ เปลี่ยนชื่อสำเร็จ ${ok} คน ไม่สำเร็จ ${fail} คน — กดอีกครั้งเพื่อลองใหม่เฉพาะที่เหลือ`, "danger");
+    else showToast(`✅ เปลี่ยนชื่อไฟล์เอกสารของคนงาน ${ok} คนเรียบร้อยแล้ว`, "success");
+}
+
 function processUploadedFile(file, docType) {
     const statusEl = document.getElementById(`status-${docType}`);
     const uploadBox = document.getElementById(`drop-${docType}`);
@@ -4360,15 +4430,15 @@ function processUploadedFile(file, docType) {
 
             const editId = document.getElementById("worker-edit-id").value;
             const employerId = document.getElementById("worker-employer-id").value;
-            const firstName = document.getElementById("worker-first-name").value.trim() || "worker";
-            const nameClean = firstName.replace(/\s+/g, '_');
             const workerUid = document.getElementById("worker-uid").value.trim();
-            const uidPrefix = workerUid ? `${workerUid}_` : "";
             const existingList = tempWorkerAttachments[docType] || [];
             const suffix = existingList.length > 0 ? `_${existingList.length + 1}` : "";
-            const fileName = `${uidPrefix}${nameClean}_${docType}${suffix}${extFromDataUrl(fileContent)}`;
+            const ext = extFromDataUrl(fileContent);
+            const known = { uid: workerUid, firstName: document.getElementById("worker-first-name").value.trim(), lastName: document.getElementById("worker-last-name").value.trim() };
+            let fileName = workerDocFileName(known.uid, known.firstName, known.lastName, docType, suffix, ext);
 
-            const uploadResult = await uploadDocumentFile(fileContent, fileName, employerId, editId, docType);
+            const uploadResult = await uploadDocumentFile(fileContent, fileName, employerId, editId, docType, workerDocNameOptions(known, docType, suffix, ext));
+            if (uploadResult && uploadResult.fileName) fileName = uploadResult.fileName;
             if (uploadResult && uploadResult.aiRejected) {
                 renderWorkerAttachmentStatus(docType);
                 statusEl.insertAdjacentHTML('afterbegin', `<span class="ai-error">${icon("warn", "amber")} ${getAiRejectedMessage(uploadResult.ocrError)}</span>`);
@@ -8912,6 +8982,7 @@ async function uploadDocumentFile(fileDataUrl, fileName, customerId = "", worker
                 fileUrl: resData.fileUrl,
                 viewUrl: resData.viewUrl,
                 fileId: resData.fileId,
+                fileName: resData.fileName || fileName, // อาจถูกตั้งชื่อใหม่จากข้อมูลที่ AI อ่าน (options.nameFromOcr)
                 parsedData: resData.parsedData,
                 ocrAttempted: !!resData.ocrAttempted
             };
@@ -8922,11 +8993,11 @@ async function uploadDocumentFile(fileDataUrl, fileName, customerId = "", worker
             //            ห้าม fallback ไปเก็บไฟล์ทางอื่น (uploadFileToServer)
             const choice = await askAiRejectedChoice(fileName, resData.ocrError);
             if (choice === 'manual') {
-                const manualRes = await window.supabaseAdapter.uploadFile(fileDataUrl, fileName, customerId, workerId, docType, currentUser, { skipOcr: true });
+                const manualRes = await window.supabaseAdapter.uploadFile(fileDataUrl, fileName, customerId, workerId, docType, currentUser, { ...options, skipOcr: true });
                 if (manualRes && manualRes.status === 'success') {
                     showToast("✅ บันทึกไฟล์แล้ว (ไม่ผ่าน AI) — กรุณากรอกข้อมูลเอง", "success");
                     // manualEntry: ผู้เรียกเปิด/เลื่อนไปที่ช่องที่ต้องกรอกให้อัตโนมัติ (ดู focusManualEntryFields)
-                    return { fileUrl: manualRes.fileUrl, viewUrl: manualRes.viewUrl, fileId: manualRes.fileId, parsedData: null, ocrAttempted: false, manualEntry: true };
+                    return { fileUrl: manualRes.fileUrl, viewUrl: manualRes.viewUrl, fileId: manualRes.fileId, fileName: manualRes.fileName || fileName, parsedData: null, ocrAttempted: false, manualEntry: true };
                 }
                 showToast("❌ อัปโหลดไฟล์ล้มเหลว: " + ((manualRes && manualRes.message) || "ข้อผิดพลาดระบบ"), "danger");
                 return null;
@@ -10579,14 +10650,16 @@ function isWorkerDocFileExpired(fItem, fIdx, list, docType) {
 
 // แนบไฟล์ 1 ไฟล์เข้าแฟ้มคนงาน 1 คน (upload + OCR + อัปเดตข้อมูล) — ใช้ร่วมกันทั้งอัปโหลดทีละไฟล์ และ bulk import
 async function attachDocumentToWorker(w, docType, fileContent, preParsed = null) {
-    const nameClean = `${w.firstName}_${w.lastName || ''}`.replace(/\s+/g, '_');
-    const uidPrefix = w.workerUid ? `${w.workerUid}_` : "";
     const currentList = getAttachments(w, docType);
     const suffix = currentList.length > 0 ? `_${currentList.length + 1}` : "";
-    const fileName = `${uidPrefix}${nameClean}_${docType}${suffix}${extFromDataUrl(fileContent)}`;
+    const ext = extFromDataUrl(fileContent);
+    const nameOptions = workerDocNameOptions({ uid: w.workerUid, firstName: w.firstName, lastName: w.lastName }, docType, suffix, ext);
+    let fileName = nameOptions.nameFromOcr(preParsed);
 
-    const uploadResult = await uploadDocumentFile(fileContent, fileName, w.employerId, w.id, docType, preParsed ? { skipOcr: true } : {});
+    const uploadOptions = { ...(preParsed ? { skipOcr: true } : nameOptions) };
+    const uploadResult = await uploadDocumentFile(fileContent, fileName, w.employerId, w.id, docType, uploadOptions);
     if (uploadResult && uploadResult.aiRejected) throw createAiRejectedError(uploadResult.ocrError);
+    if (uploadResult && uploadResult.fileName) fileName = uploadResult.fileName;
     const storedUrl = uploadResult ? uploadResult.fileUrl : null;
     const serverUrl = storedUrl || await uploadFileToServer(fileContent, fileName);
 
@@ -15018,4 +15091,33 @@ function openClientWorkerNote(workerId) {
             el = el.parentElement;
         }
     }, { passive: false });
+})();
+
+// =============== ลากไฟล์ชิดขอบ = เลื่อนอัตโนมัติ ===============
+// ระหว่างลากไฟล์จากเครื่อง Windows ยึดเมาส์ไว้ หมุนล้อเลื่อนไม่ได้ — ลากไปใกล้ขอบบน/ล่างของกล่องที่เลื่อนได้
+// (modal, รายการ, หรือทั้งหน้า) แล้วจะเลื่อนให้เอง ยิ่งชิดขอบยิ่งเร็ว
+(function setupDragAutoScroll() {
+    const EDGE = 70, MAX_STEP = 22;
+    const scrollableY = (el) => {
+        if (el.scrollHeight <= el.clientHeight + 1) return false;
+        const oy = getComputedStyle(el).overflowY;
+        return oy === 'auto' || oy === 'scroll' || oy === 'overlay';
+    };
+    const step = (dist) => Math.ceil(MAX_STEP * (1 - Math.max(0, dist) / EDGE));
+    document.addEventListener('dragover', (e) => {
+        const y = e.clientY;
+        // กล่องที่เลื่อนได้ใกล้เมาส์ที่สุดก่อน (เช่น modal-body) ถ้าเลื่อนต่อไม่ได้แล้วค่อยลองชั้นนอก/ทั้งหน้า
+        let el = e.target instanceof Element ? e.target : null;
+        while (el && el !== document.body && el !== document.documentElement) {
+            if (scrollableY(el)) {
+                const r = el.getBoundingClientRect();
+                const top = Math.max(r.top, 0), bottom = Math.min(r.bottom, window.innerHeight);
+                if (y - top < EDGE && el.scrollTop > 0) { el.scrollTop -= step(y - top); return; }
+                if (bottom - y < EDGE && el.scrollTop + el.clientHeight < el.scrollHeight - 1) { el.scrollTop += step(bottom - y); return; }
+            }
+            el = el.parentElement;
+        }
+        if (y < EDGE) window.scrollBy(0, -step(y));
+        else if (window.innerHeight - y < EDGE) window.scrollBy(0, step(window.innerHeight - y));
+    });
 })();
