@@ -599,8 +599,18 @@
                 if (error) return { status: "error", message: error.message };
                 return { status: "success", updatedIds: (data || []).map(r => r.id) };
             }
-            case "saveJob":
+            case "saveJob": {
+                // แก้ใบงานที่มีอยู่แล้วด้วย update ก่อน — upsert (INSERT ... ON CONFLICT) ต้องผ่าน RLS ของ INSERT ด้วย
+                // ซึ่ง Account Manager ไม่มี (เพิ่มใบงานไม่ได้ แต่แก้ช่องการเงินได้) → ออกบิล/รับเงินแล้วผูกใบงานไม่ได้
+                // (พบกับ INV-2569-0004, 2026-10-06) — ไม่เจอแถว (ใบงานใหม่) ค่อย upsert ตามเดิม
+                const row = toRow(payload.jobData, JOB_MAP);
+                if (row.id) {
+                    const { data: upd, error: updErr } = await sb.from("jobs").update(row).eq("id", row.id).select();
+                    if (updErr) return { status: "error", message: updErr.message };
+                    if (upd && upd.length) return { status: "success", data: toCamel(upd[0], JOB_MAP) };
+                }
                 return await upsertOne("jobs", JOB_MAP, payload.jobData);
+            }
             case "saveAgent":
                 return await upsertOne("agents", AGENT_MAP, payload.agentData);
             case "saveBank":
