@@ -15262,7 +15262,14 @@ function attachTabSlider(host, getActive) {
     // ขนาดเปลี่ยน (ย่อแถบเมนู / จอหมุน / กลุ่มแท็บเพิ่งถูกแสดงจากที่ซ่อนไว้) → วางใหม่ทันทีโดยไม่เลื่อน
     // (ถ้าเลื่อนตาม ตัวเลือกจะวิ่งไล่หลังแถบเมนูที่กำลังหด = ดูกระตุก)
     let resizeTimer = null;
-    const placeNow = () => {
+    let lastSize = '';
+    const placeNow = (entries) => {
+        // ResizeObserver ยิงซ้ำทั้งที่ขนาดเท่าเดิมได้ (เช่น ตอนสลับแท็บแล้วเนื้อหาด้านล่างวาดใหม่ทั้งก้อน — หน้าแจ้งงาน/การเงิน)
+        // ถ้าปิด transition ตอนนั้น ตัวเลื่อนจะกระโดดไปเลยไม่เด้ง → วางทันทีเฉพาะตอนขนาดเปลี่ยนจริงเท่านั้น
+        const r = entries && entries[0] && entries[0].contentRect;
+        const size = r ? `${Math.round(r.width)}x${Math.round(r.height)}` : '';
+        if (size && size === lastSize) return;
+        lastSize = size;
         slider.style.transition = 'none';
         place();
         clearTimeout(resizeTimer);
