@@ -9443,7 +9443,11 @@ function onCombineCustomerChange() {
                     </div>
                 </label>
                 <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
-                    <input type="number" id="combine-fee-${j.id}" value="${j.fee > 0 ? j.fee : buildInvoiceItemsFromJob(j, '').reduce((s, it) => s + it.fee, 0)}" oninput="updateCombineTotalAmount()" style="width: 90px; padding: 4px 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 13px; text-align: right; font-family: inherit;">
+                    ${(() => {
+                        // ราคา 0 (ยังไม่มีราคาในใบงานและไม่มีราคามาตรฐาน) → เว้นว่างให้กรอกเอง ไม่ใส่เลข 0 ไว้ (เจ้าของระบบกำหนด 2026-10-08)
+                        const preset = j.fee > 0 ? j.fee : buildInvoiceItemsFromJob(j, '').reduce((s, it) => s + it.fee, 0);
+                        return `<input type="number" id="combine-fee-${j.id}" value="${preset > 0 ? preset : ''}" placeholder="กรอกราคา" min="0" step="0.01" oninput="updateCombineTotalAmount()" style="width: 110px; padding: 4px 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 13px; text-align: right; font-family: inherit;">`;
+                    })()}
                     <span style="color: var(--text-muted); font-size: 13px;">บาท</span>
                 </div>
             </div>
@@ -9491,6 +9495,14 @@ function generateCombinedInvoice() {
     if (checkboxes.length === 0) return;
 
     const selectedJobIds = Array.from(checkboxes).map(cb => cb.value);
+    // ช่องราคาเว้นว่างไว้ให้กรอกเอง — ใบงานที่เลือกต้องมีราคามากกว่า 0 ครบทุกใบก่อนสร้างร่างบิล
+    const missing = selectedJobIds.filter(id => !(parseFloat((document.getElementById(`combine-fee-${id}`) || {}).value) > 0));
+    if (missing.length) {
+        uiAlert(`กรุณากรอกราคาให้ครบ — ยังไม่ได้กรอก ${missing.length} ใบงาน`);
+        const first = document.getElementById(`combine-fee-${missing[0]}`);
+        if (first) first.focus();
+        return;
+    }
     const firstJob = jobs.find(j => j.id === selectedJobIds[0]);
     const cust = customers.find(c => c.id === firstJob.customerId);
 
