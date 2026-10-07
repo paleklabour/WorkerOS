@@ -2919,10 +2919,62 @@ td > .ico {
     margin-bottom: 12px;
 }
 
-/* ปุ่ม "เพิ่มงานให้คนงานคนนี้" ในหน้าต่างแก้ไขใบงาน */
-/* สีเดียวกับปุ่ม "บันทึกงาน" (.btn-gold) */
-.btn.job-add-to-batch-btn { margin-bottom: 10px; }
-.btn.job-add-to-batch-btn.hidden { display: none; }
+/* pop-up "เพิ่มงานเข้าชุดเดิม" */
+/* เกือบเต็มจอ — เห็นชื่อคนงาน/เลขใบงาน/นายจ้าง และแท็บงานในชุดครบ */
+.modal-content.add-batch-content { max-width: 1280px; width: 96vw; height: 92vh; max-height: 92vh; }
+.add-batch-content .modal-body { flex: 1; }
+/* รายการค้นหาแสดงต่อในหน้าต่างเลย (ไม่ลอยทับ) — เดิมลอยอยู่ในกล่องที่เลื่อนได้ เลยถูกตัดจนเห็นแค่ไม่กี่แถว */
+.add-batch-content .search-suggest-dropdown {
+    position: static;
+    max-height: 55vh;
+    margin-top: 6px;
+    box-shadow: none;
+}
+.add-batch-content .search-suggest-item { white-space: normal; }
+.add-batch-detail { margin-top: 4px; }
+.add-batch-card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    border: 1px solid var(--dk-line, #e2e8f0);
+    border-radius: var(--radius-sm);
+    background: var(--dk-subtle, #f8fafc);
+}
+.add-batch-card > div { display: flex; gap: 12px; align-items: baseline; }
+.add-batch-card > div > span { flex: 0 0 120px; color: var(--text-muted); font-size: 13px; }
+.add-batch-card > div > b { font-weight: 600; color: var(--text-dark); }
+.add-batch-types-label { display: block; font-weight: 600; margin: 4px 0 8px; }
+.add-batch-types {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 8px;
+    padding: 12px;
+    border: 1px solid var(--dk-line, #e2e8f0);
+    border-radius: var(--radius-sm);
+    background: var(--dk-subtle, #f8fafc);
+}
+.add-batch-type { display: flex; align-items: center; gap: 8px; margin: 0; font-weight: normal; cursor: pointer; }
+.add-batch-type input { width: 16px; height: 16px; cursor: pointer; }
+.add-batch-blocked { display: block; margin-top: 8px; }
+
+/* ตารางแจ้งงาน: แท็บงานอื่นในชุดเดียวกัน (กดเปิดใบงานนั้น) */
+.job-batch-tab {
+    font: inherit;
+    font-size: 11.5px;
+    padding: 1px 8px;
+    border-radius: 10px;
+    border: 1px solid var(--dk-line, #e2e8f0);
+    background: var(--dk-subtle, #f1f5f9);
+    color: var(--dk-muted, #475569);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+}
+.job-batch-tab:hover { border-color: var(--gold-primary); color: var(--gold-primary); }
+.job-batch-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
 
 /* แท็บรูปแบบใบวางบิล: แบบรวม / แบบรายคน */
 .invoice-layout-bar {

@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261007o">
+    <link rel="stylesheet" href="styles.css?v=20261007x">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -784,7 +784,14 @@
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                                     </svg>
-                                    <span>แจ้งงานใหม่ / เปิดบิล</span>
+                                    <span>แจ้งงาน</span>
+                                </button>
+                                <!-- เพิ่มงานประเภทอื่นให้คนงาน เข้าชุดงานเดียวกับใบงานที่มีอยู่ — ดู openAddToBatchModal() ใน app.js -->
+                                <button class="btn btn-gold btn-add needs-ops" id="btn-add-job-to-batch" onclick="openAddToBatchModal()">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                                    </svg>
+                                    <span>เพิ่มงานเข้าชุดเดิม</span>
                                 </button>
                             </div>
                         </div>
@@ -2396,10 +2403,6 @@
                         <div class="form-group" style="margin-bottom: 15px;">
                             <label style="font-weight: 600; font-size: 13.5px; color: var(--navy-dark); margin-bottom: 8px; display: block;">ประเภทงานที่แจ้ง (เลือกได้หลายรายการ) <span class="required">*</span></label>
                             <small class="text-muted" style="display:block; margin-bottom: 8px;">กำหนดราคาค่าบริการภายหลังได้ที่หน้า "บัญชีและการเงิน" &rarr; แท็บ "ออกบิล / รับเงิน"</small>
-                            <!-- แก้ไขใบงาน: เพิ่มงานประเภทอื่นให้คนงานคนนี้ เข้าชุดงานเดียวกัน (batchId) — ดู addJobToBatch() ใน app.js -->
-                            <button type="button" id="btn-job-add-to-batch" class="btn btn-sm btn-gold job-add-to-batch-btn hidden" onclick="addJobToBatch()">
-                                <span class="ico" data-icon="plus"></span> เพิ่มงานให้คนงานคนนี้ (ชุดงานเดียวกัน)
-                            </button>
                             <div id="job-type-checkboxes-container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: var(--radius-sm); padding: 12px;">
                                 <div style="display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
                                     <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
@@ -2996,6 +2999,32 @@
         </div>
 
         <!-- ==================== COMBINE BILLS MODAL ==================== -->
+        <!-- ==================== MODAL: เพิ่มงานเข้าชุดงานเดิม (เลือกใบงานต้นทาง → ดูรายละเอียด → ยืนยัน) ==================== -->
+        <div id="add-to-batch-modal" class="modal-backdrop hidden">
+            <div class="modal-content add-batch-content">
+                <div class="modal-header">
+                    <h3><span class="ico" data-icon="plus"></span> เพิ่มงานเข้าชุดเดิม</h3>
+                    <button class="close-btn" onclick="closeAddToBatchModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="add-batch-job-search">ค้นหาใบงานต้นทาง <span class="required">*</span></label>
+                        <div class="search-box" style="max-width: 100%;">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                            <input type="text" id="add-batch-job-search" placeholder="พิมพ์ชื่อคนงาน, เลข 13 หลัก, เลขใบงาน หรือชื่อนายจ้าง..." autocomplete="off">
+                        </div>
+                    </div>
+                    <div id="add-batch-detail" class="add-batch-detail"></div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline" onclick="closeAddToBatchModal()">ยกเลิก</button>
+                    <button class="btn btn-gold" id="btn-add-batch-confirm" onclick="confirmAddToBatch()" disabled>ยืนยัน เพิ่มงาน</button>
+                </div>
+            </div>
+        </div>
+
         <div id="combine-bills-modal" class="modal-backdrop hidden">
             <div class="modal-content combine-bills-content">
                 <div class="modal-header">
@@ -3290,7 +3319,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261007o"></script>
+    <script src="supabase-client.js?v=20261007x"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3301,6 +3330,6 @@
     </script>
 
     <!-- Application Script -->
-    <script src="app.js?v=20261007o"></script>
+    <script src="app.js?v=20261007x"></script>
 </body>
 </html>

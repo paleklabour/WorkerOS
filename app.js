@@ -6093,7 +6093,8 @@ function renderJobs() {
             ? `<div style="margin-top:5px; display:flex; flex-wrap:wrap; gap:4px;">${siblings.map(s => {
                 const sClean = (s.jobType || "").replace(/\s*\(\d+\)/g, "");
                 const dotColor = isJobStatusOpen(s.status) ? '#f59e0b' : '#22c55e';
-                return `<span title="${sClean}: ${s.status}" style="font-size:11.5px; padding:1px 7px; border-radius:10px; background:#f1f5f9; color:#475569; display:inline-flex; align-items:center; gap:4px;"><span style="width:6px;height:6px;border-radius:50%;background:${dotColor};display:inline-block;"></span>${sClean}</span>`;
+                // แท็บงานอื่นในชุดเดียวกัน — กดเพื่อเปิดใบงานนั้น
+                return `<button type="button" class="job-batch-tab" onclick="event.stopPropagation(); openJobModal('${s.id}')" title="${escapeHtml(sClean)}: ${escapeHtml(s.status || '')} — กดเพื่อเปิดใบงาน ${escapeHtml(getJobDisplayNo(s))}"><span class="job-batch-dot" style="background:${dotColor};"></span>${escapeHtml(sClean)}</button>`;
             }).join('')}</div>`
             : '';
 
@@ -6342,32 +6343,161 @@ async function addJobCloseDocs(jobId, input) {
     showToast(`📎 แนบเอกสารปิดงานเพิ่ม ${added.length} ไฟล์ให้ ${getJobDisplayNo(jobData)} แล้ว`, "success");
 }
 
-// ---------- เพิ่มงานเข้าชุดงานเดิม (ปุ่มในหน้าต่างแก้ไขใบงาน) ----------
-// เปิดฟอร์มแจ้งงานใหม่ที่เลือกนายจ้าง/คนงาน/Agent ไว้ให้แล้ว — งานที่สร้างใช้ batchId เดียวกับใบงานต้นทาง
-// (ถ้าใบงานต้นทางยังไม่มี batchId จะตั้งให้ตอนบันทึก) ตรวจงานซ้ำ/ล็อกประเภทงานด้วยตรรกะเดิมของ saveJob
-let jobJoinBatch = null; // { batchId, sourceJobId }
+// ---------- เพิ่มงานเข้าชุดงานเดิม (ปุ่ม "เพิ่มงานเข้าชุดเดิม" ข้างปุ่ม "แจ้งงาน") ----------
+// เลือกประเภทงานใน pop-up ได้เลย — สร้างใบงานใหม่ 1 ใบต่อประเภท ใช้ batchId เดียวกับใบงานต้นทาง
+// (ถ้าใบงานต้นทางยังไม่มี batchId จะตั้งให้) ประเภทที่มีในชุดแล้ว/ยังค้างอยู่ที่อื่น ไม่แสดงให้เลือก
+// pop-up "เพิ่มงานเข้าชุดเดิม" (ปุ่มข้าง "แจ้งงาน"): ค้นหาเลือกใบงานต้นทาง → ดูรายละเอียด → ยืนยัน
+let addBatchSourceId = null;
 
-async function addJobToBatch() {
-    const sourceId = document.getElementById("job-edit-id").value;
-    const src = jobs.find(j => j.id === sourceId);
-    if (!src || !can('ops')) return;
-    // pop-up รายละเอียดก่อนยืนยัน: ใบงานต้นทาง + งานในชุดเดียวกันที่มีอยู่แล้วของคนงานคนนี้
-    const inBatch = getJobBatchSiblings(src, true);
-    const card = dialogCardForJob(src);
-    card.rows = [...(card.rows || []),
-        ['งานในชุดนี้ตอนนี้', [src, ...inBatch].map(s => getCleanJobTypeName(s.jobType)).join(', ')]];
-    if (!(await uiConfirm("เพิ่มงานประเภทอื่นให้คนงานคนนี้ เข้าชุดงานเดียวกับใบงานนี้?\nกดยืนยันแล้วเลือกประเภทงานที่จะเพิ่มในฟอร์มถัดไป (1 ประเภท = 1 ใบงาน)",
-        { card, okText: 'ยืนยัน เพิ่มงาน' }))) return;
-    openJobModal(null);
-    jobJoinBatch = { batchId: src.batchId || null, sourceJobId: src.id };
-    document.getElementById("job-customer-id").value = src.customerId;
-    const cust = customers.find(c => c.id === src.customerId);
-    const custSearchInput = document.getElementById("job-customer-search");
-    if (custSearchInput) custSearchInput.value = cust ? cust.companyName : '';
-    onJobCustomerChange(src.workerId);
-    document.getElementById("job-agent-id").value = src.agentId || "";
-    document.getElementById("job-modal-title").innerText = `เพิ่มงานเข้าชุดเดียวกับใบงาน ${getJobDisplayNo(src)}`;
+// 1 รายการต่อ 1 ชุดงาน (ต่อคนงาน) — ใบงานตัวแทนคือใบที่เปิดก่อนสุดของชุด, ป้ายแสดงประเภทงานทั้งชุด
+function addBatchPool() {
+    const groups = new Map();
+    jobs.forEach(j => {
+        const key = `${j.batchId || j.id}|${j.workerId}`;
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(j);
+    });
+    const byOpen = (a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')) || String(a.id).localeCompare(String(b.id), undefined, { numeric: true });
+    // ชุดที่ทุกใบงานจบครบแล้ว (ปิดงาน + ชำระเงินแล้ว หรือไม่เรียกเก็บเงิน) ไม่ต้องแสดง
+    const settled = j => j.status === 'ปิดงานแล้ว' && (isJobPaid(j) || isJobNoCharge(j));
+    return [...groups.values()]
+        .filter(list => !list.every(settled))
+        .map(list => list.sort(byOpen)[0])
+        .sort((a, b) => byOpen(b, a));
 }
+
+function addBatchJobLabel(j) {
+    const w = workers.find(x => x.id === j.workerId);
+    const types = [j, ...getJobBatchSiblings(j, true)].map(s => getCleanJobTypeName(s.jobType));
+    return `${w ? `${w.firstName || ''} ${w.lastName || ''}`.replace(/\s+/g, ' ').trim() : 'ไม่พบข้อมูลคนงาน'} • ${types.join(', ')}`;
+}
+
+function addBatchJobSub(j) {
+    const w = workers.find(x => x.id === j.workerId);
+    const c = customers.find(x => x.id === j.customerId);
+    const count = getJobBatchSiblings(j, true).length + 1;
+    return [getJobDisplayNo(j), count > 1 ? `ชุดงาน ${count} รายการ` : '', w && w.workerUid, c && c.companyName].filter(Boolean).join(' • ');
+}
+
+function openAddToBatchModal() {
+    if (!can('ops')) return;
+    presetSearchSelect('add-batch-job', null);
+    addBatchSourceId = null;
+    renderAddBatchDetail();
+    document.getElementById("add-to-batch-modal").classList.remove("hidden");
+    const input = document.getElementById("add-batch-job-search");
+    if (input) input.focus();
+}
+
+function closeAddToBatchModal() {
+    document.getElementById("add-to-batch-modal").classList.add("hidden");
+}
+
+function renderAddBatchDetail() {
+    const box = document.getElementById("add-batch-detail");
+    const btn = document.getElementById("btn-add-batch-confirm");
+    const src = addBatchSourceId ? jobs.find(j => j.id === addBatchSourceId) : null;
+    if (btn) btn.disabled = !src;
+    if (!box) return;
+    if (!src) {
+        box.innerHTML = `<p class="text-muted">${icon("idea")} เลือกใบงานต้นทาง แล้วงานที่เพิ่มจะอยู่ในชุดเดียวกับใบงานนั้น (1 ประเภทงาน = 1 ใบงาน)</p>`;
+        return;
+    }
+    const w = workers.find(x => x.id === src.workerId);
+    const c = customers.find(x => x.id === src.customerId);
+    const inBatch = [src, ...getJobBatchSiblings(src, true)];
+    const { available, blocked } = addBatchAvailableTypes(src);
+    box.innerHTML = `
+        <div class="add-batch-card">
+            <div><span>ใบงานต้นทาง</span><b>${escapeHtml(getJobDisplayNo(src))} • ${escapeHtml(getCleanJobTypeName(src.jobType))}</b></div>
+            <div><span>คนงาน</span><b>${escapeHtml(w ? workerFullName(w) : '-')}${w && w.workerUid ? ` <small>(${escapeHtml(w.workerUid)})</small>` : ''}</b></div>
+            <div><span>นายจ้าง</span><b>${escapeHtml(c ? c.companyName : '-')}</b></div>
+            <div><span>งานในชุดนี้ (${inBatch.length})</span><b>${inBatch.map(s => `<span class="job-batch-tab"><span class="job-batch-dot" style="background:${isJobStatusOpen(s.status) ? '#f59e0b' : '#22c55e'};"></span>${escapeHtml(getCleanJobTypeName(s.jobType))}</span>`).join(' ')}</b></div>
+        </div>
+        <label class="add-batch-types-label">เลือกประเภทงานที่จะเพิ่ม (1 ประเภท = 1 ใบงานใหม่ ในชุดเดียวกัน) <span class="required">*</span></label>
+        ${available.length ? `<div class="add-batch-types">${available.map(t => `
+            <label class="add-batch-type"><input type="checkbox" name="add-batch-type" value="${escapeHtml(t)}" onchange="updateAddBatchConfirm()"> ${escapeHtml(t)}</label>`).join('')}</div>`
+            : `<p class="text-muted">${icon("ok")} คนงานคนนี้มีงานครบทุกประเภทในชุดนี้แล้ว ไม่มีประเภทงานที่เพิ่มได้</p>`}
+        ${blocked.length ? `<small class="text-muted add-batch-blocked">ไม่แสดง (มีในชุดนี้แล้ว หรือยังค้างอยู่ในใบงานอื่น): ${escapeHtml(blocked.join(', '))}</small>` : ''}`;
+    updateAddBatchConfirm();
+}
+
+// ประเภทงานที่เพิ่มเข้าชุดได้: ไม่ซ้ำกับงานในชุดนี้ของคนงานคนนี้ (ทุกสถานะ) และไม่ชนงานประเภทเดียวกันที่ยังค้างอยู่ที่อื่น
+function addBatchAvailableTypes(src) {
+    const allTypes = [...document.querySelectorAll("input[name='job-type-checkbox']")].map(cb => cb.value);
+    const inBatchTypes = new Set([src, ...getJobBatchSiblings(src, true)].map(s => getCleanJobTypeName(s.jobType)));
+    const available = [], blocked = [];
+    allTypes.forEach(t => (inBatchTypes.has(t) || findOpenJobConflict(src.workerId, t, null) ? blocked : available).push(t));
+    return { available, blocked };
+}
+
+function updateAddBatchConfirm() {
+    const btn = document.getElementById("btn-add-batch-confirm");
+    if (btn) btn.disabled = !addBatchSourceId || document.querySelectorAll("input[name='add-batch-type']:checked").length === 0;
+}
+
+// สร้างใบงานใหม่ 1 ใบต่อประเภทงานที่เลือก ผูก batchId เดียวกับใบงานต้นทาง (ไม่แก้ประเภทงานในใบงานเดิม)
+async function confirmAddToBatch() {
+    const src = addBatchSourceId ? jobs.find(j => j.id === addBatchSourceId) : null;
+    const types = [...document.querySelectorAll("input[name='add-batch-type']:checked")].map(cb => cb.value);
+    if (!src || types.length === 0 || !can('ops')) return;
+    // ตรวจซ้ำตอนบันทึกจริง เผื่อข้อมูลเปลี่ยนระหว่างเปิด pop-up ค้างไว้
+    const { available } = addBatchAvailableTypes(src);
+    const bad = types.filter(t => !available.includes(t));
+    if (bad.length) { uiAlert(`เพิ่มไม่ได้ — ประเภทงานนี้มีอยู่แล้วหรือยังค้างอยู่: ${bad.join(', ')}`); renderAddBatchDetail(); return; }
+
+    // pop-up ยืนยันก่อนสร้างใบงานจริง: ใบงานต้นทาง/คนงาน/นายจ้าง + งานในชุดตอนนี้ + งานที่จะเพิ่ม
+    const card = dialogCardForJob(src);
+    card.title = `เพิ่มงานเข้าชุดเดียวกับ ${getJobDisplayNo(src)}`;
+    card.rows = [
+        ...(card.rows || []).filter(r => r[0] !== 'ค่าบริการ'),
+        ['งานในชุดตอนนี้', [src, ...getJobBatchSiblings(src, true)].map(s => getCleanJobTypeName(s.jobType)).join(', ')],
+        ['งานที่จะเพิ่ม', `${types.join(', ')} (${types.length} ใบงานใหม่)`]
+    ];
+    if (!(await uiConfirm(`ยืนยันเพิ่ม ${types.length} ใบงานเข้าชุดเดิม?`, { card, okText: 'ยืนยัน เพิ่มงาน' }))) return;
+
+    const btn = document.getElementById("btn-add-batch-confirm");
+    if (btn) btn.disabled = true;
+    const batchId = src.batchId || 'batch-' + Date.now().toString().slice(-8);
+    const today = new Date().toISOString().split('T')[0];
+    let ok = 0, seq = 0;
+    for (const t of types) {
+        const jobData = {
+            id: 'job-' + (Date.now() + seq++).toString().slice(-6),
+            batchId, createdAt: today, customerId: src.customerId, workerId: src.workerId,
+            jobType: t, fee: 0, status: 'รอดำเนินการ', notes: '', orderNo: null, updatedAt: today,
+            agentId: src.agentId || null, openedBy: currentUser.id || null,
+            assignedTo: can('assignJobs') ? (src.assignedTo || null) : (currentUser.id || null),
+            paymentStatus: 'ยังไม่ออกบิล', attachments: []
+        };
+        const res = await callCloudAPI("saveJob", { jobData });
+        if (res && res.status !== "error") { jobs.push(jobData); ok++; }
+    }
+    // ใบงานต้นทางยังไม่เคยอยู่ในชุดใด → ผูกเข้าชุดเดียวกับงานที่เพิ่ง
+    if (ok > 0 && !src.batchId) {
+        src.batchId = batchId;
+        const linkRes = await callCloudAPI("saveJob", { jobData: src });
+        if (!linkRes || linkRes.status === "error") src.batchId = null;
+    }
+    saveData();
+    renderJobs();
+    renderDashboard();
+    showToast(ok === types.length ? `เพิ่มงานเข้าชุดเดิม ${ok} ใบงานแล้ว` : `⚠️ เพิ่มได้ ${ok} จาก ${types.length} ใบงาน`, ok === types.length ? "success" : "danger");
+    renderAddBatchDetail(); // pop-up ยังเปิดอยู่ → เห็นแท็บงานใหม่ในชุดทันที
+}
+
+// กฎ "1 ประเภทงาน = 1 ใบงาน": ตอนแก้ไขใบงานเดิม เลือกประเภทงานได้ทีละ 1 (ติ๊กอันใหม่ = เปลี่ยนประเภท ไม่ใช่เพิ่ม)
+// จะเพิ่มงานประเภทอื่นให้คนงานคนเดิม ใช้ปุ่ม "เพิ่มงานเข้าชุดเดิม" แทน (สร้างใบงาน/แท็บใหม่)
+document.addEventListener('change', e => {
+    const cb = e.target;
+    if (!cb || cb.name !== 'job-type-checkbox' || !cb.checked) return;
+    const editId = document.getElementById("job-edit-id");
+    if (!editId || !editId.value) return;
+    const others = [...document.querySelectorAll("input[name='job-type-checkbox']:checked")].filter(x => x !== cb);
+    if (!others.length) return;
+    others.forEach(x => { x.checked = false; });
+    showToast('ใบงาน 1 ใบมีได้ 1 ประเภทงาน — ถ้าจะเพิ่มงานให้คนงานคนนี้ ใช้ปุ่ม "เพิ่มงานเข้าชุดเดิม"', "warning");
+});
 
 function openJobModal(id = null) {
     if (customers.length === 0) {
@@ -6377,9 +6507,6 @@ function openJobModal(id = null) {
     }
 
     document.getElementById("job-form").reset();
-    jobJoinBatch = null; // เปิดฟอร์มปกติ = ไม่ได้เพิ่มงานเข้าชุดเดิม (addJobToBatch ตั้งค่าใหม่หลังเรียกฟังก์ชันนี้)
-    const addToBatchBtn = document.getElementById("btn-job-add-to-batch");
-    if (addToBatchBtn) addToBatchBtn.classList.toggle("hidden", !id || !can('ops'));
 
     // Fill customer dropdown selection
     const custSelect = document.getElementById("job-customer-id");
@@ -6837,9 +6964,7 @@ async function saveJob(e) {
         // Add mode: แตกเป็นคนละใบงานต่อคู่ "คนงาน × ประเภทงาน" ที่เลือกทั้งหมด ผูกกันด้วย batchId เดียวกัน
         // (ตัวอย่างต้นแบบของ "1 ใบงาน หลายคนงาน" — เลือกได้หลายคนพร้อมกัน ระบบแตกเป็นใบงานอิสระให้แต่ละคน
         // แต่รู้ว่ามาจากการแจ้งงานครั้งเดียวกัน — ควรตรวจผลลัพธ์ก่อนใช้กับจำนวนคนงานมากๆ)
-        // เพิ่มงานเข้าชุดเดิม (addJobToBatch) → ใช้ batchId ของใบงานต้นทาง; ไม่งั้นเปิดชุดใหม่
-        const joinSource = jobJoinBatch ? jobs.find(x => x.id === jobJoinBatch.sourceJobId) : null;
-        const batchId = (joinSource && joinSource.batchId) || 'batch-' + Date.now().toString().slice(-8);
+        const batchId = 'batch-' + Date.now().toString().slice(-8);
         const totalSubJobs = workerIds.length * selectedItems.length;
         if (!(await confirmBeforeSave(e.target.closest("form") || e.target, "ตรวจสอบก่อนแจ้งงานใหม่", [{ label: "จำนวนใบงานที่จะสร้าง", value: `${totalSubJobs} ใบ (${workerIds.length} คน × ${selectedItems.length} ประเภทงาน)` }]))) return;
         showToast(`💾 กำลังสร้างใบสั่งงานย่อย ${totalSubJobs} รายการเข้าคลาวด์...`, "warning");
@@ -6876,14 +7001,6 @@ async function saveJob(e) {
                 }
             }
         }
-        // ใบงานต้นทางยังไม่เคยอยู่ในชุดใด → ผูกเข้าชุดเดียวกับงานที่เพิ่งเพิ่ม
-        if (joinSource && !joinSource.batchId && failedCount < totalSubJobs) {
-            const prevBatch = joinSource.batchId;
-            joinSource.batchId = batchId;
-            const linkRes = await callCloudAPI("saveJob", { jobData: joinSource });
-            if (!linkRes || linkRes.status === "error") joinSource.batchId = prevBatch;
-        }
-        jobJoinBatch = null;
         if (failedCount > 0) {
             showToast(`⚠️ บันทึกไม่สำเร็จ ${failedCount} จาก ${totalSubJobs} รายการ (ยังไม่ถูกบันทึกลงชีต)`, "danger");
         } else {
@@ -8519,6 +8636,20 @@ function setupAllSearchSelects() {
         emptyText: 'ไม่พบ Agent ที่ตรงกับคำค้นหา',
         onSelect: () => renderCompletedJobsStats(),
         onClear: () => renderCompletedJobsStats()
+    });
+
+    // ใบงานต้นทางในหน้าต่าง "เพิ่มงานเข้าชุดเดิม" — ค่าจริงอยู่ในตัวแปร addBatchSourceId
+    registerSearchSelect('add-batch-job', {
+        inputId: 'add-batch-job-search',
+        getValue: () => addBatchSourceId || '',
+        setValue: (v) => { addBatchSourceId = v || null; renderAddBatchDetail(); },
+        getPool: () => addBatchPool(),
+        getId: j => j.id,
+        getLabel: j => addBatchJobLabel(j),
+        getSub: j => addBatchJobSub(j),
+        emptyText: 'ไม่พบใบงานที่ตรงกับคำค้นหา',
+        onSelect: () => renderAddBatchDetail(),
+        onClear: () => renderAddBatchDetail()
     });
 
     // นายจ้างในหน้าต่าง "รวมใบสั่งงานออกบิลชุด" — <select id="combine-cust-select"> ซ่อนไว้เป็นแหล่งเก็บค่าจริง
