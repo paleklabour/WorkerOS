@@ -1528,7 +1528,7 @@ function renderClientWorkersTab(list) {
                     <div class="renewal-worker-cell">
                         <div class="renewal-avatar"><img src="${w.photo ? escapeHtml(w.photo) : WORKER_AVATAR_PLACEHOLDER}" alt="" loading="lazy"></div>
                         <div>
-                            <strong>${escapeHtml(`${w.title ? w.title + ' ' : ''}${w.firstName || '-'} ${w.lastName || ''}`.trim())}</strong>
+                            <strong>${escapeHtml(workerFullName(w))}</strong>
                             ${w.thaiName ? `<div><small class="text-muted">ชื่อไทย (บัตรชมพู): ${escapeHtml(w.thaiName)}</small></div>` : ''}
                             <div><small class="text-muted">เพศ: ${escapeHtml(w.gender || '-')}</small></div>
                         </div>
@@ -1608,7 +1608,7 @@ function renderClientJobsTab(list) {
                     return `<tr>
                         <td><strong>${getJobDisplayNo(j)}</strong></td>
                         <td>${escapeHtml(getCleanJobTypeName(j.jobType))}</td>
-                        <td>${escapeHtml(w ? `${w.firstName} ${w.lastName}` : '-')}</td>
+                        <td>${escapeHtml(w ? workerFullName(w) : '-')}</td>
                         <td>${formatThaiDate(String(j.createdAt || j.updatedAt || '').slice(0, 10))}</td>
                         <td><span class="badge ${statusCls[j.status] || ''}">${escapeHtml(j.status || '-')}</span>${j.status === 'ปิดงานแล้ว' && j.closedAt ? `<br><small class="text-muted">ปิดเมื่อ ${formatThaiDate(j.closedAt)}</small>` : ''}${j.appointmentDate && isJobStatusOpen(j.status) ? `<br><small class="text-muted">นัด ${formatThaiDate(j.appointmentDate)}${j.appointmentTime ? ` ${escapeHtml(j.appointmentTime)}` : ''}</small>` : ''}</td>
                         <td>${docs.length ? docs.map((f, k) => `<a href="${escapeHtml(f.url)}" target="_blank" rel="noopener" title="${escapeHtml(f.note || f.name || '')}">${icon('clip')} ${escapeHtml(f.name || `ไฟล์ ${k + 1}`)}</a>`).join('<br>') : '<span class="text-muted">-</span>'}</td>
@@ -1979,8 +1979,22 @@ function invoiceWorkerLine(w) {
     return `${workerFullName(w)} เลขประจำตัว ${w.workerUid || '-'}`;
 }
 
+// คำนำหน้านามที่แสดงผลเป็นภาษาอังกฤษ (เจ้าของระบบกำหนด 2026-10-08) — ข้อมูลยังเก็บเป็นภาษาไทยตามที่ AI อ่าน/ฟอร์มเลือก
+// เอกสารราชการไทย (บต.46) ยังใช้ w.title ภาษาไทยตรง ๆ ไม่ผ่านฟังก์ชันนี้
+const TITLE_EN = {
+    'นาย': 'MR.', 'นาง': 'MRS.', 'นางสาว': 'MISS', 'น.ส.': 'MISS', 'เด็กชาย': 'MASTER', 'ด.ช.': 'MASTER', 'เด็กหญิง': 'MISS', 'ด.ญ.': 'MISS',
+    'mr': 'MR.', 'mrs': 'MRS.', 'miss': 'MISS', 'ms': 'MS.', 'master': 'MASTER'
+};
+function englishTitle(title) {
+    const t = String(title || '').trim();
+    if (!t) return '';
+    return TITLE_EN[t] || TITLE_EN[t.toLowerCase().replace(/\.$/, '')] || t;
+}
+
+// ชื่อเต็มคนงานพร้อมคำนำหน้า (ภาษาอังกฤษ) — ใช้ทุกจุดที่แสดงชื่อคนงาน
 function workerFullName(w) {
-    return `${w.title ? w.title + ' ' : ''}${w.firstName || ''} ${w.lastName || ''}`.trim() || '-';
+    const t = englishTitle(w.title);
+    return `${t ? t + ' ' : ''}${w.firstName || ''} ${w.lastName || ''}`.trim() || '-';
 }
 
 function dialogCardForWorker(w) {
@@ -2287,7 +2301,7 @@ function renderRenewalGroups() {
                         <div class="renewal-worker-cell">
                             <div class="renewal-avatar"><img src="${w.photo ? escapeHtml(w.photo) : WORKER_AVATAR_PLACEHOLDER}" alt="" loading="lazy"></div>
                             <div>
-                                <strong>${w.title ? w.title + ' ' : ''}${w.firstName || '-'} ${w.lastName || ''}</strong>
+                                <strong>${escapeHtml(workerFullName(w))}</strong>
                                 ${w.thaiName ? `<div><small class="text-muted">ชื่อไทย (บัตรชมพู): ${w.thaiName}</small></div>` : ''}
                                 <div><small class="text-muted">เพศ: ${w.gender || '-'}</small></div>
                             </div>
@@ -2388,7 +2402,7 @@ function calculateDeadlines() {
                 alerts.push({
                     type: 'danger',
                     title: `พาสปอร์ตหมดอายุแล้ว (Expired)`,
-                    message: `คนงาน: ${w.firstName} ${w.lastName} (${w.nationality}) หมดอายุเมื่อ ${formatThaiDate(expPassDate)}`,
+                    message: `คนงาน: ${workerFullName(w)} (${w.nationality}) หมดอายุเมื่อ ${formatThaiDate(expPassDate)}`,
                     target: w,
                     empName: empName,
                     daysLeft: daysDiff
@@ -2397,7 +2411,7 @@ function calculateDeadlines() {
                 alerts.push({
                     type: 'warning',
                     title: `พาสปอร์ตใกล้หมดอายุ (ภายใน 180 วัน)`,
-                    message: `คนงาน: ${w.firstName} ${w.lastName} (${w.nationality}) จะหมดอายุวันที่ ${formatThaiDate(expPassDate)}`,
+                    message: `คนงาน: ${workerFullName(w)} (${w.nationality}) จะหมดอายุวันที่ ${formatThaiDate(expPassDate)}`,
                     target: w,
                     empName: empName,
                     daysLeft: daysDiff
@@ -2416,7 +2430,7 @@ function calculateDeadlines() {
                 alerts.push({
                     type: 'danger',
                     title: `ใบอนุญาตทำงานหมดอายุแล้ว (Expired)`,
-                    message: `คนงาน: ${w.firstName} ${w.lastName} (${w.nationality}) หมดอายุเมื่อ ${formatThaiDate(expPermitDate)}`,
+                    message: `คนงาน: ${workerFullName(w)} (${w.nationality}) หมดอายุเมื่อ ${formatThaiDate(expPermitDate)}`,
                     target: w,
                     empName: empName,
                     daysLeft: daysDiff
@@ -2425,7 +2439,7 @@ function calculateDeadlines() {
                 alerts.push({
                     type: 'warning',
                     title: `ใบอนุญาตทำงานใกล้หมดอายุ (ภายใน 60 วัน)`,
-                    message: `คนงาน: ${w.firstName} ${w.lastName} (${w.nationality}) จะหมดอายุวันที่ ${formatThaiDate(expPermitDate)}`,
+                    message: `คนงาน: ${workerFullName(w)} (${w.nationality}) จะหมดอายุวันที่ ${formatThaiDate(expPermitDate)}`,
                     target: w,
                     empName: empName,
                     daysLeft: daysDiff
@@ -2559,7 +2573,7 @@ function bellJobItem(j, sub) {
     const w = workers.find(x => x.id === j.workerId);
     return {
         text: `${getJobDisplayNo(j)} • ${getCleanJobTypeName(j.jobType)}`,
-        sub: sub || `${cust ? cust.companyName : '-'} • ${w ? `${w.firstName} ${w.lastName}` : '-'}`,
+        sub: sub || `${cust ? cust.companyName : '-'} • ${w ? workerFullName(w) : '-'}`,
         action: `openJobModal('${j.id}')`
     };
 }
@@ -2916,7 +2930,7 @@ function renderBillingTab() {
                 <td><strong>${getJobDisplayNo(j)}</strong></td>
                 <td><span class="badge badge-warning">${icon("edit")} ยังไม่ออกบิล</span></td>
                 <td><div class="employer-name">${escapeHtml(cust ? cust.companyName : "ไม่พบนายจ้าง")}</div>${buildEmployerIdLinesHtml(cust)}</td>
-                <td>${escapeHtml(cleanJobType)}<br><small class="text-muted">${escapeHtml(work ? `${work.firstName} ${work.lastName}` : 'ไม่พบข้อมูลคนงาน')}</small>${work && work.workerUid ? `<br><small class="text-muted">เลขประจำตัว ${escapeHtml(work.workerUid)}</small>` : ''}</td>
+                <td>${escapeHtml(cleanJobType)}<br><small class="text-muted">${escapeHtml(work ? workerFullName(work) : 'ไม่พบข้อมูลคนงาน')}</small>${work && work.workerUid ? `<br><small class="text-muted">เลขประจำตัว ${escapeHtml(work.workerUid)}</small>` : ''}</td>
                 <td class="inv-num"><strong>${fmtMoney(estimate)}</strong>${j.fee > 0 ? '' : '<br><small class="text-muted">ราคามาตรฐาน</small>'}</td>
                 <td class="inv-num text-muted">-</td>
                 <td><span class="badge ${isClosed ? 'badge-danger' : 'badge-gold'}">${isClosed ? `${icon("warn")} ปิดงานแล้ว ยังไม่ออกบิล` : escapeHtml(j.status || '-')}</span></td>
@@ -2936,7 +2950,7 @@ function renderBillingTab() {
                 <td><strong>${getJobDisplayNo(j)}</strong></td>
                 <td>${noChargeBadgeHtml(j)}</td>
                 <td><div class="employer-name">${escapeHtml(cust ? cust.companyName : "ไม่พบนายจ้าง")}</div>${buildEmployerIdLinesHtml(cust)}</td>
-                <td>${escapeHtml(getCleanJobTypeName(j.jobType))}<br><small class="text-muted">${escapeHtml(work ? `${work.firstName} ${work.lastName}` : 'ไม่พบข้อมูลคนงาน')}</small>${work && work.workerUid ? `<br><small class="text-muted">เลขประจำตัว ${escapeHtml(work.workerUid)}</small>` : ''}</td>
+                <td>${escapeHtml(getCleanJobTypeName(j.jobType))}<br><small class="text-muted">${escapeHtml(work ? workerFullName(work) : 'ไม่พบข้อมูลคนงาน')}</small>${work && work.workerUid ? `<br><small class="text-muted">เลขประจำตัว ${escapeHtml(work.workerUid)}</small>` : ''}</td>
                 <td class="inv-num"><strong>0.00</strong></td>
                 <td class="inv-num text-muted">-</td>
                 <td><small>${escapeHtml(j.noChargeReason || '-')}</small><br><small class="text-muted">${j.noChargeBy ? `โดย ${escapeHtml(getUserNameById(j.noChargeBy))} • ` : ''}${j.noChargeAt ? formatThaiDate(j.noChargeAt, true) : ''}</small></td>
@@ -3548,7 +3562,7 @@ async function markWorkerNotifySkipped(workerId, btn) {
     }
     saveData();
     renderWorkers();
-    showToast(`✅ ${w.firstName || ''} ${w.lastName || ''}: ไม่ต้องแจ้งเข้าแล้ว (ยกเลิกได้ในฟอร์มแก้ไขคนงาน)`, "success");
+    showToast(`✅ ${workerFullName(w)}: ไม่ต้องแจ้งเข้าแล้ว (ยกเลิกได้ในฟอร์มแก้ไขคนงาน)`, "success");
 }
 
 // ---------- เรียงตารางฐานข้อมูลคนงานตามหัวคอลัมน์ (แบบเดียวกับตารางแจ้งงาน) ----------
@@ -3787,7 +3801,7 @@ function renderWorkers() {
                             <img src="${avatarUrl}" style="width: 100%; height: 100%; object-fit: cover;">
                         </div>
                         <div>
-                            <strong>${w.title ? w.title + ' ' : ''}${w.firstName || '-'} ${w.lastName || ''}</strong>
+                            <strong>${escapeHtml(workerFullName(w))}</strong>
                             ${w.thaiName ? `<div><small class="text-muted">ชื่อไทย (บัตรชมพู): ${w.thaiName}</small></div>` : ''}
                             <div><small class="text-muted">เพศ: ${w.gender || '-'}</small></div>
                             ${pendingNotifyBadge}${clientNoteBadge}
@@ -5894,7 +5908,7 @@ function renderJobsSummary(baseJobs, monthKey) {
             const w = workers.find(x => x.id === j.workerId);
             return `<button type="button" class="js-list-item" onclick="openJobModal('${j.id}')">
                 <span><strong>${getJobDisplayNo(j)}</strong> • ${escapeHtml(getCleanJobTypeName(j.jobType))}</span>
-                <small>${escapeHtml(cust ? cust.companyName : '-')} • ${escapeHtml(w ? `${w.firstName} ${w.lastName}` : '-')} • ${subOf(j)}</small>
+                <small>${escapeHtml(cust ? cust.companyName : '-')} • ${escapeHtml(w ? workerFullName(w) : '-')} • ${subOf(j)}</small>
             </button>`;
         }).join('')}${list.length > 12 ? `<div class="bell-more">และอีก ${list.length - 12} งาน</div>` : ''}</div>` : `<p class="text-muted pay-empty">${emptyText}</p>`}
     </div>`;
@@ -6096,7 +6110,7 @@ function renderJobs() {
         const work = workers.find(w => w.id === j.workerId);
         const custName = cust ? cust.companyName : "ไม่พบนายจ้าง";
         const custIdLines = buildEmployerIdLinesHtml(cust);
-        const workName = work ? `${work.firstName} ${work.lastName} (${work.nationality})` : "ไม่พบข้อมูลคนงาน";
+        const workName = work ? `${workerFullName(work)} (${work.nationality})` : "ไม่พบข้อมูลคนงาน";
         const jobAgent = j.agentId ? agents.find(a => a.id === j.agentId) : null;
         const agentLine = jobAgent ? `<br><span style="font-size:11.5px; color:var(--text-muted);">${icon("user")} Agent: ${jobAgent.name}</span>` : '';
 
@@ -6179,7 +6193,7 @@ function renderJobs() {
             <tr ${rowClickAttrs}>
                 <td><strong>${getJobDisplayNo(j)}</strong>${j.status !== 'ปิดงานแล้ว' && Array.isArray(j.attachments) && j.attachments.length
                     ? ` <span class="job-predocs-flag" title="แนบเอกสารปิดงานไว้แล้ว ${j.attachments.length} ไฟล์ — กดปิดงานได้เลย">${icon('clip')}${j.attachments.length}</span>` : ''}${batchBadge}</td>
-                <td><span class="badge badge-gold">${cleanJobType}</span>${siblingPills}</td>
+                <td><span class="badge badge-gold job-type-badge">${cleanJobType}</span>${siblingPills}</td>
                 <td><div class="employer-name">${custName}</div>${custIdLines}${agentLine}</td>
                 <td>${workName}${work && work.email ? `<div class="job-worker-email">${escapeHtml(work.email)}</div>` : ''}</td>
                 <td onclick="event.stopPropagation()">${canEditJob(j)
@@ -6617,7 +6631,7 @@ function addBatchPool() {
 function addBatchJobLabel(j) {
     const w = workers.find(x => x.id === j.workerId);
     const types = [j, ...getJobBatchSiblings(j, true)].map(s => getCleanJobTypeName(s.jobType));
-    return `${w ? `${w.firstName || ''} ${w.lastName || ''}`.replace(/\s+/g, ' ').trim() : 'ไม่พบข้อมูลคนงาน'} • ${types.join(', ')}`;
+    return `${w ? workerFullName(w).replace(/\s+/g, ' ').trim() : 'ไม่พบข้อมูลคนงาน'} • ${types.join(', ')}`;
 }
 
 function addBatchJobSub(j) {
@@ -6920,7 +6934,7 @@ function onJobCustomerChange(preselectedWorkerIds = null) {
 function syncJobWorkerHiddenSelect() {
     const workerSelect = document.getElementById("job-worker-id");
     workerSelect.innerHTML = jobModalWorkers.map(w =>
-        `<option value="${w.id}" ${jobWorkerSelectedIds.has(w.id) ? 'selected' : ''}>${w.firstName} ${w.lastName} (${w.nationality})</option>`
+        `<option value="${w.id}" ${jobWorkerSelectedIds.has(w.id) ? 'selected' : ''}>${workerFullName(w)} (${w.nationality})</option>`
     ).join('');
 }
 
@@ -6936,7 +6950,7 @@ function renderJobWorkerChips() {
     chipsEl.style.display = 'flex';
     chipsEl.innerHTML = Array.from(jobWorkerSelectedIds).map(id => {
         const w = jobModalWorkers.find(x => x.id === id);
-        const label = w ? `${w.firstName} ${w.lastName}` : id;
+        const label = w ? workerFullName(w) : id;
         return `<span class="job-worker-chip">${label}<button type="button" onclick="toggleJobWorkerSelection('${id}', false)">&times;</button></span>`;
     }).join('');
 }
@@ -6967,7 +6981,7 @@ function renderJobWorkerChecklist() {
     listEl.innerHTML = filtered.map(w => `
         <label class="job-worker-row">
             <input type="checkbox" ${jobWorkerSelectedIds.has(w.id) ? 'checked' : ''} onchange="toggleJobWorkerSelection('${w.id}', this.checked)">
-            <span class="job-worker-row-name">${w.firstName} ${w.lastName}</span>
+            <span class="job-worker-row-name">${workerFullName(w)}</span>
             <span class="job-worker-row-uid">${w.workerUid ? `เลขประจำตัว ${w.workerUid}` : 'ไม่มีเลขประจำตัว'}</span>
             <span class="job-worker-row-nat">${w.nationality || ''}</span>
         </label>
@@ -7045,7 +7059,7 @@ function refreshJobTypeLocks() {
             note.style.cssText = 'width:100%; font-size:11.5px; color:#b91c1c; margin-top:2px; line-height:1.4;';
             const detail = conflicts.map(x => {
                 const w = workers.find(item => item.id === x.wid);
-                const wName = w ? `${w.firstName} ${w.lastName}` : x.wid;
+                const wName = w ? workerFullName(w) : x.wid;
                 return `${wName} (เลขที่ ${getJobDisplayNo(x.conflict)} • ${x.conflict.status})`;
             }).join(', ');
             note.innerHTML = `${icon("lock")} มีงานนี้ค้างอยู่แล้วสำหรับ: ${detail} — กรุณาแก้ไขหรือปิดงานเดิมก่อน`;
@@ -7081,7 +7095,7 @@ function renderJobBatchHint(job, workerIdForNew) {
         const otherWorkerIds = [...new Set(siblings.filter(s => s.workerId !== job.workerId).map(s => s.workerId))];
         if (mine.length > 0 || otherWorkerIds.length > 0) {
             const chip = (s) => `<span style="display:inline-block; margin:2px 4px; padding:2px 8px; border-radius:10px; background:white; border:1px solid #c7d2fe;">${getCleanJobTypeName(s.jobType)} <em style="font-style:normal; color:#64748b;">(${s.status})</em></span>`;
-            const otherNames = otherWorkerIds.map(id => { const w = workers.find(x => x.id === id); return w ? `${w.firstName} ${w.lastName || ''}`.trim() : '-'; });
+            const otherNames = otherWorkerIds.map(id => { const w = workers.find(x => x.id === id); return w ? workerFullName(w) : '-'; });
             hintBox.style.display = 'block';
             hintBox.style.background = '#eef2ff';
             hintBox.style.color = '#3730a3';
@@ -7140,7 +7154,7 @@ async function saveJob(e) {
             const conflict = findOpenJobConflict(wid, cb.value, editId || null);
             if (conflict) {
                 const w = workers.find(item => item.id === wid);
-                const wName = w ? `${w.firstName} ${w.lastName}` : wid;
+                const wName = w ? workerFullName(w) : wid;
                 conflicts.push(`• ${wName} — "${cb.value}" ค้างอยู่ที่ใบงานเลขที่ ${getJobDisplayNo(conflict)} (สถานะ: ${conflict.status})`);
             }
         });
@@ -7755,7 +7769,7 @@ function openJobCloseModal(jobId) {
     const work = workers.find(w => w.id === j.workerId);
     document.getElementById("job-close-target-label").innerText =
         `ใบงาน ${getJobDisplayNo(j)} • ${getCleanJobTypeName(j.jobType)} • ` +
-        `${work ? `${work.firstName} ${work.lastName}` : 'ไม่พบคนงาน'} (${cust ? cust.companyName : 'ไม่พบนายจ้าง'})`;
+        `${work ? workerFullName(work) : 'ไม่พบคนงาน'} (${cust ? cust.companyName : 'ไม่พบนายจ้าง'})`;
 
     document.getElementById("job-close-modal").classList.remove("hidden");
 }
@@ -8697,7 +8711,7 @@ async function issueCurrentInvoice() {
             customerAddr: readInvoiceText("inv-cust-addr"),
             customerTax: readInvoiceText("inv-cust-tax"),
             workerId: currentInvoiceKind === 'free' ? (freeInvoiceWorkerId || null) : null,
-            workerName: currentInvoiceKind === 'free' && worker ? `${worker.firstName} ${worker.lastName}`.trim() : null,
+            workerName: currentInvoiceKind === 'free' && worker ? workerFullName(worker) : null,
             jobIds: [...currentInvoiceJobIds],
             items: realItems,
             subtotal: round2(total),
@@ -8783,7 +8797,7 @@ function registerFreeInvoiceSearchSelects() {
         setValue: (v) => { freeInvoiceWorkerId = v || null; },
         getPool: () => freeInvoiceCustomerId ? workers.filter(w => w.employerId === freeInvoiceCustomerId) : workers,
         getId: w => w.id,
-        getLabel: w => `${w.firstName} ${w.lastName}`.trim(),
+        getLabel: w => workerFullName(w),
         getSub: w => w.workerUid ? 'เลขประจำตัว ' + w.workerUid : '',
         getBadge: w => w.nationality || '',
         emptyText: freeInvoiceCustomerId ? 'ไม่พบลูกจ้างของนายจ้างรายนี้ที่ตรงกับคำค้นหา' : 'ไม่พบลูกจ้างที่ตรงกับคำค้นหา',
@@ -9330,7 +9344,7 @@ async function saveInvoiceFeeEdits() {
         inv.customerId = freeInvoiceCustomerId || null;
         const w = freeInvoiceWorkerId ? workers.find(x => x.id === freeInvoiceWorkerId) : null;
         inv.workerId = freeInvoiceWorkerId || null;
-        inv.workerName = w ? `${w.firstName} ${w.lastName}`.trim() : null;
+        inv.workerName = w ? workerFullName(w) : null;
     }
     const res = await callCloudAPI("saveInvoice", { invoiceData: inv });
     if (!res || res.status === "error") { Object.assign(inv, prev); return; }
@@ -9431,7 +9445,7 @@ function onCombineCustomerChange() {
 
     listContainer.innerHTML = unpaidJobs.map(j => {
         const work = workers.find(w => w.id === j.workerId);
-        const workName = work ? `${work.firstName} ${work.lastName} (${work.nationality})` : "ไม่ระบุคนงานต่างด้าว";
+        const workName = work ? `${workerFullName(work)} (${work.nationality})` : "ไม่ระบุคนงานต่างด้าว";
         const workUidTag = work && work.workerUid ? ` [${work.workerUid}]` : '';
 
         return `
@@ -10708,7 +10722,7 @@ function renderMonthlyDetails() {
                 return `
                     <li style="font-size:13.5px; padding: 6px 10px; background-color: #ffffff; border-radius: var(--radius-sm); border: 1px solid #e2e8f0; display:flex; flex-direction:column; gap:4px;">
                         <div style="display:flex; justify-content:space-between;">
-                            <strong>${icon("user")} ${w.firstName} ${w.lastName} (${w.nationality})</strong>
+                            <strong>${icon("user")} ${workerFullName(w)} (${w.nationality})</strong>
                             <span style="font-size:12px; color:var(--text-muted);">${formatDateOnly(w.createdAt)}</span>
                         </div>
                         <div style="font-size:12px; color:var(--text-muted);">
@@ -11552,7 +11566,7 @@ function renderWorkerFolderPreview() {
     }
     if (activeFolderSel.kind === 'photo') {
         box.innerHTML = `
-            <div class="fv-bar"><div class="fv-bar-title"><b>รูปคนงาน</b><small>${escapeHtml(`${w.firstName} ${w.lastName || ''}`)}</small></div>
+            <div class="fv-bar"><div class="fv-bar-title"><b>รูปคนงาน</b><small>${escapeHtml(workerFullName(w))}</small></div>
                 <div class="fv-bar-actions"><a class="btn btn-sm btn-outline" href="${escapeHtml(w.photo)}" target="_blank" rel="noopener">${icon('link')} เปิดแท็บใหม่</a></div></div>
             <div class="fv-doc"><img src="${escapeHtml(w.photo)}" alt="รูปคนงาน"></div>`;
         return;
@@ -11619,7 +11633,7 @@ function workerFolderAction(action) {
     if (!fItem) return;
     if (action === 'download') downloadAttachment(fItem.name, workerFolderFileUrl(fItem));
     else if (action === 'setPhoto') setWorkerPhotoFromFile(w, workerFolderFileUrl(fItem));
-    else shareAttachment(fItem.name, `${w.firstName} ${w.lastName || ''}`, workerFolderFileUrl(fItem));
+    else shareAttachment(fItem.name, workerFullName(w), workerFolderFileUrl(fItem));
 }
 
 // ตั้งรูปในแฟ้มเป็นรูปประจำตัวคนงาน (workers.photo) — ใช้แก้คนงานเก่าที่รูปไม่เคยถูกบันทึก (บั๊ก map ตกหล่น แก้ 2026-10-02)
@@ -11633,7 +11647,7 @@ async function setWorkerPhotoFromFile(w, url) {
     document.getElementById("worker-folder-avatar").src = url;
     renderWorkerFolderPreview();
     renderWorkers();
-    showToast(`🖼️ ตั้งรูปประจำตัวของ ${w.firstName} แล้ว`, "success");
+    showToast(`🖼️ ตั้งรูปประจำตัวของ ${workerFullName(w)} แล้ว`, "success");
 }
 // ==================== ลากไฟล์ในแฟ้มคนงานย้ายเข้า/ออกโฟลเดอร์ "ไฟล์ที่หมดอายุ" (เหมือนลากการ์ดใน Kanban) ====================
 function onWorkerFileDragStart(e, docType, idx) {
@@ -11715,7 +11729,7 @@ function copyWorkerFolderLink(workerId) {
     if (!w) return;
     
     // Simulating copy direct worker folder link
-    const shareText = "แฟ้มเอกสารคนงานของ: คุณ " + w.firstName + " " + (w.lastName || "") + "\n(รวมใบอนุญาตทำงาน, พาสปอร์ต, บัตรชมพู, ทะเบียนบ้าน, ใบเสร็จ)\nเปิดคลังเอกสารได้ที่: http:" + "/" + "/localhost:3000/#worker-folder-" + w.id;
+    const shareText = "แฟ้มเอกสารคนงานของ: " + workerFullName(w) + "\n(รวมใบอนุญาตทำงาน, พาสปอร์ต, บัตรชมพู, ทะเบียนบ้าน, ใบเสร็จ)\nเปิดคลังเอกสารได้ที่: http:" + "/" + "/localhost:3000/#worker-folder-" + w.id;
     
     navigator.clipboard.writeText(shareText).then(() => {
         showToast("📋 คัดลอกลิงก์แฟ้มเอกสารไปที่คลิปบอร์ดเรียบร้อยแล้ว!", "success");
@@ -12346,7 +12360,7 @@ function renderBulkImportTable() {
                     <select style="font-size:12.5px; max-width:200px;" onchange="updateBulkImportWorker(${idx}, this.value)">
                         <option value="">--- เลือกคนงาน ---</option>
                         ${bulkNewWorkers.map((c, cIdx) => { const v = BULK_NEW_WORKER_PREFIX + c.id; return `<option value="${v}" ${row.workerId === v ? 'selected' : ''}>🆕 คนงานใหม่ #${cIdx + 1}: ${escapeHtml(`${c.data.firstName || '(ไม่มีชื่อ)'} ${c.data.lastName || ''}`.trim())}</option>`; }).join('')}
-                        ${workers.map(w => `<option value="${w.id}" ${row.workerId === w.id ? 'selected' : ''}>${w.firstName} ${w.lastName || ''} (${w.workerUid || 'ไม่มีเลข'})</option>`).join('')}
+                        ${workers.map(w => `<option value="${w.id}" ${row.workerId === w.id ? 'selected' : ''}>${workerFullName(w)} (${w.workerUid || 'ไม่มีเลข'})</option>`).join('')}
                     </select>
                 </td>
                 <td>
@@ -12854,7 +12868,7 @@ async function shareWorkerFolder(workerId) {
 
     const link = new URL(`share.html?w=${encodeURIComponent(workerId)}&t=${encodeURIComponent(token)}`, location.href).toString();
     navigator.clipboard.writeText(link).then(() => {
-        showToast(`📋 คัดลอกลิงก์แชร์ทั้งโฟลเดอร์ของ ${w.firstName} เรียบร้อยแล้ว! ส่งให้ลูกค้าได้เลย ไม่ต้องล็อกอิน`, "success");
+        showToast(`📋 คัดลอกลิงก์แชร์ทั้งโฟลเดอร์ของ ${workerFullName(w)} เรียบร้อยแล้ว! ส่งให้ลูกค้าได้เลย ไม่ต้องล็อกอิน`, "success");
     }).catch(err => {
         uiAlert("ไม่สามารถคัดลอกได้: " + err);
     });
@@ -12864,7 +12878,7 @@ async function shareWorkerFolder(workerId) {
 async function revokeWorkerShareLink(workerId) {
     const w = workers.find(item => item.id === workerId);
     if (!w || !w.shareToken) return;
-    if (!(await uiConfirm(`ยกเลิกลิงก์แชร์ของ ${w.firstName}? ลิงก์เดิมที่เคยส่งให้ลูกค้าจะเปิดไม่ได้อีก`, { okText: "ยกเลิกลิงก์", card: dialogCardForWorker(w) }))) return;
+    if (!(await uiConfirm(`ยกเลิกลิงก์แชร์ของ ${workerFullName(w)}? ลิงก์เดิมที่เคยส่งให้ลูกค้าจะเปิดไม่ได้อีก`, { okText: "ยกเลิกลิงก์", card: dialogCardForWorker(w) }))) return;
 
     w.shareToken = null;
     const res = await callCloudAPI("saveWorker", { workerData: w });
@@ -12898,7 +12912,7 @@ function missingDocsWorkerMatchesQuery(w, query) {
     const emp = customers.find(c => c.id === w.employerId);
     const missingLabels = REQUIRED_WORKER_DOCS.filter(doc => getAttachments(w, doc.type).length === 0).map(doc => doc.label);
     const haystack = [
-        `${w.title || ''} ${w.firstName || ''} ${w.lastName || ''}`,
+        `${w.title || ''} ${englishTitle(w.title)} ${w.firstName || ''} ${w.lastName || ''}`,
         w.thaiName, w.workerUid, w.permitNo, w.passportNo, w.pinkCardNo, w.refNo, w.insuranceNo,
         w.nationality, NATIONALITY_TH_LABELS[w.nationality],
         emp && emp.companyName, emp && emp.taxId, emp && emp.directorId,
@@ -12961,7 +12975,7 @@ function renderMissingDocsOverview() {
                     </div>
                 </td>
                 <td>
-                    <div><strong>${w.title ? w.title + ' ' : ''}${w.firstName} ${w.lastName || ''}</strong></div>
+                    <div><strong>${escapeHtml(workerFullName(w))}</strong></div>
                     <small class="text-muted">เลขประจำตัว: ${w.workerUid || '-'}</small>
                 </td>
                 <td><span class="badge badge-gold">${w.nationality}</span></td>
@@ -13038,7 +13052,7 @@ function renderJobsKanban(filtered) {
             const work = workers.find(w => w.id === j.workerId);
             const custName = cust ? cust.companyName : "ไม่พบนายจ้าง";
             const custIdTitle = buildEmployerIdText(cust);
-            const workName = work ? `${work.firstName} ${work.lastName} (${work.nationality})` : "ไม่พบคนงาน";
+            const workName = work ? `${workerFullName(work)} (${work.nationality})` : "ไม่พบคนงาน";
             const jobAgent = j.agentId ? agents.find(a => a.id === j.agentId) : null;
 
             // Payment badge — เป็นอิสระจากสถานะขั้นตอนงาน ออกบิลได้ตั้งแต่เปิดงาน
@@ -14655,7 +14669,7 @@ function openCommissionPayoutModal(agentId) {
             <label class="commission-job-row">
                 <input type="checkbox" name="commission-job" value="${j.id}" checked onchange="updateCommissionPayoutTotal()">
                 <span class="commission-job-info"><strong>${getJobDisplayNo(j)} • ${escapeHtml(getCleanJobTypeName(j.jobType))}</strong>
-                    <small>${escapeHtml(cust ? cust.companyName : '-')} • ${escapeHtml(w ? `${w.firstName} ${w.lastName}` : '-')} • ชำระแล้ว ${formatThaiDate(j.paidAt)}</small></span>
+                    <small>${escapeHtml(cust ? cust.companyName : '-')} • ${escapeHtml(w ? workerFullName(w) : '-')} • ชำระแล้ว ${formatThaiDate(j.paidAt)}</small></span>
                 <input type="number" class="commission-amount-input" id="commission-amt-${j.id}" min="0" step="0.01" value="${jobCommissionAmount(j)}" oninput="updateCommissionPayoutTotal()">
             </label>`;
     }).join('');
@@ -15019,7 +15033,7 @@ function renderItemWorkersChecklist() {
     chipsEl.style.display = itemWorkersSelected.size ? 'flex' : 'none';
     chipsEl.innerHTML = Array.from(itemWorkersSelected).map(id => {
         const w = workers.find(x => x.id === id);
-        return `<span class="job-worker-chip">${escapeHtml(w ? `${w.firstName} ${w.lastName}` : id)}<button type="button" onclick="toggleItemWorker('${id}', false)">&times;</button></span>`;
+        return `<span class="job-worker-chip">${escapeHtml(w ? workerFullName(w) : id)}<button type="button" onclick="toggleItemWorker('${id}', false)">&times;</button></span>`;
     }).join('');
     document.getElementById("item-workers-count").innerText = `เลือกแล้ว ${itemWorkersSelected.size} คน`;
 }
@@ -16438,7 +16452,7 @@ function openClientWorkerNote(workerId) {
                 <button type="button" class="btn btn-outline ui-dialog-cancel">ยกเลิก</button>
             </div>
         </div>`;
-    backdrop.querySelector('.ui-dialog-title').textContent = `โน้ต: ${`${w.title || ''} ${w.firstName || ''} ${w.lastName || ''}`.trim()}`;
+    backdrop.querySelector('.ui-dialog-title').textContent = `โน้ต: ${workerFullName(w)}`;
     const input = backdrop.querySelector('.client-note-input');
     input.value = w.clientNote || '';
     const close = () => { document.removeEventListener('keydown', onKey, true); backdrop.remove(); };
