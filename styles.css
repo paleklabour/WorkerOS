@@ -2919,6 +2919,10 @@ td > .ico {
     margin-bottom: 12px;
 }
 
+/* pop-up "รับเงิน / มัดจำ" — เกือบเต็มจอ เห็นรายการบิลค้าง/ช่องกรอกครบโดยไม่ต้องเลื่อนมาก */
+.modal-content.receive-money-content { max-width: 1280px; width: 96vw; height: 92vh; max-height: 92vh; }
+.receive-money-content .modal-body { flex: 1; }
+
 /* pop-up "เพิ่มงานเข้าชุดเดิม" */
 /* เกือบเต็มจอ — เห็นชื่อคนงาน/เลขใบงาน/นายจ้าง และแท็บงานในชุดครบ */
 .modal-content.add-batch-content { max-width: 1280px; width: 96vw; height: 92vh; max-height: 92vh; }

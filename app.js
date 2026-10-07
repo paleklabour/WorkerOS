@@ -3320,7 +3320,7 @@ function renderCustomers() {
         let deleteBtn = '';
         if (currentUser.role === 'admin') {
             deleteBtn = `
-                <button class="action-icon-btn delete-btn" onclick="deleteCustomer('${c.id}', ${c._rowNum || 'null'})" title="ลบข้อมูล">
+                <button class="action-icon-btn delete-btn" onclick="deleteCustomer('${c.id}', ${c._rowNum || 'null'})" title="ลบนายจ้าง">
                     ${icon("trash")}
                 </button>
             `;
@@ -3761,7 +3761,7 @@ function renderWorkers() {
         let deleteBtn = '';
         if (currentUser.role === 'admin') {
             deleteBtn = `
-                <button class="action-icon-btn delete-btn" onclick="deleteWorker('${w.id}', ${w._rowNum || 'null'})" title="ลบข้อมูล">
+                <button class="action-icon-btn delete-btn" onclick="deleteWorker('${w.id}', ${w._rowNum || 'null'})" title="ลบคนงาน">
                     ${icon("trash")}
                 </button>
             `;
@@ -6131,7 +6131,7 @@ function renderJobs() {
 
         if (canEditJob(j)) {
             editBtn = `
-                <button class="action-icon-btn" onclick="openJobModal('${j.id}')" title="แก้ไขขั้นตอน">
+                <button class="action-icon-btn" onclick="openJobModal('${j.id}')" title="แก้ไขใบงาน">
                     ${icon("edit")}
                 </button>
             `;
@@ -6374,6 +6374,49 @@ function jobCloseDocsHtml(j) {
 }
 
 // แนบเอกสารปิดงานย้อนหลัง (งานที่ปิดไปแล้ว) — เพิ่มต่อท้าย jobs.attachments ไม่ทับของเดิม
+// ---------- AI อ่านเอกสารที่ยังไม่รู้ประเภท (เอกสารปิดงาน / หมวด "เอกสารอื่นๆ") ----------
+// ใช้โหมด worker-auto ของ ocr-document: AI บอกว่าเป็นเอกสารอะไร + อ่านข้อมูลคนงานในคราวเดียว
+// คืน { docType, parsed } — docType เป็น key หมวดในแฟ้มคนงาน (ไม่รู้จัก = worker-other) หรือ null ถ้า AI อ่านไม่ได้
+async function aiReadWorkerDoc(dataUrl) {
+    if (!window.supabaseAdapter || !/^data:(image\/|application\/pdf)/.test(String(dataUrl))) return null;
+    try {
+        showToast("🤖 AI กำลังอ่านเอกสาร...", "warning");
+        const ocr = await window.supabaseAdapter.ocrDocument(dataUrl, 'worker-auto');
+        if (!ocr || !ocr.parsedData) return null;
+        const t = ocr.parsedData.documentType;
+        const known = t && t !== 'worker-other' && WORKER_FOLDER_DOC_TYPES.some(x => x.key === t);
+        return { docType: known ? t : 'worker-other', parsed: ocr.parsedData };
+    } catch (e) {
+        console.warn("aiReadWorkerDoc failed:", e);
+        return null;
+    }
+}
+
+// เอกสารปิดงานที่ AI อ่านได้ → เติมข้อมูลคนงาน + เก็บไฟล์เดียวกัน (ไม่อัปโหลดซ้ำ) เข้าหมวดที่ถูกต้องในแฟ้มคนงาน
+// เลข 13 หลักในเอกสารไม่ตรงกับคนงาน → ถามก่อน (ตอบไม่ = ไม่แตะข้อมูลคนงาน แต่ไฟล์ยังอยู่ในใบงาน)
+async function fileJobDocIntoWorker(j, read, fileUrl, fileName) {
+    const w = j && workers.find(x => x.id === j.workerId);
+    if (!w || !read || !fileUrl) return null;
+    if (!(await confirmWorkerUidChange({ uid: w.workerUid, firstName: w.firstName, lastName: w.lastName }, read.parsed, fileName))) return null;
+    const list = getAttachments(w, read.docType);
+    if (list.some(f => f.data === fileUrl)) return null;
+    w.attachments = w.attachments || {};
+    w.attachments[read.docType] = list.concat([{
+        name: fileName, data: fileUrl,
+        expiryDate: extractDocExpiryDate(read.docType, read.parsed),
+        note: `จากเอกสารปิดงาน ${getJobDisplayNo(j)}`
+    }]);
+    applyOcrDataToWorker(w, read.docType, read.parsed);
+    if (w.status === 'pending_register' && getAttachments(w, 'worker-wp-doc').length > 0 && getAttachments(w, 'worker-receipt').length > 0) {
+        w.status = 'active';
+        w.skipNotifyEntry = true;
+    }
+    w.workplace = getCustomerHQAddress(w.employerId);
+    const res = await callCloudAPI("saveWorker", { workerData: w });
+    if (!res || res.status === "error") { showToast("⚠️ แนบเอกสารแล้ว แต่อัปเดตข้อมูลคนงานไม่สำเร็จ", "danger"); return null; }
+    return (WORKER_FOLDER_DOC_TYPES.find(x => x.key === read.docType) || {}).label || read.docType;
+}
+
 async function addJobCloseDocs(jobId, input) {
     const j = jobs.find(item => item.id === jobId);
     const files = Array.from((input && input.files) || []);
@@ -6381,11 +6424,14 @@ async function addJobCloseDocs(jobId, input) {
     if (!j || !files.length || !canEditJob(j)) return;
     const uploadedAt = new Date().toISOString();
     const added = [];
+    const reads = [];
     for (const file of files) {
         const dataUrl = await readFileAsDataUrl(file);
+        const read = j.workerId ? await aiReadWorkerDoc(dataUrl) : null;
         const up = await uploadDocumentFile(dataUrl, file.name, j.customerId, j.workerId, "job-close-doc");
         if (!up || !up.fileUrl) { showToast(`❌ อัปโหลด "${file.name}" ไม่สำเร็จ`, "danger"); continue; }
         added.push({ name: file.name, url: up.fileUrl, note: null, uploadedAt, uploadedBy: currentUser.id || null });
+        reads.push({ read, url: up.fileUrl, name: file.name });
     }
     if (!added.length) return;
     const jobData = Object.assign({}, j, { attachments: (Array.isArray(j.attachments) ? j.attachments : []).concat(added) });
@@ -6396,6 +6442,9 @@ async function addJobCloseDocs(jobId, input) {
     }
     const idx = jobs.findIndex(item => item.id === jobId);
     if (idx !== -1) jobs[idx] = jobData;
+    const filedLabels = [];
+    for (const r of reads) { const label = await fileJobDocIntoWorker(jobData, r.read, r.url, r.name); if (label) filedLabels.push(label); }
+    if (filedLabels.length) { showToast(`✨ AI อ่านเอกสารแล้ว — อัปเดตข้อมูลคนงานและเก็บเข้าแฟ้ม: ${filedLabels.join(', ')}`, "success"); renderWorkers(); }
     saveData();
     const bannerText = document.getElementById("job-closed-banner-text");
     const docsEl = bannerText && bannerText.querySelector('.job-close-docs');
@@ -7137,8 +7186,8 @@ function renderAgentsList() {
             <td class="actions-col">
                 <div class="actions-cell">
                     ${canPay && com.due > 0 ? `<button class="btn btn-sm btn-gold" onclick="openCommissionPayoutModal('${a.id}')" style="white-space:nowrap;">${icon("cash")} จ่ายค่าคอม</button>` : ''}
-                    <button class="action-icon-btn" onclick="openAgentModal('${a.id}')" title="แก้ไข">${icon("edit")}</button>
-                    ${currentUser.role === 'admin' ? `<button class="action-icon-btn delete-btn" onclick="deleteAgent('${a.id}', '${(a.name || '').replace(/'/g, "\\'")}')" title="ลบ">${icon("trash")}</button>` : ''}
+                    <button class="action-icon-btn" onclick="openAgentModal('${a.id}')" title="แก้ไข Agent">${icon("edit")}</button>
+                    ${currentUser.role === 'admin' ? `<button class="action-icon-btn delete-btn" onclick="deleteAgent('${a.id}', '${(a.name || '').replace(/'/g, "\\'")}')" title="ลบ Agent">${icon("trash")}</button>` : ''}
                 </div>
             </td>
         </tr>
@@ -7291,8 +7340,8 @@ function renderExpenses() {
                 <td style="display: flex; align-items: center;">${payMethodHtml}</td>
                 <td class="actions-col">
                     <div class="actions-cell">
-                        <button class="action-icon-btn" onclick="openExpenseModal('${e.id}')" title="แก้ไข">${icon("edit")}</button>
-                        ${currentUser.role === 'admin' ? `<button class="action-icon-btn delete-btn" onclick="deleteExpense('${e.id}')" title="ลบ">${icon("trash")}</button>` : ''}
+                        <button class="action-icon-btn" onclick="openExpenseModal('${e.id}')" title="แก้ไขรายจ่าย">${icon("edit")}</button>
+                        ${currentUser.role === 'admin' ? `<button class="action-icon-btn delete-btn" onclick="deleteExpense('${e.id}')" title="ลบรายจ่าย">${icon("trash")}</button>` : ''}
                     </div>
                 </td>
             </tr>
@@ -7588,13 +7637,16 @@ async function submitCloseJob(e) {
         const files = Array.from(fileInput.files);
         const closedAt = new Date().toISOString();
         const newAttachments = [];
+        const reads = []; // ผล AI ของแต่ละไฟล์ — ใช้เติมข้อมูลคนงาน/เก็บเข้าแฟ้มหลังปิดงานสำเร็จ
         for (const file of files) {
             const fileDataUrl = await readFileAsDataUrl(file);
+            const read = j.workerId ? await aiReadWorkerDoc(fileDataUrl) : null;
             const uploadResult = await uploadDocumentFile(fileDataUrl, file.name, j.customerId, j.workerId, "job-close-doc");
             if (!uploadResult) {
                 showToast(`❌ อัปโหลดเอกสาร "${file.name}" ไม่สำเร็จ ยังไม่ปิดงาน`, "danger");
                 return;
             }
+            reads.push({ read, url: uploadResult.fileUrl, name: file.name });
             newAttachments.push({
                 name: file.name,
                 url: uploadResult.fileUrl,
@@ -7621,11 +7673,16 @@ async function submitCloseJob(e) {
 
         const idx = jobs.findIndex(item => item.id === jobId);
         if (idx !== -1) jobs[idx] = jobData;
+        // เอกสารที่ AI อ่านได้ → เติมข้อมูลคนงาน + เก็บเข้าหมวดที่ถูกต้องในแฟ้มคนงาน (ก่อนตั้งสถานะพ้นสภาพของงานแจ้งออก)
+        const filedLabels = [];
+        for (const r of reads) { const label = await fileJobDocIntoWorker(jobData, r.read, r.url, r.name); if (label) filedLabels.push(label); }
+        if (filedLabels.length) showToast(`✨ AI อ่านเอกสารแล้ว — อัปเดตข้อมูลคนงานและเก็บเข้าแฟ้ม: ${filedLabels.join(', ')}`, "success");
         saveData();
         closeJobCloseModal();
         renderJobs();
         renderBillingTab();
         renderDashboard();
+        if (filedLabels.length) renderWorkers();
 
         const archiveResult = await syncWorkerStatusForExitJob(jobData, 'archived');
         const archiveMsg = archiveResult.applied ? " และตั้งสถานะคนงานเป็น 'พ้นสภาพ/แจ้งออก' อัตโนมัติ" : "";
@@ -7749,7 +7806,7 @@ function renderBanks() {
 
         if (can('finance')) {
             editBtn = `
-                <button class="action-icon-btn btn-sm" onclick="openBankModal('${b.id}')" title="แก้ไข">
+                <button class="action-icon-btn btn-sm" onclick="openBankModal('${b.id}')" title="แก้ไขบัญชีธนาคาร">
                     ${icon("edit")}
                 </button>
             `;
@@ -7757,7 +7814,7 @@ function renderBanks() {
 
         if (currentUser.role === 'admin') {
             deleteBtn = `
-                <button class="action-icon-btn btn-sm delete-btn" onclick="deleteBank('${b.id}')" title="ลบ">
+                <button class="action-icon-btn btn-sm delete-btn" onclick="deleteBank('${b.id}')" title="ลบบัญชีธนาคาร">
                     ${icon("trash")}
                 </button>
             `;
@@ -10019,7 +10076,7 @@ function renderCustomerDriveTile(docInfo, fileItem, idx, entityName) {
                 <input type="text" class="drive-tile-name" value="${fileItem.name}" title="${fileItem.name}" onchange="renameCustomerFolderFileIndex('${docInfo.key}', ${idx}, this.value)">
             </div>
             <div class="drive-tile-actions">
-                <button type="button" class="drive-tile-action-btn" onclick="downloadAttachment('${safeName}', '${data}')" title="ดาวน์โหลด">${icon("inbox")}</button>
+                <button type="button" class="drive-tile-action-btn" onclick="downloadAttachment('${safeName}', '${data}')" title="ดาวน์โหลดไฟล์">${icon("inbox")}</button>
                 <button type="button" class="drive-tile-action-btn" onclick="shareAttachment('${safeName}', '${safeEntityName}', '${data}')" title="แชร์ลิงก์">${icon("link")}</button>
                 <button type="button" class="drive-tile-action-btn danger" onclick="deleteCustomerFolderFileIndex('${docInfo.key}', ${idx})" title="ลบไฟล์">${icon("trash")}</button>
             </div>
@@ -11068,11 +11125,13 @@ function collectWorkerAllDocs(w) {
                 sub: type.label + (isWorkerDocFileExpired(fItem, idx, list, type.key) ? ' • หมดอายุ' : ''), date: String(fItem.uploadedAt || '').slice(0, 10) });
         });
     });
+    const seenUrls = new Set(out.map(d => d.url)); // เอกสารปิดงานที่ AI เก็บเข้าแฟ้มแล้ว ไม่แสดงซ้ำ
     jobs.filter(j => j.workerId === w.id)
         .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
         .forEach(j => {
             const jobLabel = `${getCleanJobTypeName(j.jobType)} (${getJobDisplayNo(j)})`;
             jobDocsOf(j).forEach((d, idx) => {
+                if (seenUrls.has(d.url)) return;
                 out.push({ sel: { kind: 'jobdoc', key: `job:${j.id}`, jobId: j.id, idx }, name: d.name, url: d.url, folder: `${d.group} - ${jobLabel}`,
                     sub: `${d.group} • ${jobLabel}`, date: String(d.uploadedAt || j.closedAt || '').slice(0, 10), note: d.note });
             });
@@ -11654,6 +11713,7 @@ async function handleFolderFileUpload(event) {
     let aiRejectedCount = 0; // AI อ่านไม่สำเร็จ = ไม่ได้บันทึกไฟล์ (ต้องแนบใหม่)
     let cancelledCount = 0; // กด "ไม่อัปโหลด" (เลข 13 หลักไม่ตรง) = ไม่ได้บันทึกไฟล์ตามที่ผู้ใช้เลือก
     let needsManualEntry = false; // มีไฟล์ที่ผู้ใช้เลือก "บันทึกไฟล์ กรอกเอง"
+    const movedLabels = []; // ไฟล์ที่แนบในหมวด "เอกสารอื่นๆ" แล้ว AI ย้ายไปหมวดที่ถูกต้อง
     beginAiRejectedBatch();
     for (const file of files) {
         const workerIdx = workers.findIndex(w => w.id === activeFolderWorkerId);
@@ -11662,7 +11722,18 @@ async function handleFolderFileUpload(event) {
         const wasPending = w.status === 'pending_register';
         try {
             const fileContent = await readFileAsDataUrl(file);
-            const uploadResult = await attachDocumentToWorker(w, activeFolderDocType, fileContent);
+            // หมวด "เอกสารอื่นๆ": ให้ AI ระบุประเภทเอกสาร + อ่านข้อมูลเอง → เก็บเข้าหมวดที่ถูกต้อง (ไม่รู้จัก/AI อ่านไม่ได้ = เอกสารอื่นๆ)
+            let targetType = activeFolderDocType, preParsed = null;
+            if (activeFolderDocType === 'worker-other') {
+                const read = await aiReadWorkerDoc(fileContent);
+                if (read) {
+                    targetType = read.docType;
+                    preParsed = read.parsed;
+                    if (targetType !== 'worker-other') movedLabels.push((WORKER_FOLDER_DOC_TYPES.find(x => x.key === targetType) || {}).label || targetType);
+                }
+            }
+            const uploadResult = await attachDocumentToWorker(w, targetType, fileContent, preParsed);
+            if (preParsed) anyAiRead = true;
             if (uploadResult && uploadResult.parsedData) anyAiRead = true;
             if (uploadResult && uploadResult.manualEntry) needsManualEntry = true;
             if (wasPending && w.status === 'active') {
@@ -11677,6 +11748,7 @@ async function handleFolderFileUpload(event) {
 
     endAiRejectedBatch();
     if (anyAiRead) showToast("✨ AI อ่านข้อมูลจากเอกสารสำเร็จ กำลังอัปเดตข้อมูลคนงาน", "success");
+    if (movedLabels.length) showToast(`📂 AI จัดเอกสารเข้าหมวดให้แล้ว: ${movedLabels.join(', ')}`, "success");
     if (cancelledCount > 0) showToast(`ไม่ได้อัปโหลด ${cancelledCount} จาก ${files.length} ไฟล์ — เลข 13 หลักไม่ตรงกับคนงานนี้`, "warning");
     if (aiRejectedCount > 0) showToast(`⚠️ AI อ่านไม่สำเร็จ ${aiRejectedCount} จาก ${files.length} ไฟล์ — ไฟล์เหล่านี้ยังไม่ได้บันทึก กรุณาแนบใหม่อีกครั้งในอีกสักครู่`, "warning");
     if (failCount > 0) showToast(`❌ อัปโหลดไม่สำเร็จ ${failCount} จาก ${files.length} ไฟล์`, "danger");
@@ -12779,7 +12851,7 @@ function renderJobsKanban(filtered) {
 
             let actionBtns = "";
             if (canEditJob(j)) {
-                actionBtns += `<button onclick="openJobModal('${j.id}')" style="background: none; border: none; cursor: pointer; font-size: 13.5px;" title="แก้ไข">${icon("edit")}</button>`;
+                actionBtns += `<button onclick="openJobModal('${j.id}')" style="background: none; border: none; cursor: pointer; font-size: 13.5px;" title="แก้ไขใบงาน">${icon("edit")}</button>`;
             }
             if (displayStatus === 'ปิดงานแล้ว') {
                 actionBtns += `<button onclick="reopenJob('${j.id}')" style="background: none; border: none; cursor: pointer; font-size: 13.5px;" title="เปิดงานอีกครั้ง">${icon("unlock")}</button>`;

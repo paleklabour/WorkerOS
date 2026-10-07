@@ -165,6 +165,14 @@ mouse devices (`openIosSelect` — the native `<select>` still holds the value),
 charts animate via `setupChartMagicMove`. Keep new UI consistent with that.
 Smallest UI font is 11.5px; don't add smaller sizes (printed sheets excepted).
 
+Button descriptions (tooltips) — standing rule (2026-10-08): every button's
+description is a plain `title="..."` attribute; `setupIosTooltips()` in `app.js`
+turns every `[title]` (including ones `app.js` renders later) into the iOS
+tooltip (`.ios-tooltip`). Don't build another tooltip system or a custom one per
+button. Icon-only buttons (✕, edit, delete, download …) must have a `title`.
+Wording pattern: verb + what it acts on, short — "ลบคนงาน", "แก้ไขใบงาน",
+"ดาวน์โหลดไฟล์", "ปิดหน้าต่าง" — not a bare "ลบ" / "แก้ไข".
+
 Dashboard overview and finance overview cards are widgets the user can
 reorder/resize ("แก้ไขหน้า"), saved per account in `profiles.ui_layout` via
 `set_my_ui_layout()`. A new card/panel on those two pages must be registered in

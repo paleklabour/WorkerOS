@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261007y">
+    <link rel="stylesheet" href="styles.css?v=20261008c">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -1407,7 +1407,7 @@
                         <div class="modal-content" style="max-width: 460px;">
                             <div class="modal-header">
                                 <h3 id="user-modal-title">เพิ่มบัญชีผู้ใช้งานใหม่</h3>
-                                <button class="close-btn" onclick="closeUserModal()">&times;</button>
+                                <button class="close-btn" title="ปิดหน้าต่าง" onclick="closeUserModal()">&times;</button>
                             </div>
                             <div class="modal-body">
                                 <form id="user-form" onsubmit="saveUser(event)">
@@ -1536,7 +1536,7 @@
             <div class="modal-content" style="max-width: 420px;">
                 <div class="modal-header">
                     <h3 id="agent-modal-title"><span class="ico" data-icon="plus"></span> เพิ่ม Agent ใหม่</h3>
-                    <button class="close-btn" onclick="closeAgentModal()">&times;</button>
+                    <button class="close-btn" title="ปิดหน้าต่าง" onclick="closeAgentModal()">&times;</button>
                 </div>
                 <div class="modal-body">
                     <form id="agent-form" onsubmit="saveAgentForm(event)">
@@ -1568,7 +1568,7 @@
             <div class="modal-content" style="max-width: 480px;">
                 <div class="modal-header">
                     <h3 id="expense-modal-title"><span class="ico" data-icon="plus"></span> เพิ่มรายจ่ายใหม่</h3>
-                    <button class="close-btn" onclick="closeExpenseModal()">&times;</button>
+                    <button class="close-btn" title="ปิดหน้าต่าง" onclick="closeExpenseModal()">&times;</button>
                 </div>
                 <div class="modal-body">
                     <form id="expense-form" onsubmit="saveExpense(event)">
@@ -1641,7 +1641,7 @@
             <div class="modal-content large">
                 <div class="modal-header">
                     <h3 id="customer-modal-title">เพิ่มลูกค้า / นายจ้างใหม่</h3>
-                    <button class="close-btn" onclick="closeCustomerModal()">&times;</button>
+                    <button class="close-btn" title="ปิดหน้าต่าง" onclick="closeCustomerModal()">&times;</button>
                 </div>
                 <div class="modal-body">
                     <form id="customer-form" onsubmit="saveCustomer(event)">
@@ -1957,7 +1957,7 @@
             <div class="modal-content printable-modal-content" style="max-width: 860px;">
                 <div class="modal-header no-print">
                     <h3>แบบ บต.46 หนังสือรับรองการจ้าง</h3>
-                    <button class="close-btn" onclick="closeBt46Modal()">&times;</button>
+                    <button class="close-btn" title="ปิดหน้าต่าง" onclick="closeBt46Modal()">&times;</button>
                 </div>
                 <div class="modal-body">
                     <div class="no-print bt46-toolbar">
@@ -1973,7 +1973,7 @@
             <div class="modal-content printable-modal-content" style="max-width: 520px;">
                 <div class="modal-header no-print">
                     <h3>ใบปะหน้าจัดส่งเอกสาร (A5)</h3>
-                    <button class="close-btn" onclick="closeDeliveryLabelModal()">&times;</button>
+                    <button class="close-btn" title="ปิดหน้าต่าง" onclick="closeDeliveryLabelModal()">&times;</button>
                 </div>
                 <div class="modal-body">
                     <div class="no-print" style="margin-bottom: 15px; text-align: right;">
@@ -2010,7 +2010,7 @@
             <div class="modal-content large">
                 <div class="modal-header">
                     <h3 id="worker-modal-title">เพิ่มคนงานต่างด้าวใหม่</h3>
-                    <button class="close-btn" onclick="closeWorkerModal()">&times;</button>
+                    <button class="close-btn" title="ปิดหน้าต่าง" onclick="closeWorkerModal()">&times;</button>
                 </div>
                 <div class="modal-body">
                     <form id="worker-form" onsubmit="saveWorker(event)">
@@ -2342,7 +2342,7 @@
             <div class="modal-content" style="max-width: 1000px;">
                 <div class="modal-header">
                     <h3 id="job-modal-title">แจ้งสั่งงานและขั้นตอนดำเนินการ</h3>
-                    <button class="close-btn" onclick="closeJobModal()">&times;</button>
+                    <button class="close-btn" title="ปิดหน้าต่าง" onclick="closeJobModal()">&times;</button>
                 </div>
                 <div class="modal-body">
                     <form id="job-form" onsubmit="saveJob(event)">
@@ -2539,7 +2539,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h3><span class="ico" data-icon="clip"></span> แนบเอกสารและปิดงาน</h3>
-                    <button class="close-btn" onclick="closeJobCloseModal()">&times;</button>
+                    <button class="close-btn" title="ปิดหน้าต่าง" onclick="closeJobCloseModal()">&times;</button>
                 </div>
                 <div class="modal-body">
                     <form id="job-close-form" onsubmit="submitCloseJob(event)">
@@ -2567,7 +2567,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h3 id="bank-modal-title">จัดการบัญชีธนาคารสำหรับรับเงิน</h3>
-                    <button class="close-btn" onclick="closeBankModal()">&times;</button>
+                    <button class="close-btn" title="ปิดหน้าต่าง" onclick="closeBankModal()">&times;</button>
                 </div>
                 <div class="modal-body">
                     <form id="bank-form" onsubmit="saveBank(event)">
@@ -2645,7 +2645,7 @@
             <div class="modal-content large printable-modal-content modal-sheet">
                 <div class="modal-header no-print">
                     <h3>ใบวางบิล / ใบแจ้งหนี้ (Billing Note Preview)</h3>
-                    <button class="close-btn" onclick="closeInvoiceModal()">&times;</button>
+                    <button class="close-btn" title="ปิดหน้าต่าง" onclick="closeInvoiceModal()">&times;</button>
                 </div>
                 <div class="modal-body">
                     <!-- Invoice Custom Selector Header (No print) -->
@@ -2874,7 +2874,7 @@
             <div class="modal-content large printable-modal-content modal-sheet">
                 <div class="modal-header no-print">
                     <h3>ใบเสร็จรับเงิน (Receipt)</h3>
-                    <button class="close-btn" onclick="closeReceiptModal()">&times;</button>
+                    <button class="close-btn" title="ปิดหน้าต่าง" onclick="closeReceiptModal()">&times;</button>
                 </div>
                 <div class="modal-body">
                     <div class="invoice-sheet receipt-sheet" id="receipt-sheet"></div>
@@ -2892,7 +2892,7 @@
             <div class="modal-content" style="max-width: 580px;">
                 <div class="modal-header">
                     <h3 id="item-workers-title">เลือกคนงานสำหรับรายการ</h3>
-                    <button class="close-btn" onclick="closeItemWorkersPicker()">&times;</button>
+                    <button class="close-btn" title="ปิดหน้าต่าง" onclick="closeItemWorkersPicker()">&times;</button>
                 </div>
                 <div class="modal-body">
                     <p class="section-desc" id="item-workers-hint" style="margin-top: 0;"></p>
@@ -2914,10 +2914,10 @@
         <!-- ==================== RECEIVE MONEY MODAL (รับเงินรวมหลายบิล / รับมัดจำ) ดู openReceiveMoneyModal() ====================
              เงินเข้า 1 ก้อน + สลิป 1 ชุด → ใบเสร็จ 1 ใบ ตัดยอดเข้าบิลที่ติ๊ก ส่วนที่เหลือเก็บเป็นมัดจำของนายจ้าง -->
         <div id="receive-money-modal" class="modal-backdrop hidden" style="z-index: 1070;">
-            <div class="modal-content" style="max-width: 720px;">
+            <div class="modal-content receive-money-content">
                 <div class="modal-header">
                     <h3>รับเงิน / มัดจำ</h3>
-                    <button class="close-btn" onclick="closeReceiveMoneyModal()">&times;</button>
+                    <button class="close-btn" title="ปิดหน้าต่าง" onclick="closeReceiveMoneyModal()">&times;</button>
                 </div>
                 <div class="modal-body">
                     <p class="section-desc" style="margin-top: 0;">ลูกค้าโอนครั้งเดียวจ่ายหลายบิล หรือจ่ายมัดจำก่อนออกบิล — แนบสลิปครั้งเดียว ได้ใบเสร็จใบเดียว ยอดที่ไม่ได้ตัดเข้าบิลจะเก็บเป็นมัดจำไว้หักบิลถัดไป</p>
@@ -2974,7 +2974,7 @@
             <div class="modal-content" style="max-width: 640px;">
                 <div class="modal-header">
                     <h3 id="commission-modal-title">จ่ายค่าคอมมิชชั่น Agent</h3>
-                    <button class="close-btn" onclick="closeCommissionPayoutModal()">&times;</button>
+                    <button class="close-btn" title="ปิดหน้าต่าง" onclick="closeCommissionPayoutModal()">&times;</button>
                 </div>
                 <div class="modal-body">
                     <p class="section-desc" style="margin-top: 0;">เลือกงานที่จะจ่ายค่าคอมรอบนี้ (เฉพาะงานที่ลูกค้าชำระเงินครบแล้ว) แก้ยอดต่องานได้ ระบบจะบันทึกเป็นรายจ่ายหมวด "ค่าคอมมิชชั่น Agent" ให้อัตโนมัติ</p>
@@ -3004,7 +3004,7 @@
             <div class="modal-content add-batch-content">
                 <div class="modal-header">
                     <h3><span class="ico" data-icon="plus"></span> เพิ่มงานเข้าชุดเดิม</h3>
-                    <button class="close-btn" onclick="closeAddToBatchModal()">&times;</button>
+                    <button class="close-btn" title="ปิดหน้าต่าง" onclick="closeAddToBatchModal()">&times;</button>
                 </div>
                 <div class="modal-body">
                     <div class="form-group">
@@ -3029,7 +3029,7 @@
             <div class="modal-content combine-bills-content">
                 <div class="modal-header">
                     <h3 id="combine-modal-title">รวมใบสั่งงานออกบิลชุด</h3>
-                    <button class="close-btn" onclick="closeCombineBillsModal()">&times;</button>
+                    <button class="close-btn" title="ปิดหน้าต่าง" onclick="closeCombineBillsModal()">&times;</button>
                 </div>
                 <div class="modal-body">
                     <div class="form-group">
@@ -3083,7 +3083,7 @@
             <div class="modal-content fv-modal">
                 <div class="modal-header">
                     <h3><span class="ico" data-icon="folder"></span> แฟ้มเอกสารของนายจ้าง / ลูกค้าผู้ว่าจ้าง</h3>
-                    <button class="close-btn" onclick="closeCustomerFolderModal()">&times;</button>
+                    <button class="close-btn" title="ปิดหน้าต่าง" onclick="closeCustomerFolderModal()">&times;</button>
                 </div>
                 <div class="modal-body" style="padding-top: 10px;">
                     <input type="file" id="customer-folder-upload-input" accept="image/*,application/pdf" multiple style="display:none;" onchange="handleCustomerFolderFileUpload(event)">
@@ -3121,7 +3121,7 @@
             <div class="modal-content fv-modal">
                 <div class="modal-header">
                     <h3 id="worker-folder-title"><span class="ico" data-icon="folder"></span> แฟ้มเอกสารของคนงานต่างด้าว</h3>
-                    <button class="close-btn" onclick="closeWorkerFolderModal()">&times;</button>
+                    <button class="close-btn" title="ปิดหน้าต่าง" onclick="closeWorkerFolderModal()">&times;</button>
                 </div>
                 <div class="modal-body" style="padding-top: 10px;">
                     <input type="file" id="folder-upload-input" accept="image/*,application/pdf" multiple style="display:none;" onchange="handleFolderFileUpload(event)">
@@ -3182,7 +3182,7 @@
             <div class="modal-content" style="max-width: 440px;">
                 <div class="modal-header">
                     <h3><span class="ico" data-icon="warn"></span> ยืนยันการลบไฟล์</h3>
-                    <button class="close-btn" onclick="closeConfirmDeleteAttachmentModal()">&times;</button>
+                    <button class="close-btn" title="ปิดหน้าต่าง" onclick="closeConfirmDeleteAttachmentModal()">&times;</button>
                 </div>
                 <div class="modal-body">
                     <div style="display:flex; align-items:center; gap:14px; padding:12px; background:#fef2f2; border:1px solid #fecaca; border-radius: var(--radius-sm); margin-bottom:14px;">
@@ -3206,7 +3206,7 @@
             <div class="modal-content" style="max-width: 900px;">
                 <div class="modal-header">
                     <h3><span class="ico" data-icon="inbox"></span> นำเข้าเอกสารหลายไฟล์พร้อมกัน (Bulk Import)</h3>
-                    <button class="close-btn" onclick="closeBulkImportModal()">&times;</button>
+                    <button class="close-btn" title="ปิดหน้าต่าง" onclick="closeBulkImportModal()">&times;</button>
                 </div>
                 <div class="modal-body" style="padding-top: 10px; max-height: 70vh; overflow-y: auto;">
                     <p class="text-muted" style="font-size: 13px; margin-bottom: 12px; line-height: 1.5;">
@@ -3319,7 +3319,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261007y"></script>
+    <script src="supabase-client.js?v=20261008c"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3330,6 +3330,6 @@
     </script>
 
     <!-- Application Script -->
-    <script src="app.js?v=20261007y"></script>
+    <script src="app.js?v=20261008c"></script>
 </body>
 </html>
