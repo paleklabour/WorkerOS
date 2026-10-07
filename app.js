@@ -858,6 +858,10 @@ async function initApp() {
         switchView(currentUser && currentUser.role === 'client' ? 'client-portal' : (canRestore ? lastView : 'dashboard'));
         setupAllSearchSuggestions();
         setupAllSearchSelects();
+        // ตัวกรองตารางแจ้งงานที่เลือกได้หลายค่า
+        setupMultiFilter("filter-job-type", "ทุกประเภทงาน", "ประเภทงาน");
+        setupMultiFilter("filter-job-status", "ทุกสถานะงาน", "สถานะ");
+        setupMultiFilter("filter-job-assignee", "ผู้รับผิดชอบ: ทุกคน", "ผู้รับผิดชอบ");
     } catch (e) {
         console.error("Error initializing app: ", e);
         logout(); // force logout to clear corrupted state
@@ -5847,15 +5851,89 @@ function fillJobFilterOptions() {
     }
     const asgSel = document.getElementById("filter-job-assignee");
     if (asgSel) {
-        const prev = asgSel.value;
+        const prev = new Set(multiFilterValues("filter-job-assignee")); // เลือกได้หลายคน — คงที่เลือกไว้ตอนสร้างตัวเลือกใหม่
         const members = team.filter(m => m.role !== 'account_manager');
         asgSel.innerHTML = '<option value="">ผู้รับผิดชอบ: ทุกคน</option>' +
             (currentUser && currentUser.id ? '<option value="me">งานของฉัน</option>' : '') +
             '<option value="none">ยังไม่มอบหมาย</option>' +
             members.map(m => `<option value="${m.id}">${escapeHtml(m.name || '-')}</option>`).join('');
-        asgSel.value = [...asgSel.options].some(o => o.value === prev) ? prev : '';
+        [...asgSel.options].forEach(o => { o.selected = !!o.value && prev.has(o.value); });
+        refreshMultiFilterButton("filter-job-assignee");
     }
 }
+
+// ---------- ตัวกรองแบบเลือกได้หลายค่า (ตารางระบบจัดการแจ้งงาน: ประเภทงาน / สถานะ / ผู้รับผิดชอบ) ----------
+// <select multiple> เดิมซ่อนไว้เป็นที่เก็บค่าจริง (onchange เดิมยังทำงาน, setSelectValue ยังใช้ได้)
+// แล้ววางปุ่ม + กล่องติ๊กเลือกแบบ iOS ทับแทน — ไม่เลือกอะไรเลย = ทั้งหมด
+const MULTI_FILTERS = {}; // id -> { allLabel, unit }
+
+function multiFilterValues(id) {
+    const sel = document.getElementById(id);
+    if (!sel) return [];
+    return [...sel.options].filter(o => o.selected && o.value).map(o => o.value);
+}
+
+function setupMultiFilter(id, allLabel, unit) {
+    const sel = document.getElementById(id);
+    if (!sel || MULTI_FILTERS[id]) return;
+    MULTI_FILTERS[id] = { allLabel, unit };
+    const keep = sel.value;
+    sel.multiple = true;
+    [...sel.options].forEach(o => { o.selected = !!o.value && o.value === keep; });
+    sel.classList.add('hidden');
+    const wrap = document.createElement('div');
+    wrap.className = 'multi-filter';
+    wrap.innerHTML = `<button type="button" class="multi-filter-btn" id="${id}-btn"></button><div class="multi-filter-panel hidden" id="${id}-panel"></div>`;
+    sel.insertAdjacentElement('afterend', wrap);
+    wrap.querySelector('button').addEventListener('click', e => {
+        e.stopPropagation();
+        const panel = document.getElementById(`${id}-panel`);
+        const opening = panel.classList.contains('hidden');
+        document.querySelectorAll('.multi-filter-panel').forEach(p => p.classList.add('hidden'));
+        if (opening) { renderMultiFilterPanel(id); panel.classList.remove('hidden'); }
+    });
+    refreshMultiFilterButton(id);
+}
+
+function renderMultiFilterPanel(id) {
+    const sel = document.getElementById(id);
+    const panel = document.getElementById(`${id}-panel`);
+    if (!sel || !panel) return;
+    const chosen = new Set(multiFilterValues(id));
+    panel.innerHTML = `
+        <label class="multi-filter-opt is-all"><input type="checkbox" ${chosen.size ? '' : 'checked'} onchange="setMultiFilter('${id}', null)"> ${escapeHtml(MULTI_FILTERS[id].allLabel)}</label>
+        ${[...sel.options].filter(o => o.value).map(o => `
+            <label class="multi-filter-opt"><input type="checkbox" value="${escapeHtml(o.value)}" ${chosen.has(o.value) ? 'checked' : ''} onchange="setMultiFilter('${id}', this.value, this.checked)"> ${escapeHtml(o.textContent)}</label>`).join('')}`;
+    panel.onclick = e => e.stopPropagation(); // คลิกในกล่องไม่ปิดกล่อง (เลือกต่อได้หลายค่า)
+}
+
+// value = null → ล้างทั้งหมด (= ทั้งหมด)
+function setMultiFilter(id, value, checked) {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    [...sel.options].forEach(o => {
+        if (value === null) o.selected = false;
+        else if (o.value === value) o.selected = !!checked;
+    });
+    if ([...sel.options][0] && !sel.options[0].value) sel.options[0].selected = false;
+    refreshMultiFilterButton(id);
+    renderMultiFilterPanel(id);
+    sel.dispatchEvent(new Event('change'));
+}
+
+function refreshMultiFilterButton(id) {
+    const cfg = MULTI_FILTERS[id];
+    const btn = document.getElementById(`${id}-btn`);
+    const sel = document.getElementById(id);
+    if (!cfg || !btn || !sel) return;
+    const chosen = [...sel.options].filter(o => o.selected && o.value);
+    const text = !chosen.length ? cfg.allLabel : chosen.length === 1 ? chosen[0].textContent : `${cfg.unit} ${chosen.length} รายการ`;
+    btn.innerHTML = `<span>${escapeHtml(text)}</span>${icon('chevronDown') || '▾'}`;
+    btn.classList.toggle('is-active', chosen.length > 0);
+    btn.title = chosen.length > 1 ? chosen.map(o => o.textContent).join(', ') : '';
+}
+
+document.addEventListener('click', () => document.querySelectorAll('.multi-filter-panel').forEach(p => p.classList.add('hidden')));
 
 const JOB_STALE_DAYS = 14; // งานเปิดค้างนานกว่านี้ = ค้างนาน
 
@@ -6027,12 +6105,15 @@ function renderJobs() {
     // ช่องว่างหลายช่อง/หัวท้าย ไม่มีผลกับการค้นหา (ชื่อพม่าหลายคำ วางมาจากที่อื่นมักมีช่องว่างเกิน)
     const normSearch = s => String(s || '').toLowerCase().replace(/\s+/g, ' ').trim();
     const query = normSearch(document.getElementById("search-job").value);
-    const typeFilter = document.getElementById("filter-job-type").value;
-    const statusFilter = document.getElementById("filter-job-status").value;
+    // ประเภทงาน / สถานะ / ผู้รับผิดชอบ เลือกได้หลายค่า (ว่าง = ทั้งหมด) — ดู setupMultiFilter
+    const typeFilters = multiFilterValues("filter-job-type");
+    const statusFilters = multiFilterValues("filter-job-status");
     const tbody = document.getElementById("jobs-list-tbody");
     fillJobFilterOptions();
     const monthFilter = (document.getElementById("filter-job-month") || {}).value || '';
-    const assigneeFilter = (document.getElementById("filter-job-assignee") || {}).value || '';
+    const assigneeFilters = multiFilterValues("filter-job-assignee");
+    const statusMatches = (j, s) => s === "__open" ? JOB_OPEN_STATUSES.includes(j.status)
+        : s === "__archived" ? isJobArchived(j) : j.status === s;
 
     // ตัวกรองทุกอย่างยกเว้นเดือน (หน้าสรุปใช้แยก "แจ้งในเดือนนี้" กับ "ปิดในเดือนนี้")
     const baseFiltered = jobs.filter(j => {
@@ -6047,12 +6128,10 @@ function renderJobs() {
         ].filter(Boolean).join(' | '));
         const matchSearch = !query || hay.includes(query);
 
-        const matchType = typeFilter === "" || (j.jobType && j.jobType.includes(typeFilter));
-        const matchStatus = statusFilter === "" || (statusFilter === "__open" ? JOB_OPEN_STATUSES.includes(j.status) : statusFilter === "__archived" ? j.status === "ปิดงานแล้ว" : j.status === statusFilter);
-        const matchAssignee = !assigneeFilter
-            || (assigneeFilter === 'me' && j.assignedTo === currentUser.id)
-            || (assigneeFilter === 'none' && !j.assignedTo)
-            || j.assignedTo === assigneeFilter;
+        const matchType = !typeFilters.length || (j.jobType && typeFilters.some(t => j.jobType.includes(t)));
+        const matchStatus = !statusFilters.length || statusFilters.some(s => statusMatches(j, s));
+        const matchAssignee = !assigneeFilters.length || assigneeFilters.some(a =>
+            (a === 'me' && j.assignedTo === currentUser.id) || (a === 'none' && !j.assignedTo) || j.assignedTo === a);
 
         return matchSearch && matchType && matchStatus && matchAssignee;
     });
@@ -6060,9 +6139,8 @@ function renderJobs() {
     // งานที่จบครบแล้ว (ปิดงาน + ปิดบิล) ตั้งแต่เดือนก่อน ๆ ไม่แสดง — ยกเว้นเลือกดูเอง:
     // ตัวกรองสถานะ "ปิดงานแล้ว" / "งานที่จบครบแล้ว" หรือเลือกเดือน (หน้าสรุปยังนับทุกงานตามเดิม)
     // พิมพ์ค้นหาอยู่ → ค้นในงานที่จบครบแล้วด้วย (เดิมค้นชื่อคนงานที่งานจบไปแล้วไม่เจอ)
-    const showArchived = statusFilter === 'ปิดงานแล้ว' || statusFilter === '__archived' || !!monthFilter || !!query;
-    if (statusFilter === '__archived') filtered = filtered.filter(isJobArchived);
-    else if (!showArchived) filtered = filtered.filter(j => !isJobArchived(j));
+    const showArchived = statusFilters.includes('ปิดงานแล้ว') || statusFilters.includes('__archived') || !!monthFilter || !!query;
+    if (!showArchived) filtered = filtered.filter(j => !isJobArchived(j));
 
     if (currentJobView === 'summary') {
         renderJobsSummary(baseFiltered, monthFilter);
@@ -7757,7 +7835,10 @@ function openJobCloseModal(jobId) {
         existingEl.classList.toggle("hidden", !preDocs.length);
         existingEl.innerHTML = preDocs.length
             ? `<strong>${icon('ok')} แนบเอกสารไว้แล้ว ${preDocs.length} ไฟล์</strong> — กดยืนยันปิดงานได้เลย หรือแนบเพิ่มด้านล่าง` +
-              preDocs.map((f, k) => `<a href="${escapeHtml(f.url)}" target="_blank" rel="noopener">${icon('clip')} ${escapeHtml(f.name || `ไฟล์ ${k + 1}`)}</a>`).join('')
+              preDocs.map((f, k) => `<div class="job-close-existing-row">
+                  <a href="${escapeHtml(f.url)}" target="_blank" rel="noopener">${icon('clip')} ${escapeHtml(f.name || `ไฟล์ ${k + 1}`)}</a>
+                  <button type="button" class="action-icon-btn delete-btn" onclick="removeJobPreDoc('${j.id}', ${k})" title="ลบไฟล์ที่แนบไว้">${icon('trash')}</button>
+              </div>`).join('')
             : '';
     }
     const needsFile = jobCloseNeedsFile(j) && !preDocs.length;
@@ -7776,6 +7857,48 @@ function openJobCloseModal(jobId) {
 
 function closeJobCloseModal() {
     document.getElementById("job-close-modal").classList.add("hidden");
+}
+
+// ลบเอกสารที่แนบไว้ก่อนปิดงาน (ใบงานที่ยังไม่ปิดเท่านั้น — งานที่ปิดแล้วเก็บเอกสารไว้เป็นหลักฐาน)
+// ไฟล์เดียวกันที่ AI เก็บเข้าแฟ้มคนงานไว้ (fileJobDocIntoWorker) ถูกเอาออกจากแฟ้มด้วย แล้วลบไฟล์จริงใน Storage
+// ข้อมูลคนงานที่ AI เคยเติมจากไฟล์นี้ไม่ถูกย้อนกลับ (แก้เองในฟอร์มคนงานถ้าผิด)
+async function removeJobPreDoc(jobId, idx) {
+    const j = jobs.find(item => item.id === jobId);
+    if (!j || !canEditJob(j) || j.status === 'ปิดงานแล้ว') return;
+    const docs = Array.isArray(j.attachments) ? j.attachments : [];
+    const f = docs[idx];
+    if (!f) return;
+    const w = workers.find(x => x.id === j.workerId);
+    const inFolder = w ? Object.keys(w.attachments || {}).filter(k => getAttachments(w, k).some(x => x.data === f.url)) : [];
+    if (!(await uiConfirm(`ลบไฟล์ "${f.name || 'ไฟล์'}" ที่แนบไว้ก่อนปิดงาน?` +
+        (inFolder.length ? '\nไฟล์นี้จะถูกเอาออกจากแฟ้มเอกสารคนงานด้วย (ข้อมูลที่ AI เติมให้คนงานไม่ถูกย้อนกลับ)' : ''),
+        { okText: 'ลบไฟล์', card: dialogCardForJob(j) }))) return;
+
+    const jobData = Object.assign({}, j, { attachments: docs.filter((_, k) => k !== idx) });
+    const res = await callCloudAPI("saveJob", { jobData });
+    if (!res || res.status === "error") { showToast("❌ ลบไฟล์ไม่สำเร็จ: " + ((res && res.message) || "กรุณาลองใหม่"), "danger"); return; }
+    const jIdx = jobs.findIndex(item => item.id === jobId);
+    if (jIdx !== -1) jobs[jIdx] = jobData;
+
+    if (w && inFolder.length) {
+        const prev = JSON.parse(JSON.stringify(w.attachments || {}));
+        inFolder.forEach(k => {
+            const left = getAttachments(w, k).filter(x => x.data !== f.url);
+            if (left.length) w.attachments[k] = left; else delete w.attachments[k];
+        });
+        const wr = await callCloudAPI("saveWorker", { workerData: w });
+        if (!wr || wr.status === "error") { w.attachments = prev; showToast("⚠️ ลบจากใบงานแล้ว แต่เอาออกจากแฟ้มคนงานไม่สำเร็จ", "warning"); }
+    }
+    // ไม่มีใบงาน/แฟ้มไหนอ้างถึงไฟล์นี้แล้ว → ลบไฟล์จริง
+    const stillUsed = jobs.some(x => (x.attachments || []).some(a => a.url === f.url))
+        || (w && Object.keys(w.attachments || {}).some(k => getAttachments(w, k).some(x => x.data === f.url)));
+    if (!stillUsed) deleteStorageFileByUrl(f.url);
+
+    saveData();
+    renderJobs();
+    renderWorkers();
+    openJobCloseModal(jobId); // วาดรายการไฟล์ที่แนบไว้ใหม่
+    showToast(`🗑️ ลบไฟล์ "${f.name || 'ไฟล์'}" แล้ว`, "success");
 }
 
 // ปุ่ม "แนบไว้ก่อน (ยังไม่ปิดงาน)" ในหน้าต่างปิดงาน: อัปโหลดไฟล์ที่เลือก + AI อ่านเติมข้อมูลคนงาน (addJobCloseDocs)
@@ -15800,7 +15923,14 @@ function scrollToWidget(boardName, widgetId) {
 
 function setSelectValue(id, value) {
     const el = document.getElementById(id);
-    if (el) el.value = value;
+    if (!el) return;
+    if (MULTI_FILTERS[id]) {
+        // ตัวกรองหลายค่า: ตั้งให้เหลือค่าเดียว ('' = ทั้งหมด)
+        [...el.options].forEach(o => { o.selected = !!value && o.value === value; });
+        refreshMultiFilterButton(id);
+        return;
+    }
+    el.value = value;
 }
 
 function openStatTarget(target) {
