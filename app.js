@@ -4917,11 +4917,31 @@ function loadDeliveryAddressFields(deliveryAddress) {
     toggleDeliverySameAsMain();
 }
 
+const DELIVERY_FIELD_IDS = ['recipient', 'phone', 'house-no', 'moo', 'soi', 'road', 'subdistrict', 'district', 'province', 'postal'];
+
+// ติ๊ก "สถานที่เดียวกับสำนักงานใหญ่": ช่องข้อมูลจัดส่งยังแสดงครบ แต่เติมจากสำนักงานใหญ่และล็อกไว้
+// เอาติ๊กออก: แก้เองได้ (เริ่มจากค่าสำนักงานใหญ่ที่เติมไว้) — ตอนบันทึก sameAsMain = true ยังเก็บแค่ { sameAsMain: true } เหมือนเดิม
 function toggleDeliverySameAsMain() {
     const sameAsMain = document.getElementById("cust-delivery-same-as-main").checked;
-    document.getElementById("cust-delivery-fields-wrap").classList.toggle('hidden', sameAsMain);
-    document.getElementById("cust-delivery-same-preview").classList.toggle('hidden', !sameAsMain);
+    document.getElementById("cust-delivery-fields-wrap").classList.remove('hidden');
+    DELIVERY_FIELD_IDS.forEach(k => {
+        const el = document.getElementById(`cust-delivery-${k}`);
+        if (el) el.disabled = sameAsMain;
+    });
     if (sameAsMain) refreshDeliverySamePreview();
+    else document.getElementById("cust-delivery-same-preview").classList.add('hidden');
+}
+
+function fillDeliveryFieldsFromMain(info) {
+    const set = (k, v) => { const el = document.getElementById(`cust-delivery-${k}`); if (el) el.value = v || ''; };
+    set('recipient', info.recipientName); set('phone', info.phone);
+    set('house-no', info.houseNo); set('moo', info.moo); set('soi', info.soi); set('road', info.road);
+    set('province', info.province);
+    updateDeliveryAddressLists(); // รายการอำเภอ/ตำบลตามจังหวัด ก่อนตั้งค่าอำเภอ/ตำบล
+    set('district', info.district); set('subdistrict', info.subdistrict); set('postal', info.postalCode);
+    // กล่องสรุปด้านบนใช้แค่ตอนยังไม่มีข้อมูลให้ดึง (คำแนะนำ) — มีข้อมูลแล้วดูจากช่องด้านล่างแทน
+    const has = info.houseNo || info.subdistrict || info.phone;
+    document.getElementById("cust-delivery-same-preview").classList.toggle('hidden', !!has);
 }
 
 // อ่านที่อยู่จัดส่งเอกสารจาก "สถานะปัจจุบันของฟอร์ม" เสมอ (ไม่ใช่ข้อมูลที่บันทึกไว้ล่าสุด)
@@ -4979,6 +4999,8 @@ function refreshDeliverySamePreview() {
     // ยังไม่มีข้อมูลอะไรให้ดึงเลย (เช่น เพิ่งเปิดฟอร์ม "เพิ่มลูกค้าใหม่" แล้วสลับมาแท็บนี้ทันที
     // ก่อนกรอกแท็บ "ข้อมูลทั่วไป" เลย) — โชว์คำแนะนำแทนกล่องว่างๆ ที่ดูเหมือนบั๊ก
     const hasAnyData = info.recipientName || info.companyName || info.phone || info.houseNo || info.subdistrict;
+    // "สถานที่เดียวกัน": แสดงช่องข้อมูลจัดส่งครบทุกช่อง เติมจากสำนักงานใหญ่ (ล็อกไว้ แก้ที่แท็บข้อมูลทั่วไป) — เจ้าของระบบขอ 2026-10-08
+    if (document.getElementById("cust-delivery-same-as-main").checked) fillDeliveryFieldsFromMain(info);
     if (!hasAnyData) {
         previewEl.innerHTML = `<span class="text-muted">${icon("warn")} ยังไม่มีข้อมูลให้ดึงมาแสดง — กรุณากรอกชื่อบริษัท, เบอร์โทร และที่อยู่สำนักงานใหญ่ในแท็บ "${icon("clipboard")} ข้อมูลทั่วไป" ก่อน แล้วค่อยกลับมาที่แท็บนี้</span>`;
         return;
@@ -9168,6 +9190,7 @@ function setInvoiceLayout(layout, remember = true) {
     const hint = document.getElementById('inv-layout-hint');
     if (hint) hint.classList.toggle('hidden', invoiceLayout !== 'worker');
     renderInvoiceItemsTable();
+    if (remember) replayPageTransition(document.querySelector('#invoice-sheet-container .invoice-table')); // สลับแบบรวม/รายคน: Fade-up แบบสปริง
 }
 
 // แตกรายการในบิลเป็นรายคนงาน: ใบงาน → jobBreakdown (สัดส่วนเดียวกับ computeEditedJobUpdates), บิลอิสระ → workerIds (หารเท่ากัน)
@@ -11461,6 +11484,7 @@ function setWorkerFolderMode(mode) {
         // หน้าตาแท็บมาจาก .seg-host (ทุกกลุ่มแท็บเหมือนกัน) — สลับแค่ class
     });
     renderWorkerFolderTiles();
+    replayPageTransition(document.querySelector('#worker-folder-modal .fv-layout')); // สลับหมวด/ทั้งหมด: Fade-up แบบสปริง
 }
 
 // เอกสารของใบงาน 1 ใบ: เอกสารปิดงาน (jobs.attachments) + ใบนัดหมาย (jobs.appointmentDocUrl)

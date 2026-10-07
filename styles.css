@@ -5774,10 +5774,19 @@ tr.is-voided-row td {
     opacity: 0;
 }
 .tab-slider.is-on { opacity: 1; }
-/* เลื่อนแบบสปริงของ iOS (เลยเป้านิดหนึ่งแล้วเด้งกลับ) + ยุบตอนกดค้าง (scale แยกจาก transform ที่ใช้เลื่อน) */
+/* Spring animation แบบ iOS ใช้ทั้งระบบ (เจ้าของระบบกำหนด 2026-10-08): เลยเป้านิดหนึ่งแล้วเด้งกลับ
+   ใช้กับ ตัวเลื่อนแท็บ / เนื้อหาแท็บที่สลับ (Fade-up) / หน้าต่างป๊อปอัป / คำอธิบายปุ่ม — ยกเว้นเมนูข้าง (คงแบบเดิม) */
+:root { --ios-spring: cubic-bezier(0.3, 1.25, 0.5, 1); }
+
+/* ตัวเลื่อนแท็บ: สปริง + ยุบตอนกดค้าง (scale แยกจาก transform ที่ใช้เลื่อน) */
 .tab-slider.is-animated {
-    transition: transform 0.5s cubic-bezier(0.3, 1.25, 0.5, 1), width 0.5s cubic-bezier(0.3, 1.25, 0.5, 1),
+    transition: transform 0.5s var(--ios-spring), width 0.5s var(--ios-spring),
                 height 0.42s cubic-bezier(0.32, 0.72, 0, 1), scale 0.22s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.2s ease;
+}
+/* เมนูข้าง: คงการเลื่อนนุ่ม ๆ แบบเดิม ไม่เด้ง */
+.sidebar-menu > .tab-slider.is-animated {
+    transition: transform 0.42s cubic-bezier(0.32, 0.72, 0, 1), width 0.42s cubic-bezier(0.32, 0.72, 0, 1),
+                height 0.42s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.2s ease;
 }
 .tab-slider.is-pressed { scale: 0.95; }
 /* กดแท็บที่ยังไม่ได้เลือก: ตัวอักษรจางลงระหว่างกด (เหมือน iOS) */
@@ -5881,7 +5890,7 @@ tr.is-voided-row td {
 
 /* หน้าต่างป๊อปอัปเด้งขึ้นแบบ sheet ของ iOS */
 .modal-content {
-    animation: ios-sheet-in 0.42s cubic-bezier(0.32, 0.72, 0, 1);
+    animation: ios-sheet-in 0.5s var(--ios-spring);
 }
 @keyframes ios-sheet-in {
     from { opacity: 0; transform: translateY(24px) scale(0.98); }
@@ -6556,7 +6565,7 @@ input[type="checkbox"], input[type="radio"], input[type="range"] {
     box-shadow: 0 6px 20px rgba(15, 23, 42, 0.16), 0 0 0 0.5px rgba(60, 60, 67, 0.18);
     pointer-events: none;
     transform-origin: bottom center;
-    animation: ios-tooltip-in 0.18s cubic-bezier(0.32, 0.72, 0, 1) both;
+    animation: ios-tooltip-in 0.26s var(--ios-spring) both;
 }
 .ios-tooltip.is-below { transform-origin: top center; }
 :root[data-theme="dark"] .ios-tooltip {
@@ -6624,7 +6633,7 @@ input[type="checkbox"], input[type="radio"], input[type="range"] {
 #cust-tab-general,
 #cust-tab-delivery,
 .page-transition-in {
-    animation: ios-page-in 0.38s cubic-bezier(0.32, 0.72, 0, 1);
+    animation: ios-page-in 0.48s var(--ios-spring);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -7018,7 +7027,7 @@ input[type="file"][style*="display:none"] { display: none !important; }
 #db-nationality-table-wrap,
 #db-nationality-chart-wrap,
 #db-provinces-table-wrap,
-#db-provinces-chart-wrap { animation: ios-page-in 0.38s cubic-bezier(0.32, 0.72, 0, 1); }
+#db-provinces-chart-wrap { animation: ios-page-in 0.48s var(--ios-spring); }
 
 /* ชื่อสาขา (เช่น "สำนักงานใหญ่") ในฟอร์มนายจ้าง: ช่องมนแบบ iOS แทนกรอบเส้นประสี่เหลี่ยม */
 .branch-name-input {
