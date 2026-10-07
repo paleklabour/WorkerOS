@@ -3551,6 +3551,63 @@ async function markWorkerNotifySkipped(workerId, btn) {
     showToast(`✅ ${w.firstName || ''} ${w.lastName || ''}: ไม่ต้องแจ้งเข้าแล้ว (ยกเลิกได้ในฟอร์มแก้ไขคนงาน)`, "success");
 }
 
+// ---------- เรียงตารางฐานข้อมูลคนงานตามหัวคอลัมน์ (แบบเดียวกับตารางแจ้งงาน) ----------
+// คลิก = น้อยไปมาก, คลิกซ้ำ = มากไปน้อย, ครั้งที่ 3 = กลับเป็นลำดับเดิม
+let workersSort = { key: null, dir: 1 };
+
+function sortWorkersBy(key) {
+    if (workersSort.key !== key) workersSort = { key, dir: 1 };
+    else if (workersSort.dir === 1) workersSort.dir = -1;
+    else workersSort = { key: null, dir: 1 };
+    workersCurrentPage = 1;
+    renderWorkers();
+}
+
+function workerSortValue(w, key) {
+    const daysTo = d => { const t = safeParseDate(d); return t ? Math.ceil((t - new Date()) / 86400000) : null; };
+    switch (key) {
+        case 'uid': return w.workerUid || '';
+        case 'name': return `${w.firstName || ''} ${w.lastName || ''}`.replace(/\s+/g, ' ').trim();
+        case 'nationality': return w.nationality || '';
+        case 'passport': return w.passportNo || '';
+        case 'expiry': {
+            // วันหมดอายุใบอนุญาตทำงาน (ไม่มีใช้พาสปอร์ต) เทียบเป็นวันที่จริง — วันที่เก็บได้หลายรูปแบบ
+            const t = safeParseDate(w.permitExpiry) || safeParseDate(w.passportExpiry);
+            return t && !isNaN(t.getTime()) ? t.getTime() : '';
+        }
+        case 'employer': { const c = customers.find(x => x.id === w.employerId); return c ? c.companyName || '' : ''; }
+        case 'docStatus': {
+            // หมดอายุ → ใกล้หมด → ปกติ (เกณฑ์เดียวกับตัวกรองสถานะเอกสาร)
+            const p = daysTo(w.passportExpiry), wp = daysTo(w.permitExpiry);
+            if ((p !== null && p < 0) || (wp !== null && wp < 0)) return 0;
+            if ((p !== null && p <= 180) || (wp !== null && wp <= 60)) return 1;
+            return 2;
+        }
+        case 'docs': return Object.values(w.attachments || {}).reduce((s, v) => s + (Array.isArray(v) ? v.length : (v ? 1 : 0)), 0);
+        default: return '';
+    }
+}
+
+function sortWorkersList(list) {
+    if (!workersSort.key) return list;
+    const { key, dir } = workersSort;
+    return list.sort((a, b) => {
+        const va = workerSortValue(a, key), vb = workerSortValue(b, key);
+        if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir;
+        if (!va && vb) return 1; // ค่าว่างอยู่ท้ายเสมอ
+        if (va && !vb) return -1;
+        return String(va).localeCompare(String(vb), 'th', { numeric: true }) * dir;
+    });
+}
+
+function markWorkerSortHeaders() {
+    document.querySelectorAll('#workers-table th.sortable-th').forEach(th => {
+        const active = th.dataset.sort === workersSort.key;
+        th.classList.toggle('is-sorted', active);
+        th.dataset.dir = active ? (workersSort.dir === 1 ? 'asc' : 'desc') : '';
+    });
+}
+
 function renderWorkers() {
     const searchVal = document.getElementById("search-worker").value.toLowerCase();
     const natFilter = document.getElementById("filter-worker-nationality").value;
@@ -3619,6 +3676,10 @@ function renderWorkers() {
 
         return matchSearch && matchNat && matchEmp && matchStatus && matchEmpStatus;
     });
+
+    // คลิกหัวคอลัมน์เพื่อเรียง (sortWorkersBy) — เรียงก่อนแบ่งหน้า
+    sortWorkersList(filtered);
+    markWorkerSortHeaders();
 
     // เปลี่ยน "รอขึ้นทะเบียน" → "ปกติ" ทีละหลายคน: เฉพาะ admin และเฉพาะตอนกรองดู "รอขึ้นทะเบียน" อยู่
     const bulkPendingMode = currentUser.role === 'admin' && empStatusFilter === 'pending_register';
