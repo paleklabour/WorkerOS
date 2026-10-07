@@ -6171,7 +6171,8 @@ function renderJobs() {
 
         return `
             <tr ${rowClickAttrs}>
-                <td><strong>${getJobDisplayNo(j)}</strong>${batchBadge}</td>
+                <td><strong>${getJobDisplayNo(j)}</strong>${j.status !== 'ปิดงานแล้ว' && Array.isArray(j.attachments) && j.attachments.length
+                    ? ` <span class="job-predocs-flag" title="แนบเอกสารปิดงานไว้แล้ว ${j.attachments.length} ไฟล์ — กดปิดงานได้เลย">${icon('clip')}${j.attachments.length}</span>` : ''}${batchBadge}</td>
                 <td><span class="badge badge-gold">${cleanJobType}</span>${siblingPills}</td>
                 <td><div class="employer-name">${custName}</div>${custIdLines}${agentLine}</td>
                 <td>${workName}${work && work.email ? `<div class="job-worker-email">${escapeHtml(work.email)}</div>` : ''}</td>
@@ -6255,27 +6256,33 @@ async function saveJobRemark(jobId, input) {
 // ---------- ป้ายใบงาน (dropdown ใต้ช่องหมายเหตุ) ----------
 // 1 ใบงาน = 1 ป้าย (jobs.tag เก็บ id), รายการป้าย { id, name, color } ใช้ร่วมกันทุกคนใน app_settings.job_tags
 // ฝ่ายปฏิบัติการเพิ่ม/เปลี่ยนชื่อ/เปลี่ยนสี/ลบป้ายได้ (เลือก "จัดการป้าย…" ท้าย dropdown) — migration 20261008100000_job_tag.sql
-const JOB_TAG_COLORS = ['#ff3b30', '#ff9500', '#ffcc00', '#34c759', '#30b0c7', '#007aff', '#5856d6', '#af52de', '#ff2d55', '#8e8e93'];
+// สีโทนเดียวกับระบบ (เหมือน badge): พื้นสีจาง + ตัวอักษร/ขอบสีเดียวกัน — ใช้ได้ทั้งธีมสว่าง/ชมพู/มืด (พื้นเป็นสีโปร่ง)
+const JOB_TAG_COLORS = ['#2d4fa3', '#0ea5e9', '#14b8a6', '#10b981', '#d97706', '#f97316', '#ef4444', '#ec4899', '#8b5cf6', '#64748b'];
+// สีชุดแรก (สด) ที่เคยบันทึกไว้ → สีโทนระบบที่ใกล้เคียง
+const JOB_TAG_LEGACY_COLORS = {
+    '#ff3b30': '#ef4444', '#ff9500': '#f97316', '#ffcc00': '#d97706', '#34c759': '#10b981', '#30b0c7': '#14b8a6',
+    '#007aff': '#0ea5e9', '#5856d6': '#2d4fa3', '#af52de': '#8b5cf6', '#ff2d55': '#ec4899', '#8e8e93': '#64748b'
+};
 let jobTagDraft = []; // รายการป้ายระหว่างแก้ในหน้าต่าง "จัดการป้ายใบงาน"
 
 function jobTags() {
-    return Array.isArray(appSettings.job_tags) ? appSettings.job_tags : [];
+    const list = Array.isArray(appSettings.job_tags) ? appSettings.job_tags : [];
+    return list.map(t => ({ ...t, color: JOB_TAG_LEGACY_COLORS[String(t.color).toLowerCase()] || t.color || '#64748b' }));
 }
 
-// สีตัวอักษรบนพื้นป้าย: พื้นสว่าง (เหลือง) ใช้ตัวเข้ม นอกนั้นตัวขาว
-function jobTagTextColor(hex) {
-    const n = parseInt(String(hex || '#8e8e93').slice(1), 16);
-    const lum = (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
-    return lum > 0.7 ? '#1c1c1e' : '#ffffff';
+// สไตล์ป้าย: พื้นจาง 12% / ขอบ 25% / ตัวอักษรเต็มสี
+function jobTagStyle(hex) {
+    const c = hex || '#64748b';
+    return `background-color:${c}1f; color:${c}; border-color:${c}40;`;
 }
 
 function jobTagSelectHtml(j) {
     const tags = jobTags();
     const cur = tags.find(t => t.id === j.tag);
     if (!canEditJob(j)) {
-        return cur ? `<span class="job-tag-pill" style="background:${cur.color}; color:${jobTagTextColor(cur.color)};">${escapeHtml(cur.name)}</span>` : '';
+        return cur ? `<span class="job-tag-pill" style="${jobTagStyle(cur.color)}">${escapeHtml(cur.name)}</span>` : '';
     }
-    const style = cur ? ` style="background-color:${cur.color}; color:${jobTagTextColor(cur.color)}; border-color:${cur.color};"` : '';
+    const style = cur ? ` style="${jobTagStyle(cur.color)}"` : '';
     return `<select class="job-tag-select${cur ? ' has-tag' : ''}" id="job-tag-${j.id}"${style} onchange="onJobTagChange('${j.id}', this)" title="ป้ายใบงาน">
         <option value="">— ป้าย —</option>
         ${tags.map(t => `<option value="${escapeHtml(t.id)}"${t.id === j.tag ? ' selected' : ''}>${escapeHtml(t.name)}</option>`).join('')}
@@ -6332,8 +6339,10 @@ function renderJobTagManager(focusLast = false) {
         const inUse = jobs.filter(j => j.tag === t.id).length;
         return `
         <div class="job-tag-row">
-            <span class="job-tag-preview" style="background:${t.color}; color:${jobTagTextColor(t.color)};">${escapeHtml(t.name || 'ตัวอย่าง')}</span>
-            <input type="text" maxlength="20" value="${escapeHtml(t.name)}" placeholder="ชื่อป้าย เช่น ด่วน, รอลูกค้า" oninput="jobTagDraft[${i}].name = this.value; this.previousElementSibling.textContent = this.value || 'ตัวอย่าง'">
+            <span class="job-tag-preview" id="job-tag-preview-${i}" style="${jobTagStyle(t.color)}">${escapeHtml(t.name || 'ตัวอย่าง')}</span>
+            <div class="form-group job-tag-name">
+                <input type="text" maxlength="20" value="${escapeHtml(t.name)}" placeholder="ชื่อป้าย เช่น ด่วน, รอลูกค้า" oninput="jobTagDraft[${i}].name = this.value; document.getElementById('job-tag-preview-${i}').textContent = this.value || 'ตัวอย่าง'">
+            </div>
             <div class="job-tag-swatches">
                 ${JOB_TAG_COLORS.map(c => `<button type="button" class="job-tag-swatch${c === t.color ? ' is-active' : ''}" style="background:${c};" onclick="jobTagDraft[${i}].color = '${c}'; renderJobTagManager()" title="เลือกสีนี้"></button>`).join('')}
             </div>
@@ -6482,13 +6491,23 @@ function readJobAssignee() {
 
 // เอกสารที่แนบตอนปิดงาน (jobs.attachments จาก submitCloseJob) — แสดงในแบนเนอร์ "ปิดงานแล้ว" ของหน้าต่างใบงาน
 // + ปุ่ม "แนบเอกสารปิดงานเพิ่ม" แนบย้อนหลังได้หลายไฟล์ (addJobCloseDocs) สำหรับคนที่แก้ใบงานนี้ได้
-function jobCloseDocsHtml(j) {
+// ส่วน "เอกสารปิดงาน (แนบไว้ก่อน)" ในหน้าต่างแก้ไขใบงาน — แสดงเฉพาะใบงานที่ยังไม่ปิด (j = null ซ่อน)
+function setJobPreDocs(j) {
+    const section = document.getElementById("job-predocs-section");
+    const box = document.getElementById("job-predocs-box");
+    if (!section || !box) return;
+    section.classList.toggle("hidden", !j);
+    box.innerHTML = j ? jobCloseDocsHtml(j, true) : '';
+}
+
+// ใบงานที่ยังไม่ปิด (pre = true) แนบเอกสารปิดงานไว้ก่อนได้ — ตอนกดปิดงานไม่ต้องแนบซ้ำ (ดู openJobCloseModal)
+function jobCloseDocsHtml(j, pre = j.status !== 'ปิดงานแล้ว') {
     const docs = Array.isArray(j.attachments) ? j.attachments : [];
     const addBtn = canEditJob(j)
-        ? `<label class="btn btn-sm btn-outline job-close-add-btn">${icon('plus')} แนบเอกสารปิดงานเพิ่ม
+        ? `<label class="btn btn-sm btn-outline job-close-add-btn">${icon('plus')} ${pre ? 'แนบเอกสารปิดงานไว้ก่อน' : 'แนบเอกสารปิดงานเพิ่ม'}
                <input type="file" multiple hidden onchange="addJobCloseDocs('${j.id}', this)"></label>`
         : '';
-    if (!docs.length) return `<div class="job-close-docs text-muted">ไม่มีเอกสารแนบตอนปิดงาน ${addBtn}</div>`;
+    if (!docs.length) return `<div class="job-close-docs text-muted">${pre ? 'ยังไม่ได้แนบเอกสารปิดงาน' : 'ไม่มีเอกสารแนบตอนปิดงาน'} ${addBtn}</div>`;
     return `<div class="job-close-docs"><strong>เอกสารปิดงาน:</strong>${docs.map((f, k) =>
         `<a href="${escapeHtml(f.url)}" target="_blank" rel="noopener">${icon('clip')} ${escapeHtml(f.name || `ไฟล์ ${k + 1}`)}</a>`).join('')}${addBtn}` +
         `${docs.find(f => f.note) ? `<small class="text-muted">หมายเหตุ: ${escapeHtml(docs.find(f => f.note).note)}</small>` : ''}</div>`;
@@ -6567,8 +6586,8 @@ async function addJobCloseDocs(jobId, input) {
     for (const r of reads) { const label = await fileJobDocIntoWorker(jobData, r.read, r.url, r.name); if (label) filedLabels.push(label); }
     if (filedLabels.length) { showToast(`✨ AI อ่านเอกสารแล้ว — อัปเดตข้อมูลคนงานและเก็บเข้าแฟ้ม: ${filedLabels.join(', ')}`, "success"); renderWorkers(); }
     saveData();
-    const bannerText = document.getElementById("job-closed-banner-text");
-    const docsEl = bannerText && bannerText.querySelector('.job-close-docs');
+    // หน้าต่างใบงานที่เปิดอยู่: แบนเนอร์ "ปิดงานแล้ว" หรือส่วน "แนบไว้ก่อนปิดงาน" ของใบงานที่ยังไม่ปิด
+    const docsEl = document.querySelector('#job-modal .job-close-docs');
     if (docsEl) docsEl.outerHTML = jobCloseDocsHtml(jobData);
     renderJobs();
     showToast(`📎 แนบเอกสารปิดงานเพิ่ม ${added.length} ไฟล์ให้ ${getJobDisplayNo(jobData)} แล้ว`, "success");
@@ -6803,10 +6822,12 @@ function openJobModal(id = null) {
                 `${icon("lock")} ปิดงานแล้วเมื่อ ${j.closedAt ? formatThaiDate(j.closedAt, true) : '-'}` +
                 (j.closedBy ? ` โดย ${getUserNameById(j.closedBy)}` : '') +
                 jobCloseDocsHtml(j);
+            setJobPreDocs(null);
         } else {
             statusGroup.style.display = '';
             closedBanner.style.display = 'none';
             statusSelect.value = j.status;
+            setJobPreDocs(j); // แนบเอกสารปิดงานไว้ก่อนได้ ระหว่างที่งานยังไม่ปิด
         }
 
         document.getElementById("job-notes").value = j.notes || '';
@@ -6850,6 +6871,7 @@ function openJobModal(id = null) {
         openedByInfo.style.display = 'block';
         openedByInfo.innerText = `เปิดงานโดย: ${currentUser.name} (ผู้ใช้ปัจจุบัน)`;
         renderJobBatchHint(null);
+        setJobPreDocs(null); // ใบงานใหม่ยังไม่มีให้ผูกไฟล์ — แนบได้หลังบันทึก (เปิดแก้ไขใบงาน)
     }
 
     refreshJobTypeLocks();
@@ -7718,7 +7740,17 @@ function openJobCloseModal(jobId) {
     if (!canEditJob(j)) { showToast("❌ ปิดงานได้เฉพาะงานที่ตัวเองเปิดหรือได้รับมอบหมาย", "danger"); return; }
 
     document.getElementById("job-close-id").value = jobId;
-    const needsFile = jobCloseNeedsFile(j);
+    // แนบเอกสารปิดงานไว้ก่อนแล้ว → แสดงรายการ และไม่บังคับแนบซ้ำ (แนบเพิ่มได้)
+    const preDocs = Array.isArray(j.attachments) ? j.attachments : [];
+    const existingEl = document.getElementById("job-close-existing");
+    if (existingEl) {
+        existingEl.classList.toggle("hidden", !preDocs.length);
+        existingEl.innerHTML = preDocs.length
+            ? `<strong>${icon('ok')} แนบเอกสารไว้แล้ว ${preDocs.length} ไฟล์</strong> — กดยืนยันปิดงานได้เลย หรือแนบเพิ่มด้านล่าง` +
+              preDocs.map((f, k) => `<a href="${escapeHtml(f.url)}" target="_blank" rel="noopener">${icon('clip')} ${escapeHtml(f.name || `ไฟล์ ${k + 1}`)}</a>`).join('')
+            : '';
+    }
+    const needsFile = jobCloseNeedsFile(j) && !preDocs.length;
     document.getElementById("job-close-file").required = needsFile;
     document.getElementById("job-close-file-required").classList.toggle("hidden", !needsFile);
     document.getElementById("job-close-file").value = "";
@@ -7744,7 +7776,8 @@ async function submitCloseJob(e) {
 
     const fileInput = document.getElementById("job-close-file");
     const note = document.getElementById("job-close-note").value.trim();
-    if (jobCloseNeedsFile(j) && (!fileInput.files || fileInput.files.length === 0)) {
+    const hasPreDocs = Array.isArray(j.attachments) && j.attachments.length > 0; // แนบไว้ก่อนแล้ว
+    if (jobCloseNeedsFile(j) && !hasPreDocs && (!fileInput.files || fileInput.files.length === 0)) {
         uiAlert("กรุณาแนบเอกสารยืนยันการปิดงานก่อน");
         return;
     }
@@ -7777,7 +7810,9 @@ async function submitCloseJob(e) {
             });
         }
 
-        const existingAttachments = Array.isArray(j.attachments) ? j.attachments : [];
+        let existingAttachments = Array.isArray(j.attachments) ? j.attachments : [];
+        // ปิดงานโดยใช้เอกสารที่แนบไว้ก่อน (ไม่ได้แนบไฟล์ใหม่) — หมายเหตุปิดงานไปติดกับไฟล์เดิมที่ยังไม่มีหมายเหตุ ไม่ให้หาย
+        if (note && newAttachments.length === 0) existingAttachments = existingAttachments.map(f => f.note ? f : { ...f, note });
         const jobData = Object.assign({}, j, {
             status: 'ปิดงานแล้ว',
             attachments: existingAttachments.concat(newAttachments),
