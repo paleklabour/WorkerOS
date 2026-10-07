@@ -2934,12 +2934,12 @@ function renderBillingTab() {
         return `
             <tr>
                 <td><strong>${getJobDisplayNo(j)}</strong></td>
-                <td><span class="badge badge-warning">${icon("edit")} ยังไม่ออกบิล</span></td>
+                <td><span class="badge badge-lg badge-warning">${icon("edit")} ยังไม่ออกบิล</span></td>
                 <td><div class="employer-name">${escapeHtml(cust ? cust.companyName : "ไม่พบนายจ้าง")}</div>${buildEmployerIdLinesHtml(cust)}</td>
                 <td>${escapeHtml(cleanJobType)}<br><small class="text-muted">${escapeHtml(work ? workerFullName(work) : 'ไม่พบข้อมูลคนงาน')}</small>${work && work.workerUid ? `<br><small class="text-muted">เลขประจำตัว ${escapeHtml(work.workerUid)}</small>` : ''}</td>
                 <td class="inv-num"><strong>${fmtMoney(estimate)}</strong>${j.fee > 0 ? '' : '<br><small class="text-muted">ราคามาตรฐาน</small>'}</td>
                 <td class="inv-num text-muted">-</td>
-                <td><span class="badge ${isClosed ? 'badge-danger' : 'badge-gold'}">${isClosed ? `${icon("warn")} ปิดงานแล้ว ยังไม่ออกบิล` : escapeHtml(j.status || '-')}</span></td>
+                <td><span class="badge badge-lg ${isClosed ? 'badge-danger' : 'badge-gold'}">${isClosed ? `${icon("warn")} ปิดงานแล้ว ยังไม่ออกบิล` : escapeHtml(j.status || '-')}</span></td>
                 <td class="actions-col">
                     <button class="btn btn-sm btn-gold" onclick="openInvoiceModal('${j.id}')" style="white-space: nowrap;">${icon("receipt")} ออกบิล</button>
                     ${can('finance') ? `<button class="btn btn-sm btn-outline" onclick="markJobNoCharge('${j.id}')" style="white-space: nowrap;" title="งานนี้ไม่คิดเงินลูกค้า — ไม่ต้องออกบิล">ไม่เรียกเก็บเงิน</button>` : ''}
@@ -9655,14 +9655,8 @@ function generateCombinedInvoice() {
     if (checkboxes.length === 0) return;
 
     const selectedJobIds = Array.from(checkboxes).map(cb => cb.value);
-    // ช่องราคาเว้นว่างไว้ให้กรอกเอง — ใบงานที่เลือกต้องมีราคามากกว่า 0 ครบทุกใบก่อนสร้างร่างบิล
-    const missing = selectedJobIds.filter(id => !(parseFloat((document.getElementById(`combine-fee-${id}`) || {}).value) > 0));
-    if (missing.length) {
-        uiAlert(`กรุณากรอกราคาให้ครบ — ยังไม่ได้กรอก ${missing.length} ใบงาน`);
-        const first = document.getElementById(`combine-fee-${missing[0]}`);
-        if (first) first.focus();
-        return;
-    }
+    // ช่องราคาที่เว้นว่าง = ไปกรอกราคาต่อในหน้าใบวางบิลได้ (เจ้าของระบบขอ 2026-10-08 — ไม่บล็อก)
+    // ตอนกด "ออกบิล" ยังมีด่านเดิม: บิลต้องมียอดรวมมากกว่า 0 (issueCurrentInvoice)
     const firstJob = jobs.find(j => j.id === selectedJobIds[0]);
     const cust = customers.find(c => c.id === firstJob.customerId);
 

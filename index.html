@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261008t">
+    <link rel="stylesheet" href="styles.css?v=20261008v">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -1194,6 +1194,8 @@
                         <!-- SUB-TAB: BILLING (ออกบิล / รับเงิน — งานที่ผ่านระบบแจ้งงานที่ยังไม่ได้รับชำระ) -->
                         <div id="finpage-tab-billing" class="db-tab-content hidden">
                             <div class="table-actions">
+                                <!-- ช่องค้นหา + ตัวกรองสถานะอยู่กลุ่มเดียวกัน (dropdown ชิดหลังช่องค้นหา เหมือนหน้าแจ้งงาน) -->
+                                <div class="search-filters-group">
                                 <div class="search-box">
                                     <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle class="fl" cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/></svg>
                                     <input type="text" id="search-billing" placeholder="ค้นหาใบสั่งงาน, นายจ้าง, คนงาน..." oninput="renderBillingTab()">
@@ -1208,6 +1210,7 @@
                                     <option value="nocharge">งานที่ไม่เรียกเก็บเงิน</option>
                                     <option value="all">ทั้งหมด</option>
                                 </select>
+                                </div>
                                 <div class="action-buttons-group" style="display: flex; gap: 10px;">
                                     <button class="btn btn-gold" id="btn-receive-money" onclick="openReceiveMoneyModal()">
                                         <span><span class="ico" data-icon="cash"></span> รับเงิน / มัดจำ</span>
@@ -3305,7 +3308,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261008t"></script>
+    <script src="supabase-client.js?v=20261008v"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3316,6 +3319,6 @@
     </script>
 
     <!-- Application Script -->
-    <script src="app.js?v=20261008t"></script>
+    <script src="app.js?v=20261008v"></script>
 </body>
 </html>
