@@ -2882,8 +2882,8 @@ td > .ico {
 .combine-jobs-head {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 12px;
+    justify-content: flex-start;
+    gap: 16px;
     flex-wrap: wrap;
 }
 .combine-jobs-head label { margin-bottom: 6px; }
@@ -2907,6 +2907,16 @@ td > .ico {
     flex-direction: column;
     gap: 10px;
     background-color: var(--dk-subtle, #f8fafc);
+}
+
+/* แฟ้มเอกสารคนงาน: แท็บ แยกตามหมวด / เอกสารทั้งหมด + ปุ่มดาวน์โหลดทั้งหมด */
+.fv-mode-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
 }
 
 /* แท็บรูปแบบใบวางบิล: แบบรวม / แบบรายคน */

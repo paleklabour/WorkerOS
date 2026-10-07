@@ -964,12 +964,21 @@ function registerSearchSuggest(inputId, getItems, getLabel, getSub, renderFn) {
 // รวบรวมใบงาน (ใช้ทั้งหน้า "ระบบแจ้งงาน" และแท็บ "ออกบิล/รับเงิน") เป็นรายการแนะนำที่มี label/sub
 // ตรงกับสิ่งที่ renderJobs()/renderBillingTab() ใช้กรองจริง (ชื่อคนงาน หรือชื่อนายจ้างถ้าไม่พบคนงาน)
 function buildJobSuggestItems() {
-    return jobs.map(j => {
+    // แนะนำทั้งชื่อคนงานและชื่อนายจ้าง (ไม่ซ้ำ) — ช่องว่างซ้อนในชื่อยุบเหลือช่องเดียว (ชื่อพม่าจาก OCR มักมีช่องว่างเกิน)
+    const tidy = s => String(s || '').replace(/\s+/g, ' ').trim();
+    const seen = new Set();
+    const out = [];
+    jobs.forEach(j => {
         const work = workers.find(w => w.id === j.workerId);
         const cust = customers.find(c => c.id === j.customerId);
-        const label = work ? `${work.firstName} ${work.lastName || ''}`.trim() : (cust ? cust.companyName : '');
-        return { label, sub: cust ? cust.companyName : '' };
-    }).filter(x => x.label);
+        const custName = tidy(cust && cust.companyName);
+        if (work) {
+            const label = tidy(`${work.firstName || ''} ${work.lastName || ''}`);
+            if (label && !seen.has('w:' + label)) { seen.add('w:' + label); out.push({ label, sub: [work.workerUid, custName].filter(Boolean).join(' • ') }); }
+        }
+        if (custName && !seen.has('c:' + custName)) { seen.add('c:' + custName); out.push({ label: custName, sub: 'นายจ้าง' }); }
+    });
+    return out;
 }
 
 // ตั้งค่า auto-suggest ให้ครบทุกช่องค้นหาในระบบ — เรียกครั้งเดียวตอน initApp()
@@ -2812,7 +2821,8 @@ function buildFinancePaymentBadge(paymentStatus, paymentMethod, isClosedUnpaid) 
 //   2) บิลที่ออกแล้วทุกใบ (invoices) พร้อมยอดรับแล้ว/คงเหลือ → ปุ่ม "เปิดบิล" (รับเงิน/พิมพ์/ใบเสร็จ/ยกเลิก)
 function renderBillingTab() {
     const searchInput = document.getElementById("search-billing");
-    const query = searchInput ? searchInput.value.trim().toLowerCase() : "";
+    const squash = s => String(s || '').toLowerCase().replace(/\s+/g, ' ').trim(); // ช่องว่างซ้อนในชื่อไม่มีผลกับการค้นหา
+    const query = squash(searchInput ? searchInput.value : "");
     const statusFilterEl = document.getElementById("filter-billing-payment-status");
     const statusFilter = statusFilterEl ? statusFilterEl.value : "pending";
     const tbody = document.getElementById("billing-list-tbody");
@@ -2836,8 +2846,8 @@ function renderBillingTab() {
         if (!query) return true;
         const cust = customers.find(c => c.id === j.customerId);
         const work = workers.find(w => w.id === j.workerId);
-        const hay = [getJobDisplayNo(j), j.jobType, cust && cust.companyName, work && `${work.firstName} ${work.lastName}`, work && work.workerUid, j.noChargeReason]
-            .filter(Boolean).join(' ').toLowerCase();
+        const hay = squash([getJobDisplayNo(j), j.jobType, cust && cust.companyName, work && `${work.firstName} ${work.lastName || ''}`, work && work.workerUid, j.noChargeReason]
+            .filter(Boolean).join(' | '));
         return hay.includes(query);
     };
     const unbilledJobs = !showUnbilled ? [] : jobs.filter(jobAwaitingBill).filter(matchesJobQuery);
@@ -2849,8 +2859,8 @@ function renderBillingTab() {
         if (!query) return true;
         const jobWorkers = (inv.jobIds || []).map(id => jobs.find(j => j.id === id)).filter(Boolean)
             .map(j => workers.find(w => w.id === j.workerId)).filter(Boolean).map(w => `${w.firstName} ${w.lastName}`);
-        const hay = [inv.invoiceNo, inv.customerName, inv.workerName, ...jobWorkers, ...(inv.items || []).map(i => i.title)]
-            .filter(Boolean).join(' ').toLowerCase();
+        const hay = squash([inv.invoiceNo, inv.customerName, inv.workerName, ...jobWorkers, ...(inv.items || []).map(i => i.title)]
+            .filter(Boolean).join(' | '));
         return hay.includes(query);
     }).sort((a, b) => (b.issueDate || '').localeCompare(a.issueDate || '') || (b.invoiceNo || '').localeCompare(a.invoiceNo || ''));
 
@@ -2905,7 +2915,7 @@ function renderBillingTab() {
                 <td><strong>${getJobDisplayNo(j)}</strong></td>
                 <td><span class="badge badge-warning">${icon("edit")} ยังไม่ออกบิล</span></td>
                 <td><div class="employer-name">${escapeHtml(cust ? cust.companyName : "ไม่พบนายจ้าง")}</div>${buildEmployerIdLinesHtml(cust)}</td>
-                <td>${escapeHtml(cleanJobType)}<br><small class="text-muted">${escapeHtml(work ? `${work.firstName} ${work.lastName}` : 'ไม่พบข้อมูลคนงาน')}</small></td>
+                <td>${escapeHtml(cleanJobType)}<br><small class="text-muted">${escapeHtml(work ? `${work.firstName} ${work.lastName}` : 'ไม่พบข้อมูลคนงาน')}</small>${work && work.workerUid ? `<br><small class="text-muted">เลขประจำตัว ${escapeHtml(work.workerUid)}</small>` : ''}</td>
                 <td class="inv-num"><strong>${fmtMoney(estimate)}</strong>${j.fee > 0 ? '' : '<br><small class="text-muted">ราคามาตรฐาน</small>'}</td>
                 <td class="inv-num text-muted">-</td>
                 <td><span class="badge ${isClosed ? 'badge-danger' : 'badge-gold'}">${isClosed ? `${icon("warn")} ปิดงานแล้ว ยังไม่ออกบิล` : escapeHtml(j.status || '-')}</span></td>
@@ -2925,7 +2935,7 @@ function renderBillingTab() {
                 <td><strong>${getJobDisplayNo(j)}</strong></td>
                 <td>${noChargeBadgeHtml(j)}</td>
                 <td><div class="employer-name">${escapeHtml(cust ? cust.companyName : "ไม่พบนายจ้าง")}</div>${buildEmployerIdLinesHtml(cust)}</td>
-                <td>${escapeHtml(getCleanJobTypeName(j.jobType))}<br><small class="text-muted">${escapeHtml(work ? `${work.firstName} ${work.lastName}` : 'ไม่พบข้อมูลคนงาน')}</small></td>
+                <td>${escapeHtml(getCleanJobTypeName(j.jobType))}<br><small class="text-muted">${escapeHtml(work ? `${work.firstName} ${work.lastName}` : 'ไม่พบข้อมูลคนงาน')}</small>${work && work.workerUid ? `<br><small class="text-muted">เลขประจำตัว ${escapeHtml(work.workerUid)}</small>` : ''}</td>
                 <td class="inv-num"><strong>0.00</strong></td>
                 <td class="inv-num text-muted">-</td>
                 <td><small>${escapeHtml(j.noChargeReason || '-')}</small><br><small class="text-muted">${j.noChargeBy ? `โดย ${escapeHtml(getUserNameById(j.noChargeBy))} • ` : ''}${j.noChargeAt ? formatThaiDate(j.noChargeAt, true) : ''}</small></td>
@@ -5926,7 +5936,9 @@ function markJobSortHeaders() {
 }
 
 function renderJobs() {
-    const query = document.getElementById("search-job").value.toLowerCase();
+    // ช่องว่างหลายช่อง/หัวท้าย ไม่มีผลกับการค้นหา (ชื่อพม่าหลายคำ วางมาจากที่อื่นมักมีช่องว่างเกิน)
+    const normSearch = s => String(s || '').toLowerCase().replace(/\s+/g, ' ').trim();
+    const query = normSearch(document.getElementById("search-job").value);
     const typeFilter = document.getElementById("filter-job-type").value;
     const statusFilter = document.getElementById("filter-job-status").value;
     const tbody = document.getElementById("jobs-list-tbody");
@@ -5939,9 +5951,13 @@ function renderJobs() {
         const cust = customers.find(c => c.id === j.customerId);
         const work = workers.find(w => w.id === j.workerId);
 
-        const custName = cust ? cust.companyName.toLowerCase() : "";
-        const workName = work ? `${work.firstName} ${work.lastName}`.toLowerCase() : "";
-        const matchSearch = j.id.toLowerCase().includes(query) || custName.includes(query) || workName.includes(query) || getJobDisplayNo(j).toLowerCase().includes(query);
+        // ค้นได้ทั้งเลขใบงาน, นายจ้าง, ชื่อคนงาน (มี/ไม่มีคำนำหน้า), ชื่อภาษาไทย, เลขประจำตัว 13 หลัก, เลขพาสปอร์ต
+        const hay = !query ? '' : normSearch([
+            j.id, getJobDisplayNo(j), cust && cust.companyName,
+            work && workerFullName(work), work && `${work.firstName || ''} ${work.lastName || ''}`,
+            work && work.thaiName, work && work.workerUid, work && work.passportNo
+        ].filter(Boolean).join(' | '));
+        const matchSearch = !query || hay.includes(query);
 
         const matchType = typeFilter === "" || (j.jobType && j.jobType.includes(typeFilter));
         const matchStatus = statusFilter === "" || (statusFilter === "__open" ? JOB_OPEN_STATUSES.includes(j.status) : statusFilter === "__archived" ? j.status === "ปิดงานแล้ว" : j.status === statusFilter);
@@ -5955,7 +5971,8 @@ function renderJobs() {
     let filtered = monthFilter ? baseFiltered.filter(j => jobMonthKey(j) === monthFilter) : baseFiltered;
     // งานที่จบครบแล้ว (ปิดงาน + ปิดบิล) ตั้งแต่เดือนก่อน ๆ ไม่แสดง — ยกเว้นเลือกดูเอง:
     // ตัวกรองสถานะ "ปิดงานแล้ว" / "งานที่จบครบแล้ว" หรือเลือกเดือน (หน้าสรุปยังนับทุกงานตามเดิม)
-    const showArchived = statusFilter === 'ปิดงานแล้ว' || statusFilter === '__archived' || !!monthFilter;
+    // พิมพ์ค้นหาอยู่ → ค้นในงานที่จบครบแล้วด้วย (เดิมค้นชื่อคนงานที่งานจบไปแล้วไม่เจอ)
+    const showArchived = statusFilter === 'ปิดงานแล้ว' || statusFilter === '__archived' || !!monthFilter || !!query;
     if (statusFilter === '__archived') filtered = filtered.filter(isJobArchived);
     else if (!showArchived) filtered = filtered.filter(j => !isJobArchived(j));
 
@@ -10781,12 +10798,150 @@ function isPdfUrl(url) {
     return String(url).startsWith('data:application/pdf') || /\.pdf(\?|#|$)/i.test(String(url));
 }
 
+// ---------- แท็บ "เอกสารทั้งหมด": เอกสารที่แนบในแฟ้ม (ทุกหมวด รวมที่หมดอายุ) + เอกสารปิดงาน/ใบนัดหมายจากใบงานของคนงานนี้ ----------
+let workerFolderMode = 'type'; // 'type' = แยกตามหมวด (เดิม) | 'all' = เอกสารทั้งหมด
+
+function setWorkerFolderMode(mode) {
+    workerFolderMode = mode === 'all' ? 'all' : 'type';
+    [['type', 'btn-fv-mode-type'], ['all', 'btn-fv-mode-all']].forEach(([key, id]) => {
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        const on = key === workerFolderMode;
+        btn.className = on ? "btn btn-gold btn-sm" : "btn btn-outline btn-sm";
+        btn.style.borderColor = on ? "" : "transparent";
+        btn.style.color = on ? "" : "var(--text-dark)";
+        btn.style.background = on ? "" : "transparent";
+    });
+    renderWorkerFolderTiles();
+}
+
+// เอกสารของใบงาน 1 ใบ: เอกสารปิดงาน (jobs.attachments) + ใบนัดหมาย (jobs.appointmentDocUrl)
+function jobDocsOf(j) {
+    const docs = (Array.isArray(j.attachments) ? j.attachments : []).filter(f => f && f.url)
+        .map(f => ({ name: f.name || 'เอกสารปิดงาน', url: f.url, note: f.note || '', uploadedAt: f.uploadedAt || '', group: 'เอกสารปิดงาน' }));
+    if (j.appointmentDocUrl) docs.push({ name: 'ใบนัดหมาย', url: j.appointmentDocUrl, note: '', uploadedAt: '', group: 'ใบนัดหมาย' });
+    return docs;
+}
+
+// รายการเอกสารทั้งหมดของคนงาน (ใช้ทั้งแท็บ "เอกสารทั้งหมด" และปุ่มดาวน์โหลดทั้งหมด)
+function collectWorkerAllDocs(w) {
+    const out = [];
+    WORKER_FOLDER_DOC_TYPES.forEach(type => {
+        const list = getAttachments(w, type.key);
+        list.forEach((fItem, idx) => {
+            const url = workerFolderFileUrl(fItem);
+            if (!url) return;
+            out.push({ sel: { kind: 'file', key: type.key, idx }, name: fItem.name || type.label, url, folder: type.label,
+                sub: type.label + (isWorkerDocFileExpired(fItem, idx, list, type.key) ? ' • หมดอายุ' : ''), date: String(fItem.uploadedAt || '').slice(0, 10) });
+        });
+    });
+    jobs.filter(j => j.workerId === w.id)
+        .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
+        .forEach(j => {
+            const jobLabel = `${getCleanJobTypeName(j.jobType)} (${getJobDisplayNo(j)})`;
+            jobDocsOf(j).forEach((d, idx) => {
+                out.push({ sel: { kind: 'jobdoc', key: `job:${j.id}`, jobId: j.id, idx }, name: d.name, url: d.url, folder: `${d.group} - ${jobLabel}`,
+                    sub: `${d.group} • ${jobLabel}`, date: String(d.uploadedAt || j.closedAt || '').slice(0, 10), note: d.note });
+            });
+        });
+    return out;
+}
+
+function renderWorkerFolderAllDocs(w, query) {
+    const docs = collectWorkerAllDocs(w).filter(d => !query || `${d.name} ${d.sub}`.toLowerCase().includes(query));
+    const selKey = activeFolderSel && `${activeFolderSel.key}#${activeFolderSel.idx}`;
+    if (!docs.some(d => `${d.sel.key}#${d.sel.idx}` === selKey)) activeFolderSel = docs[0] ? docs[0].sel : (w.photo ? { kind: 'photo' } : null);
+
+    const listEl = document.getElementById("worker-folder-files-list");
+    listEl.innerHTML = `
+        <div class="fv-group">
+            <div class="fv-group-head">
+                <span>${icon('folder')} เอกสารทั้งหมด</span><b>${docs.length || ''}</b>
+            </div>
+            ${docs.map(d => `
+                <div class="fv-item" data-key="${escapeHtml(d.sel.key)}" data-idx="${d.sel.idx}" draggable="false"
+                     onclick="selectWorkerFolderAnyDoc('${escapeHtml(d.sel.kind)}', '${escapeHtml(d.sel.key)}', ${d.sel.idx})" title="${escapeHtml(d.name)}">
+                    ${renderDriveThumbnail(d.url)}
+                    <div class="fv-item-text"><b>${escapeHtml(d.name)}</b><small>${escapeHtml(d.sub)}${d.date ? ` • ${formatThaiDate(d.date)}` : ''}</small></div>
+                </div>`).join('') || `<div class="fv-none">${query ? 'ไม่พบไฟล์ตามคำค้นหา' : 'ยังไม่มีเอกสาร'}</div>`}
+        </div>`;
+    hydratePdfThumbnails(listEl);
+    const expiredSection = document.getElementById("worker-folder-expired-section");
+    if (expiredSection) expiredSection.classList.add("hidden");
+    markWorkerFolderSelection();
+    renderWorkerFolderPreview();
+}
+
+function selectWorkerFolderAnyDoc(kind, key, idx) {
+    activeFolderSel = kind === 'jobdoc' ? { kind, key, jobId: key.replace(/^job:/, ''), idx } : { kind: 'file', key, idx };
+    markWorkerFolderSelection();
+    renderWorkerFolderPreview();
+}
+
+// ดึงไฟล์เป็น Blob: ไฟล์ใน Storage ใช้ SDK (ไม่ติด CORS), data: URL / ลิงก์อื่นใช้ fetch
+async function fetchDocBlob(url) {
+    const marker = '/worker-documents/';
+    const i = String(url).indexOf(marker);
+    if (i !== -1 && window.supabaseAdapter) {
+        const path = decodeURIComponent(url.slice(i + marker.length).split('?')[0]);
+        const { data, error } = await window.supabaseAdapter.client.storage.from('worker-documents').download(path);
+        if (!error && data) return data;
+    }
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.blob();
+}
+
+// ปุ่ม "ดาวน์โหลดทั้งหมด": รวมเอกสารทุกไฟล์ของคนงาน (+ รูปคนงาน) เป็น ZIP ไฟล์เดียว แยกโฟลเดอร์ตามหมวด/ใบงาน
+async function downloadAllWorkerDocs() {
+    const w = workers.find(item => item.id === activeFolderWorkerId);
+    if (!w) return;
+    const docs = collectWorkerAllDocs(w);
+    if (w.photo) docs.unshift({ name: 'รูปคนงาน', url: w.photo, folder: '' });
+    if (!docs.length) { showToast("ยังไม่มีเอกสารในแฟ้มนี้", "warning"); return; }
+    const btn = document.getElementById('btn-fv-download-all');
+    if (btn) btn.disabled = true;
+    try {
+        const JSZip = await loadJsZip();
+        const zip = new JSZip();
+        const used = new Set();
+        const safe = s => String(s || '').replace(/[\\/:*?"<>|]+/g, '_').trim() || 'ไฟล์';
+        let failed = 0;
+        for (let i = 0; i < docs.length; i++) {
+            const d = docs[i];
+            showToast(`📦 กำลังรวมไฟล์ ${i + 1}/${docs.length}...`, "warning");
+            let blob;
+            try { blob = await fetchDocBlob(d.url); } catch (e) { failed++; continue; }
+            // นามสกุลไฟล์: จากชื่อไฟล์เดิม → จาก URL → จากชนิดไฟล์
+            let name = safe(d.name);
+            if (!/\.[a-z0-9]{2,5}$/i.test(name)) {
+                const urlExt = (String(d.url).split('?')[0].match(/\.([a-z0-9]{2,5})$/i) || [])[1];
+                const typeExt = (blob.type || '').includes('pdf') ? 'pdf' : (blob.type || '').startsWith('image/') ? blob.type.split('/')[1].replace('jpeg', 'jpg') : '';
+                const ext = (String(d.url).startsWith('data:') ? '' : urlExt) || typeExt;
+                if (ext) name += '.' + ext.toLowerCase();
+            }
+            let path = (d.folder ? safe(d.folder) + '/' : '') + name;
+            for (let n = 2; used.has(path); n++) path = path.replace(/(\.[^./]+)?$/, m => ` (${n})${m}`);
+            used.add(path);
+            zip.file(path, blob);
+        }
+        const out = await zip.generateAsync({ type: 'blob', compression: 'STORE' });
+        downloadBlob(out, `${safe(workerFullName(w))}_${safe(w.workerUid || 'เอกสาร')}.zip`);
+        showToast(failed ? `⚠️ ดาวน์โหลดแล้ว แต่มี ${failed} ไฟล์ที่ดึงไม่ได้` : `📥 ดาวน์โหลดเอกสารทั้งหมด ${docs.length} ไฟล์แล้ว`, failed ? "warning" : "success");
+    } catch (err) {
+        showToast("❌ ดาวน์โหลดทั้งหมดไม่สำเร็จ: " + err.message, "danger");
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
 function renderWorkerFolderTiles() {
     const w = workers.find(item => item.id === activeFolderWorkerId);
     if (!w) return;
     const searchInput = document.getElementById("search-worker-folder");
     const query = searchInput ? searchInput.value.trim().toLowerCase() : "";
     const canAdd = can('ops');
+    if (workerFolderMode === 'all') { renderWorkerFolderAllDocs(w, query); return; }
 
     const groups = [];
     const expiredItems = [];
@@ -10851,7 +11006,7 @@ function renderWorkerFolderItem(file, fItem, idx, isExpired) {
 
 function markWorkerFolderSelection() {
     document.querySelectorAll('#worker-folder-modal .fv-item').forEach(el => {
-        el.classList.toggle('is-active', !!activeFolderSel && activeFolderSel.kind === 'file' && el.dataset.key === activeFolderSel.key && Number(el.dataset.idx) === activeFolderSel.idx);
+        el.classList.toggle('is-active', !!activeFolderSel && (activeFolderSel.kind === 'file' || activeFolderSel.kind === 'jobdoc') && el.dataset.key === activeFolderSel.key && Number(el.dataset.idx) === activeFolderSel.idx);
     });
     const photoBtn = document.querySelector('#worker-folder-modal .fv-photo');
     if (photoBtn) photoBtn.classList.toggle('is-active', !!activeFolderSel && activeFolderSel.kind === 'photo');
@@ -10887,6 +11042,27 @@ function renderWorkerFolderPreview() {
             <div class="fv-doc"><img src="${escapeHtml(w.photo)}" alt="รูปคนงาน"></div>`;
         return;
     }
+    if (activeFolderSel.kind === 'jobdoc') {
+        // เอกสารปิดงาน/ใบนัดหมายจากใบงาน — ดู/ดาวน์โหลดได้ แก้/ลบที่หน้าต่างใบงานนั้น
+        const j = jobs.find(x => x.id === activeFolderSel.jobId);
+        const d = j ? jobDocsOf(j)[activeFolderSel.idx] : null;
+        if (!d) { box.innerHTML = ''; return; }
+        const jurl = d.url;
+        const jviewer = isPdfUrl(jurl)
+            ? `<iframe src="${escapeHtml(jurl)}" title="${escapeHtml(d.name)}"></iframe>`
+            : `<img src="${escapeHtml(jurl)}" alt="${escapeHtml(d.name)}" onerror="this.outerHTML = '<iframe src=&quot;' + this.src + '&quot;></iframe>'">`;
+        box.innerHTML = `
+            <div class="fv-bar">
+                <div class="fv-bar-title"><b>${escapeHtml(d.name)}</b>
+                    <small>${escapeHtml(d.group)} • ${escapeHtml(getCleanJobTypeName(j.jobType))} (${escapeHtml(getJobDisplayNo(j))})${d.note ? ` • ${escapeHtml(d.note)}` : ''}</small></div>
+                <div class="fv-bar-actions">
+                    <a class="btn btn-sm btn-outline" href="${escapeHtml(jurl)}" target="_blank" rel="noopener">${icon('link')} เปิดแท็บใหม่</a>
+                    <button type="button" class="btn btn-sm btn-outline" onclick="workerFolderAction('download')">${icon('inbox')} ดาวน์โหลด</button>
+                </div>
+            </div>
+            <div class="fv-doc">${jviewer}</div>`;
+        return;
+    }
     const type = WORKER_FOLDER_DOC_TYPES.find(t => t.key === activeFolderSel.key) || { label: '' };
     const list = getAttachments(w, activeFolderSel.key);
     const fItem = list[activeFolderSel.idx];
@@ -10917,6 +11093,12 @@ function renderWorkerFolderPreview() {
 // ปุ่มดาวน์โหลด/แชร์ของไฟล์ที่เลือก — ไม่ฝัง URL ยาว ๆ (บางไฟล์เป็น base64) ไว้ใน onclick
 function workerFolderAction(action) {
     const w = workers.find(item => item.id === activeFolderWorkerId);
+    if (w && activeFolderSel && activeFolderSel.kind === 'jobdoc') {
+        const j = jobs.find(x => x.id === activeFolderSel.jobId);
+        const d = j ? jobDocsOf(j)[activeFolderSel.idx] : null;
+        if (d && action === 'download') downloadAttachment(d.name, d.url);
+        return;
+    }
     if (!w || !activeFolderSel || activeFolderSel.kind !== 'file') return;
     const fItem = getAttachments(w, activeFolderSel.key)[activeFolderSel.idx];
     if (!fItem) return;

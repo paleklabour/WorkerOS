@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261007h">
+    <link rel="stylesheet" href="styles.css?v=20261007k">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -3020,10 +3020,10 @@
                     </div>
                     <div class="form-group">
                         <div class="combine-jobs-head">
-                            <label>เลือกรายการใบสั่งงานที่ต้องการรวมบิล:</label>
                             <label class="combine-select-all hidden" id="combine-select-all-wrap">
                                 <input type="checkbox" id="combine-select-all" onchange="toggleCombineSelectAll(this.checked)"> เลือกทั้งหมด
                             </label>
+                            <label>เลือกรายการใบสั่งงานที่ต้องการรวมบิล:</label>
                         </div>
                         <div id="combine-jobs-list" class="combine-jobs-list">
                             <span class="text-muted" style="font-size: 13.5px; text-align: center; display: block; padding: 20px 0;">
@@ -3107,6 +3107,21 @@
                             </svg>
                             <input type="text" id="search-worker-folder" placeholder="ค้นหาชื่อไฟล์ในแฟ้มนี้..." oninput="renderWorkerFolderTiles()">
                         </div>
+                    </div>
+
+                    <!-- แท็บ: แยกตามหมวด (เดิม) / เอกสารทั้งหมด (รวมเอกสารปิดงาน+ใบนัดหมายจากใบงาน) + ดาวน์โหลดทั้งหมดเป็น ZIP — ดู setWorkerFolderMode() -->
+                    <div class="fv-mode-bar">
+                        <div class="view-toggle-bar">
+                            <button type="button" class="btn btn-gold btn-sm" id="btn-fv-mode-type" onclick="setWorkerFolderMode('type')">
+                                <span class="ico" data-icon="folder"></span> แยกตามหมวด
+                            </button>
+                            <button type="button" class="btn btn-outline btn-sm" id="btn-fv-mode-all" onclick="setWorkerFolderMode('all')" style="border-color: transparent; color: var(--text-dark); background: transparent;">
+                                <span class="ico" data-icon="clip"></span> เอกสารทั้งหมด
+                            </button>
+                        </div>
+                        <button type="button" class="btn btn-outline btn-sm" id="btn-fv-download-all" onclick="downloadAllWorkerDocs()" title="รวมเอกสารทุกไฟล์ของคนงานนี้ (รวมเอกสารปิดงาน) เป็นไฟล์ ZIP">
+                            <span class="ico" data-icon="inbox"></span> ดาวน์โหลดทั้งหมด
+                        </button>
                     </div>
 
                     <div class="fv-layout">
@@ -3271,7 +3286,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261007h"></script>
+    <script src="supabase-client.js?v=20261007k"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3282,6 +3297,6 @@
     </script>
 
     <!-- Application Script -->
-    <script src="app.js?v=20261007h"></script>
+    <script src="app.js?v=20261007k"></script>
 </body>
 </html>
