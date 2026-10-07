@@ -848,8 +848,19 @@ async function initApp() {
 
         // Initial View
         // บัญชีนายจ้าง (Client) เข้าหน้าพอร์ทัลของตัวเองเลย ไม่ใช่แดชบอร์ดภายใน
-        switchView(currentUser && currentUser.role === 'client' ? 'client-portal' : 'dashboard');
+        // กดรีเฟรชเบราว์เซอร์ → กลับมาหน้าเดิม (และแท็บย่อยหน้าการเงิน) ที่ทำงานอยู่ในแท็บนี้
+        // (ตั้งสิทธิ์ก่อน เพื่อเช็คได้ว่าบัญชีนี้ยังเข้าหน้านั้นได้ — เมนูที่ไม่มีสิทธิ์ถูกซ่อนไว้)
         setupFormPermissions();
+        const lastView = readSessionValue('mw_last_view');
+        const lastFinTab = readSessionValue('mw_last_fin_tab');
+        const lastMenu = lastView ? document.getElementById(`menu-${lastView}`) : null;
+        const canRestore = currentUser && currentUser.role !== 'client' && lastMenu && document.getElementById(`view-${lastView}`)
+            && !lastMenu.classList.contains('hidden') && getComputedStyle(lastMenu).display !== 'none';
+        switchView(currentUser && currentUser.role === 'client' ? 'client-portal' : (canRestore ? lastView : 'dashboard'));
+        if (canRestore && lastView === 'expenses' && lastFinTab) {
+            const finBtn = document.getElementById(`btn-finpage-tab-${lastFinTab}`);
+            if (finBtn && getComputedStyle(finBtn).display !== 'none') switchFinancePageTab(lastFinTab);
+        }
         setupAllSearchSuggestions();
         setupAllSearchSelects();
     } catch (e) {
@@ -1675,7 +1686,15 @@ function renderClientPortalKeepFocus(inputId) {
     if (again) { again.focus(); if (pos !== null) again.setSelectionRange(pos, pos); }
 }
 
+function readSessionValue(key) {
+    try { return sessionStorage.getItem(key); } catch (e) { return null; }
+}
+function writeSessionValue(key, value) {
+    try { sessionStorage.setItem(key, value); } catch (e) { /* ไม่มี storage ก็แค่จำหน้าไม่ได้ */ }
+}
+
 function switchView(viewName) {
+    writeSessionValue('mw_last_view', viewName);
     // Toggles sections
     const sections = document.querySelectorAll(".content-section");
     sections.forEach(sec => sec.classList.add("hidden"));
@@ -2737,6 +2756,7 @@ function switchDashboardTab(tabName) {
 }
 
 function switchFinancePageTab(tabName) {
+    writeSessionValue('mw_last_fin_tab', tabName);
     const tabs = ['overview', 'billing', 'expenses', 'banks', 'prices'];
     tabs.forEach(t => {
         const pane = document.getElementById(`finpage-tab-${t}`);
@@ -14023,10 +14043,39 @@ async function saveServicePriceRow(i, jobType) {
     const res = await callCloudAPI("saveServicePrice", { priceData });
     if (!res || res.status === "error") return;
     const idx = servicePrices.findIndex(p => p.jobType === jobType);
+    const oldPrice = idx === -1 ? null : servicePrices[idx];
     if (idx === -1) servicePrices.push(priceData); else servicePrices[idx] = priceData;
+    const updatedJobs = oldPrice ? await syncUnbilledJobsToServicePrice(jobType, oldPrice, priceData) : 0;
     saveData();
     rerenderServicePriceCosts(i, costItems);
-    showToast(`💾 บันทึกราคามาตรฐาน "${jobType}" แล้ว — กำไรต่องานประมาณ ${fmtMoney(priceData.serviceFee - costItemsTotal(costItems))} บาท`, "success");
+    if (updatedJobs > 0) { renderJobs(); renderBillingTab(); }
+    showToast(`💾 บันทึกราคามาตรฐาน "${jobType}" แล้ว — กำไรต่องานประมาณ ${fmtMoney(priceData.serviceFee - costItemsTotal(costItems))} บาท`
+        + (updatedJobs > 0 ? ` (อัปเดตราคาใบงานที่ยังไม่ออกบิล ${updatedJobs} ใบ)` : ''), "success");
+}
+
+// แก้ราคามาตรฐานแล้ว → ใบงานที่ยังรอออกบิลซึ่งราคายังเท่าราคามาตรฐานเดิม ปรับเป็นราคาใหม่ตาม
+// (ใบงาน fee = 0 ใช้ราคามาตรฐานล่าสุดอยู่แล้ว ไม่ต้องแก้; ใบงานที่ตั้งราคาเองไม่เท่าราคาเดิม / ออกบิลแล้ว / ไม่เรียกเก็บเงิน ไม่แตะ)
+async function syncUnbilledJobsToServicePrice(jobType, oldPrice, newPrice) {
+    const oldTotal = round2((oldPrice.govFee || 0) + (oldPrice.serviceFee || 0));
+    const newTotal = round2((newPrice.govFee || 0) + (newPrice.serviceFee || 0));
+    if (oldTotal === newTotal && (oldPrice.govFee || 0) === (newPrice.govFee || 0)) return 0;
+    let count = 0;
+    for (const j of jobs) {
+        if (!(j.fee > 0) || !jobAwaitingBill(j)) continue;
+        const items = parseJobTypeItems(j.jobType, j.fee);
+        const hits = items.filter(it => it.name === jobType && round2(it.price) === oldTotal);
+        if (hits.length === 0) continue;
+        const prev = { ...j };
+        hits.forEach(it => { it.price = newTotal; });
+        j.fee = round2(items.reduce((s, it) => s + it.price, 0));
+        j.jobType = items.map(it => `${it.name} (${Math.round(it.price)})`).join(', ');
+        j.govFee = Math.max(0, round2((j.govFee || 0) + hits.length * ((newPrice.govFee || 0) - (oldPrice.govFee || 0))));
+        j.updatedAt = localDateISO(new Date());
+        const r = await callCloudAPI("saveJob", { jobData: j });
+        if (!r || r.status === "error") { Object.assign(j, prev); continue; }
+        count++;
+    }
+    return count;
 }
 
 // ---------- เลือกคนงานหลายคนให้รายการในบิลอิสระ ----------
