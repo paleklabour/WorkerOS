@@ -5484,8 +5484,9 @@ async function saveWorker(e) {
     const workerUid = document.getElementById("worker-uid").value;
     const permitNo = document.getElementById("worker-permit-no").value;
     const permitExpiry = document.getElementById("worker-permit-expiry").value.trim();
-    const firstName = document.getElementById("worker-first-name").value;
-    const lastName = document.getElementById("worker-last-name").value;
+    // ยุบช่องว่างซ้อน (ชื่อจาก OCR มักได้ "NUN  WIN  AYE") — ไม่งั้นค้นหาชื่อแบบเว้นช่องเดียวไม่เจอ
+    const firstName = document.getElementById("worker-first-name").value.replace(/\s+/g, ' ').trim();
+    const lastName = document.getElementById("worker-last-name").value.replace(/\s+/g, ' ').trim();
     const dob = document.getElementById("worker-dob").value.trim();
     const refNo = document.getElementById("worker-ref-no").value.trim();
     const gender = document.getElementById("worker-gender").value;
@@ -6341,6 +6342,33 @@ async function addJobCloseDocs(jobId, input) {
     showToast(`📎 แนบเอกสารปิดงานเพิ่ม ${added.length} ไฟล์ให้ ${getJobDisplayNo(jobData)} แล้ว`, "success");
 }
 
+// ---------- เพิ่มงานเข้าชุดงานเดิม (ปุ่มในหน้าต่างแก้ไขใบงาน) ----------
+// เปิดฟอร์มแจ้งงานใหม่ที่เลือกนายจ้าง/คนงาน/Agent ไว้ให้แล้ว — งานที่สร้างใช้ batchId เดียวกับใบงานต้นทาง
+// (ถ้าใบงานต้นทางยังไม่มี batchId จะตั้งให้ตอนบันทึก) ตรวจงานซ้ำ/ล็อกประเภทงานด้วยตรรกะเดิมของ saveJob
+let jobJoinBatch = null; // { batchId, sourceJobId }
+
+async function addJobToBatch() {
+    const sourceId = document.getElementById("job-edit-id").value;
+    const src = jobs.find(j => j.id === sourceId);
+    if (!src || !can('ops')) return;
+    // pop-up รายละเอียดก่อนยืนยัน: ใบงานต้นทาง + งานในชุดเดียวกันที่มีอยู่แล้วของคนงานคนนี้
+    const inBatch = getJobBatchSiblings(src, true);
+    const card = dialogCardForJob(src);
+    card.rows = [...(card.rows || []),
+        ['งานในชุดนี้ตอนนี้', [src, ...inBatch].map(s => getCleanJobTypeName(s.jobType)).join(', ')]];
+    if (!(await uiConfirm("เพิ่มงานประเภทอื่นให้คนงานคนนี้ เข้าชุดงานเดียวกับใบงานนี้?\nกดยืนยันแล้วเลือกประเภทงานที่จะเพิ่มในฟอร์มถัดไป (1 ประเภท = 1 ใบงาน)",
+        { card, okText: 'ยืนยัน เพิ่มงาน' }))) return;
+    openJobModal(null);
+    jobJoinBatch = { batchId: src.batchId || null, sourceJobId: src.id };
+    document.getElementById("job-customer-id").value = src.customerId;
+    const cust = customers.find(c => c.id === src.customerId);
+    const custSearchInput = document.getElementById("job-customer-search");
+    if (custSearchInput) custSearchInput.value = cust ? cust.companyName : '';
+    onJobCustomerChange(src.workerId);
+    document.getElementById("job-agent-id").value = src.agentId || "";
+    document.getElementById("job-modal-title").innerText = `เพิ่มงานเข้าชุดเดียวกับใบงาน ${getJobDisplayNo(src)}`;
+}
+
 function openJobModal(id = null) {
     if (customers.length === 0) {
         uiAlert("กรุณาเพิ่มข้อมูลนายจ้างอย่างน้อย 1 รายก่อนสั่งงาน");
@@ -6349,6 +6377,9 @@ function openJobModal(id = null) {
     }
 
     document.getElementById("job-form").reset();
+    jobJoinBatch = null; // เปิดฟอร์มปกติ = ไม่ได้เพิ่มงานเข้าชุดเดิม (addJobToBatch ตั้งค่าใหม่หลังเรียกฟังก์ชันนี้)
+    const addToBatchBtn = document.getElementById("btn-job-add-to-batch");
+    if (addToBatchBtn) addToBatchBtn.classList.toggle("hidden", !id || !can('ops'));
 
     // Fill customer dropdown selection
     const custSelect = document.getElementById("job-customer-id");
@@ -6806,7 +6837,9 @@ async function saveJob(e) {
         // Add mode: แตกเป็นคนละใบงานต่อคู่ "คนงาน × ประเภทงาน" ที่เลือกทั้งหมด ผูกกันด้วย batchId เดียวกัน
         // (ตัวอย่างต้นแบบของ "1 ใบงาน หลายคนงาน" — เลือกได้หลายคนพร้อมกัน ระบบแตกเป็นใบงานอิสระให้แต่ละคน
         // แต่รู้ว่ามาจากการแจ้งงานครั้งเดียวกัน — ควรตรวจผลลัพธ์ก่อนใช้กับจำนวนคนงานมากๆ)
-        const batchId = 'batch-' + Date.now().toString().slice(-8);
+        // เพิ่มงานเข้าชุดเดิม (addJobToBatch) → ใช้ batchId ของใบงานต้นทาง; ไม่งั้นเปิดชุดใหม่
+        const joinSource = jobJoinBatch ? jobs.find(x => x.id === jobJoinBatch.sourceJobId) : null;
+        const batchId = (joinSource && joinSource.batchId) || 'batch-' + Date.now().toString().slice(-8);
         const totalSubJobs = workerIds.length * selectedItems.length;
         if (!(await confirmBeforeSave(e.target.closest("form") || e.target, "ตรวจสอบก่อนแจ้งงานใหม่", [{ label: "จำนวนใบงานที่จะสร้าง", value: `${totalSubJobs} ใบ (${workerIds.length} คน × ${selectedItems.length} ประเภทงาน)` }]))) return;
         showToast(`💾 กำลังสร้างใบสั่งงานย่อย ${totalSubJobs} รายการเข้าคลาวด์...`, "warning");
@@ -6843,6 +6876,14 @@ async function saveJob(e) {
                 }
             }
         }
+        // ใบงานต้นทางยังไม่เคยอยู่ในชุดใด → ผูกเข้าชุดเดียวกับงานที่เพิ่งเพิ่ม
+        if (joinSource && !joinSource.batchId && failedCount < totalSubJobs) {
+            const prevBatch = joinSource.batchId;
+            joinSource.batchId = batchId;
+            const linkRes = await callCloudAPI("saveJob", { jobData: joinSource });
+            if (!linkRes || linkRes.status === "error") joinSource.batchId = prevBatch;
+        }
+        jobJoinBatch = null;
         if (failedCount > 0) {
             showToast(`⚠️ บันทึกไม่สำเร็จ ${failedCount} จาก ${totalSubJobs} รายการ (ยังไม่ถูกบันทึกลงชีต)`, "danger");
         } else {
@@ -11302,6 +11343,9 @@ function applyOcrDataToWorker(w, docType, p) {
     }
     if (p.ewp) applyEwpDataToWorker(w, p, wpOverride);
     if (docType === 'worker-wp-doc' || (p.ewp && docType !== 'worker-passport')) applyWpPassportInfoToWorker(w, p);
+    // ยุบช่องว่างซ้อนในชื่อที่ AI อ่านมา (เช่น "NUN  WIN  AYE") ให้ค้นหาเจอ
+    if (w.firstName) w.firstName = String(w.firstName).replace(/\s+/g, ' ').trim();
+    if (w.lastName) w.lastName = String(w.lastName).replace(/\s+/g, ' ').trim();
     // อีเมล (เช่น ช่อง Email บนใบเสร็จ) — เติมเมื่อคนงานยังไม่มีอีเมลเท่านั้น
     if (p.email && !w.email) w.email = String(p.email).trim();
 }

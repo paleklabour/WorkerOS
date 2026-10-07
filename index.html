@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261007k">
+    <link rel="stylesheet" href="styles.css?v=20261007o">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -2396,6 +2396,10 @@
                         <div class="form-group" style="margin-bottom: 15px;">
                             <label style="font-weight: 600; font-size: 13.5px; color: var(--navy-dark); margin-bottom: 8px; display: block;">ประเภทงานที่แจ้ง (เลือกได้หลายรายการ) <span class="required">*</span></label>
                             <small class="text-muted" style="display:block; margin-bottom: 8px;">กำหนดราคาค่าบริการภายหลังได้ที่หน้า "บัญชีและการเงิน" &rarr; แท็บ "ออกบิล / รับเงิน"</small>
+                            <!-- แก้ไขใบงาน: เพิ่มงานประเภทอื่นให้คนงานคนนี้ เข้าชุดงานเดียวกัน (batchId) — ดู addJobToBatch() ใน app.js -->
+                            <button type="button" id="btn-job-add-to-batch" class="btn btn-sm btn-gold job-add-to-batch-btn hidden" onclick="addJobToBatch()">
+                                <span class="ico" data-icon="plus"></span> เพิ่มงานให้คนงานคนนี้ (ชุดงานเดียวกัน)
+                            </button>
                             <div id="job-type-checkboxes-container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: var(--radius-sm); padding: 12px;">
                                 <div style="display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
                                     <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
@@ -3286,7 +3290,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261007k"></script>
+    <script src="supabase-client.js?v=20261007o"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3297,6 +3301,6 @@
     </script>
 
     <!-- Application Script -->
-    <script src="app.js?v=20261007k"></script>
+    <script src="app.js?v=20261007o"></script>
 </body>
 </html>

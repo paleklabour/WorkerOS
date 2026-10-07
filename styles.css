@@ -2919,6 +2919,11 @@ td > .ico {
     margin-bottom: 12px;
 }
 
+/* ปุ่ม "เพิ่มงานให้คนงานคนนี้" ในหน้าต่างแก้ไขใบงาน */
+/* สีเดียวกับปุ่ม "บันทึกงาน" (.btn-gold) */
+.btn.job-add-to-batch-btn { margin-bottom: 10px; }
+.btn.job-add-to-batch-btn.hidden { display: none; }
+
 /* แท็บรูปแบบใบวางบิล: แบบรวม / แบบรายคน */
 .invoice-layout-bar {
     display: flex;
