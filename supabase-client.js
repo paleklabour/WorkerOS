@@ -31,7 +31,8 @@
         branches: "branches", drive_folder_id: "drive_folder_id", directorId: "director_id",
         attachments: "attachments", shareToken: "share_token", referredByAgentId: "referred_by_agent_id",
         billingNote: "billing_note", deliveryAddress: "delivery_address", requirePrepayment: "require_prepayment",
-        certIssueDate: "cert_issue_date", certExpiry: "cert_expiry", status: "status"
+        certIssueDate: "cert_issue_date", certExpiry: "cert_expiry", status: "status",
+        email: "email", driveShare: "drive_share" // แชร์โฟลเดอร์สำรองใน Google Drive ให้ลูกค้า (drive-backup)
     };
     const WORKER_MAP = {
         id: "id", employerId: "employer_id", title: "title", nationality: "nationality",

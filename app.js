@@ -1731,6 +1731,7 @@ function switchView(viewName) {
     if (viewName === 'backup') {
         titleEl.innerText = "สำรองและกู้คืนข้อมูลระบบ";
         renderLastBackupInfo();
+        renderDriveBackupStatus();
     }
 
     // Refresh contents
@@ -4830,6 +4831,8 @@ function openCustomerModal(id = null) {
         document.getElementById("cust-phone").value = c.phone;
         document.getElementById("cust-billing-note").value = c.billingNote || "";
         document.getElementById("cust-require-prepayment").checked = !!c.requirePrepayment;
+        document.getElementById("cust-email").value = c.email || "";
+        document.getElementById("cust-drive-share").checked = !!c.driveShare;
         refreshCustomerAgentDropdown(c.referredByAgentId);
         document.getElementById("cust-cert-issue-date").value = formatDateForInput(c.certIssueDate || '');
         updateCertExpiryDisplay();
@@ -5083,6 +5086,9 @@ async function saveCustomer(e) {
     const referredByAgentId = document.getElementById("cust-referred-by-agent").value || null;
     const billingNote = document.getElementById("cust-billing-note").value.trim();
     const requirePrepayment = document.getElementById("cust-require-prepayment").checked;
+    const email = document.getElementById("cust-email").value.trim();
+    const driveShare = document.getElementById("cust-drive-share").checked;
+    if (driveShare && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { uiAlert("กรุณากรอกอีเมลลูกค้าให้ถูกต้องก่อนเปิดแชร์โฟลเดอร์ Google Drive"); return; }
     const certIssueDateRaw = document.getElementById("cust-cert-issue-date").value.trim();
     if (certIssueDateRaw && !isValidDate(certIssueDateRaw)) {
         uiAlert("รูปแบบวันที่ออกหนังสือรับรองบริษัทไม่ถูกต้อง กรุณากรอกเป็น วัน/เดือน/ปี ค.ศ. (เช่น 15/03/2026)");
@@ -5134,7 +5140,7 @@ async function saveCustomer(e) {
             const oldDriveId = customers[idx].drive_folder_id || "";
             const oldAttachments = JSON.parse(JSON.stringify(customers[idx].attachments || {}));
             customerData = {
-                id: editId, status: customers[idx].status || "active", taxId, companyName, directorId, businessType, coordinator, phone, referredByAgentId, billingNote, requirePrepayment, certIssueDate, certExpiry, deliveryAddress, branches: customerBranches, createdAt: oldCreatedAt, drive_folder_id: oldDriveId, attachments: oldAttachments
+                id: editId, status: customers[idx].status || "active", taxId, companyName, directorId, businessType, coordinator, phone, referredByAgentId, billingNote, requirePrepayment, email, driveShare, certIssueDate, certExpiry, deliveryAddress, branches: customerBranches, createdAt: oldCreatedAt, drive_folder_id: oldDriveId, attachments: oldAttachments
             };
         }
     } else {
@@ -5142,7 +5148,7 @@ async function saveCustomer(e) {
         const newId = 'cust-' + Date.now();
         const createdAt = new Date().toISOString().split('T')[0];
         customerData = {
-            id: newId, taxId, companyName, directorId, businessType, coordinator, phone, referredByAgentId, billingNote, requirePrepayment, certIssueDate, certExpiry, deliveryAddress, branches: customerBranches, createdAt, drive_folder_id: "", attachments: {}
+            id: newId, taxId, companyName, directorId, businessType, coordinator, phone, referredByAgentId, billingNote, requirePrepayment, email, driveShare, certIssueDate, certExpiry, deliveryAddress, branches: customerBranches, createdAt, drive_folder_id: "", attachments: {}
         };
     }
 
@@ -9546,6 +9552,48 @@ function renderLastBackupInfo() {
     const days = Math.floor((Date.now() - new Date(last).getTime()) / 86400000);
     el.innerText = `สำรองทั้งระบบล่าสุดจากเครื่องนี้: ${formatDateForInput(last.split('T')[0])} (${days === 0 ? 'วันนี้' : days + ' วันที่แล้ว'})`;
     el.classList.toggle('is-stale', days >= 7);
+}
+
+// ---------- สำรองอัตโนมัติลง Google Drive (Edge Function drive-backup) ----------
+// สถานะรอบล่าสุดจากตาราง drive_backup_runs (Admin อ่านได้คนเดียว) + ปุ่มสั่งสำรองทันที
+async function renderDriveBackupStatus() {
+    const el = document.getElementById('drive-backup-status');
+    if (!el || !window.supabaseAdapter) return;
+    const { data, error } = await window.supabaseAdapter.client.from('drive_backup_runs')
+        .select('*').order('started_at', { ascending: false }).limit(1);
+    if (error) { el.innerText = 'ยังไม่ได้เปิดใช้การสำรองลง Google Drive'; el.classList.add('is-stale'); return; }
+    const r = data && data[0];
+    if (!r) { el.innerText = 'ยังไม่เคยสำรองลง Google Drive'; el.classList.add('is-stale'); return; }
+    const when = new Date(r.finished_at || r.started_at);
+    const hours = Math.floor((Date.now() - when.getTime()) / 3600000);
+    const whenText = `${formatThaiDate(localDateISO(when))} ${when.toTimeString().slice(0, 5)} น.`;
+    if (r.error) {
+        el.innerText = `สำรองลง Google Drive รอบล่าสุด (${whenText}) ไม่สำเร็จ: ${r.error}`;
+        el.classList.add('is-stale');
+        return;
+    }
+    if (!r.finished_at) { el.innerText = `กำลังสำรองลง Google Drive (เริ่ม ${whenText})...`; el.classList.remove('is-stale'); return; }
+    el.innerText = `สำรองลง Google Drive ล่าสุด: ${whenText} — ไฟล์ใหม่ ${r.uploaded}, ปรับชื่อ/ย้าย ${r.updated}, ย้ายไป "ถูกลบ" ${r.moved_to_deleted}` +
+        (r.remaining ? ` — ยังเหลือ ${r.remaining} ไฟล์ จะทำต่อในรอบถัดไป` : '');
+    el.classList.toggle('is-stale', hours >= 26);
+}
+
+async function runDriveBackupNow() {
+    if (currentUser.role !== 'admin' || !window.supabaseAdapter) return;
+    const btn = document.getElementById('btn-drive-backup-now');
+    if (btn) btn.disabled = true;
+    showToast("☁️ กำลังสำรองลง Google Drive (อาจใช้เวลาถึง 2 นาที)...", "warning");
+    try {
+        const { data, error } = await window.supabaseAdapter.client.functions.invoke('drive-backup', { body: { trigger: 'manual' } });
+        if (error || !data || data.status !== 'success') {
+            showToast("❌ สำรองลง Google Drive ไม่สำเร็จ: " + ((data && data.message) || (error && error.message) || 'unknown error'), "danger");
+        } else {
+            showToast(`✅ สำรองลง Google Drive แล้ว — ไฟล์ใหม่ ${data.uploaded} ไฟล์${data.remaining ? ` (ยังเหลือ ${data.remaining} ไฟล์ จะทำต่ออัตโนมัติ)` : ''}`, "success");
+        }
+    } finally {
+        if (btn) btn.disabled = false;
+        renderDriveBackupStatus();
+    }
 }
 
 // กู้คืนจากไฟล์ .json (ข้อมูลอย่างเดียว) หรือ .zip (ข้อมูล + ไฟล์เอกสาร/รูป — อัปโหลดกลับไปที่ path เดิมบน Storage

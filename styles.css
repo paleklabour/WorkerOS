@@ -2919,6 +2919,21 @@ td > .ico {
     margin-bottom: 12px;
 }
 
+/* หน้าสำรองข้อมูล: กล่อง "สำรองอัตโนมัติลง Google Drive" */
+.drive-backup-card {
+    background-color: var(--dk-subtle, #f8fafc);
+    border: 1px solid var(--dk-line, #e2e8f0);
+    border-radius: var(--radius-sm);
+    padding: 20px;
+}
+.drive-backup-card h4 { font-size: 14.5px; font-weight: 600; margin-bottom: 8px; color: var(--navy-dark); display: flex; align-items: center; gap: 6px; }
+.drive-backup-card p { font-size: 13px; color: var(--text-muted); margin-bottom: 15px; line-height: 1.5; }
+
+/* ฟอร์มนายจ้าง: ช่องติ๊กแชร์โฟลเดอร์ Google Drive */
+.cust-drive-share-group { display: flex; align-items: flex-end; }
+.cust-drive-share-label { display: flex; align-items: center; gap: 8px; font-weight: 600; cursor: pointer; margin-bottom: 10px; }
+.cust-drive-share-label input { width: 16px; height: 16px; cursor: pointer; }
+
 /* pop-up "รับเงิน / มัดจำ" — เกือบเต็มจอ เห็นรายการบิลค้าง/ช่องกรอกครบโดยไม่ต้องเลื่อนมาก */
 .modal-content.receive-money-content { max-width: 1280px; width: 96vw; height: 92vh; max-height: 92vh; }
 .receive-money-content .modal-body { flex: 1; }

@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261008c">
+    <link rel="stylesheet" href="styles.css?v=20261008d">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -1484,6 +1484,21 @@
                                     <div id="backup-progress" class="backup-progress hidden"></div>
                                 </div>
 
+                                <!-- สำรองอัตโนมัติลง Google Drive (Edge Function drive-backup ทุกชั่วโมง) — ดู renderDriveBackupStatus() ใน app.js -->
+                                <div class="drive-backup-card">
+                                    <h4><span class="ico" data-icon="cloud"></span> สำรองอัตโนมัติลง Google Drive</h4>
+                                    <p>
+                                        ระบบคัดลอกไฟล์เอกสารใหม่ทุกไฟล์ไปเก็บใน Google Drive ทุกชั่วโมง จัดโฟลเดอร์ตามนายจ้าง → คนงาน (ชื่อไฟล์บอกประเภทเอกสาร),
+                                        สลิปการเงินแยกตามเดือน และไฟล์ข้อมูลทั้งระบบวันละ 1 ไฟล์ (เก็บ 30 วัน) — ไฟล์ที่ลบในระบบจะถูกย้ายไปโฟลเดอร์ "ถูกลบ" ไม่หายไป
+                                    </p>
+                                    <div class="backup-actions">
+                                        <button class="btn btn-gold" id="btn-drive-backup-now" onclick="runDriveBackupNow()">
+                                            <span class="ico" data-icon="refresh"></span> สำรองลง Google Drive ตอนนี้
+                                        </button>
+                                    </div>
+                                    <div id="drive-backup-status" class="backup-last-info"></div>
+                                </div>
+
                                 <!-- Section 2: Import Data from Drive file -->
                                 <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); padding: 20px;">
                                     <h4 style="font-size: 14.5px; font-weight: 600; margin-bottom: 8px; color: var(--navy-dark);">2. นำเข้าข้อมูลระบบจากภายนอก (Import Backup File)</h4>
@@ -1746,6 +1761,20 @@
                                 <label style="display: flex; align-items: center; gap: 8px; font-weight: 600; cursor: pointer;">
                                     <input type="checkbox" id="cust-require-prepayment" style="width: 16px; height: 16px; cursor: pointer;">
                                     <span class="ico" data-icon="moneybag"></span> ต้องชำระเงินก่อนเริ่มดำเนินการ (บล็อกไม่ให้ย้ายใบงานของนายจ้างรายนี้เข้าสถานะ "กำลังดำเนินการ" จนกว่าจะออกบิลและรับชำระแล้ว)
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- แชร์โฟลเดอร์สำรองใน Google Drive ของนายจ้างรายนี้ให้ลูกค้า (อ่านอย่างเดียว) — ทำโดย Edge Function drive-backup รอบถัดไป -->
+                        <div class="form-row">
+                            <div class="form-group col-6">
+                                <label for="cust-email">อีเมลลูกค้า (Google) สำหรับแชร์โฟลเดอร์เอกสาร</label>
+                                <input type="email" id="cust-email" placeholder="เช่น accounting@company.com">
+                            </div>
+                            <div class="form-group col-6 cust-drive-share-group">
+                                <label class="cust-drive-share-label">
+                                    <input type="checkbox" id="cust-drive-share">
+                                    <span class="ico" data-icon="folder"></span> แชร์โฟลเดอร์ Google Drive ของนายจ้างรายนี้ให้อีเมลนี้ (ดูได้อย่างเดียว)
                                 </label>
                             </div>
                         </div>
@@ -3319,7 +3348,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261008c"></script>
+    <script src="supabase-client.js?v=20261008d"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3330,6 +3359,6 @@
     </script>
 
     <!-- Application Script -->
-    <script src="app.js?v=20261008c"></script>
+    <script src="app.js?v=20261008d"></script>
 </body>
 </html>
