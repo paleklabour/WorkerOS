@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261008v">
+    <link rel="stylesheet" href="styles.css?v=20261008x">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -2642,9 +2642,21 @@
                                 <!-- Dynamic Banks Dropdown -->
                             </select>
                         </div>
-                        <button class="btn btn-gold" onclick="window.print()" style="margin-top: 20px;">
-                            <span class="ico" data-icon="print"></span> พิมพ์ใบวางบิล (Print)
-                        </button>
+                        <div class="invoice-send-actions">
+                            <button class="btn btn-gold" onclick="window.print()">
+                                <span class="ico" data-icon="print"></span> พิมพ์ใบวางบิล (Print)
+                            </button>
+                            <!-- ส่งให้ลูกค้าโดยไม่ต้องโหลดไฟล์ลงเครื่อง — ดู copyInvoiceImage() / copyInvoiceShareLink() ใน app.js -->
+                            <button class="btn btn-outline" id="btn-copy-invoice-image" onclick="copyInvoiceImage()" title="คัดลอกใบวางบิลเป็นรูปคมชัด แล้ว Ctrl+V วางในแชท LINE ได้เลย">
+                                <span class="ico" data-icon="photo"></span> คัดลอกเป็นรูป
+                            </button>
+                            <button class="btn btn-outline needs-finance" id="btn-copy-invoice-link" onclick="copyInvoiceShareLink()" title="คัดลอกลิงก์ให้ลูกค้าเปิดดูใบวางบิลในเบราว์เซอร์ (ไม่ต้องล็อกอิน)">
+                                <span class="ico" data-icon="link"></span> คัดลอกลิงก์
+                            </button>
+                            <button class="btn btn-outline btn-danger-outline needs-finance hidden" id="btn-revoke-invoice-link" onclick="revokeInvoiceShareLink()" title="ยกเลิกลิงก์ใบวางบิลนี้ — ลิงก์ที่เคยส่งไปจะเปิดไม่ได้">
+                                <span class="ico" data-icon="ban"></span> ยกเลิกลิงก์
+                            </button>
+                        </div>
                     </div>
 
                     <!-- รูปแบบใบวางบิล: แบบรวม (ตามประเภทงาน) / แบบรายคน (1 แถวต่อคนงาน) — ดู setInvoiceLayout() ใน app.js -->
@@ -3308,7 +3320,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261008v"></script>
+    <script src="supabase-client.js?v=20261008x"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3319,6 +3331,6 @@
     </script>
 
     <!-- Application Script -->
-    <script src="app.js?v=20261008v"></script>
+    <script src="app.js?v=20261008x"></script>
 </body>
 </html>

@@ -3130,6 +3130,9 @@ td > .ico {
 .job-batch-tab:hover { border-color: var(--gold-primary); color: var(--gold-primary); }
 .job-batch-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
 
+/* หน้าต่างใบวางบิล: ปุ่มพิมพ์ / คัดลอกเป็นรูป / คัดลอกลิงก์ */
+.invoice-send-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 20px; }
+
 /* แท็บรูปแบบใบวางบิล: แบบรวม / แบบรายคน */
 .invoice-layout-bar {
     display: flex;
@@ -4343,7 +4346,12 @@ tr.is-voided-row td {
     .invoice-sheet {
         border: none !important;
         border-radius: 0 !important;
-        padding: 0 !important;
+        /* ขอบ 10 มม. อยู่ในแผ่น (@page margin: 0 — INVOICE_PAGE_CSS) ไม่มีหัว/ท้ายกระดาษของเบราว์เซอร์ พิมพ์เหมือนกันทุกเบราว์เซอร์
+           clone = เว้นขอบให้ทุกหน้า กรณีบิลยาวเกิน 1 หน้า */
+        padding: 10mm !important;
+        box-sizing: border-box !important;
+        -webkit-box-decoration-break: clone;
+        box-decoration-break: clone;
         width: auto !important;
         min-height: 0 !important;
         max-width: 100% !important;

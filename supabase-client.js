@@ -82,7 +82,8 @@
         jobIds: "job_ids", items: "items", subtotal: "subtotal", grandTotal: "grand_total", govFeeTotal: "gov_fee_total",
         issueDate: "issue_date", dueDateText: "due_date_text", notes: "notes", bankId: "bank_id", status: "status",
         voidReason: "void_reason", voidedAt: "voided_at", voidedBy: "voided_by",
-        createdBy: "created_by", createdAt: "created_at", updatedAt: "updated_at"
+        createdBy: "created_by", createdAt: "created_at", updatedAt: "updated_at",
+        shareToken: "share_token" // ลิงก์ใบวางบิลให้ลูกค้า (invoice.html + Edge Function share-invoice)
     };
     const PAYMENT_MAP = {
         id: "id", invoiceId: "invoice_id", receiptNo: "receipt_no", amount: "amount", paidDate: "paid_date",

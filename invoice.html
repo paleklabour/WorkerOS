@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>ใบวางบิล / ใบแจ้งหนี้</title>
+<!-- หน้าใบวางบิลสาธารณะ (ลิงก์ส่งลูกค้า ไม่ต้องล็อกอิน) — ใช้ styles.css ชุดเดียวกับระบบ หน้าตาแผ่นบิลจึงเหมือนตอนพิมพ์จากระบบ
+     ข้อมูลมาจาก Edge Function share-invoice (ตรวจ share_token ของบิล) — สร้าง/ยกเลิกลิงก์ได้จากหน้าใบวางบิลในระบบ -->
+<link rel="stylesheet" href="styles.css?v=20261008x">
+<style>
+    body { background: #e9ecf2; margin: 0; padding: 16px; }
+    .share-toolbar {
+        max-width: 210mm; margin: 0 auto 14px; display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap;
+    }
+    .share-wrap { max-width: 210mm; margin: 0 auto; overflow-x: auto; }
+    .share-msg {
+        max-width: 520px; margin: 60px auto; padding: 28px; text-align: center; background: #fff;
+        border-radius: 18px; box-shadow: 0 6px 24px rgba(15, 23, 42, 0.1); color: #334155; font-size: 15px;
+    }
+    .share-balance-note { max-width: 210mm; margin: 0 auto 12px; font-size: 14px; color: #334155; text-align: right; }
+    /* เหมือนพิมพ์จากระบบ (INVOICE_PAGE_CSS): A4 ขอบกระดาษ 0 — ขอบ 10 มม. อยู่ในแผ่นบิล ไม่มีหัว/ท้ายกระดาษของเบราว์เซอร์ */
+    @page { size: A4 portrait; margin: 0; }
+    @media print {
+        body { background: #fff; padding: 0; }
+        .share-toolbar, .share-balance-note { display: none !important; }
+        .share-wrap { max-width: none; overflow: visible; }
+    }
+</style>
+</head>
+<body>
+<div class="share-toolbar" id="share-toolbar" hidden>
+    <button class="btn btn-gold" onclick="window.print()">พิมพ์ / บันทึกเป็น PDF</button>
+</div>
+<div class="share-balance-note" id="share-balance-note" hidden></div>
+<div class="share-wrap" id="share-wrap"><div class="share-msg">กำลังโหลดใบวางบิล...</div></div>
+
+<script>
+const SUPABASE_URL = "https://cagpzvrqtjkuabhqaqon.supabase.co";
+// ผู้ออกบิล — ตรงกับหัวบิลใน index.html (#invoice-sheet-container .invoice-brand)
+const ISSUER = {
+    name: "นาย ศรุต คุณารักษ์",
+    addr: "เลขที่ 14 หมู่ 2 ถ.เลียบคลอง ร.5 ต.คอหงส์ อ.หาดใหญ่ จ.สงขลา 90110 โทร 098-7415888",
+    tax: "เลขผู้เสียภาษี: 1102001179399"
+};
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const money = v => Number(v || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// วันที่ไทย วว/ดด/ปปปป (พ.ศ.) — เหมือน formatThaiDate ใน app.js
+function thaiDate(v) {
+    const m = String(v || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+    return m ? `${m[3]}/${m[2]}/${Number(m[1]) + 543}` : (v || '-');
+}
+// จำนวนเงินเป็นคำอ่านภาษาไทย — สำเนาจาก bahtText() ใน app.js (หน้านี้ไม่โหลด app.js)
+function bahtText(amount) {
+    const n = Math.round((Number(amount) || 0) * 100) / 100;
+    const digits = ['ศูนย์', 'หนึ่ง', 'สอง', 'สาม', 'สี่', 'ห้า', 'หก', 'เจ็ด', 'แปด', 'เก้า'];
+    const units = ['', 'สิบ', 'ร้อย', 'พัน', 'หมื่น', 'แสน'];
+    const readGroup = (s) => {
+        let out = '';
+        for (let i = 0; i < s.length; i++) {
+            const d = +s[i], pos = s.length - i - 1;
+            if (d === 0) continue;
+            if (pos === 0 && d === 1 && s.length > 1) out += 'เอ็ด';
+            else if (pos === 1 && d === 2) out += 'ยี่';
+            else if (pos === 1 && d === 1) out += '';
+            else out += digits[d];
+            out += units[pos];
+        }
+        return out;
+    };
+    const readInt = (s) => {
+        s = s.replace(/^0+/, '');
+        if (!s) return '';
+        if (s.length > 6) { const rest = s.slice(-6).replace(/^0+/, ''); return readInt(s.slice(0, -6)) + 'ล้าน' + (rest === '1' ? 'เอ็ด' : readGroup(rest)); }
+        return readGroup(s);
+    };
+    const [ip, dp] = n.toFixed(2).split('.');
+    const b = readInt(ip), st = parseInt(dp, 10);
+    if (!b && !st) return 'ศูนย์บาทถ้วน';
+    return (b ? b + 'บาท' : '') + (st ? readInt(dp) + 'สตางค์' : 'ถ้วน');
+}
+
+function render(inv) {
+    document.title = `ใบวางบิล ${inv.invoiceNo}`;
+    const rows = (inv.rows || []).map((r, i) => `
+        <tr>
+            <td style="text-align:center;">${i + 1}</td>
+            <td class="inv-item-desc-cell"><div class="inv-item-title">${esc(r.title)}</div><div class="inv-item-desc">${esc(r.desc)}</div></td>
+            <td style="text-align:center;">${r.qty || 1}</td>
+            <td class="inv-num">${money(r.unitPrice)}</td>
+            <td class="inv-num inv-amount">${money(r.fee)}</td>
+        </tr>`).join('');
+    const partial = inv.paid > 0 && inv.balance > 0;
+    const stamp = inv.status === 'paid' ? '<div class="invoice-stamp is-paid">ชำระเงินครบแล้ว</div>' : '';
+    document.getElementById('share-wrap').innerHTML = `
+        <div class="invoice-sheet">
+            <div class="invoice-sheet-header">
+                <div class="invoice-brand">
+                    <img src="assets/logo.png" alt="" class="invoice-logo-img">
+                    <div><h2>${esc(ISSUER.name)}</h2><p>${esc(ISSUER.addr)}</p><p>${esc(ISSUER.tax)}</p></div>
+                </div>
+                <div class="invoice-meta-title">
+                    <h1>ใบวางบิล / ใบแจ้งหนี้</h1>
+                    <p class="invoice-meta-sub">BILLING NOTE / INVOICE</p>
+                    <div class="invoice-meta-box">
+                        <div><span>เลขที่</span> <strong>${esc(inv.invoiceNo)}</strong></div>
+                        <div><span>วันที่</span> <strong>${thaiDate(inv.issueDate)}</strong></div>
+                        <div><span>กำหนดชำระ</span> <strong>${esc(inv.dueDateText || '-')}</strong></div>
+                    </div>
+                </div>
+            </div>
+            ${stamp}
+            <hr class="invoice-hr">
+            <div class="invoice-addresses-row">
+                <div class="inv-addr-block">
+                    <h5>ลูกค้า / นายจ้างผู้รับบริการ:</h5>
+                    <p><strong>${esc(inv.customerName || '-')}</strong></p>
+                    <p>${esc(inv.customerAddr || '-')}</p>
+                    <p>${esc(inv.customerTax || '-')}</p>
+                </div>
+            </div>
+            <table class="invoice-table">
+                <thead><tr>
+                    <th class="inv-col-no">ลำดับ</th><th>รายการ (Services Description)</th><th class="inv-col-qty">จำนวน</th>
+                    <th class="inv-col-money">ราคา/หน่วย</th><th class="inv-col-money">จำนวนเงิน (บาท)</th>
+                </tr></thead>
+                <tbody>${rows}</tbody>
+                <tfoot>
+                    <tr class="inv-summary-row grand-total"><td colspan="4" class="sum-label">จำนวนเงินรวมทั้งสิ้น (Grand Total)</td><td class="sum-value">${money(inv.grandTotal)}</td></tr>
+                    ${partial ? `<tr class="inv-summary-row"><td colspan="4" class="sum-label">หัก ชำระแล้ว</td><td class="sum-value">${money(inv.paid)}</td></tr>
+                    <tr class="inv-summary-row"><td colspan="4" class="sum-label">คงเหลือที่ต้องชำระ</td><td class="sum-value">${money(inv.balance)}</td></tr>` : ''}
+                    <tr class="inv-words-row"><td colspan="5">(${bahtText(partial ? inv.balance : inv.grandTotal)})</td></tr>
+                </tfoot>
+            </table>
+            ${inv.bank ? `
+            <div class="invoice-payment-section">
+                <div class="payment-bank-details">
+                    <h5>ช่องทางชำระเงินโอนผ่านธนาคาร:</h5>
+                    <div class="bank-info-card">
+                        <div style="font-weight:600; font-size:14.5px;">${esc(inv.bank.bankName)}</div>
+                        <div><strong>ชื่อบัญชี:</strong> ${esc(inv.bank.accountName || '-')}</div>
+                        <div><strong>เลขที่บัญชี:</strong> ${esc(inv.bank.accountNumber || '-')}</div>
+                    </div>
+                    <p class="invoice-slip-notice">* กรุณาส่งหลักฐานการโอนเงิน (Slip) ให้เจ้าหน้าที่ผู้ประสานงาน</p>
+                </div>
+            </div>` : ''}
+            <div class="invoice-notes-row"><strong>หมายเหตุ:</strong> <span>${esc(inv.notes || '-')}</span></div>
+            <div class="invoice-signature-row">
+                <div class="invoice-signature-block"><div class="signature-line"></div><p>ผู้วางบิล (Delivered By)</p><p class="signature-date">วันที่ ${thaiDate(inv.issueDate)}</p></div>
+                <div class="invoice-signature-block"><div class="signature-line"></div><p>ผู้รับวางบิล (Received By)</p><p class="signature-date">วันที่ ....... /....... /..........</p></div>
+            </div>
+        </div>`;
+    document.getElementById('share-toolbar').hidden = false;
+    const note = document.getElementById('share-balance-note');
+    if (inv.status === 'paid') { note.textContent = 'ใบวางบิลนี้ชำระเงินครบแล้ว ขอบคุณครับ'; note.hidden = false; }
+    else if (partial) { note.textContent = `ชำระแล้ว ${money(inv.paid)} บาท — คงเหลือ ${money(inv.balance)} บาท`; note.hidden = false; }
+}
+
+(async () => {
+    const p = new URLSearchParams(location.search);
+    const id = p.get('id'), token = p.get('t'), layout = p.get('layout') || 'service';
+    const wrap = document.getElementById('share-wrap');
+    if (!id || !token) { wrap.innerHTML = '<div class="share-msg">ลิงก์ไม่ถูกต้อง</div>'; return; }
+    try {
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/share-invoice?id=${encodeURIComponent(id)}&token=${encodeURIComponent(token)}&layout=${encodeURIComponent(layout)}`);
+        const data = await res.json();
+        if (data.status !== 'success') { wrap.innerHTML = `<div class="share-msg">${esc(data.message || 'เปิดใบวางบิลไม่ได้')}</div>`; return; }
+        render(data.invoice);
+    } catch (e) {
+        wrap.innerHTML = '<div class="share-msg">โหลดใบวางบิลไม่สำเร็จ กรุณาลองใหม่อีกครั้ง</div>';
+    }
+})();
+</script>
+</body>
+</html>

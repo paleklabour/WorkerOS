@@ -5013,8 +5013,10 @@ function refreshDeliverySamePreview() {
     `;
 }
 
-// บิล/ใบเสร็จพิมพ์ลง A4 แนวตั้ง ขอบ 10 มม. (หน้าตาบนจอเป็นแผ่น A4 เท่ากัน — ดู .invoice-sheet ใน styles.css)
-const INVOICE_PAGE_CSS = "size: A4 portrait; margin: 10mm;";
+// บิล/ใบเสร็จพิมพ์ลง A4 แนวตั้ง (หน้าตาบนจอเป็นแผ่น A4 เท่ากัน — ดู .invoice-sheet ใน styles.css)
+// ขอบกระดาษ 0 แล้วเว้นขอบ 10 มม. ในตัวแผ่นแทน (padding ใน @media print) — เบราว์เซอร์ไม่มีที่พิมพ์หัว/ท้ายกระดาษ
+// (วันที่/ลิงก์ localhost) และขอบเท่ากันทุกเบราว์เซอร์ ไม่ว่าตั้ง Margins ในหน้าต่างพิมพ์ไว้แบบไหน (Chrome = Edge)
+const INVOICE_PAGE_CSS = "size: A4 portrait; margin: 0;";
 
 function setPrintPageSize(pageCss) {
     let styleTag = document.getElementById("dynamic-print-page-size");
@@ -13878,6 +13880,100 @@ async function syncJobsWithInvoice(inv) {
 }
 
 // หัวบิล (ตราประทับ) + ปุ่มท้ายหน้าต่าง + แผงรับเงิน ตามสถานะของบิลที่เปิดอยู่
+// ---------- ส่งใบวางบิลให้ลูกค้าโดยไม่ต้องโหลดไฟล์ลงเครื่อง ----------
+// 1) คัดลอกเป็นรูป: ถ่ายภาพแผ่นบิล (เหมือนตอนพิมพ์ ไม่มีส่วนภายใน) ความละเอียด 3 เท่า → คลิปบอร์ด (Ctrl+V ใน LINE)
+//    เบราว์เซอร์ที่คัดลอกรูปไม่ได้ (มือถือ/Safari บางรุ่น) → เปิดเมนูแชร์ของเครื่องแทน
+// 2) ลิงก์ใบวางบิล: invoice.html?id=…&t=<share_token> เปิดได้โดยไม่ต้องล็อกอิน (Edge Function share-invoice) ข้อมูลสดเสมอ
+function loadHtml2Canvas() {
+    if (window.html2canvas) return Promise.resolve(window.html2canvas);
+    return new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+        s.onload = () => resolve(window.html2canvas);
+        s.onerror = () => reject(new Error('โหลดตัวสร้างรูปไม่สำเร็จ (ตรวจสอบอินเทอร์เน็ต)'));
+        document.head.appendChild(s);
+    });
+}
+
+async function copyInvoiceImage() {
+    const sheet = document.getElementById('invoice-sheet-container');
+    if (!sheet) return;
+    const btn = document.getElementById('btn-copy-invoice-image');
+    if (btn) btn.disabled = true;
+    try {
+        showToast("📸 กำลังสร้างรูปใบวางบิล...", "warning");
+        const h2c = await loadHtml2Canvas();
+        const canvas = await h2c(sheet, {
+            scale: 3, backgroundColor: '#ffffff', useCORS: true, logging: false,
+            ignoreElements: el => !!(el.classList && el.classList.contains('no-print')),
+            onclone: doc => {
+                // หน้าตาเหมือนตอนพิมพ์: แผ่นบิลสีขาวเสมอ ไม่มีเส้นประ/คำแนะนำของช่องที่แก้ได้
+                doc.documentElement.removeAttribute('data-theme');
+                doc.querySelectorAll('[contenteditable]').forEach(e => e.removeAttribute('contenteditable'));
+                doc.querySelectorAll('.inv-editable').forEach(e => e.classList.remove('inv-editable'));
+                doc.querySelectorAll('[data-placeholder]').forEach(e => e.removeAttribute('data-placeholder'));
+            }
+        });
+        const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+        const name = `${(document.getElementById('inv-no') || {}).innerText || 'invoice'}.png`.replace(/[\\/:*?"<>|\s]+/g, '_');
+        if (navigator.clipboard && window.ClipboardItem) {
+            try {
+                await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+                showToast("✅ คัดลอกรูปใบวางบิลแล้ว — เปิดแชท LINE แล้วกด Ctrl+V", "success");
+                return;
+            } catch (e) { /* ไปใช้เมนูแชร์แทน */ }
+        }
+        const file = new File([blob], name, { type: 'image/png' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({ files: [file], title: name });
+            return;
+        }
+        uiAlert("เบราว์เซอร์นี้คัดลอกรูปไม่ได้ — ลองใช้ Chrome หรือ Edge หรือใช้ปุ่ม \"คัดลอกลิงก์\" แทน");
+    } catch (err) {
+        if (err && err.name === 'AbortError') return; // ปิดเมนูแชร์เอง
+        showToast("❌ สร้างรูปไม่สำเร็จ: " + (err && err.message ? err.message : 'unknown error'), "danger");
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
+async function copyInvoiceShareLink() {
+    const inv = currentInvoiceId ? invoices.find(i => i.id === currentInvoiceId) : null;
+    if (!inv) { uiAlert('กด "ออกบิล" ให้ได้เลขที่ก่อน จึงจะสร้างลิงก์ส่งลูกค้าได้'); return; }
+    if (inv.status === 'void') { uiAlert('บิลนี้ถูกยกเลิกแล้ว สร้างลิงก์ไม่ได้'); return; }
+    if (!can('finance')) return;
+    if (!inv.shareToken) {
+        const bytes = crypto.getRandomValues(new Uint8Array(18));
+        const token = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+        const res = await callCloudAPI("saveInvoice", { invoiceData: Object.assign({}, inv, { shareToken: token }) });
+        if (!res || res.status === "error") { showToast("❌ สร้างลิงก์ไม่สำเร็จ: " + ((res && res.message) || 'กรุณาลองใหม่'), "danger"); return; }
+        inv.shareToken = token;
+        saveData();
+        renderInvoiceStatusUi();
+    }
+    const url = new URL('invoice.html', location.href);
+    url.search = new URLSearchParams({ id: inv.id, t: inv.shareToken, layout: invoiceLayout }).toString();
+    const text = `ใบวางบิล ${inv.invoiceNo} — ${inv.customerName || ''}\n${url.toString()}`;
+    try {
+        await navigator.clipboard.writeText(text);
+        showToast("🔗 คัดลอกลิงก์ใบวางบิลแล้ว — วางในแชท LINE ส่งลูกค้าได้เลย", "success");
+    } catch (e) {
+        await uiAlert(`คัดลอกลิงก์อัตโนมัติไม่ได้ — ลากเลือกลิงก์นี้แล้วคัดลอกส่งให้ลูกค้า:\n\n${url.toString()}`);
+    }
+}
+
+async function revokeInvoiceShareLink() {
+    const inv = currentInvoiceId ? invoices.find(i => i.id === currentInvoiceId) : null;
+    if (!inv || !inv.shareToken || !can('finance')) return;
+    if (!(await uiConfirm(`ยกเลิกลิงก์ใบวางบิล ${inv.invoiceNo}? ลิงก์ที่เคยส่งให้ลูกค้าจะเปิดไม่ได้ (สร้างลิงก์ใหม่ได้ภายหลัง)`, { okText: 'ยกเลิกลิงก์' }))) return;
+    const res = await callCloudAPI("saveInvoice", { invoiceData: Object.assign({}, inv, { shareToken: null }) });
+    if (!res || res.status === "error") { showToast("❌ ยกเลิกลิงก์ไม่สำเร็จ: " + ((res && res.message) || 'กรุณาลองใหม่'), "danger"); return; }
+    inv.shareToken = null;
+    saveData();
+    renderInvoiceStatusUi();
+    showToast("🚫 ยกเลิกลิงก์ใบวางบิลแล้ว", "success");
+}
+
 function renderInvoiceStatusUi() {
     const inv = currentInvoiceId ? invoices.find(i => i.id === currentInvoiceId) : null;
     const status = inv ? inv.status : 'draft';
@@ -13889,6 +13985,11 @@ function renderInvoiceStatusUi() {
         stamp.className = 'invoice-stamp' + (status === 'paid' ? ' is-paid' : status === 'void' ? ' is-void' : ' hidden');
         stamp.textContent = status === 'paid' ? 'ชำระเงินครบแล้ว' : status === 'void' ? 'ยกเลิก' : '';
     }
+    // ปุ่มลิงก์ใบวางบิล: ใช้ได้เฉพาะบิลที่ออกแล้ว (มีเลขที่) และยังไม่ยกเลิก — "ยกเลิกลิงก์" โผล่เมื่อมีลิงก์อยู่
+    const linkBtn = document.getElementById("btn-copy-invoice-link");
+    const revokeBtn = document.getElementById("btn-revoke-invoice-link");
+    if (linkBtn) linkBtn.disabled = !inv || status === 'void';
+    if (revokeBtn) revokeBtn.classList.toggle("hidden", !(inv && inv.shareToken && status !== 'void'));
 
     const meta = INVOICE_STATUS_META[status];
     const statusEl = document.getElementById("invoice-footer-status");
