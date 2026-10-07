@@ -67,7 +67,7 @@
         // งานไม่เรียกเก็บเงิน (20261006090000_job_no_charge.sql)
         noChargeReason: "no_charge_reason", noChargeBy: "no_charge_by", noChargeAt: "no_charge_at",
         // หมายเหตุสั้น ≤ 20 ตัวอักษร (20261006140000_job_remark.sql)
-        remark: "remark", tag: "tag"
+        remark: "remark", tag: "tag", openedAt: "opened_at"
     };
     const AGENT_MAP = { id: "id", name: "name", phone: "phone", createdAt: "created_at", defaultCommission: "default_commission" };
     const EXPENSE_MAP = {

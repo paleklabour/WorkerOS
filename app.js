@@ -2955,17 +2955,16 @@ function renderBillingTab() {
     }, 0);
     // บิลที่มีใบงาน → ใช้วันเปิดงาน/เลขใบงานของใบงานที่เปิดล่าสุดในบิลนั้น (เรียงตามการเปิดงาน เหมือนหน้าแจ้งงาน)
     const newestInvoiceJob = inv => (inv.jobIds || []).map(id => jobs.find(j => j.id === id)).filter(Boolean)
-        .sort((a, b) => day(b.createdAt || b.updatedAt).localeCompare(day(a.createdAt || a.updatedAt))
-            || String(b.id).localeCompare(String(a.id), undefined, { numeric: true }))[0] || null;
+        .sort((a, b) => jobOpenedSortKey(b).localeCompare(jobOpenedSortKey(a)))[0] || null;
     const rows = [
-        ...unbilledJobs.map((j, i) => ({ d: day(j.createdAt || j.updatedAt), t: 1, s: String(j.id), html: jobRows[i],
+        ...unbilledJobs.map((j, i) => ({ d: day(j.createdAt || j.updatedAt), t: 1, s: jobOpenedSortKey(j), html: jobRows[i],
             no: getJobDisplayNo(j), kind: 'ยังไม่ออกบิล', customer: custName(j.customerId), detail: getCleanJobTypeName(j.jobType),
             amount: jobAmount(j), balance: 0, status: 0 })),
-        ...noChargeJobs.map((j, i) => ({ d: day(j.createdAt || j.updatedAt), t: 1, s: String(j.id), html: noChargeRows[i],
+        ...noChargeJobs.map((j, i) => ({ d: day(j.createdAt || j.updatedAt), t: 1, s: jobOpenedSortKey(j), html: noChargeRows[i],
             no: getJobDisplayNo(j), kind: JOB_NO_CHARGE, customer: custName(j.customerId), detail: getCleanJobTypeName(j.jobType),
             amount: 0, balance: 0, status: 4 })),
         ...shownInvoices.map((inv, i) => { const nj = newestInvoiceJob(inv); return {
-            d: nj ? day(nj.createdAt || nj.updatedAt) : day(inv.issueDate), t: 1, s: nj ? String(nj.id) : String(inv.invoiceNo || ''), html: invoiceRows[i],
+            d: nj ? day(nj.createdAt || nj.updatedAt) : day(inv.issueDate), t: 1, s: nj ? jobOpenedSortKey(nj) : String(inv.invoiceNo || ''), html: invoiceRows[i],
             free: inv.kind === 'free', no: inv.invoiceNo || '', kind: kindLabel[inv.kind] || 'บิล', customer: inv.customerName || '',
             detail: inv.kind === 'free' ? (inv.workerName || (inv.items || [])[0]?.title || '') : (inv.items || []).map(x => x.serviceName || x.title).filter(Boolean).join(', '),
             amount: Number(inv.grandTotal) || 0, balance: inv.status === 'void' ? 0 : invoiceBalance(inv),
@@ -3722,10 +3721,12 @@ function renderWorkers() {
         // ยังไม่เคยมีใบงานเลยสักใบ = ยังไม่เคยแจ้งงานให้คนงานคนนี้เลย (ไม่รวมคนที่กำลังรอขึ้นทะเบียนอยู่แล้ว เพราะขึ้นทะเบียนเสร็จก็ถือว่าเข้าระบบแล้วไม่ต้องแจ้งเข้าซ้ำ,
         // และไม่รวมคนที่ admin ระบุไว้ว่าไม่ต้องแจ้งเข้า — ดู worker-skip-notify ในฟอร์มเพิ่ม/แก้ไขคนงาน)
         // admin กดที่ป้ายได้เลย = ติ๊ก "ไม่ต้องแจ้งเข้า" ให้ทันที (ดู markWorkerNotifySkipped) — คนอื่นเห็นเป็นป้ายเฉย ๆ
-        const needsNotify = w.status !== 'pending_register' && !w.skipNotifyEntry && !jobs.some(j => j.workerId === w.id);
+        // ป้าย "รอแจ้งเข้า" หายเมื่อมีใบงานของคนงานคนนี้ที่ "ปิดงานแล้ว" อย่างน้อย 1 ใบ (เจ้าของระบบกำหนด 2026-10-08 —
+        // เดิมหายทันทีที่เปิดงาน ทั้งที่ยังแจ้งเข้าไม่เสร็จ)
+        const needsNotify = w.status !== 'pending_register' && !w.skipNotifyEntry && !jobs.some(j => j.workerId === w.id && j.status === 'ปิดงานแล้ว');
         const pendingNotifyBadge = !needsNotify ? '' : currentUser.role === 'admin'
-            ? `<div class="worker-notify-badge"><button type="button" class="badge badge-warning notify-skip-btn" onclick="event.stopPropagation(); markWorkerNotifySkipped('${w.id}', this)" title="ยังไม่เคยแจ้งงาน/แจ้งเข้าให้คนงานคนนี้เลย — กดเพื่อทำเครื่องหมายว่าไม่ต้องแจ้งเข้า (ยกเลิกได้ในฟอร์มแก้ไขคนงาน)">${icon("hourglass")} รอแจ้งเข้า <span class="notify-skip-action">${icon("ok", "green")} ผ่าน</span></button></div>`
-            : `<div class="worker-notify-badge"><span class="badge badge-warning" title="ยังไม่เคยแจ้งงาน/แจ้งเข้าให้คนงานคนนี้เลย">${icon("hourglass")} รอแจ้งเข้า</span></div>`;
+            ? `<div class="worker-notify-badge"><button type="button" class="badge badge-warning notify-skip-btn" onclick="event.stopPropagation(); markWorkerNotifySkipped('${w.id}', this)" title="ยังแจ้งเข้าไม่เสร็จ (ยังไม่มีใบงานที่ปิดงานแล้ว) — กดเพื่อทำเครื่องหมายว่าไม่ต้องแจ้งเข้า (ยกเลิกได้ในฟอร์มแก้ไขคนงาน)">${icon("hourglass")} รอแจ้งเข้า <span class="notify-skip-action">${icon("ok", "green")} ผ่าน</span></button></div>`
+            : `<div class="worker-notify-badge"><span class="badge badge-warning" title="ยังแจ้งเข้าไม่เสร็จ (ยังไม่มีใบงานที่ปิดงานแล้ว)">${icon("hourglass")} รอแจ้งเข้า</span></div>`;
         // นายจ้างเขียนโน้ตไว้จากพอร์ทัล (set_my_worker_note) → ป้ายเล็ก ชี้เมาส์อ่านข้อความเต็ม
         const clientNoteBadge = w.clientNote ? `<div class="worker-notify-badge"><span class="badge badge-gold client-note-badge" title="โน้ตจากนายจ้าง: ${escapeHtml(w.clientNote)}">${icon("chat")} โน้ตจากนายจ้าง</span></div>` : '';
 
@@ -5978,11 +5979,16 @@ function jobSortValue(j, key) {
     }
 }
 
+// ลำดับ "เปิดงาน" ของใบงาน (เทียบแบบข้อความ มาก = ใหม่กว่า): วันที่เปิด → เวลาเปิดจริง (opened_at) → เลขท้าย id
+// created_at เก็บแค่วันที่ และเลขท้าย id วนกลับทุก ~17 นาที จึงต้องมี opened_at (ใบงานเก่าไม่มี = เรียงแบบเดิม)
+function jobOpenedSortKey(j) {
+    return `${String(j.createdAt || j.updatedAt || '').slice(0, 10)}|${j.openedAt || ''}|${String(j.id || '').replace(/\D/g, '').padStart(8, '0')}`;
+}
+
 function sortJobsList(list) {
     // ค่าเริ่มต้น (ยังไม่ได้คลิกเรียง): งานที่เปิดใหม่ล่าสุดอยู่บนสุดเสมอ (เจ้าของระบบกำหนด 2026-10-06)
     if (!jobsSort.key) {
-        return list.sort((a, b) => String(b.createdAt || b.updatedAt || '').localeCompare(String(a.createdAt || a.updatedAt || ''))
-            || String(b.id).localeCompare(String(a.id), undefined, { numeric: true }));
+        return list.sort((a, b) => jobOpenedSortKey(b).localeCompare(jobOpenedSortKey(a)));
     }
     const { key, dir } = jobsSort;
     return list.sort((a, b) => {
@@ -6599,7 +6605,7 @@ function addBatchPool() {
         if (!groups.has(key)) groups.set(key, []);
         groups.get(key).push(j);
     });
-    const byOpen = (a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')) || String(a.id).localeCompare(String(b.id), undefined, { numeric: true });
+    const byOpen = (a, b) => jobOpenedSortKey(a).localeCompare(jobOpenedSortKey(b));
     // ชุดที่ทุกใบงานจบครบแล้ว (ปิดงาน + ชำระเงินแล้ว หรือไม่เรียกเก็บเงิน) ไม่ต้องแสดง
     const settled = j => j.status === 'ปิดงานแล้ว' && (isJobPaid(j) || isJobNoCharge(j));
     return [...groups.values()]
@@ -6708,7 +6714,7 @@ async function confirmAddToBatch() {
             id: 'job-' + (Date.now() + seq++).toString().slice(-6),
             batchId, createdAt: today, customerId: src.customerId, workerId: src.workerId,
             jobType: t, fee: 0, status: 'รอดำเนินการ', notes: '', orderNo: null, updatedAt: today,
-            agentId: src.agentId || null, openedBy: currentUser.id || null,
+            agentId: src.agentId || null, openedBy: currentUser.id || null, openedAt: new Date().toISOString(),
             assignedTo: can('assignJobs') ? (src.assignedTo || null) : (currentUser.id || null),
             paymentStatus: 'ยังไม่ออกบิล', attachments: []
         };
@@ -7229,6 +7235,7 @@ async function saveJob(e) {
                     updatedAt: updatedAt,
                     agentId,
                     openedBy: currentUser.id || null,
+                    openedAt: new Date().toISOString(), // เวลาเปิดงานจริง ใช้เรียงงานใหม่ล่าสุดไว้บนสุด
                     assignedTo,
                     paymentStatus: 'ยังไม่ออกบิล',
                     attachments: []
