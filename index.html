@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261007a">
+    <link rel="stylesheet" href="styles.css?v=20261007h">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -1255,13 +1255,13 @@
                                 <table class="data-table" id="billing-table">
                                     <thead>
                                         <tr>
-                                            <th>เลขที่บิล / ใบงาน</th>
-                                            <th>ประเภท</th>
-                                            <th>นายจ้าง/ผู้ว่าจ้าง</th>
-                                            <th>รายละเอียด</th>
-                                            <th class="inv-num">ยอดเงิน</th>
-                                            <th class="inv-num">รับแล้ว / คงเหลือ</th>
-                                            <th>สถานะ</th>
+                                            <th class="sortable-th" data-sort="no" onclick="sortBillingBy('no')">เลขที่บิล / ใบงาน</th>
+                                            <th class="sortable-th" data-sort="kind" onclick="sortBillingBy('kind')">ประเภท</th>
+                                            <th class="sortable-th" data-sort="customer" onclick="sortBillingBy('customer')">นายจ้าง/ผู้ว่าจ้าง</th>
+                                            <th class="sortable-th" data-sort="detail" onclick="sortBillingBy('detail')">รายละเอียด</th>
+                                            <th class="sortable-th inv-num" data-sort="amount" onclick="sortBillingBy('amount')">ยอดเงิน</th>
+                                            <th class="sortable-th inv-num" data-sort="balance" onclick="sortBillingBy('balance')">รับแล้ว / คงเหลือ</th>
+                                            <th class="sortable-th" data-sort="status" onclick="sortBillingBy('status')">สถานะ</th>
                                             <th class="actions-col">จัดการ</th>
                                         </tr>
                                     </thead>
@@ -2654,6 +2654,19 @@
                         </button>
                     </div>
 
+                    <!-- รูปแบบใบวางบิล: แบบรวม (ตามประเภทงาน) / แบบรายคน (1 แถวต่อคนงาน) — ดู setInvoiceLayout() ใน app.js -->
+                    <div class="invoice-layout-bar no-print">
+                        <div class="view-toggle-bar">
+                            <button class="btn btn-gold btn-sm" id="btn-inv-layout-service" onclick="setInvoiceLayout('service')">
+                                <span class="ico" data-icon="receipt"></span> แบบรวม (ตามประเภทงาน)
+                            </button>
+                            <button class="btn btn-outline btn-sm" id="btn-inv-layout-worker" onclick="setInvoiceLayout('worker')" style="border-color: transparent; color: var(--text-dark); background: transparent;">
+                                <span class="ico" data-icon="users"></span> แบบรายคน
+                            </button>
+                        </div>
+                        <small class="text-muted hidden" id="inv-layout-hint">แบบรายคนใช้ดู/พิมพ์เท่านั้น — ยอดรวมเท่าเดิม ถ้าจะแก้ราคาให้กลับไปแบบรวม</small>
+                    </div>
+
                     <!-- Free Invoice Employer/Worker Picker: แสดงเฉพาะโหมด "บิลอิสระ" — ค้นหาและเลือกนายจ้าง/ลูกจ้างจากข้อมูลจริงในระบบ
                          แทนการพิมพ์ชื่อเองล้วน ๆ (ช่องแสดงผลบนใบวางบิลด้านล่างยังคงแก้ไขข้อความเองได้อิสระหลังเลือกเสมอ)
                          ใช้ pattern "search-select" มาตรฐาน (ดู registerSearchSelect ใน app.js) — dropdown ผูกอัตโนมัติผ่าน JS ไม่ต้องเขียน markup ผลลัพธ์เอง -->
@@ -2980,7 +2993,7 @@
 
         <!-- ==================== COMBINE BILLS MODAL ==================== -->
         <div id="combine-bills-modal" class="modal-backdrop hidden">
-            <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-content combine-bills-content">
                 <div class="modal-header">
                     <h3 id="combine-modal-title">รวมใบสั่งงานออกบิลชุด</h3>
                     <button class="close-btn" onclick="closeCombineBillsModal()">&times;</button>
@@ -3006,8 +3019,13 @@
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>เลือกรายการใบสั่งงานที่ต้องการรวมบิล:</label>
-                        <div id="combine-jobs-list" style="max-height: 250px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); padding: 12px; display: flex; flex-direction: column; gap: 10px; background-color: #f8fafc;">
+                        <div class="combine-jobs-head">
+                            <label>เลือกรายการใบสั่งงานที่ต้องการรวมบิล:</label>
+                            <label class="combine-select-all hidden" id="combine-select-all-wrap">
+                                <input type="checkbox" id="combine-select-all" onchange="toggleCombineSelectAll(this.checked)"> เลือกทั้งหมด
+                            </label>
+                        </div>
+                        <div id="combine-jobs-list" class="combine-jobs-list">
                             <span class="text-muted" style="font-size: 13.5px; text-align: center; display: block; padding: 20px 0;">
                                 <span class="ico" data-icon="idea"></span> กรุณาเลือกนายจ้างด้านบนเพื่อดึงข้อมูลใบสั่งงานที่ค้างจ่าย
                             </span>
@@ -3253,7 +3271,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261007a"></script>
+    <script src="supabase-client.js?v=20261007h"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3264,6 +3282,6 @@
     </script>
 
     <!-- Application Script -->
-    <script src="app.js?v=20261007a"></script>
+    <script src="app.js?v=20261007h"></script>
 </body>
 </html>

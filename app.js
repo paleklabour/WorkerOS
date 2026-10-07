@@ -852,15 +852,10 @@ async function initApp() {
         // (ตั้งสิทธิ์ก่อน เพื่อเช็คได้ว่าบัญชีนี้ยังเข้าหน้านั้นได้ — เมนูที่ไม่มีสิทธิ์ถูกซ่อนไว้)
         setupFormPermissions();
         const lastView = readSessionValue('mw_last_view');
-        const lastFinTab = readSessionValue('mw_last_fin_tab');
         const lastMenu = lastView ? document.getElementById(`menu-${lastView}`) : null;
         const canRestore = currentUser && currentUser.role !== 'client' && lastMenu && document.getElementById(`view-${lastView}`)
             && !lastMenu.classList.contains('hidden') && getComputedStyle(lastMenu).display !== 'none';
         switchView(currentUser && currentUser.role === 'client' ? 'client-portal' : (canRestore ? lastView : 'dashboard'));
-        if (canRestore && lastView === 'expenses' && lastFinTab) {
-            const finBtn = document.getElementById(`btn-finpage-tab-${lastFinTab}`);
-            if (finBtn && getComputedStyle(finBtn).display !== 'none') switchFinancePageTab(lastFinTab);
-        }
         setupAllSearchSuggestions();
         setupAllSearchSelects();
     } catch (e) {
@@ -1744,7 +1739,10 @@ function switchView(viewName) {
     } else if (viewName === 'agents') {
         renderAgentsList();
     } else if (viewName === 'expenses') {
-        switchFinancePageTab('overview');
+        // กลับไปแท็บย่อยที่เปิดค้างไว้ล่าสุด (ปุ่มรีเฟรช / F5 / กดเมนูซ้ำ ไม่เด้งกลับไปสรุปการเงิน)
+        const lastFinTab = readSessionValue('mw_last_fin_tab');
+        const finBtn = lastFinTab ? document.getElementById(`btn-finpage-tab-${lastFinTab}`) : null;
+        switchFinancePageTab(finBtn && getComputedStyle(finBtn).display !== 'none' ? lastFinTab : 'overview');
     } else if (viewName === 'client-portal') {
         renderClientPortal();
     } else if (viewName === 'users') {
@@ -2891,7 +2889,7 @@ function renderBillingTab() {
                     ${inv.status === 'void' && currentUser.role === 'admin' ? `<button class="btn btn-sm btn-outline btn-danger-outline" onclick="deleteVoidInvoice('${inv.id}')" style="white-space: nowrap;" title="ลบถาวร — ใช้เฉพาะบิลที่ออกผิดจริง ๆ (ปกติให้เก็บบิลที่ยกเลิกไว้เป็นหลักฐาน)">${icon("trash")} ลบบิล</button>` : ''}
                 </td>
             </tr>`;
-    }).join('');
+    });
 
     const jobRows = unbilledJobs.map(j => {
         const cust = customers.find(c => c.id === j.customerId);
@@ -2916,7 +2914,7 @@ function renderBillingTab() {
                     ${can('finance') ? `<button class="btn btn-sm btn-outline" onclick="markJobNoCharge('${j.id}')" style="white-space: nowrap;" title="งานนี้ไม่คิดเงินลูกค้า — ไม่ต้องออกบิล">ไม่เรียกเก็บเงิน</button>` : ''}
                 </td>
             </tr>`;
-    }).join('');
+    });
 
     // งานที่ตั้งเป็น "ไม่เรียกเก็บเงิน" — แสดงเฉพาะตัวกรอง "ไม่เรียกเก็บเงิน" / "ทั้งหมด"
     const noChargeRows = noChargeJobs.map(j => {
@@ -2935,9 +2933,71 @@ function renderBillingTab() {
                     ${can('finance') ? `<button class="btn btn-sm btn-outline" onclick="unmarkJobNoCharge('${j.id}')" style="white-space: nowrap;">กลับไปเรียกเก็บเงิน</button>` : ''}
                 </td>
             </tr>`;
-    }).join('');
+    });
 
-    tbody.innerHTML = jobRows + noChargeRows + invoiceRows;
+    // รวมทุกรายการ (ใบงานรอออกบิล / ไม่เรียกเก็บเงิน / บิล) แล้วเรียงแบบเดียวกับตารางแจ้งงาน (sortBillingRows)
+    const day = v => String(v || '').slice(0, 10);
+    const custName = id => { const c = customers.find(x => x.id === id); return c ? c.companyName || '' : ''; };
+    const jobAmount = j => j.fee > 0 ? j.fee : parseJobTypeItems(j.jobType, 0).reduce((s, it) => {
+        const std = getServicePrice(it.name);
+        return s + (std ? std.govFee + std.serviceFee : 0);
+    }, 0);
+    // บิลที่มีใบงาน → ใช้วันเปิดงาน/เลขใบงานของใบงานที่เปิดล่าสุดในบิลนั้น (เรียงตามการเปิดงาน เหมือนหน้าแจ้งงาน)
+    const newestInvoiceJob = inv => (inv.jobIds || []).map(id => jobs.find(j => j.id === id)).filter(Boolean)
+        .sort((a, b) => day(b.createdAt || b.updatedAt).localeCompare(day(a.createdAt || a.updatedAt))
+            || String(b.id).localeCompare(String(a.id), undefined, { numeric: true }))[0] || null;
+    const rows = [
+        ...unbilledJobs.map((j, i) => ({ d: day(j.createdAt || j.updatedAt), t: 1, s: String(j.id), html: jobRows[i],
+            no: getJobDisplayNo(j), kind: 'ยังไม่ออกบิล', customer: custName(j.customerId), detail: getCleanJobTypeName(j.jobType),
+            amount: jobAmount(j), balance: 0, status: 0 })),
+        ...noChargeJobs.map((j, i) => ({ d: day(j.createdAt || j.updatedAt), t: 1, s: String(j.id), html: noChargeRows[i],
+            no: getJobDisplayNo(j), kind: JOB_NO_CHARGE, customer: custName(j.customerId), detail: getCleanJobTypeName(j.jobType),
+            amount: 0, balance: 0, status: 4 })),
+        ...shownInvoices.map((inv, i) => { const nj = newestInvoiceJob(inv); return {
+            d: nj ? day(nj.createdAt || nj.updatedAt) : day(inv.issueDate), t: 1, s: nj ? String(nj.id) : String(inv.invoiceNo || ''), html: invoiceRows[i],
+            free: inv.kind === 'free', no: inv.invoiceNo || '', kind: kindLabel[inv.kind] || 'บิล', customer: inv.customerName || '',
+            detail: inv.kind === 'free' ? (inv.workerName || (inv.items || [])[0]?.title || '') : (inv.items || []).map(x => x.serviceName || x.title).filter(Boolean).join(', '),
+            amount: Number(inv.grandTotal) || 0, balance: inv.status === 'void' ? 0 : invoiceBalance(inv),
+            status: ({ issued: 1, partial: 2, paid: 3, void: 5 })[inv.status] || 1 }; })
+    ];
+    tbody.innerHTML = sortBillingRows(rows).map(r => r.html).join('');
+    markBillingSortHeaders();
+}
+
+// ---------- เรียงตารางออกบิลตามหัวคอลัมน์ (แบบเดียวกับตารางแจ้งงาน) ----------
+// คลิกหัวคอลัมน์ = น้อยไปมาก, คลิกซ้ำ = มากไปน้อย, ครั้งที่ 3 = ค่าเริ่มต้น:
+// บิลอิสระอยู่บนสุด แล้วเรียงตามการเปิดงาน งานที่เปิดใหม่ล่าสุดอยู่บน (เจ้าของระบบกำหนด 2026-10-07)
+let billingSort = { key: null, dir: 1 };
+
+function sortBillingBy(key) {
+    if (billingSort.key !== key) billingSort = { key, dir: 1 };
+    else if (billingSort.dir === 1) billingSort.dir = -1;
+    else billingSort = { key: null, dir: 1 };
+    renderBillingTab();
+}
+
+function sortBillingRows(rows) {
+    if (!billingSort.key) {
+        return rows.sort((a, b) => (b.free ? 1 : 0) - (a.free ? 1 : 0) || b.d.localeCompare(a.d) || a.t - b.t
+            || b.s.localeCompare(a.s, undefined, { numeric: true }));
+    }
+    const { key, dir } = billingSort;
+    return rows.sort((a, b) => {
+        const va = key === 'no' ? `${a.d}|${a.no}` : a[key], vb = key === 'no' ? `${b.d}|${b.no}` : b[key];
+        if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir;
+        // ค่าว่างอยู่ท้ายเสมอ ไม่ว่าเรียงทางไหน
+        if (!va && vb) return 1;
+        if (va && !vb) return -1;
+        return String(va).localeCompare(String(vb), 'th', { numeric: true }) * dir;
+    });
+}
+
+function markBillingSortHeaders() {
+    document.querySelectorAll('#billing-table th.sortable-th').forEach(th => {
+        const active = th.dataset.sort === billingSort.key;
+        th.classList.toggle('is-sorted', active);
+        th.dataset.dir = active ? (billingSort.dir === 1 ? 'asc' : 'desc') : '';
+    });
 }
 
 function renderDashboardOverview() {
@@ -6165,8 +6225,9 @@ function parseJobTypeItems(jobTypeStr, defaultFee) {
     const parsed = [];
     
     items.forEach(item => {
-        // Matches e.g. "แจ้งเข้า (2000)" or "แจ้งเข้า (2,000)"
-        const match = item.match(/^(.*?)\s*\(?([\d,]+)?\s*(?:บาท|บ\.)?\)?$/);
+        // Matches e.g. "แจ้งเข้า (2000)" or "แจ้งเข้า (2000 บาท)" — ราคาต้องอยู่ในวงเล็บท้ายชื่อเท่านั้น
+        // (เดิมวงเล็บไม่บังคับ → ตัวเลขท้ายชื่องาน เช่น "แจ้งที่พัก TM.30" ถูกอ่านเป็นราคา 30 บาท)
+        const match = item.match(/^(.*?)\s*(?:\((\d[\d,]*)\s*(?:บาท|บ\.)?\))?$/);
         if (match) {
             const name = match[1].trim();
             const priceStr = match[2] ? match[2].replace(/,/g, '') : '';
@@ -8083,7 +8144,7 @@ function openInvoiceModal(jobId) {
     document.getElementById("inv-no").innerText = "ร่าง — ยังไม่ออกเลขที่";
     setInvoiceDate(new Date());
     populateInvoiceBankSelect(null);
-    renderInvoiceItemsTable();
+    loadInvoiceLayoutForCurrent(); // วาดตารางรายการตามรูปแบบที่นายจ้างนี้ใช้ล่าสุด
     renderInvoiceStatusUi();
     document.getElementById("invoice-modal").classList.remove("hidden");
 }
@@ -8120,7 +8181,7 @@ function openStoredInvoice(invoiceId) {
     document.getElementById("inv-notes").innerText = inv.notes || "-";
 
     populateInvoiceBankSelect(inv.bankId);
-    renderInvoiceItemsTable();
+    loadInvoiceLayoutForCurrent();
     renderInvoiceStatusUi();
     document.getElementById("invoice-modal").classList.remove("hidden");
 }
@@ -8407,11 +8468,11 @@ function setupAllSearchSelects() {
         inputId: 'combine-cust-search',
         getValue: () => document.getElementById('combine-cust-select').value,
         setValue: (v) => { document.getElementById('combine-cust-select').value = v || ''; },
-        getPool: () => customers,
+        getPool: () => customersAwaitingBill(),
         getId: c => c.id,
         getLabel: c => c.companyName,
-        getSub: c => c.taxId ? 'ภาษี ' + c.taxId : '',
-        emptyText: 'ไม่พบนายจ้างที่ตรงกับคำค้นหา',
+        getSub: c => [`รอออกบิล ${jobs.filter(j => j.customerId === c.id && jobAwaitingBill(j)).length} ใบ`, c.taxId ? 'ภาษี ' + c.taxId : ''].filter(Boolean).join(' • '),
+        emptyText: 'ไม่พบนายจ้างที่มีใบงานรอออกบิลตรงกับคำค้นหา',
         onSelect: () => onCombineCustomerChange()
     });
 
@@ -8457,9 +8518,102 @@ function isCurrentInvoiceEditable() {
     return !!inv && inv.status === 'issued' && invoicePaidAmount(inv) === 0;
 }
 
+// ---------- รูปแบบใบวางบิล: "แบบรวม" (ตามประเภทงาน — รายการจริงที่บันทึก) / "แบบรายคน" (1 แถวต่อคนงาน) ----------
+// แบบรายคนเป็นแค่มุมมองตอนแสดง/พิมพ์ — ข้อมูลในบิล (items) ไม่เปลี่ยน ยอดรวมเท่าเดิม; แก้ราคาได้เฉพาะแบบรวม
+// จำแบบที่เลือกล่าสุดแยกตามนายจ้างไว้ในเครื่อง (ลูกค้าที่ต้องการบิลรายคนจะเปิดมาเป็นแบบรายคนเลย)
+let invoiceLayout = 'service';
+
+function invoiceLayoutStorageKey() {
+    const custId = currentInvoiceJobIds.length
+        ? ((jobs.find(j => j.id === currentInvoiceJobIds[0]) || {}).customerId || '')
+        : (freeInvoiceCustomerId || '');
+    return custId ? `mw_inv_layout_${custId}` : null;
+}
+
+function loadInvoiceLayoutForCurrent() {
+    const key = invoiceLayoutStorageKey();
+    let saved = null;
+    try { saved = key ? localStorage.getItem(key) : null; } catch (e) { saved = null; }
+    setInvoiceLayout(saved === 'worker' ? 'worker' : 'service', false);
+}
+
+function setInvoiceLayout(layout, remember = true) {
+    invoiceLayout = layout === 'worker' ? 'worker' : 'service';
+    if (remember) {
+        const key = invoiceLayoutStorageKey();
+        try { if (key) localStorage.setItem(key, invoiceLayout); } catch (e) { /* จำไม่ได้ก็ไม่เป็นไร */ }
+    }
+    [['service', 'btn-inv-layout-service'], ['worker', 'btn-inv-layout-worker']].forEach(([key, id]) => {
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        const on = key === invoiceLayout;
+        btn.className = on ? "btn btn-gold btn-sm" : "btn btn-outline btn-sm";
+        btn.style.borderColor = on ? "" : "transparent";
+        btn.style.color = on ? "" : "var(--text-dark)";
+        btn.style.background = on ? "" : "transparent";
+    });
+    const hint = document.getElementById('inv-layout-hint');
+    if (hint) hint.classList.toggle('hidden', invoiceLayout !== 'worker');
+    renderInvoiceItemsTable();
+}
+
+// แตกรายการในบิลเป็นรายคนงาน: ใบงาน → jobBreakdown (สัดส่วนเดียวกับ computeEditedJobUpdates), บิลอิสระ → workerIds (หารเท่ากัน)
+// รายการที่ไม่ผูกคนงานเลยคงเป็นแถวเดิม
+function buildInvoicePerWorkerRows(items) {
+    const rows = new Map();
+    const add = (key, title, desc, service, amount) => {
+        if (!rows.has(key)) rows.set(key, { id: key, title, desc, services: [], fee: 0 });
+        const r = rows.get(key);
+        if (service && !r.services.includes(service)) r.services.push(service);
+        r.fee += amount;
+    };
+    const findWorker = id => allWorkers().find(w => w.id === id);
+    items.filter(item => !item.placeholder || item.fee > 0).forEach(item => {
+        const service = item.serviceName || String(item.title || '').replace(/^ค่าบริการ:\s*/, '');
+        const breakdown = item.jobBreakdown || [];
+        if (breakdown.length) {
+            const oldTotal = breakdown.reduce((s, b) => s + (b.price || 0), 0);
+            breakdown.forEach(b => {
+                const share = (oldTotal > 0 ? (b.price || 0) / oldTotal : 1 / breakdown.length) * (item.fee || 0);
+                const job = jobs.find(j => j.id === b.jobId);
+                const w = job ? findWorker(job.workerId) : null;
+                add(w ? `w-${w.id}` : `j-${b.jobId}`, w ? workerFullName(w) : 'ไม่พบข้อมูลคนงาน',
+                    w ? `เลขประจำตัว ${w.workerUid || '-'}` : '', service, share);
+            });
+        } else if ((item.workerIds || []).length) {
+            const ids = item.workerIds;
+            ids.forEach(id => {
+                const w = findWorker(id);
+                add(`w-${id}`, w ? workerFullName(w) : 'ไม่พบข้อมูลคนงาน', w ? `เลขประจำตัว ${w.workerUid || '-'}` : '', service, (item.fee || 0) / ids.length);
+            });
+        } else {
+            add(`i-${item.id}`, item.title || '', item.desc || '', null, item.fee || 0);
+        }
+    });
+    return [...rows.values()].map(r => ({ ...r, fee: round2(r.fee) }));
+}
+
 function renderInvoiceItemsTable() {
     const tbody = document.getElementById("invoice-items-tbody");
     if (!tbody) return;
+
+    if (invoiceLayout === 'worker' && currentInvoiceItems.length > 0) {
+        const fmtW = v => Number(v || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        tbody.innerHTML = buildInvoicePerWorkerRows(currentInvoiceItems).map((r, index) => `
+            <tr>
+                <td style="text-align: center;">${index + 1}</td>
+                <td class="inv-item-desc-cell">
+                    <div class="inv-item-title">${escapeHtml(r.title)}</div>
+                    <div class="inv-item-desc">${escapeHtml([r.desc, r.services.length ? `ค่าบริการ: ${r.services.join(', ')}` : ''].filter(Boolean).join('\n'))}</div>
+                </td>
+                <td style="text-align: center;">1</td>
+                <td class="inv-num">${fmtW(r.fee)}</td>
+                <td class="inv-num inv-amount">${fmtW(r.fee)}</td>
+                <td class="no-print inv-gov-col"></td>
+            </tr>`).join('');
+        calculateInvoiceTotals();
+        return;
+    }
 
     if (currentInvoiceItems.length === 0) {
         tbody.innerHTML = `
@@ -8728,15 +8882,21 @@ async function saveInvoiceFeeEdits() {
 }
 
 // ==================== COMBINE BILLS MODAL LOGIC ====================
+// นายจ้างที่มีใบงานรอออกบิลอย่างน้อย 1 ใบ — ตัวเลือกในหน้าต่าง "รวมใบสั่งงานออกบิลชุด"
+function customersAwaitingBill() {
+    const ids = new Set(jobs.filter(jobAwaitingBill).map(j => j.customerId));
+    return customers.filter(c => ids.has(c.id));
+}
+
 function openCombineBillsModal() {
     if (customers.length === 0) {
         uiAlert("กรุณากรอกข้อมูล นายจ้าง/ลูกค้า อย่างน้อย 1 รายก่อนเปิดการรวมบิล");
         return;
     }
 
-    document.getElementById("combine-cust-select").innerHTML = 
+    document.getElementById("combine-cust-select").innerHTML =
         '<option value="" disabled selected>--- เลือกนายจ้าง/ลูกค้าผู้ว่าจ้าง ---</option>' +
-        customers.map(c => `<option value="${c.id}">${c.companyName}</option>`).join('');
+        customersAwaitingBill().map(c => `<option value="${c.id}">${escapeHtml(c.companyName)}</option>`).join('');
     const combineSearch = document.getElementById("combine-cust-search");
     if (combineSearch) combineSearch.value = '';
 
@@ -8747,6 +8907,8 @@ function openCombineBillsModal() {
     `;
 
     document.getElementById("combine-billing-note-wrap").classList.add("hidden");
+    const selectAllWrap = document.getElementById("combine-select-all-wrap");
+    if (selectAllWrap) selectAllWrap.classList.add("hidden");
     document.getElementById("combine-total-amount").innerText = "0.00";
     document.getElementById("btn-generate-combined").disabled = true;
 
@@ -8777,6 +8939,8 @@ function onCombineCustomerChange() {
     // Filter unpaid jobs under this customer
     // เฉพาะใบงานที่ยังไม่ได้อยู่ในบิลใด (บิลที่ออกแล้วรับเงินผ่านหน้าบิลนั้นแทน)
     const unpaidJobs = jobs.filter(j => j.customerId === custId && jobAwaitingBill(j));
+    const selectAllWrap = document.getElementById("combine-select-all-wrap");
+    if (selectAllWrap) selectAllWrap.classList.toggle("hidden", unpaidJobs.length === 0);
 
     if (unpaidJobs.length === 0) {
         listContainer.innerHTML = `
@@ -8827,9 +8991,22 @@ function updateCombineTotalAmount() {
     });
 
     document.getElementById("combine-total-amount").innerText = total.toLocaleString('th-TH', { minimumFractionDigits: 2 });
-    
+
+    // ช่อง "เลือกทั้งหมด": ติ๊กเมื่อเลือกครบทุกใบ, ขีดกลาง (indeterminate) เมื่อเลือกบางใบ
+    const selectAll = document.getElementById("combine-select-all");
+    if (selectAll) {
+        const totalBoxes = document.querySelectorAll('input[name="combine-job-checkbox"]').length;
+        selectAll.checked = totalBoxes > 0 && checkboxes.length === totalBoxes;
+        selectAll.indeterminate = checkboxes.length > 0 && checkboxes.length < totalBoxes;
+    }
+
     // Toggle generate button
     document.getElementById("btn-generate-combined").disabled = checkboxes.length === 0;
+}
+
+function toggleCombineSelectAll(checked) {
+    document.querySelectorAll('input[name="combine-job-checkbox"]').forEach(cb => { cb.checked = checked; });
+    updateCombineTotalAmount();
 }
 
 // สร้าง "ร่างบิลรวม" จากใบงานที่เลือก — ยังไม่เปลี่ยนสถานะใบงานจนกว่าจะกด "ออกบิล" (ดู issueCurrentInvoice)
@@ -8896,7 +9073,7 @@ function generateCombinedInvoice() {
     const freePickerWrap = document.getElementById("invoice-free-picker-wrap");
     if (freePickerWrap) freePickerWrap.classList.add("hidden");
     populateInvoiceBankSelect(null);
-    renderInvoiceItemsTable();
+    loadInvoiceLayoutForCurrent();
     renderInvoiceStatusUi();
 
     closeCombineBillsModal();
@@ -10816,7 +10993,7 @@ function openWorkerFolderModal(workerId) {
     const w = workers.find(item => item.id === workerId);
     if (!w) return;
 
-    document.getElementById("worker-folder-name").innerText = `คุณ ${w.firstName} ${w.lastName || ''}`;
+    document.getElementById("worker-folder-name").innerText = workerFullName(w); // คำนำหน้านามจริงของคนงาน (นาย/นาง/นางสาว) ไม่ใช่ "คุณ"
     const emp = customers.find(c => c.id === w.employerId);
     const empName = emp ? emp.companyName : "ไม่ระบุนายจ้าง";
     document.getElementById("worker-folder-meta").innerText = `เลขประจำตัว: ${w.workerUid || '-'} | สัญชาติ: ${w.nationality} | นายจ้าง: ${empName}`;
@@ -11071,7 +11248,7 @@ async function handleFolderFileUpload(event) {
             if (uploadResult && uploadResult.parsedData) anyAiRead = true;
             if (uploadResult && uploadResult.manualEntry) needsManualEntry = true;
             if (wasPending && w.status === 'active') {
-                showToast(`🎉 อัปโหลดใบอนุญาตทำงานและใบเสร็จแล้ว! เปลี่ยนสถานะคุณ ${w.firstName} เป็น ปกติ (Active) อัตโนมัติ`, "success");
+                showToast(`🎉 อัปโหลดใบอนุญาตทำงานและใบเสร็จแล้ว! เปลี่ยนสถานะ ${workerFullName(w)} เป็น ปกติ (Active) อัตโนมัติ`, "success");
             }
         } catch (err) {
             if (err && err.cancelled) { cancelledCount++; continue; }

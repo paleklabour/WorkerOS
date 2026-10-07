@@ -2874,6 +2874,50 @@ td > .ico {
     flex-wrap: wrap;
 }
 
+/* หน้าต่าง "รวมใบสั่งงานออกบิลชุด" — กว้างและสูงพอเห็นใบงานหลายใบพร้อมกัน */
+.modal-content.combine-bills-content {
+    max-width: 960px;
+    width: 95%;
+}
+.combine-jobs-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.combine-jobs-head label { margin-bottom: 6px; }
+.combine-select-all {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    color: var(--gold-primary);
+}
+.combine-select-all.hidden { display: none; }
+.combine-select-all input { width: 16px; height: 16px; cursor: pointer; }
+.combine-jobs-list {
+    max-height: 55vh;
+    overflow-y: auto;
+    border: 1px solid var(--dk-line, #e2e8f0);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background-color: var(--dk-subtle, #f8fafc);
+}
+
+/* แท็บรูปแบบใบวางบิล: แบบรวม / แบบรายคน */
+.invoice-layout-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin: -8px 0 16px;
+}
+
 /* ==================== ใบวางบิล / ใบแจ้งหนี้ / ใบเสร็จ (ออกแบบใหม่ 2026-10: โค้งมน + โลโก้ NKT Service) ====================
    ใช้ร่วมกันทั้ง #invoice-sheet-container (บิล) และ #receipt-sheet (ใบเสร็จ) — ดู ACCOUNTING MODULE ใน app.js */
 /* บนจอแสดงเป็นแผ่น A4 (210 × 297 มม.) — ตอนพิมพ์ใช้ @page A4 ขอบ 10 มม. (INVOICE_PAGE_CSS ใน app.js)
