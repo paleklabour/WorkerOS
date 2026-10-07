@@ -6491,15 +6491,6 @@ function readJobAssignee() {
 
 // เอกสารที่แนบตอนปิดงาน (jobs.attachments จาก submitCloseJob) — แสดงในแบนเนอร์ "ปิดงานแล้ว" ของหน้าต่างใบงาน
 // + ปุ่ม "แนบเอกสารปิดงานเพิ่ม" แนบย้อนหลังได้หลายไฟล์ (addJobCloseDocs) สำหรับคนที่แก้ใบงานนี้ได้
-// ส่วน "เอกสารปิดงาน (แนบไว้ก่อน)" ในหน้าต่างแก้ไขใบงาน — แสดงเฉพาะใบงานที่ยังไม่ปิด (j = null ซ่อน)
-function setJobPreDocs(j) {
-    const section = document.getElementById("job-predocs-section");
-    const box = document.getElementById("job-predocs-box");
-    if (!section || !box) return;
-    section.classList.toggle("hidden", !j);
-    box.innerHTML = j ? jobCloseDocsHtml(j, true) : '';
-}
-
 // ใบงานที่ยังไม่ปิด (pre = true) แนบเอกสารปิดงานไว้ก่อนได้ — ตอนกดปิดงานไม่ต้องแนบซ้ำ (ดู openJobCloseModal)
 function jobCloseDocsHtml(j, pre = j.status !== 'ปิดงานแล้ว') {
     const docs = Array.isArray(j.attachments) ? j.attachments : [];
@@ -6557,7 +6548,7 @@ async function fileJobDocIntoWorker(j, read, fileUrl, fileName) {
     return (WORKER_FOLDER_DOC_TYPES.find(x => x.key === read.docType) || {}).label || read.docType;
 }
 
-async function addJobCloseDocs(jobId, input) {
+async function addJobCloseDocs(jobId, input, note = null) {
     const j = jobs.find(item => item.id === jobId);
     const files = Array.from((input && input.files) || []);
     if (input) input.value = '';
@@ -6570,7 +6561,7 @@ async function addJobCloseDocs(jobId, input) {
         const read = j.workerId ? await aiReadWorkerDoc(dataUrl) : null;
         const up = await uploadDocumentFile(dataUrl, file.name, j.customerId, j.workerId, "job-close-doc");
         if (!up || !up.fileUrl) { showToast(`❌ อัปโหลด "${file.name}" ไม่สำเร็จ`, "danger"); continue; }
-        added.push({ name: file.name, url: up.fileUrl, note: null, uploadedAt, uploadedBy: currentUser.id || null });
+        added.push({ name: file.name, url: up.fileUrl, note: note || null, uploadedAt, uploadedBy: currentUser.id || null });
         reads.push({ read, url: up.fileUrl, name: file.name });
     }
     if (!added.length) return;
@@ -6591,6 +6582,7 @@ async function addJobCloseDocs(jobId, input) {
     if (docsEl) docsEl.outerHTML = jobCloseDocsHtml(jobData);
     renderJobs();
     showToast(`📎 แนบเอกสารปิดงานเพิ่ม ${added.length} ไฟล์ให้ ${getJobDisplayNo(jobData)} แล้ว`, "success");
+    return added.length;
 }
 
 // ---------- เพิ่มงานเข้าชุดงานเดิม (ปุ่ม "เพิ่มงานเข้าชุดเดิม" ข้างปุ่ม "แจ้งงาน") ----------
@@ -6822,12 +6814,10 @@ function openJobModal(id = null) {
                 `${icon("lock")} ปิดงานแล้วเมื่อ ${j.closedAt ? formatThaiDate(j.closedAt, true) : '-'}` +
                 (j.closedBy ? ` โดย ${getUserNameById(j.closedBy)}` : '') +
                 jobCloseDocsHtml(j);
-            setJobPreDocs(null);
         } else {
             statusGroup.style.display = '';
             closedBanner.style.display = 'none';
             statusSelect.value = j.status;
-            setJobPreDocs(j); // แนบเอกสารปิดงานไว้ก่อนได้ ระหว่างที่งานยังไม่ปิด
         }
 
         document.getElementById("job-notes").value = j.notes || '';
@@ -6871,7 +6861,6 @@ function openJobModal(id = null) {
         openedByInfo.style.display = 'block';
         openedByInfo.innerText = `เปิดงานโดย: ${currentUser.name} (ผู้ใช้ปัจจุบัน)`;
         renderJobBatchHint(null);
-        setJobPreDocs(null); // ใบงานใหม่ยังไม่มีให้ผูกไฟล์ — แนบได้หลังบันทึก (เปิดแก้ไขใบงาน)
     }
 
     refreshJobTypeLocks();
@@ -7766,6 +7755,23 @@ function openJobCloseModal(jobId) {
 
 function closeJobCloseModal() {
     document.getElementById("job-close-modal").classList.add("hidden");
+}
+
+// ปุ่ม "แนบไว้ก่อน (ยังไม่ปิดงาน)" ในหน้าต่างปิดงาน: อัปโหลดไฟล์ที่เลือก + AI อ่านเติมข้อมูลคนงาน (addJobCloseDocs)
+// งานยังเปิดอยู่ — หน้าต่างแสดงรายการไฟล์ที่แนบแล้ว กลับมากด "ยืนยันปิดงาน" ทีหลังได้โดยไม่ต้องแนบซ้ำ
+async function saveJobCloseDocsOnly() {
+    const jobId = document.getElementById("job-close-id").value;
+    const fileInput = document.getElementById("job-close-file");
+    if (!fileInput.files || fileInput.files.length === 0) { uiAlert("กรุณาเลือกไฟล์ที่จะแนบไว้ก่อน"); return; }
+    const note = document.getElementById("job-close-note").value.trim();
+    const btn = document.getElementById("btn-save-close-docs");
+    if (btn) { btn.disabled = true; btn.innerHTML = `${icon("hourglass")} กำลังอัปโหลด...`; }
+    try {
+        const added = await addJobCloseDocs(jobId, fileInput, note || null);
+        if (added) openJobCloseModal(jobId); // วาดรายการ "แนบไว้แล้ว" ใหม่ + ล้างช่องเลือกไฟล์
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = `${icon("clip")} แนบไว้ก่อน (ยังไม่ปิดงาน)`; }
+    }
 }
 
 async function submitCloseJob(e) {
