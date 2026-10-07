@@ -9163,9 +9163,7 @@ function setInvoiceLayout(layout, remember = true) {
         if (!btn) return;
         const on = key === invoiceLayout;
         btn.className = on ? "btn btn-gold btn-sm" : "btn btn-outline btn-sm";
-        btn.style.borderColor = on ? "" : "transparent";
-        btn.style.color = on ? "" : "var(--text-dark)";
-        btn.style.background = on ? "" : "transparent";
+        // หน้าตาแท็บมาจาก .seg-host (ทุกกลุ่มแท็บเหมือนกัน) — สลับแค่ class
     });
     const hint = document.getElementById('inv-layout-hint');
     if (hint) hint.classList.toggle('hidden', invoiceLayout !== 'worker');
@@ -11460,9 +11458,7 @@ function setWorkerFolderMode(mode) {
         if (!btn) return;
         const on = key === workerFolderMode;
         btn.className = on ? "btn btn-gold btn-sm" : "btn btn-outline btn-sm";
-        btn.style.borderColor = on ? "" : "transparent";
-        btn.style.color = on ? "" : "var(--text-dark)";
-        btn.style.background = on ? "" : "transparent";
+        // หน้าตาแท็บมาจาก .seg-host (ทุกกลุ่มแท็บเหมือนกัน) — สลับแค่ class
     });
     renderWorkerFolderTiles();
 }
@@ -13132,9 +13128,7 @@ function switchJobView(viewType) {
         const on = key === viewType;
         if (btn) {
             btn.className = on ? "btn btn-gold btn-sm" : "btn btn-outline btn-sm";
-            btn.style.borderColor = on ? "" : "transparent";
-            btn.style.color = on ? "" : "var(--text-dark)";
-            btn.style.background = on ? "" : "transparent";
+            // หน้าตาแท็บมาจาก .seg-host (ทุกกลุ่มแท็บเหมือนกัน) — สลับแค่ class
         }
         if (box) box.classList.toggle("hidden", !on);
     });
@@ -15216,15 +15210,21 @@ function attachTabSlider(host, getActive) {
     host._tabSlider = slider;
 
     let animated = false;
+    // วางตัวเลื่อนไว้ใต้ปุ่มที่ระบุ (ใช้ทั้งตอนเลือกแท็บ และตอนลากตัวเลื่อนไปมาแบบ iOS — ดู attachSegmentedGestures)
+    const moveTo = (btn) => {
+        slider.style.width = btn.offsetWidth + 'px';
+        slider.style.height = btn.offsetHeight + 'px';
+        slider.style.transform = `translate(${btn.offsetLeft}px, ${btn.offsetTop}px)`;
+    };
+    host._tabSliderMoveTo = moveTo;
     const place = () => {
+        if (host._tabSliderDragging) return; // กำลังลากอยู่ — ให้ตัวเลื่อนตามนิ้ว/เมาส์ก่อน
         const btn = getActive();
         if (!btn || !btn.offsetWidth) {
             if (slider.classList.contains('is-on')) slider.classList.remove('is-on');
             return;
         }
-        slider.style.width = btn.offsetWidth + 'px';
-        slider.style.height = btn.offsetHeight + 'px';
-        slider.style.transform = `translate(${btn.offsetLeft}px, ${btn.offsetTop}px)`;
+        moveTo(btn);
         if (!slider.classList.contains('is-on')) slider.classList.add('is-on');
         // ครั้งแรกวางเฉย ๆ ไม่ต้องเลื่อน (ไม่งั้นจะเห็นมันวิ่งมาจากมุมซ้ายบนตอนเปิดหน้า)
         if (!animated && !iosReducedMotion()) {
@@ -15245,7 +15245,62 @@ function attachTabSlider(host, getActive) {
         resizeTimer = setTimeout(() => { slider.style.transition = ''; }, 80);
     };
     if (window.ResizeObserver) new ResizeObserver(placeNow).observe(host);
+    host._tabSliderPlace = place;
     place();
+}
+
+// ---------- effect แบบ segmented control ของ iOS ----------
+// - กดค้างที่แท็บที่เลือกอยู่: ตัวเลื่อนยุบเล็กลงนิดหนึ่ง แล้ว "ลาก" ไปแท็บอื่นได้ ปล่อยแล้วเลือกแท็บนั้น
+// - กดแท็บอื่น: ตัวอักษรจางลงระหว่างกด แล้วตัวเลื่อนเด้งไปแบบสปริง (ดู .tab-slider ใน styles.css)
+function attachSegmentedGestures(host) {
+    if (!host || host._segGestures || !window.PointerEvent) return;
+    host._segGestures = true;
+    const slider = host._tabSlider;
+    const buttons = () => [...host.querySelectorAll(':scope > .btn')].filter(b => b.offsetWidth);
+    const btnAt = (x) => buttons().find(b => { const r = b.getBoundingClientRect(); return x >= r.left && x <= r.right; });
+    let pressedBtn = null, dragTarget = null, pointerId = null;
+
+    const reset = () => {
+        if (pressedBtn) pressedBtn.classList.remove('is-pressing');
+        if (slider) slider.classList.remove('is-pressed');
+        pressedBtn = null; dragTarget = null;
+        if (host._tabSliderDragging) { host._tabSliderDragging = false; if (host._tabSliderPlace) host._tabSliderPlace(); }
+        if (pointerId !== null && host.hasPointerCapture && host.hasPointerCapture(pointerId)) host.releasePointerCapture(pointerId);
+        pointerId = null;
+    };
+
+    host.addEventListener('pointerdown', e => {
+        if (e.button !== 0) return;
+        const btn = e.target.closest('.btn');
+        if (!btn || btn.parentElement !== host || btn.disabled) return;
+        pressedBtn = btn;
+        if (btn.classList.contains('btn-gold') && slider) {
+            slider.classList.add('is-pressed');
+            host._tabSliderDragging = true;
+            dragTarget = btn;
+            pointerId = e.pointerId;
+            try { host.setPointerCapture(e.pointerId); } catch (err) { /* บางเบราว์เซอร์ไม่รองรับ */ }
+        } else {
+            btn.classList.add('is-pressing');
+        }
+    });
+    host.addEventListener('pointermove', e => {
+        if (!host._tabSliderDragging || e.pointerId !== pointerId) return;
+        const over = btnAt(e.clientX);
+        if (over && over !== dragTarget) { dragTarget = over; host._tabSliderMoveTo(over); }
+    });
+    host.addEventListener('pointerup', e => {
+        if (host._tabSliderDragging && dragTarget && pressedBtn && dragTarget !== pressedBtn) {
+            const target = dragTarget;
+            reset();
+            target.click(); // เลือกแท็บที่ลากไปวาง
+            return;
+        }
+        reset();
+    });
+    host.addEventListener('pointercancel', reset);
+    host.addEventListener('lostpointercapture', () => { if (host._tabSliderDragging) reset(); });
+    host.addEventListener('pointerleave', () => { if (!host._tabSliderDragging && pressedBtn) reset(); });
 }
 
 function setupSlidingTabs() {
@@ -15259,6 +15314,7 @@ function setupSlidingTabs() {
     document.querySelectorAll('.dashboard-tabs, .view-toggle-bar, .seg-chart-toggle').forEach(host => {
         host.classList.add('seg-host');
         attachTabSlider(host, () => host.querySelector(':scope > .btn.btn-gold'));
+        attachSegmentedGestures(host);
     });
 }
 

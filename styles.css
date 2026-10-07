@@ -5774,10 +5774,31 @@ tr.is-voided-row td {
     opacity: 0;
 }
 .tab-slider.is-on { opacity: 1; }
+/* เลื่อนแบบสปริงของ iOS (เลยเป้านิดหนึ่งแล้วเด้งกลับ) + ยุบตอนกดค้าง (scale แยกจาก transform ที่ใช้เลื่อน) */
 .tab-slider.is-animated {
-    transition: transform 0.42s cubic-bezier(0.32, 0.72, 0, 1), width 0.42s cubic-bezier(0.32, 0.72, 0, 1),
-                height 0.42s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.2s ease;
+    transition: transform 0.5s cubic-bezier(0.3, 1.25, 0.5, 1), width 0.5s cubic-bezier(0.3, 1.25, 0.5, 1),
+                height 0.42s cubic-bezier(0.32, 0.72, 0, 1), scale 0.22s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.2s ease;
 }
+.tab-slider.is-pressed { scale: 0.95; }
+/* กดแท็บที่ยังไม่ได้เลือก: ตัวอักษรจางลงระหว่างกด (เหมือน iOS) */
+.seg-host > .btn.is-pressing { opacity: 0.45 !important; transition: opacity 0.08s ease; }
+.seg-host { touch-action: pan-x; -webkit-user-select: none; user-select: none; }
+
+/* มาตรฐานเดียวทุกกลุ่มแท็บ (เจ้าของระบบขอ 2026-10-08): ขนาดปุ่ม/ตัวอักษร/ไอคอน/ระยะห่างเท่ากันทั้งระบบ
+   — เดิมแต่ละกลุ่มตั้งเอง (แจ้งงาน 9×20/14px, แดชบอร์ด-การเงินใช้ขนาดปุ่มปกติ, ฟอร์มนายจ้าง inline 8×18, ตาราง/กราฟ 7×16/13.5px) */
+.seg-host > .btn {
+    padding: 8px 18px !important;
+    font-size: 14px !important;
+    line-height: 1.3;
+    gap: 8px;
+    white-space: nowrap;
+}
+.seg-host > .btn .ico { width: 17px !important; height: 17px !important; }
+.seg-host > .btn:not(.btn-gold) { font-weight: 500; }
+/* ระยะห่างใต้กลุ่มแท็บหลักของหน้า/หน้าต่าง (ไม่รวมปุ่มตาราง/กราฟที่อยู่ในหัวการ์ด) */
+.dashboard-tabs.seg-host, .view-toggle-bar.seg-host { margin-bottom: 20px !important; }
+/* กลุ่มแท็บที่อยู่ในแถบเดียวกับปุ่มอื่น (ใบวางบิล: แบบรวม/รายคน, แฟ้มคนงาน: หมวด/ทั้งหมด) — แถบแม่คุมระยะเอง */
+.invoice-layout-bar > .seg-host, .fv-mode-bar > .seg-host { margin-bottom: 0 !important; }
 
 /* แถบเมนูข้าง: เมนูที่เลือกเป็นตัวเลื่อนไหลเหมือนกัน */
 .sidebar-menu { position: relative; }

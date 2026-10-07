@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261008p">
+    <link rel="stylesheet" href="styles.css?v=20261008r">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -775,10 +775,10 @@
                             <button class="btn btn-gold btn-sm" id="btn-job-view-table" onclick="switchJobView('table')">
                                 <span class="ico" data-icon="chart"></span> ตารางใบงาน (Table)
                             </button>
-                            <button class="btn btn-outline btn-sm" id="btn-job-view-kanban" onclick="switchJobView('kanban')" style="border-color: transparent; color: var(--text-dark); background: transparent;">
+                            <button class="btn btn-outline btn-sm" id="btn-job-view-kanban" onclick="switchJobView('kanban')">
                                 <span class="ico" data-icon="clipboard"></span> คัมบังบอร์ด (Kanban)
                             </button>
-                            <button class="btn btn-outline btn-sm" id="btn-job-view-summary" onclick="switchJobView('summary')" style="border-color: transparent; color: var(--text-dark); background: transparent;">
+                            <button class="btn btn-outline btn-sm" id="btn-job-view-summary" onclick="switchJobView('summary')">
                                 <span class="ico" data-icon="sparkles"></span> สรุปงาน (Summary)
                             </button>
                         </div>
@@ -2650,7 +2650,7 @@
                             <button class="btn btn-gold btn-sm" id="btn-inv-layout-service" onclick="setInvoiceLayout('service')">
                                 <span class="ico" data-icon="receipt"></span> แบบรวม (ตามประเภทงาน)
                             </button>
-                            <button class="btn btn-outline btn-sm" id="btn-inv-layout-worker" onclick="setInvoiceLayout('worker')" style="border-color: transparent; color: var(--text-dark); background: transparent;">
+                            <button class="btn btn-outline btn-sm" id="btn-inv-layout-worker" onclick="setInvoiceLayout('worker')">
                                 <span class="ico" data-icon="users"></span> แบบรายคน
                             </button>
                         </div>
@@ -3136,7 +3136,7 @@
                             <button type="button" class="btn btn-gold btn-sm" id="btn-fv-mode-type" onclick="setWorkerFolderMode('type')">
                                 <span class="ico" data-icon="folder"></span> แยกตามหมวด
                             </button>
-                            <button type="button" class="btn btn-outline btn-sm" id="btn-fv-mode-all" onclick="setWorkerFolderMode('all')" style="border-color: transparent; color: var(--text-dark); background: transparent;">
+                            <button type="button" class="btn btn-outline btn-sm" id="btn-fv-mode-all" onclick="setWorkerFolderMode('all')">
                                 <span class="ico" data-icon="clip"></span> เอกสารทั้งหมด
                             </button>
                         </div>
@@ -3305,7 +3305,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261008p"></script>
+    <script src="supabase-client.js?v=20261008r"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3316,6 +3316,6 @@
     </script>
 
     <!-- Application Script -->
-    <script src="app.js?v=20261008p"></script>
+    <script src="app.js?v=20261008r"></script>
 </body>
 </html>
