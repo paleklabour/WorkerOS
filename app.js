@@ -1850,6 +1850,8 @@ const ICON_GLYPHS = {
     cloud:    { c: 'blue',   d: '<path class="fl" d="M7 18.5h10.5a4 4 0 0 0 .6-8A6 6 0 0 0 6.4 9.2 4.7 4.7 0 0 0 7 18.5z"/>' },
     outbox:   { c: 'blue',   d: '<path class="fl" d="M4 13.5h4.5l1.5 2.5h4l1.5-2.5H20V18a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M12 12.5v-9M8.5 7 12 3.5 15.5 7"/>' },
     grip:     { c: 'slate',  d: '<circle cx="9" cy="6" r="1.3"/><circle cx="15" cy="6" r="1.3"/><circle cx="9" cy="12" r="1.3"/><circle cx="15" cy="12" r="1.3"/><circle cx="9" cy="18" r="1.3"/><circle cx="15" cy="18" r="1.3"/>' },
+    chevronDown: { c: 'slate', d: '<path d="m6.5 9.5 5.5 5.5 5.5-5.5"/>' }, // ลูกศรลงแบบ iOS (ตัวกรองหลายค่า)
+    xmark:    { c: 'slate',  d: '<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>' },
 };
 
 function icon(name, color) {
@@ -4268,7 +4270,7 @@ function renderAttachmentChipsHtml(fileList, buildRemoveCall, buildPreviewCall) 
                 <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#166534; ${buildPreviewCall ? 'cursor:pointer; text-decoration:underline dotted;' : ''}"
                       title="${buildPreviewCall ? `คลิกเพื่อดูตัวอย่างไฟล์: ${f.name}` : f.name}"
                       ${buildPreviewCall ? `onclick="${buildPreviewCall(idx)}"` : ''}>${icon("ok")} ${f.name}</span>
-                <button type="button" onclick="${buildRemoveCall(idx)}" title="ลบไฟล์นี้ออก" style="background:none; border:none; color:#dc2626; cursor:pointer; font-weight:700; font-size:14px; line-height:1; flex-shrink:0; padding:0 2px;">×</button>
+                <button type="button" class="file-x-btn" onclick="${buildRemoveCall(idx)}" title="ลบไฟล์นี้ออก">×</button>
             </div>
         `).join('') +
     `</div>`;
@@ -14390,7 +14392,7 @@ async function restoreVoidInvoice(invoiceId) {
     if (!(await uiConfirm(`กู้คืนบิล ${inv.invoiceNo} ให้กลับมาใช้งาน?\n` +
         `บิลจะกลับเป็น "ออกบิลแล้ว (รอชำระ)" และใบงานในบิลจะถูกผูกกลับ — ลูกค้าจะเห็นยอดค้างของบิลนี้อีกครั้ง\n` +
         `การรับเงินที่ยกเลิก/ถอนออกไปก่อนหน้า จะไม่กลับมาเอง`, {
-        title: '⚠️ กู้คืนบิลที่ยกเลิก', okText: 'กู้คืนบิล', cancelText: 'ไม่กู้คืน', danger: false,
+        title: 'กู้คืนบิลที่ยกเลิก', okText: 'กู้คืนบิล', cancelText: 'ไม่กู้คืน', danger: false,
         card: { imageIcon: 'receipt', imageIconColor: 'amber', title: `${inv.invoiceNo} • ${fmtMoney(inv.grandTotal)} บาท`, subtitle: inv.customerName || '',
             rows: [['ยกเลิกเมื่อ', inv.voidedAt ? formatThaiDate(inv.voidedAt, true) : ''], ['เหตุผลที่ยกเลิก', inv.voidReason || ''], ['ยกเลิกโดย', inv.voidedBy ? getUserNameById(inv.voidedBy) : '']],
             list: jobList }

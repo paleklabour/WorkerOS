@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261008o">
+    <link rel="stylesheet" href="styles.css?v=20261008p">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -145,9 +145,7 @@
                         <span>ระบบแจ้งงาน / ใบสั่งงาน</span>
                     </a>
                     <a href="#" class="menu-item" id="menu-renewals" onclick="switchView('renewals')">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="20">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
+                        <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8M4 4v4h4M4 13a8 8 0 0 0 14.3 4.9L20 16M20 20v-4h-4"/></svg>
                         <span>ข้อมูลคนงานต่ออายุ/ทำเล่ม</span>
                     </a>
                     <a href="#" class="menu-item" id="menu-expenses" onclick="switchView('expenses')">
@@ -204,9 +202,7 @@
                     <div class="top-bar-actions">
                         <!-- ดึงข้อมูลล่าสุดจาก Supabase ใหม่ (เช่น มีคนอื่นแก้ข้อมูลจากอีกเครื่อง) โดยไม่ต้องรีเฟรชทั้งหน้าเว็บ — ดู refreshAppData() -->
                         <button type="button" class="topbar-refresh-btn" id="topbar-refresh-btn" onclick="refreshAppData()" title="ดึงข้อมูลล่าสุด (รีเฟรช)">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="22">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                            </svg>
+                            <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8M4 4v4h4M4 13a8 8 0 0 0 14.3 4.9L20 16M20 20v-4h-4"/></svg>
                         </button>
                         <!-- ย่อ/ขยายเมนูข้าง (เฉพาะจอกว้าง) — ย่อแล้วเหลือแต่ไอคอน ดู toggleSidebarCollapse() -->
                         <button type="button" class="topbar-refresh-btn sidebar-collapse-btn" id="sidebar-collapse-btn" onclick="toggleSidebarCollapse()" title="ย่อเมนู">
@@ -301,9 +297,7 @@
                                     </div>
                                     <div style="padding: 10px 14px 0;">
                                         <div class="search-box" style="max-width: 100%;">
-                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                            </svg>
+                                            <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle class="fl" cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/></svg>
                                             <input type="text" id="search-dashboard-employer-alerts" placeholder="ค้นหาชื่อนายจ้าง..." oninput="renderEmployerAlerts()">
                                         </div>
                                     </div>
@@ -386,9 +380,7 @@
                                     </div>
                                     <div style="padding: 10px 14px 0;">
                                         <div class="search-box" style="max-width: 100%;">
-                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                            </svg>
+                                            <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle class="fl" cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/></svg>
                                             <input type="text" id="search-dashboard-missing-docs" placeholder="ค้นหาชื่อ, เลข 13 หลัก, เลขใบอนุญาต/พาสปอร์ต/บัตรชมพู, สัญชาติ, นายจ้าง หรือเอกสารที่ขาด เช่น พาสปอร์ต..." oninput="renderMissingDocsOverview()">
                                         </div>
                                     </div>
@@ -502,15 +494,11 @@
                                         <!-- Dynamic agent options -->
                                     </select>
                                     <div class="search-box" style="min-width: 240px;">
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                        </svg>
+                                        <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle class="fl" cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/></svg>
                                         <input type="text" id="db-completed-employer-search" placeholder="ค้นหานายจ้าง (ว่าง = ทุกนายจ้าง)" autocomplete="off">
                                     </div>
                                     <div class="search-box" style="min-width: 240px;">
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                        </svg>
+                                        <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle class="fl" cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/></svg>
                                         <input type="text" id="db-completed-agent-search" placeholder="ค้นหา Agent (ว่าง = ทุก Agent)" autocomplete="off">
                                     </div>
                                 </div>
@@ -594,9 +582,7 @@
                         <div class="table-actions">
                             <div class="search-filters-group">
                             <div class="search-box">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                </svg>
+                                <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle class="fl" cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/></svg>
                                 <input type="text" id="search-customer" placeholder="ค้นหาชื่อบริษัท, เลขผู้เสียภาษี, หรือผู้ประสานงาน..." oninput="renderCustomers()">
                             </div>
                             <div class="filter-box">
@@ -615,9 +601,7 @@
                             </select>
                             </div></div>
                             <button class="btn btn-gold btn-add" id="btn-add-customer" onclick="openCustomerModal()">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                                </svg>
+                                <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
                                 <span>เพิ่มลูกค้า/นายจ้าง</span>
                             </button>
                         </div>
@@ -655,9 +639,7 @@
                         <div class="table-actions">
                             <div class="search-filters-group">
                                 <div class="search-box">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                    </svg>
+                                    <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle class="fl" cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/></svg>
                                     <input type="text" id="search-worker" placeholder="ค้นหาชื่อ-นามสกุล, เลขคนงาน, พาสปอร์ต, ชื่อนายจ้าง..." oninput="renderWorkers()">
                                 </div>
                                 <div class="filter-box">
@@ -693,9 +675,7 @@
                                 <span>นำเข้าเอกสารหลายไฟล์</span>
                             </button>
                             <button class="btn btn-gold btn-add" id="btn-add-worker" onclick="openWorkerModal()">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                                </svg>
+                                <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
                                 <span>เพิ่มคนงานต่างด้าว</span>
                             </button>
                         </div>
@@ -739,9 +719,7 @@
                         <div class="table-actions">
                             <div class="search-filters-group">
                                 <div class="search-box">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                    </svg>
+                                    <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle class="fl" cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/></svg>
                                     <input type="text" id="search-job" placeholder="ค้นหาใบสั่งงาน, นายจ้าง, คนงาน..." oninput="renderJobs()">
                                 </div>
                                 <div class="filter-box">
@@ -781,16 +759,12 @@
                             </div>
                             <div class="action-buttons-group" style="display: flex; gap: 10px;">
                                 <button class="btn btn-gold btn-add" id="btn-add-job" onclick="openJobModal()">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                                    </svg>
+                                    <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
                                     <span>แจ้งงาน</span>
                                 </button>
                                 <!-- เพิ่มงานประเภทอื่นให้คนงาน เข้าชุดงานเดียวกับใบงานที่มีอยู่ — ดู openAddToBatchModal() ใน app.js -->
                                 <button class="btn btn-gold btn-add needs-ops" id="btn-add-job-to-batch" onclick="openAddToBatchModal()">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                                    </svg>
+                                    <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
                                     <span>เพิ่มงานเข้าชุดเดิม</span>
                                 </button>
                             </div>
@@ -896,9 +870,7 @@
                         </p>
                         <div class="table-actions">
                             <div class="search-box">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                </svg>
+                                <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle class="fl" cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/></svg>
                                 <input type="text" id="search-renewal" placeholder="ค้นหาชื่อ-นามสกุล, เลขคนงาน, พาสปอร์ต, ชื่อนายจ้าง..." oninput="renderRenewalGroups()">
                             </div>
                             <!-- ตัวกรองหน้าต่ออายุ/ทำเล่ม — กรองคนงาน "ภายใน" แต่ละกลุ่ม (กลุ่มยังจัดจากคนงานทั้งหมด) ดู renderRenewalGroups() -->
@@ -939,15 +911,11 @@
                     <div id="view-agents" class="content-section hidden">
                         <div class="table-actions">
                             <div class="search-box">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                </svg>
+                                <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle class="fl" cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/></svg>
                                 <input type="text" id="search-agent" placeholder="ค้นหาชื่อ Agent..." oninput="renderAgentsList()">
                             </div>
                             <button class="btn btn-gold btn-add" id="btn-add-agent" onclick="openAgentModal()">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                                </svg>
+                                <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
                                 <span>เพิ่ม Agent ใหม่</span>
                             </button>
                         </div>
@@ -1227,9 +1195,7 @@
                         <div id="finpage-tab-billing" class="db-tab-content hidden">
                             <div class="table-actions">
                                 <div class="search-box">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                    </svg>
+                                    <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle class="fl" cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/></svg>
                                     <input type="text" id="search-billing" placeholder="ค้นหาใบสั่งงาน, นายจ้าง, คนงาน..." oninput="renderBillingTab()">
                                 </div>
                                 <select id="filter-billing-payment-status" class="select-filter" onchange="renderBillingTab()">
@@ -1283,18 +1249,14 @@
                         <div id="finpage-tab-expenses" class="db-tab-content hidden">
                             <div class="table-actions">
                                 <div class="search-box">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                    </svg>
+                                    <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle class="fl" cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/></svg>
                                     <input type="text" id="search-expense" placeholder="ค้นหารายละเอียด, หมวดหมู่..." oninput="renderExpenses()">
                                 </div>
                                 <select id="filter-expense-category" class="select-filter" onchange="renderExpenses()">
                                     <option value="">ทุกหมวดหมู่</option>
                                 </select>
                                 <button class="btn btn-gold btn-add" id="btn-add-expense" onclick="openExpenseModal()">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                                    </svg>
+                                    <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
                                     <span>เพิ่มรายจ่ายใหม่</span>
                                 </button>
                             </div>
@@ -1325,15 +1287,11 @@
                         <div id="finpage-tab-banks" class="db-tab-content hidden">
                             <div class="table-actions">
                                 <div class="search-box">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                    </svg>
+                                    <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle class="fl" cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/></svg>
                                     <input type="text" id="search-bank" placeholder="ค้นหาชื่อบัญชี, ธนาคาร..." oninput="renderBanks()">
                                 </div>
                                 <button class="btn btn-gold btn-add" id="btn-add-bank" onclick="openBankModal()">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                                    </svg>
+                                    <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
                                     <span>เพิ่มบัญชีธนาคาร</span>
                                 </button>
                             </div>
@@ -1374,15 +1332,11 @@
                     <div id="view-users" class="content-section hidden">
                         <div class="table-actions">
                             <div class="search-box">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                </svg>
+                                <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle class="fl" cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/></svg>
                                 <input type="text" id="search-user" placeholder="ค้นหาชื่อ, อีเมล..." oninput="renderUsers()">
                             </div>
                             <button class="btn btn-gold btn-add" id="btn-add-user" onclick="openUserModal()">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                                </svg>
+                                <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
                                 <span>เพิ่มบัญชีผู้ใช้งาน</span>
                             </button>
                         </div>
@@ -2070,9 +2024,7 @@
                                             <!-- Dynamic -->
                                         </select>
                                         <div class="search-box" style="max-width: 100%;">
-                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                            </svg>
+                                            <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle class="fl" cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/></svg>
                                             <input type="text" id="worker-employer-search" placeholder="พิมพ์ชื่อบริษัท/นายจ้างเพื่อค้นหา..." autocomplete="off">
                                         </div>
                                     </div>
@@ -2386,9 +2338,7 @@
                                 <!-- Dynamic -->
                             </select>
                             <div class="search-box" style="max-width: 100%;">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                </svg>
+                                <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle class="fl" cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/></svg>
                                 <input type="text" id="job-customer-search" placeholder="พิมพ์ชื่อบริษัท/นายจ้างเพื่อค้นหา..." autocomplete="off">
                             </div>
                         </div>
@@ -2715,18 +2665,14 @@
                             <div class="form-group col-6" style="margin-bottom: 0;">
                                 <label style="font-weight: 600; color: var(--gold-primary);"><span class="ico" data-icon="search"></span> ค้นหาเลือกนายจ้าง/ลูกค้าจากระบบ (ไม่บังคับ)</label>
                                 <div class="search-box" style="max-width: 100%;">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                    </svg>
+                                    <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle class="fl" cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/></svg>
                                     <input type="text" id="invoice-free-cust-search" placeholder="พิมพ์ชื่อบริษัท/นายจ้างเพื่อค้นหา..." autocomplete="off">
                                 </div>
                             </div>
                             <div class="form-group col-6" style="margin-bottom: 0;">
                                 <label style="font-weight: 600; color: var(--gold-primary);"><span class="ico" data-icon="search"></span> ค้นหาเลือกลูกจ้าง/คนงานจากระบบ (ไม่บังคับ)</label>
                                 <div class="search-box" style="max-width: 100%;">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                    </svg>
+                                    <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle class="fl" cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/></svg>
                                     <input type="text" id="invoice-free-worker-search" placeholder="พิมพ์ชื่อ หรือเลขประจำตัวคนงาน 13 หลัก..." autocomplete="off">
                                 </div>
                             </div>
@@ -2957,9 +2903,7 @@
                     <div class="form-group">
                         <label for="receive-cust-search">นายจ้าง / ลูกค้า <span class="required">*</span></label>
                         <div class="search-box" style="max-width: 100%;">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
+                            <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle class="fl" cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/></svg>
                             <input type="text" id="receive-cust-search" placeholder="พิมพ์ชื่อบริษัท/นายจ้างเพื่อค้นหา..." autocomplete="off">
                         </div>
                     </div>
@@ -3062,9 +3006,7 @@
                     <div class="form-group">
                         <label for="add-batch-job-search">ค้นหาใบงานต้นทาง <span class="required">*</span></label>
                         <div class="search-box" style="max-width: 100%;">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
+                            <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle class="fl" cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/></svg>
                             <input type="text" id="add-batch-job-search" placeholder="พิมพ์ชื่อคนงาน, เลข 13 หลัก, เลขใบงาน หรือชื่อนายจ้าง..." autocomplete="off">
                         </div>
                     </div>
@@ -3091,9 +3033,7 @@
                             <!-- Dynamic options -->
                         </select>
                         <div class="search-box" style="max-width: 100%;">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
+                            <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle class="fl" cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/></svg>
                             <input type="text" id="combine-cust-search" placeholder="พิมพ์ชื่อบริษัท/นายจ้างเพื่อค้นหา..." autocomplete="off">
                         </div>
                     </div>
@@ -3147,9 +3087,7 @@
                             <p id="customer-folder-meta"></p>
                         </div>
                         <div class="search-box fv-search">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
+                            <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle class="fl" cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/></svg>
                             <input type="text" id="search-customer-folder" placeholder="ค้นหาชื่อไฟล์ในแฟ้มนี้..." oninput="renderCustomerFolderTiles()">
                         </div>
                     </div>
@@ -3187,9 +3125,7 @@
                             <p id="worker-folder-meta"></p>
                         </div>
                         <div class="search-box fv-search">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
+                            <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle class="fl" cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/></svg>
                             <input type="text" id="search-worker-folder" placeholder="ค้นหาชื่อไฟล์ในแฟ้มนี้..." oninput="renderWorkerFolderTiles()">
                         </div>
                     </div>
@@ -3285,9 +3221,7 @@
                         <div class="form-group" style="margin-bottom: 10px;">
                             <label for="bulk-import-employer-search">นายจ้างของคนงานใหม่ทุกคนในรอบนี้ <span class="required">*</span></label>
                             <div class="search-box" style="max-width: 100%;">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                </svg>
+                                <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle class="fl" cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/></svg>
                                 <input type="text" id="bulk-import-employer-search" placeholder="พิมพ์ชื่อบริษัท/นายจ้างเพื่อค้นหา..." autocomplete="off">
                             </div>
                         </div>
@@ -3371,7 +3305,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261008o"></script>
+    <script src="supabase-client.js?v=20261008p"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3382,6 +3316,6 @@
     </script>
 
     <!-- Application Script -->
-    <script src="app.js?v=20261008o"></script>
+    <script src="app.js?v=20261008p"></script>
 </body>
 </html>

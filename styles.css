@@ -2735,7 +2735,7 @@ td > .ico {
 }
 
 #sync-status.is-error .sync-close {
-    display: block;
+    display: flex;
 }
 
 @keyframes sync-spin {
@@ -7305,8 +7305,66 @@ body.has-camera .upload-hint { display: none; }
 
 /* หัวคอลัมน์ที่คลิกเรียงได้ (ตารางระบบจัดการแจ้งงาน — sortJobsBy) */
 th.sortable-th { cursor: pointer; user-select: none; white-space: nowrap; }
-th.sortable-th::after { content: '↕'; margin-left: 4px; font-size: 11.5px; opacity: 0.35; }
+/* ลูกศรเรียงคอลัมน์แบบ iOS (chevron เส้นบาง) — ใช้ mask ให้สีตามตัวอักษรของหัวคอลัมน์ทุกธีม */
+th.sortable-th::after {
+    content: '';
+    display: inline-block;
+    width: 10px;
+    height: 12px;
+    margin-left: 5px;
+    vertical-align: -1px;
+    background-color: currentColor;
+    opacity: 0.35;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 12' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 4.5 5 1.5l3 3M2 7.5l3 3 3-3'/%3E%3C/svg%3E") center / contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 12' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 4.5 5 1.5l3 3M2 7.5l3 3 3-3'/%3E%3C/svg%3E") center / contain no-repeat;
+}
 th.sortable-th.is-sorted { color: var(--gold-primary); }
-th.sortable-th.is-sorted[data-dir="asc"]::after { content: '▲'; opacity: 1; }
-th.sortable-th.is-sorted[data-dir="desc"]::after { content: '▼'; opacity: 1; }
+th.sortable-th.is-sorted[data-dir="asc"]::after {
+    opacity: 1;
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 12' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1.5 7.5 5 4l3.5 3.5'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 12' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1.5 7.5 5 4l3.5 3.5'/%3E%3C/svg%3E");
+}
+th.sortable-th.is-sorted[data-dir="desc"]::after {
+    opacity: 1;
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 12' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1.5 4.5 5 8l3.5-3.5'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 12' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1.5 4.5 5 8l3.5-3.5'/%3E%3C/svg%3E");
+}
 th.sortable-th:hover::after { opacity: 0.8; }
+
+/* ปุ่ม × ทุกแบบ (ปิดหน้าต่าง / ลบรูป / ลบไฟล์ / เอาชิปออก / ปิดการ์ดสถานะ) → กากบาทเส้นแบบ iOS (xmark)
+   ซ่อนตัวอักษร × เดิม (font-size: 0) แล้ววาดกากบาทด้วย mask สีตาม currentColor ของปุ่มนั้น ๆ */
+.close-btn, .remove-photo-btn, .sync-close, .job-worker-chip button, .inv-item-remove-btn, .file-x-btn { font-size: 0 !important; }
+.close-btn::before, .remove-photo-btn::before, .sync-close::before, .job-worker-chip button::before, .inv-item-remove-btn::before, .file-x-btn::before {
+    content: '';
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    background-color: currentColor;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round'%3E%3Cpath d='M2 2l8 8M10 2l-8 8'/%3E%3C/svg%3E") center / contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round'%3E%3Cpath d='M2 2l8 8M10 2l-8 8'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+/* ปุ่มปิดหน้าต่าง: วงกลมเทาจางแบบปุ่มปิดของ iOS */
+.close-btn { width: 30px; height: 30px; background-color: var(--dk-subtle, rgba(120, 120, 128, 0.12)); }
+.close-btn::before { width: 11px; height: 11px; }
+.file-x-btn {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: none;
+    color: var(--danger);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.file-x-btn:hover { background-color: var(--dk-bad-bg, #fef2f2); }
+.job-worker-chip button { display: inline-flex; align-items: center; }
+/* ปุ่มที่ไม่ได้กำหนด display เอง: จัดกากบาทให้อยู่กลางวงกลม (ปุ่มลบรูป/ปิดการ์ดสถานะ มีกฎแสดง/ซ่อนของตัวเองอยู่แล้ว) */
+.inv-item-remove-btn { display: inline-flex; align-items: center; justify-content: center; }
+.sync-close { align-items: center; justify-content: center; }
+
+/* ไอคอน SVG ที่เขียนตรงใน index.html (ช่องค้นหา / ปุ่มเพิ่ม / รีเฟรช) ใช้รูปทรงชุดเดียวกับ icon() — ส่วนทึบสีจาง */
+.ios-glyph .fl { fill: color-mix(in srgb, currentColor 16%, transparent); }
