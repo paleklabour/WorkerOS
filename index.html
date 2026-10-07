@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261008d">
+    <link rel="stylesheet" href="styles.css?v=20261008e">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -3028,6 +3028,25 @@
         </div>
 
         <!-- ==================== COMBINE BILLS MODAL ==================== -->
+        <!-- ==================== MODAL: จัดการป้ายใบงาน (เพิ่ม / เปลี่ยนชื่อ / เปลี่ยนสี / ลบ) — ดู openJobTagManager() ==================== -->
+        <div id="job-tag-modal" class="modal-backdrop hidden">
+            <div class="modal-content job-tag-content">
+                <div class="modal-header">
+                    <h3><span class="ico" data-icon="edit"></span> จัดการป้ายใบงาน</h3>
+                    <button class="close-btn" title="ปิดหน้าต่าง" onclick="closeJobTagManager()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted">ป้ายใช้ร่วมกันทุกคน — เลือกได้ใต้ช่องหมายเหตุของทุกใบงาน (1 ใบงาน 1 ป้าย)</p>
+                    <div id="job-tag-list" class="job-tag-list"></div>
+                    <button type="button" class="btn btn-sm btn-outline" onclick="addJobTagDraft()"><span class="ico" data-icon="plus"></span> เพิ่มป้าย</button>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline" onclick="closeJobTagManager()">ยกเลิก</button>
+                    <button class="btn btn-gold" onclick="saveJobTags()">บันทึกป้าย</button>
+                </div>
+            </div>
+        </div>
+
         <!-- ==================== MODAL: เพิ่มงานเข้าชุดงานเดิม (เลือกใบงานต้นทาง → ดูรายละเอียด → ยืนยัน) ==================== -->
         <div id="add-to-batch-modal" class="modal-backdrop hidden">
             <div class="modal-content add-batch-content">
@@ -3348,7 +3367,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261008d"></script>
+    <script src="supabase-client.js?v=20261008e"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3359,6 +3378,6 @@
     </script>
 
     <!-- Application Script -->
-    <script src="app.js?v=20261008d"></script>
+    <script src="app.js?v=20261008e"></script>
 </body>
 </html>

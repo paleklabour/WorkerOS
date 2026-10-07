@@ -2934,6 +2934,54 @@ td > .ico {
 .cust-drive-share-label { display: flex; align-items: center; gap: 8px; font-weight: 600; cursor: pointer; margin-bottom: 10px; }
 .cust-drive-share-label input { width: 16px; height: 16px; cursor: pointer; }
 
+/* ป้ายใบงาน: dropdown ใต้ช่องหมายเหตุ (สีพื้นตามป้ายที่เลือก) + หน้าต่างจัดการป้าย */
+.job-tag-select {
+    display: block;
+    width: 100%;
+    max-width: 180px;
+    margin-top: 6px;
+    padding: 3px 8px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 999px;
+    border: 1px dashed var(--dk-line, #cbd5e1);
+    background: var(--dk-card, #ffffff);
+    color: var(--text-muted);
+    cursor: pointer;
+}
+.job-tag-select.has-tag { border-style: solid; }
+.job-tag-pill {
+    display: inline-block;
+    margin-top: 6px;
+    padding: 2px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 999px;
+}
+.modal-content.job-tag-content { max-width: 760px; width: 95%; }
+.job-tag-list { display: flex; flex-direction: column; gap: 10px; margin: 12px 0 14px; }
+.job-tag-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.job-tag-row input[type="text"] { flex: 1 1 180px; min-width: 140px; }
+.job-tag-preview {
+    flex: 0 0 auto;
+    min-width: 90px;
+    padding: 3px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+    border-radius: 999px;
+}
+.job-tag-swatches { display: flex; gap: 5px; flex-wrap: wrap; }
+.job-tag-swatch {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    padding: 0;
+}
+.job-tag-swatch.is-active { border-color: var(--text-dark); box-shadow: 0 0 0 2px var(--dk-card, #ffffff) inset; }
+
 /* pop-up "รับเงิน / มัดจำ" — เกือบเต็มจอ เห็นรายการบิลค้าง/ช่องกรอกครบโดยไม่ต้องเลื่อนมาก */
 .modal-content.receive-money-content { max-width: 1280px; width: 96vw; height: 92vh; max-height: 92vh; }
 .receive-money-content .modal-body { flex: 1; }

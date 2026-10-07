@@ -6177,7 +6177,7 @@ function renderJobs() {
                 <td>${workName}${work && work.email ? `<div class="job-worker-email">${escapeHtml(work.email)}</div>` : ''}</td>
                 <td onclick="event.stopPropagation()">${canEditJob(j)
                     ? `<input type="text" class="job-remark-input" id="job-remark-${j.id}" maxlength="20" value="${escapeHtml(j.remark || '')}" placeholder="หมายเหตุ" title="หมายเหตุสั้น ไม่เกิน 20 ตัวอักษร — พิมพ์แล้วกด Enter หรือคลิกที่อื่นเพื่อบันทึก" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}" onchange="saveJobRemark('${j.id}', this)">`
-                    : (j.remark ? escapeHtml(j.remark) : '<span class="text-muted">-</span>')}</td>
+                    : (j.remark ? escapeHtml(j.remark) : '<span class="text-muted">-</span>')}${jobTagSelectHtml(j)}</td>
                 <td><span class="badge ${statusClass}">${displayStatus}</span><br>${paymentBadge}${prepaymentBadge}</td>
                 <td onclick="event.stopPropagation()">
                     <div class="order-no-field${j.orderNo ? ' is-locked' : ''}">
@@ -6250,6 +6250,121 @@ async function saveJobRemark(jobId, input) {
     if (idx !== -1) jobs[idx] = jobData;
     saveData();
     showToast(`💾 บันทึกหมายเหตุของ ${getJobDisplayNo(jobData)} แล้ว`, "success");
+}
+
+// ---------- ป้ายใบงาน (dropdown ใต้ช่องหมายเหตุ) ----------
+// 1 ใบงาน = 1 ป้าย (jobs.tag เก็บ id), รายการป้าย { id, name, color } ใช้ร่วมกันทุกคนใน app_settings.job_tags
+// ฝ่ายปฏิบัติการเพิ่ม/เปลี่ยนชื่อ/เปลี่ยนสี/ลบป้ายได้ (เลือก "จัดการป้าย…" ท้าย dropdown) — migration 20261008100000_job_tag.sql
+const JOB_TAG_COLORS = ['#ff3b30', '#ff9500', '#ffcc00', '#34c759', '#30b0c7', '#007aff', '#5856d6', '#af52de', '#ff2d55', '#8e8e93'];
+let jobTagDraft = []; // รายการป้ายระหว่างแก้ในหน้าต่าง "จัดการป้ายใบงาน"
+
+function jobTags() {
+    return Array.isArray(appSettings.job_tags) ? appSettings.job_tags : [];
+}
+
+// สีตัวอักษรบนพื้นป้าย: พื้นสว่าง (เหลือง) ใช้ตัวเข้ม นอกนั้นตัวขาว
+function jobTagTextColor(hex) {
+    const n = parseInt(String(hex || '#8e8e93').slice(1), 16);
+    const lum = (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
+    return lum > 0.7 ? '#1c1c1e' : '#ffffff';
+}
+
+function jobTagSelectHtml(j) {
+    const tags = jobTags();
+    const cur = tags.find(t => t.id === j.tag);
+    if (!canEditJob(j)) {
+        return cur ? `<span class="job-tag-pill" style="background:${cur.color}; color:${jobTagTextColor(cur.color)};">${escapeHtml(cur.name)}</span>` : '';
+    }
+    const style = cur ? ` style="background-color:${cur.color}; color:${jobTagTextColor(cur.color)}; border-color:${cur.color};"` : '';
+    return `<select class="job-tag-select${cur ? ' has-tag' : ''}" id="job-tag-${j.id}"${style} onchange="onJobTagChange('${j.id}', this)" title="ป้ายใบงาน">
+        <option value="">— ป้าย —</option>
+        ${tags.map(t => `<option value="${escapeHtml(t.id)}"${t.id === j.tag ? ' selected' : ''}>${escapeHtml(t.name)}</option>`).join('')}
+        ${can('ops') ? '<option value="__manage">＋ เพิ่ม / แก้ไขป้าย…</option>' : ''}
+    </select>`;
+}
+
+async function onJobTagChange(jobId, sel) {
+    const j = jobs.find(item => item.id === jobId);
+    if (!j) return;
+    if (sel.value === '__manage') {
+        sel.value = j.tag || '';
+        openJobTagManager();
+        return;
+    }
+    if (!canEditJob(j)) { sel.value = j.tag || ''; return; }
+    const tag = sel.value || null;
+    if ((j.tag || null) === tag) return;
+    const jobData = Object.assign({}, j, { tag });
+    const res = await callCloudAPI("saveJob", { jobData });
+    if (!res || res.status === "error") {
+        sel.value = j.tag || '';
+        showToast("❌ บันทึกป้ายไม่สำเร็จ: " + (res && res.message ? res.message : "กรุณาลองใหม่"), "danger");
+        return;
+    }
+    const idx = jobs.findIndex(item => item.id === jobId);
+    if (idx !== -1) jobs[idx] = jobData;
+    saveData();
+    renderJobs();
+}
+
+function openJobTagManager() {
+    if (!can('ops')) return;
+    jobTagDraft = JSON.parse(JSON.stringify(jobTags()));
+    if (!jobTagDraft.length) addJobTagDraft(false);
+    renderJobTagManager();
+    document.getElementById("job-tag-modal").classList.remove("hidden");
+}
+
+function closeJobTagManager() {
+    document.getElementById("job-tag-modal").classList.add("hidden");
+}
+
+function addJobTagDraft(render = true) {
+    const used = new Set(jobTagDraft.map(t => t.color));
+    jobTagDraft.push({ id: 'tag-' + Date.now().toString(36), name: '', color: JOB_TAG_COLORS.find(c => !used.has(c)) || JOB_TAG_COLORS[0] });
+    if (render) renderJobTagManager(true);
+}
+
+function renderJobTagManager(focusLast = false) {
+    const list = document.getElementById("job-tag-list");
+    if (!list) return;
+    list.innerHTML = jobTagDraft.map((t, i) => {
+        const inUse = jobs.filter(j => j.tag === t.id).length;
+        return `
+        <div class="job-tag-row">
+            <span class="job-tag-preview" style="background:${t.color}; color:${jobTagTextColor(t.color)};">${escapeHtml(t.name || 'ตัวอย่าง')}</span>
+            <input type="text" maxlength="20" value="${escapeHtml(t.name)}" placeholder="ชื่อป้าย เช่น ด่วน, รอลูกค้า" oninput="jobTagDraft[${i}].name = this.value; this.previousElementSibling.textContent = this.value || 'ตัวอย่าง'">
+            <div class="job-tag-swatches">
+                ${JOB_TAG_COLORS.map(c => `<button type="button" class="job-tag-swatch${c === t.color ? ' is-active' : ''}" style="background:${c};" onclick="jobTagDraft[${i}].color = '${c}'; renderJobTagManager()" title="เลือกสีนี้"></button>`).join('')}
+            </div>
+            <button type="button" class="action-icon-btn delete-btn" onclick="removeJobTagDraft(${i})" title="ลบป้าย${inUse ? ` (ใช้อยู่ ${inUse} ใบงาน)` : ''}">${icon("trash")}</button>
+        </div>`;
+    }).join('') || `<p class="text-muted">ยังไม่มีป้าย — กด "เพิ่มป้าย"</p>`;
+    if (focusLast) { const inputs = list.querySelectorAll('input[type="text"]'); if (inputs.length) inputs[inputs.length - 1].focus(); }
+}
+
+async function removeJobTagDraft(i) {
+    const t = jobTagDraft[i];
+    const inUse = t ? jobs.filter(j => j.tag === t.id).length : 0;
+    if (inUse && !(await uiConfirm(`ป้าย "${t.name || '-'}" ใช้อยู่ ${inUse} ใบงาน — ลบแล้วใบงานเหล่านั้นจะไม่มีป้าย`, { okText: 'ลบป้าย' }))) return;
+    jobTagDraft.splice(i, 1);
+    renderJobTagManager();
+}
+
+async function saveJobTags() {
+    if (!can('ops')) return;
+    const tags = jobTagDraft.map(t => ({ ...t, name: String(t.name || '').trim().slice(0, 20) })).filter(t => t.name);
+    const names = tags.map(t => t.name.toLowerCase());
+    if (new Set(names).size !== names.length) { uiAlert("ชื่อป้ายซ้ำกัน กรุณาตั้งชื่อไม่ให้ซ้ำ"); return; }
+    const res = await callCloudAPI("saveSetting", { key: 'job_tags', value: tags });
+    if (!res || res.status === "error") {
+        showToast("❌ บันทึกป้ายไม่สำเร็จ: " + (res && res.message ? res.message : "กรุณาลองใหม่"), "danger");
+        return;
+    }
+    appSettings.job_tags = tags;
+    closeJobTagManager();
+    renderJobs();
+    showToast(`💾 บันทึกป้ายใบงานแล้ว (${tags.length} ป้าย)`, "success");
 }
 
 // บันทึกเลข Order No. แบบแก้ไขในตารางใบงานโดยตรง (แทนการกรอกในฟอร์มแจ้งงาน) แล้วล็อกช่องไว้ไม่ให้พิมพ์ซ้ำ
