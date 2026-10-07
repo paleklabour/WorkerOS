@@ -15657,6 +15657,7 @@ function hideIosTooltip() {
     if (!t) return;
     clearTimeout(t.timer);
     if (t.box) t.box.remove();
+    t.el.removeAttribute('data-ios-tip');
     // คืน title ให้ (ถ้าระหว่างนั้นโค้ดอื่นไม่ได้ตั้ง title ใหม่)
     if (t.el.isConnected && !t.el.hasAttribute('title')) t.el.setAttribute('title', t.title);
     _iosTip = null;
@@ -15682,14 +15683,16 @@ function setupIosTooltips() {
     if (!window.matchMedia || !window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
 
     document.addEventListener('mouseover', e => {
-        if (_iosTip && _iosTip.el.contains(e.target)) return; // ยังชี้อยู่ในปุ่มเดิม
-        const el = e.target.closest && e.target.closest('[title]');
+        // หาตัวที่มีคำอธิบาย "ใกล้เมาส์ที่สุด" เสมอ — ตัวที่กำลังแสดงอยู่ถูกถอด title ไว้ จึงหาด้วย data-ios-tip แทน
+        // (เดิมถ้าชี้แถวตารางที่มี title ก่อน ปุ่มข้างในแถว เช่น ปิดงาน/แก้ไข/ลบ จะถูกข้าม แล้วขึ้นกรอบของเบราว์เซอร์แทน)
+        const el = e.target.closest && e.target.closest('[title], [data-ios-tip]');
         if (!el || (_iosTip && _iosTip.el === el)) return;
         if (el.closest('svg') && el.tagName.toLowerCase() !== 'svg') return;
         const title = el.getAttribute('title');
         hideIosTooltip();
         if (!title || !title.trim()) return;
         el.removeAttribute('title');
+        el.setAttribute('data-ios-tip', '');
         _iosTip = { el, title, box: null, timer: null };
         _iosTip.timer = setTimeout(() => {
             if (_iosTip && _iosTip.el === el && el.isConnected) _iosTip.box = showIosTooltip(el, title);
