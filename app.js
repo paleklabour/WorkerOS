@@ -12210,23 +12210,40 @@ async function handleFolderFileUpload(event) {
 const WORKER_DOC_TYPES = [
     { key: "worker-wp-doc", label: "ใบอนุญาตทำงาน", keywords: ["ใบอนุญาตทำงาน", "work permit", "workpermit", "อนุญาตทำงาน", "_wp_", "-wp-", " wp "] },
     { key: "worker-passport", label: "พาสปอร์ต/CI", keywords: ["passport", "พาสปอร์ต", "_ci_", "-ci-", " ci "] },
-    { key: "worker-myanmar-id", label: "บัตรประชาชน/ทะเบียนบ้านพม่า", keywords: ["myanmar id", "myanmarid", "บัตรประชาชนพม่า", "ทะเบียนบ้าน"] },
-    { key: "worker-pink-card", label: "บัตรชมพู", keywords: ["pink card", "pinkcard", "บัตรชมพู", "ชมพู"] },
-    { key: "worker-receipt", label: "ใบเสร็จรับเงิน", keywords: ["receipt", "ใบเสร็จ"] },
+    { key: "worker-myanmar-id", label: "บัตรประชาชน/ทะเบียนบ้านพม่า", keywords: ["myanmar id", "myanmarid", "บัตรประชาชนพม่า", "ทะเบียนบ้าน", " ntid ", " mid "] },
+    { key: "worker-pink-card", label: "บัตรชมพู", keywords: ["pink card", "pinkcard", "บัตรชมพู", "ชมพู", " pj "] },
+    { key: "worker-receipt", label: "ใบเสร็จรับเงิน", keywords: ["receipt", "ใบเสร็จ", "receip"] },
     { key: "worker-medical", label: "ใบรับรองแพทย์", keywords: ["medical", "แพทย์", "รับรองแพทย์"] },
     { key: "worker-insurance-doc", label: "ประกัน", keywords: ["insurance", "ประกัน"] },
-    { key: "worker-application", label: "ใบคำขอ", keywords: ["application", "คำขอ", "บต.46", "บต46"] },
-    { key: "worker-other", label: "อื่นๆ", keywords: [] } // เลือกเองเท่านั้น ไม่จับจากชื่อไฟล์ และไม่ให้ AI อ่าน
+    { key: "worker-application", label: "ใบคำขอ", keywords: ["application", "คำขอ", "บต.46", "บต46", " wp52 ", " wp53 ", " wp55 ", " ap ", " req "] },
+    { key: "worker-other", label: "อื่นๆ", keywords: [" visa "] } // ไม่ให้ AI อ่าน — วีซ่าไม่มีหมวดของตัวเอง (ตัวย่อชื่อไฟล์ของออฟฟิศ: PJ บัตรชมพู, NTID/MID บัตรพม่า, WP52/53/55 AP REQ ใบคำขอ)
 ];
 
-function matchWorkerFromFilename(filename) {
+// relPath = ที่อยู่ไฟล์ในโฟลเดอร์ที่ลากมาวาง (เช่น "/มติ_8_ก.ค._68/0090791029671_MR._WIN_AUNG_EXP_13_FEB_2027/MR._WIN_AUNG_WP_R.jpg")
+// — โฟลเดอร์คนงานที่ตั้งชื่อ "เลข13หลัก_คำนำหน้า_ชื่อ_EXP_..." ใช้จับคู่ได้แม้ชื่อไฟล์ไม่มีเลข
+function matchWorkerFromFilename(filename, relPath = '') {
     const base = filename.replace(/\.[^.]+$/, '');
+    const pool = bulkImportWorkerPool();
 
     // 1) เลขประจำตัวคนต่างด้าว 13 หลักในชื่อไฟล์ตรงกับคนงานเป๊ะๆ = มั่นใจสูง
     const idMatch = base.match(/\d{13}/);
     if (idMatch) {
-        const w = bulkImportWorkerPool().find(item => item.workerUid === idMatch[0]);
+        const w = pool.find(item => item.workerUid === idMatch[0]);
         if (w) return { workerId: w.id, confidence: 'high' };
+    }
+
+    // 1.5) ชื่อโฟลเดอร์ (ไล่จากโฟลเดอร์ที่ลึกสุด): เลข 13 หลักตรง หรือชื่อคนตรงทั้งชื่อ (เลขอาจเปลี่ยนหลังต่ออายุ)
+    // ชื่อซ้ำกันหลายคน = ไม่จับคู่ด้วยชื่อ (ต้องใช้เลข)
+    const folders = String(relPath || '').split('/').slice(0, -1).filter(Boolean).reverse();
+    for (const seg of folders) {
+        const uid = (seg.match(/^\d{13}(?!\d)/) || [])[0];
+        const byUid = uid && pool.find(item => item.workerUid === uid);
+        if (byUid) return { workerId: byUid.id, confidence: 'high' };
+        const segName = seg.replace(/^\d{9,13}[_\s-]*/, '').replace(/[_\s]+EXP[_\s].*$/i, '')
+            .replace(/[_\-.]+/g, ' ').replace(/^(mrs|mr|miss|ms)\s+/i, '').replace(/\s+/g, ' ').trim().toLowerCase();
+        if (!segName) continue;
+        const hits = pool.filter(w => `${w.firstName || ''} ${w.lastName || ''}`.replace(/\s+/g, ' ').trim().toLowerCase() === segName);
+        if (hits.length === 1) return { workerId: hits[0].id, confidence: bulkImportEmployerId ? 'high' : 'medium' };
     }
 
     // 2) ชื่อคนงาน (ชื่อ+นามสกุล) ปรากฏอยู่ในชื่อไฟล์ = มั่นใจกลาง (เลือกตัวที่ชื่อยาวที่สุดที่ตรง กันชื่อสั้นชนกันมั่ว)
@@ -12267,6 +12284,20 @@ const BULK_NEW_WORKER_PREFIX = 'new:';
 let bulkNewWorkers = [];          // [{ id, keys: Set, data: {...ฟิลด์คนงานที่ AI เติมให้} }]
 let bulkImportEmployerId = null;  // นายจ้างของรอบนี้ (เลือก 1 รายต่อรอบ ก่อนแนบไฟล์) — จับคู่เฉพาะคนงานของนายจ้างนี้ + คนงานใหม่สร้างให้นายจ้างนี้
 
+// ติ๊ก "สร้างคนงานใหม่จากไฟล์ที่จับคู่ไม่ได้" ไว้ไหม — ค่าเริ่มต้นไม่ติ๊ก (owner's request 2026-10-08: คนที่จับคู่ไม่ได้ไม่ต้องเพิ่ม)
+function bulkImportAllowNewWorkers() {
+    const cb = document.getElementById('bulk-import-allow-new');
+    return !!(cb && cb.checked);
+}
+
+function onBulkImportAllowNewChanged() {
+    if (bulkImportRows.some(r => r.parsedData && r.status !== 'success')) matchBulkRowsFromOcr();
+}
+
+// แถวที่ให้ AI อ่านตอน "ให้ AI อ่านและจับคู่": ยังไม่รู้ประเภท (ให้ AI จำแนก) หรือเป็น 4 ประเภทที่ใช้ AI อ่าน
+// (ใบอนุญาตทำงาน / passport / บัตรชมพู / ใบเสร็จ — ตรงกับ OCR_DOC_TYPES ใน supabase-client.js) ประเภทอื่นแนบอย่างเดียว
+const BULK_AI_DOC_TYPES = ['worker-wp-doc', 'worker-passport', 'worker-pink-card', 'worker-receipt'];
+
 // คนงานที่ไฟล์ในรอบนี้จับคู่ได้: เลือกนายจ้างแล้ว = เฉพาะคนงานของนายจ้างนั้น (กันแนบผิดคน/ผิดบริษัท)
 function bulkImportWorkerPool() {
     return bulkImportEmployerId ? workers.filter(w => w.employerId === bulkImportEmployerId) : workers;
@@ -12276,8 +12307,8 @@ function bulkImportWorkerPool() {
 function onBulkImportEmployerChanged() {
     const pool = new Set(bulkImportWorkerPool().map(w => w.id));
     bulkImportRows.forEach(row => {
-        if (row.status === 'success' || !row.workerId || isBulkNewWorkerId(row.workerId) || pool.has(row.workerId)) return;
-        const m = matchWorkerFromFilename(row.fileName);
+        if (row.status === 'success' || isBulkNewWorkerId(row.workerId) || (row.workerId && (row.workerManual || pool.has(row.workerId)))) return;
+        const m = matchWorkerFromFilename(row.fileName, row.relPath);
         row.workerId = m.workerId;
         row.confidence = m.confidence;
         row.workerManual = false;
@@ -12470,6 +12501,8 @@ function openBulkImportModal() {
     bulkImportRows = [];
     bulkNewWorkers = [];
     presetSearchSelect('bulk-import-employer', null);
+    const allowNew = document.getElementById('bulk-import-allow-new');
+    if (allowNew) allowNew.checked = false;
     const fileInput = document.getElementById('bulk-import-file-input');
     if (fileInput) fileInput.value = '';
     const progressEl = document.getElementById('bulk-import-progress');
@@ -12513,7 +12546,7 @@ function readEntriesRecursively(entries) {
 function readEntry(entry) {
     return new Promise((resolve) => {
         if (entry.isFile) {
-            entry.file(file => resolve([file]), () => resolve([]));
+            entry.file(file => { file._relPath = entry.fullPath; resolve([file]); }, () => resolve([]));
         } else if (entry.isDirectory) {
             const reader = entry.createReader();
             const collected = [];
@@ -12535,14 +12568,19 @@ function readEntry(entry) {
 }
 
 function addFilesToBulkImport(fileArray) {
-    const validFiles = fileArray.filter(f => f && (f.type.startsWith('image/') || f.type === 'application/pdf'));
+    const isOldFolder = f => /(^|\/)old\//i.test(f._relPath || f.webkitRelativePath || ''); // โฟลเดอร์ OLD = เอกสารเก่า ข้าม
+    const supported = fileArray.filter(f => f && (f.type.startsWith('image/') || f.type === 'application/pdf'));
+    const validFiles = supported.filter(f => !isOldFolder(f));
+    if (supported.length > validFiles.length) showToast(`ข้ามไฟล์ในโฟลเดอร์ OLD ${supported.length - validFiles.length} ไฟล์ (เอกสารเก่า)`, "warning");
     if (validFiles.length && !bulkImportEmployerId) showToast("ยังไม่ได้เลือกนายจ้าง — ระบบจะจับคู่กับคนงานทุกนายจ้าง แนะนำให้เลือกนายจ้างด้านบนก่อน", "warning");
     validFiles.forEach(file => {
-        const wMatch = matchWorkerFromFilename(file.name);
+        const relPath = file._relPath || file.webkitRelativePath || '';
+        const wMatch = matchWorkerFromFilename(file.name, relPath);
         const docType = matchDocTypeFromFilename(file.name);
         bulkImportRows.push({
             file,
             fileName: file.name,
+            relPath,
             workerId: wMatch.workerId,
             confidence: wMatch.confidence,
             docType: docType,
@@ -12634,7 +12672,7 @@ function updateBulkImportWorker(idx, workerId) {
 // onlyUnattempted: ตอนกด "นำเข้า" ปุ่มเดียว อ่านเฉพาะไฟล์ที่ยังไม่เคยลองอ่าน (ไฟล์ที่ AI ไม่ว่างรอบก่อนไม่ต้องรอซ้ำ
 // — กดปุ่ม "ให้ AI อ่านและจับคู่" เองเพื่อลองอ่านไฟล์พวกนั้นใหม่)
 async function analyzeBulkImportWithAi(onlyUnattempted = false) {
-    const rowsToRead = bulkImportRows.filter(r => r.status !== 'success' && !r.parsedData && r.docType !== 'worker-other' && (!onlyUnattempted || !r.ocrStatus));
+    const rowsToRead = bulkImportRows.filter(r => r.status !== 'success' && !r.parsedData && (!r.docType || BULK_AI_DOC_TYPES.includes(r.docType)) && (!onlyUnattempted || !r.ocrStatus));
     if (rowsToRead.length === 0) {
         if (!onlyUnattempted) showToast("ไม่มีไฟล์ที่ต้องให้ AI อ่าน (อ่านไปครบแล้ว)", "warning");
         return;
@@ -12721,6 +12759,12 @@ function matchBulkRowsFromOcr() {
 
         // 2) คนงานใหม่ที่เจอแล้วในรอบนี้ (มีคีย์ร่วมกัน) หรือสร้างกลุ่มใหม่
         row.matchNote = null;
+        // ไม่ได้ติ๊ก "สร้างคนงานใหม่" (ค่าเริ่มต้น): คงคนงานเดิมที่จับคู่จากชื่อไฟล์/โฟลเดอร์ไว้ ไม่เจอ = ปล่อยว่าง ไม่นำเข้า
+        if (!bulkImportAllowNewWorkers()) {
+            if (isBulkNewWorkerId(row.workerId)) row.workerId = null;
+            if (!row.selectManual) row.selected = !!(row.workerId && row.docType);
+            return;
+        }
         // คนงานใหม่ที่ยังไม่มีวันเกิด: เอกสารที่มีวันเกิด (คีย์ nx:/tx:) จับคู่ด้วยชื่อ (nm:/tn:) ได้ แล้วเติมวันเกิดให้การ์ด
         const nameOnly = k => k.replace(/^nx:/, 'nm:').replace(/^tx:/, 'tn:');
         let cand = bulkNewWorkers.find(c => keys.some(k => c.keys.has(k) || (!c.data.dob && /^(nx|tx):/.test(k) && c.keys.has(nameOnly(k)))));

@@ -98,6 +98,13 @@ receipt (`OCR_DOC_TYPES` in `supabase-client.js`, 2026-10-08) — Myanmar ID,
 visa, insurance are attach-only. Customer docs, slips, job appointments and
 bulk-import classification (`worker-auto`) still use AI.
 
+Bulk import (2026-10-08): pick the employer first (matching is limited to that
+employer's workers), files are matched by file name *and* folder path
+(`<uid>_<TITLE>_<NAME>_EXP_...` worker folders, `OLD/` folders skipped), the
+office's file-name abbreviations map to doc types (`WORKER_DOC_TYPES`), and
+unmatched files do **not** create new workers unless "สร้างคนงานใหม่จากไฟล์ที่
+จับคู่ไม่ได้" is ticked (owner's request).
+
 ## Search-to-select fields (standing rule)
 
 Any input where the user searches to pick **one existing record** (employer,
