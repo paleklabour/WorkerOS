@@ -1789,6 +1789,7 @@ function closeMobileSidebar() {
 // - class "fl" = รูปทรงปิดที่ถูกเติมสีอ่อน (ดู .ico svg .fl ใน styles.css)
 // ข้อความใน showToast ยังใช้อีโมจิได้ตามเดิม (แสดง SVG ไม่ได้) — ส่วน uiConfirm/uiAlert ตัดอีโมจินำหน้าทิ้งเองเพราะมีไอคอนในหน้าต่างอยู่แล้ว
 const ICON_GLYPHS = {
+    scissors: { c: 'slate',  d: '<circle cx="6" cy="6" r="2.6"/><circle cx="6" cy="18" r="2.6"/><path d="M8.2 7.6 20 17M8.2 16.4 20 7M13.5 12h.01"/>' },
     wp:       { c: 'blue',   d: '<rect class="fl" x="3" y="5" width="18" height="14" rx="2.5"/><circle cx="8.5" cy="11" r="2"/><path d="M5.8 16c.6-1.4 1.6-2 2.7-2s2.1.6 2.7 2M14 10h4M14 13.5h3"/>' },
     passport: { c: 'indigo', d: '<rect class="fl" x="5" y="3" width="14" height="18" rx="2.5"/><circle cx="12" cy="10" r="3.2"/><path d="M8.8 10h6.4M12 6.8c-1 .9-1.4 2-1.4 3.2s.4 2.3 1.4 3.2M12 6.8c1 .9 1.4 2 1.4 3.2s-.4 2.3-1.4 3.2M9 17h6"/>' },
     home:     { c: 'amber',  d: '<path class="fl" d="M4 10.5 12 4l8 6.5V20H4z"/><path d="M10 20v-5h4v5"/>' },
@@ -12629,7 +12630,7 @@ function renderBulkImportTable() {
         return `
             <tr style="${rowStyle}">
                 <td><input type="checkbox" ${row.selected ? 'checked' : ''} ${row.status === 'success' ? 'disabled' : ''} onchange="setBulkImportRowSelected(${idx}, this.checked)"></td>
-                <td style="max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${row.fileName}">${row.fileName}</td>
+                <td style="max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${row.fileName}">${row.status !== 'success' && row.file && row.file.type === 'application/pdf' ? `<button type="button" class="action-icon-btn bulk-split-btn" onclick="splitBulkImportPdf(${idx})" title="แยก PDF หลายคนเป็นไฟล์ละคน">${icon("scissors")}</button>` : ''}${row.fileName}</td>
                 <td>
                     <select style="font-size:12.5px; max-width:200px;" onchange="updateBulkImportWorker(${idx}, this.value)">
                         <option value="">--- เลือกคนงาน ---</option>
@@ -13076,6 +13077,60 @@ async function runEwpPasteImport() {
     saveData();
     renderWorkers();
     renderDashboard();
+}
+
+// ---------- แยก PDF ที่รวมเอกสารหลายคน (เช่น สแกนใบอนุญาตทั้งบริษัท / ใบเสร็จรวม) เป็นไฟล์ละคน ----------
+// ใช้ pdf-lib (โหลดเมื่อใช้ครั้งแรก) คัดลอกหน้าออกเป็นไฟล์ใหม่ทีละ N หน้า แต่ละไฟล์เป็นแถวใหม่ที่ยังไม่รู้คนงาน
+// → กด "ให้ AI อ่านและจับคู่" ให้ AI อ่านว่าเป็นของใคร (จับคู่ไม่ได้ = ไม่นำเข้า ถ้าไม่ได้ติ๊กสร้างคนงานใหม่)
+let pdfLibLoading = null;
+function loadPdfLib() {
+    if (window.PDFLib) return Promise.resolve(window.PDFLib);
+    if (!pdfLibLoading) {
+        pdfLibLoading = new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js';
+            s.onload = () => resolve(window.PDFLib);
+            s.onerror = () => { pdfLibLoading = null; reject(new Error('โหลดตัวแยก PDF ไม่สำเร็จ')); };
+            document.head.appendChild(s);
+        });
+    }
+    return pdfLibLoading;
+}
+
+async function splitBulkImportPdf(idx) {
+    const row = bulkImportRows[idx];
+    if (!row || row.status === 'success' || !row.file || row.file.type !== 'application/pdf') return;
+    try {
+        const { PDFDocument } = await loadPdfLib();
+        const src = await PDFDocument.load(await row.file.arrayBuffer(), { ignoreEncryption: true });
+        const total = src.getPageCount();
+        if (total < 2) { showToast("ไฟล์นี้มีหน้าเดียว ไม่ต้องแยก", "warning"); return; }
+        const ans = await uiPrompt(`"${row.fileName}" มี ${total} หน้า — เอกสารของ 1 คนกี่หน้า? (เช่น ใบอนุญาตหน้า-หลัง = 2)`, {
+            title: 'แยก PDF เป็นไฟล์ละคน', okText: 'แยกไฟล์', cancelText: 'ยกเลิก', inputType: 'number', placeholder: '1'
+        });
+        if (ans === null) return;
+        const per = Math.max(1, parseInt(ans, 10) || 1);
+        if (per >= total) { showToast("จำนวนหน้าต่อคนต้องน้อยกว่าจำนวนหน้าทั้งหมด", "warning"); return; }
+
+        const base = row.fileName.replace(/\.pdf$/i, '');
+        const newRows = [];
+        for (let start = 0, n = 1; start < total; start += per, n++) {
+            const out = await PDFDocument.create();
+            const idxs = Array.from({ length: Math.min(per, total - start) }, (_, k) => start + k);
+            (await out.copyPages(src, idxs)).forEach(p => out.addPage(p));
+            const name = `${base}_ส่วน${n}.pdf`;
+            const file = new File([await out.save()], name, { type: 'application/pdf' });
+            // เอกสารรวมหลายคน: ไม่สืบทอดคนงาน/โฟลเดอร์ของไฟล์เดิม ให้ AI บอกว่าเป็นของใคร แต่ใช้ประเภทเอกสารเดิมได้
+            newRows.push({ file, fileName: name, relPath: '', workerId: null, confidence: 'none', docType: row.docType, selected: false, status: 'pending', splitFrom: row.fileName });
+        }
+        bulkImportRows.splice(idx, 1, ...newRows);
+        pruneBulkNewWorkers();
+        renderBulkImportTable();
+        showToast(`แยกเป็น ${newRows.length} ไฟล์แล้ว — กด "ให้ AI อ่านและจับคู่" เพื่อหาว่าแต่ละไฟล์เป็นของใคร`, "success");
+    } catch (err) {
+        console.error('splitBulkImportPdf failed:', err);
+        showToast("❌ แยก PDF ไม่สำเร็จ: " + (err && err.message ? err.message : 'ไฟล์อาจเสียหายหรือมีรหัสผ่าน'), "danger");
+    }
 }
 
 function updateBulkImportDocType(idx, docType) {
