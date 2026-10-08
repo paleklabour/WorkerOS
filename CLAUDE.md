@@ -89,6 +89,10 @@ reachable through the deferred/no-AI pattern "temporarily" — that's how the
 customer add-form and several worker/customer doc types drifted out of sync
 before (fixed 2026-09-11).
 
+Exception (owner's request 2026-10-08): job-close documents (`job-close-doc`,
+`submitCloseJob` / `addJobCloseDocs`) are attach-only — no AI read, no
+auto-filing into the worker folder.
+
 ## Search-to-select fields (standing rule)
 
 Any input where the user searches to pick **one existing record** (employer,

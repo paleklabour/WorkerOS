@@ -6629,7 +6629,7 @@ function jobCloseDocsHtml(j, pre = j.status !== 'ปิดงานแล้ว'
 }
 
 // แนบเอกสารปิดงานย้อนหลัง (งานที่ปิดไปแล้ว) — เพิ่มต่อท้าย jobs.attachments ไม่ทับของเดิม
-// ---------- AI อ่านเอกสารที่ยังไม่รู้ประเภท (เอกสารปิดงาน / หมวด "เอกสารอื่นๆ") ----------
+// ---------- AI อ่านเอกสารที่ยังไม่รู้ประเภท (หมวด "เอกสารอื่นๆ") ----------
 // ใช้โหมด worker-auto ของ ocr-document: AI บอกว่าเป็นเอกสารอะไร + อ่านข้อมูลคนงานในคราวเดียว
 // คืน { docType, parsed } — docType เป็น key หมวดในแฟ้มคนงาน (ไม่รู้จัก = worker-other) หรือ null ถ้า AI อ่านไม่ได้
 async function aiReadWorkerDoc(dataUrl) {
@@ -6647,31 +6647,6 @@ async function aiReadWorkerDoc(dataUrl) {
     }
 }
 
-// เอกสารปิดงานที่ AI อ่านได้ → เติมข้อมูลคนงาน + เก็บไฟล์เดียวกัน (ไม่อัปโหลดซ้ำ) เข้าหมวดที่ถูกต้องในแฟ้มคนงาน
-// เลข 13 หลักในเอกสารไม่ตรงกับคนงาน → ถามก่อน (ตอบไม่ = ไม่แตะข้อมูลคนงาน แต่ไฟล์ยังอยู่ในใบงาน)
-async function fileJobDocIntoWorker(j, read, fileUrl, fileName) {
-    const w = j && workers.find(x => x.id === j.workerId);
-    if (!w || !read || !fileUrl) return null;
-    if (!(await confirmWorkerUidChange({ uid: w.workerUid, firstName: w.firstName, lastName: w.lastName }, read.parsed, fileName))) return null;
-    const list = getAttachments(w, read.docType);
-    if (list.some(f => f.data === fileUrl)) return null;
-    w.attachments = w.attachments || {};
-    w.attachments[read.docType] = list.concat([{
-        name: fileName, data: fileUrl,
-        expiryDate: extractDocExpiryDate(read.docType, read.parsed),
-        note: `จากเอกสารปิดงาน ${getJobDisplayNo(j)}`
-    }]);
-    applyOcrDataToWorker(w, read.docType, read.parsed);
-    if (w.status === 'pending_register' && getAttachments(w, 'worker-wp-doc').length > 0 && getAttachments(w, 'worker-receipt').length > 0) {
-        w.status = 'active';
-        w.skipNotifyEntry = true;
-    }
-    w.workplace = getCustomerHQAddress(w.employerId);
-    const res = await callCloudAPI("saveWorker", { workerData: w });
-    if (!res || res.status === "error") { showToast("⚠️ แนบเอกสารแล้ว แต่อัปเดตข้อมูลคนงานไม่สำเร็จ", "danger"); return null; }
-    return (WORKER_FOLDER_DOC_TYPES.find(x => x.key === read.docType) || {}).label || read.docType;
-}
-
 async function addJobCloseDocs(jobId, input, note = null) {
     const j = jobs.find(item => item.id === jobId);
     const files = Array.from((input && input.files) || []);
@@ -6679,14 +6654,11 @@ async function addJobCloseDocs(jobId, input, note = null) {
     if (!j || !files.length || !canEditJob(j)) return;
     const uploadedAt = new Date().toISOString();
     const added = [];
-    const reads = [];
     for (const file of files) {
         const dataUrl = await readFileAsDataUrl(file);
-        const read = j.workerId ? await aiReadWorkerDoc(dataUrl) : null;
         const up = await uploadDocumentFile(dataUrl, file.name, j.customerId, j.workerId, "job-close-doc");
         if (!up || !up.fileUrl) { showToast(`❌ อัปโหลด "${file.name}" ไม่สำเร็จ`, "danger"); continue; }
         added.push({ name: file.name, url: up.fileUrl, note: note || null, uploadedAt, uploadedBy: currentUser.id || null });
-        reads.push({ read, url: up.fileUrl, name: file.name });
     }
     if (!added.length) return;
     const jobData = Object.assign({}, j, { attachments: (Array.isArray(j.attachments) ? j.attachments : []).concat(added) });
@@ -6697,9 +6669,6 @@ async function addJobCloseDocs(jobId, input, note = null) {
     }
     const idx = jobs.findIndex(item => item.id === jobId);
     if (idx !== -1) jobs[idx] = jobData;
-    const filedLabels = [];
-    for (const r of reads) { const label = await fileJobDocIntoWorker(jobData, r.read, r.url, r.name); if (label) filedLabels.push(label); }
-    if (filedLabels.length) { showToast(`✨ AI อ่านเอกสารแล้ว — อัปเดตข้อมูลคนงานและเก็บเข้าแฟ้ม: ${filedLabels.join(', ')}`, "success"); renderWorkers(); }
     saveData();
     // หน้าต่างใบงานที่เปิดอยู่: แบนเนอร์ "ปิดงานแล้ว" หรือส่วน "แนบไว้ก่อนปิดงาน" ของใบงานที่ยังไม่ปิด
     const docsEl = document.querySelector('#job-modal .job-close-docs');
@@ -7886,7 +7855,7 @@ function closeJobCloseModal() {
 }
 
 // ลบเอกสารที่แนบไว้ก่อนปิดงาน (ใบงานที่ยังไม่ปิดเท่านั้น — งานที่ปิดแล้วเก็บเอกสารไว้เป็นหลักฐาน)
-// ไฟล์เดียวกันที่ AI เก็บเข้าแฟ้มคนงานไว้ (fileJobDocIntoWorker) ถูกเอาออกจากแฟ้มด้วย แล้วลบไฟล์จริงใน Storage
+// ไฟล์เดียวกันที่ AI เคยเก็บเข้าแฟ้มคนงานไว้ (ก่อน 2026-10-08 เอกสารปิดงานเคยผ่าน AI) ถูกเอาออกจากแฟ้มด้วย แล้วลบไฟล์จริงใน Storage
 // ข้อมูลคนงานที่ AI เคยเติมจากไฟล์นี้ไม่ถูกย้อนกลับ (แก้เองในฟอร์มคนงานถ้าผิด)
 async function removeJobPreDoc(jobId, idx) {
     const j = jobs.find(item => item.id === jobId);
@@ -7927,7 +7896,7 @@ async function removeJobPreDoc(jobId, idx) {
     showToast(`🗑️ ลบไฟล์ "${f.name || 'ไฟล์'}" แล้ว`, "success");
 }
 
-// ปุ่ม "แนบไว้ก่อน (ยังไม่ปิดงาน)" ในหน้าต่างปิดงาน: อัปโหลดไฟล์ที่เลือก + AI อ่านเติมข้อมูลคนงาน (addJobCloseDocs)
+// ปุ่ม "แนบไว้ก่อน (ยังไม่ปิดงาน)" ในหน้าต่างปิดงาน: อัปโหลดไฟล์ที่เลือกเก็บไว้ในใบงาน (addJobCloseDocs) — ไม่ผ่าน AI
 // งานยังเปิดอยู่ — หน้าต่างแสดงรายการไฟล์ที่แนบแล้ว กลับมากด "ยืนยันปิดงาน" ทีหลังได้โดยไม่ต้องแนบซ้ำ
 async function saveJobCloseDocsOnly() {
     const jobId = document.getElementById("job-close-id").value;
@@ -7967,16 +7936,13 @@ async function submitCloseJob(e) {
         const files = Array.from(fileInput.files);
         const closedAt = new Date().toISOString();
         const newAttachments = [];
-        const reads = []; // ผล AI ของแต่ละไฟล์ — ใช้เติมข้อมูลคนงาน/เก็บเข้าแฟ้มหลังปิดงานสำเร็จ
         for (const file of files) {
             const fileDataUrl = await readFileAsDataUrl(file);
-            const read = j.workerId ? await aiReadWorkerDoc(fileDataUrl) : null;
             const uploadResult = await uploadDocumentFile(fileDataUrl, file.name, j.customerId, j.workerId, "job-close-doc");
             if (!uploadResult) {
                 showToast(`❌ อัปโหลดเอกสาร "${file.name}" ไม่สำเร็จ ยังไม่ปิดงาน`, "danger");
                 return;
             }
-            reads.push({ read, url: uploadResult.fileUrl, name: file.name });
             newAttachments.push({
                 name: file.name,
                 url: uploadResult.fileUrl,
@@ -8005,16 +7971,11 @@ async function submitCloseJob(e) {
 
         const idx = jobs.findIndex(item => item.id === jobId);
         if (idx !== -1) jobs[idx] = jobData;
-        // เอกสารที่ AI อ่านได้ → เติมข้อมูลคนงาน + เก็บเข้าหมวดที่ถูกต้องในแฟ้มคนงาน (ก่อนตั้งสถานะพ้นสภาพของงานแจ้งออก)
-        const filedLabels = [];
-        for (const r of reads) { const label = await fileJobDocIntoWorker(jobData, r.read, r.url, r.name); if (label) filedLabels.push(label); }
-        if (filedLabels.length) showToast(`✨ AI อ่านเอกสารแล้ว — อัปเดตข้อมูลคนงานและเก็บเข้าแฟ้ม: ${filedLabels.join(', ')}`, "success");
         saveData();
         closeJobCloseModal();
         renderJobs();
         renderBillingTab();
         renderDashboard();
-        if (filedLabels.length) renderWorkers();
 
         const archiveResult = await syncWorkerStatusForExitJob(jobData, 'archived');
         const archiveMsg = archiveResult.applied ? " และตั้งสถานะคนงานเป็น 'พ้นสภาพ/แจ้งออก' อัตโนมัติ" : "";
