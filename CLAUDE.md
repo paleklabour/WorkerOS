@@ -91,7 +91,9 @@ before (fixed 2026-09-11).
 
 Exception (owner's request 2026-10-08): job-close documents (`job-close-doc`,
 `submitCloseJob` / `addJobCloseDocs`) are attach-only — no AI read, no
-auto-filing into the worker folder.
+auto-filing into the worker folder. Same for the "เอกสารอื่นๆ" slots
+(`worker-other` / `cust-other`, owner's request 2026-10-08): attach only, no AI
+classify/move.
 
 ## Search-to-select fields (standing rule)
 

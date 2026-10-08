@@ -6702,24 +6702,6 @@ function jobCloseDocsHtml(j, pre = j.status !== 'ปิดงานแล้ว'
 }
 
 // แนบเอกสารปิดงานย้อนหลัง (งานที่ปิดไปแล้ว) — เพิ่มต่อท้าย jobs.attachments ไม่ทับของเดิม
-// ---------- AI อ่านเอกสารที่ยังไม่รู้ประเภท (หมวด "เอกสารอื่นๆ") ----------
-// ใช้โหมด worker-auto ของ ocr-document: AI บอกว่าเป็นเอกสารอะไร + อ่านข้อมูลคนงานในคราวเดียว
-// คืน { docType, parsed } — docType เป็น key หมวดในแฟ้มคนงาน (ไม่รู้จัก = worker-other) หรือ null ถ้า AI อ่านไม่ได้
-async function aiReadWorkerDoc(dataUrl) {
-    if (!window.supabaseAdapter || !/^data:(image\/|application\/pdf)/.test(String(dataUrl))) return null;
-    try {
-        showToast("🤖 AI กำลังอ่านเอกสาร...", "warning");
-        const ocr = await window.supabaseAdapter.ocrDocument(dataUrl, 'worker-auto');
-        if (!ocr || !ocr.parsedData) return null;
-        const t = ocr.parsedData.documentType;
-        const known = t && t !== 'worker-other' && WORKER_FOLDER_DOC_TYPES.some(x => x.key === t);
-        return { docType: known ? t : 'worker-other', parsed: ocr.parsedData };
-    } catch (e) {
-        console.warn("aiReadWorkerDoc failed:", e);
-        return null;
-    }
-}
-
 async function addJobCloseDocs(jobId, input, note = null) {
     const j = jobs.find(item => item.id === jobId);
     const files = Array.from((input && input.files) || []);
@@ -12161,7 +12143,6 @@ async function handleFolderFileUpload(event) {
     let aiRejectedCount = 0; // AI อ่านไม่สำเร็จ = ไม่ได้บันทึกไฟล์ (ต้องแนบใหม่)
     let cancelledCount = 0; // กด "ไม่อัปโหลด" (เลข 13 หลักไม่ตรง) = ไม่ได้บันทึกไฟล์ตามที่ผู้ใช้เลือก
     let needsManualEntry = false; // มีไฟล์ที่ผู้ใช้เลือก "บันทึกไฟล์ กรอกเอง"
-    const movedLabels = []; // ไฟล์ที่แนบในหมวด "เอกสารอื่นๆ" แล้ว AI ย้ายไปหมวดที่ถูกต้อง
     beginAiRejectedBatch();
     for (const file of files) {
         const workerIdx = workers.findIndex(w => w.id === activeFolderWorkerId);
@@ -12170,18 +12151,8 @@ async function handleFolderFileUpload(event) {
         const wasPending = w.status === 'pending_register';
         try {
             const fileContent = await readFileAsDataUrl(file);
-            // หมวด "เอกสารอื่นๆ": ให้ AI ระบุประเภทเอกสาร + อ่านข้อมูลเอง → เก็บเข้าหมวดที่ถูกต้อง (ไม่รู้จัก/AI อ่านไม่ได้ = เอกสารอื่นๆ)
-            let targetType = activeFolderDocType, preParsed = null;
-            if (activeFolderDocType === 'worker-other') {
-                const read = await aiReadWorkerDoc(fileContent);
-                if (read) {
-                    targetType = read.docType;
-                    preParsed = read.parsed;
-                    if (targetType !== 'worker-other') movedLabels.push((WORKER_FOLDER_DOC_TYPES.find(x => x.key === targetType) || {}).label || targetType);
-                }
-            }
-            const uploadResult = await attachDocumentToWorker(w, targetType, fileContent, preParsed);
-            if (preParsed) anyAiRead = true;
+            // หมวด "เอกสารอื่นๆ" แนบไฟล์อย่างเดียว ไม่ให้ AI อ่าน/ย้ายหมวด (owner's request 2026-10-08)
+            const uploadResult = await attachDocumentToWorker(w, activeFolderDocType, fileContent);
             if (uploadResult && uploadResult.parsedData) anyAiRead = true;
             if (uploadResult && uploadResult.manualEntry) needsManualEntry = true;
             if (wasPending && w.status === 'active') {
@@ -12196,7 +12167,6 @@ async function handleFolderFileUpload(event) {
 
     endAiRejectedBatch();
     if (anyAiRead) showToast("✨ AI อ่านข้อมูลจากเอกสารสำเร็จ กำลังอัปเดตข้อมูลคนงาน", "success");
-    if (movedLabels.length) showToast(`📂 AI จัดเอกสารเข้าหมวดให้แล้ว: ${movedLabels.join(', ')}`, "success");
     if (cancelledCount > 0) showToast(`ไม่ได้อัปโหลด ${cancelledCount} จาก ${files.length} ไฟล์ — เลข 13 หลักไม่ตรงกับคนงานนี้`, "warning");
     if (aiRejectedCount > 0) showToast(`⚠️ AI อ่านไม่สำเร็จ ${aiRejectedCount} จาก ${files.length} ไฟล์ — ไฟล์เหล่านี้ยังไม่ได้บันทึก กรุณาแนบใหม่อีกครั้งในอีกสักครู่`, "warning");
     if (failCount > 0) showToast(`❌ อัปโหลดไม่สำเร็จ ${failCount} จาก ${files.length} ไฟล์`, "danger");
