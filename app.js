@@ -9058,6 +9058,8 @@ function setupAllSearchSelects() {
         inputId: 'bulk-import-employer-search',
         getValue: () => bulkImportEmployerId,
         setValue: (v) => { bulkImportEmployerId = v || null; },
+        onSelect: () => onBulkImportEmployerChanged(),
+        onClear: () => onBulkImportEmployerChanged(),
         getPool: () => customers,
         getId: c => c.id,
         getLabel: c => c.companyName,
@@ -12213,14 +12215,14 @@ function matchWorkerFromFilename(filename) {
     // 1) เลขประจำตัวคนต่างด้าว 13 หลักในชื่อไฟล์ตรงกับคนงานเป๊ะๆ = มั่นใจสูง
     const idMatch = base.match(/\d{13}/);
     if (idMatch) {
-        const w = workers.find(item => item.workerUid === idMatch[0]);
+        const w = bulkImportWorkerPool().find(item => item.workerUid === idMatch[0]);
         if (w) return { workerId: w.id, confidence: 'high' };
     }
 
     // 2) ชื่อคนงาน (ชื่อ+นามสกุล) ปรากฏอยู่ในชื่อไฟล์ = มั่นใจกลาง (เลือกตัวที่ชื่อยาวที่สุดที่ตรง กันชื่อสั้นชนกันมั่ว)
     const normalized = base.replace(/[_\-]+/g, ' ').toLowerCase().trim();
     let best = null;
-    workers.forEach(w => {
+    bulkImportWorkerPool().forEach(w => {
         const fullName = `${w.firstName} ${w.lastName || ''}`.trim().toLowerCase();
         if (fullName && fullName.length >= 3 && normalized.includes(fullName)) {
             if (!best || fullName.length > best.nameLen) {
@@ -12253,7 +12255,28 @@ let bulkImportRows = [];
 // row.workerId เป็นได้ทั้ง id คนงานเดิม หรือ "new:<id คนงานใหม่>"
 const BULK_NEW_WORKER_PREFIX = 'new:';
 let bulkNewWorkers = [];          // [{ id, keys: Set, data: {...ฟิลด์คนงานที่ AI เติมให้} }]
-let bulkImportEmployerId = null;  // นายจ้างของคนงานใหม่ทุกคนในรอบนี้ (เลือก 1 รายต่อรอบ)
+let bulkImportEmployerId = null;  // นายจ้างของรอบนี้ (เลือก 1 รายต่อรอบ ก่อนแนบไฟล์) — จับคู่เฉพาะคนงานของนายจ้างนี้ + คนงานใหม่สร้างให้นายจ้างนี้
+
+// คนงานที่ไฟล์ในรอบนี้จับคู่ได้: เลือกนายจ้างแล้ว = เฉพาะคนงานของนายจ้างนั้น (กันแนบผิดคน/ผิดบริษัท)
+function bulkImportWorkerPool() {
+    return bulkImportEmployerId ? workers.filter(w => w.employerId === bulkImportEmployerId) : workers;
+}
+
+// เปลี่ยนนายจ้างหลังแนบไฟล์แล้ว: ไฟล์ที่จับคู่ไว้กับคนงานของนายจ้างอื่นต้องจับคู่ใหม่
+function onBulkImportEmployerChanged() {
+    const pool = new Set(bulkImportWorkerPool().map(w => w.id));
+    bulkImportRows.forEach(row => {
+        if (row.status === 'success' || !row.workerId || isBulkNewWorkerId(row.workerId) || pool.has(row.workerId)) return;
+        const m = matchWorkerFromFilename(row.fileName);
+        row.workerId = m.workerId;
+        row.confidence = m.confidence;
+        row.workerManual = false;
+        row.matchNote = null;
+        row.selected = !!(row.workerId && row.docType);
+    });
+    if (bulkImportRows.some(r => r.parsedData && r.status !== 'success')) matchBulkRowsFromOcr();
+    else renderBulkImportTable();
+}
 let bulkNewWorkerSeq = 0;
 
 // ข้อความจาก AI/ชื่อไฟล์ที่ใส่ลง innerHTML — กันอักขระ HTML ทำหน้าเว็บพัง
@@ -12503,6 +12526,7 @@ function readEntry(entry) {
 
 function addFilesToBulkImport(fileArray) {
     const validFiles = fileArray.filter(f => f && (f.type.startsWith('image/') || f.type === 'application/pdf'));
+    if (validFiles.length && !bulkImportEmployerId) showToast("ยังไม่ได้เลือกนายจ้าง — ระบบจะจับคู่กับคนงานทุกนายจ้าง แนะนำให้เลือกนายจ้างด้านบนก่อน", "warning");
     validFiles.forEach(file => {
         const wMatch = matchWorkerFromFilename(file.name);
         const docType = matchDocTypeFromFilename(file.name);
@@ -12562,7 +12586,7 @@ function renderBulkImportTable() {
                     <select style="font-size:12.5px; max-width:200px;" onchange="updateBulkImportWorker(${idx}, this.value)">
                         <option value="">--- เลือกคนงาน ---</option>
                         ${bulkNewWorkers.map((c, cIdx) => { const v = BULK_NEW_WORKER_PREFIX + c.id; return `<option value="${v}" ${row.workerId === v ? 'selected' : ''}>🆕 คนงานใหม่ #${cIdx + 1}: ${escapeHtml(`${c.data.firstName || '(ไม่มีชื่อ)'} ${c.data.lastName || ''}`.trim())}</option>`; }).join('')}
-                        ${workers.map(w => `<option value="${w.id}" ${row.workerId === w.id ? 'selected' : ''}>${workerFullName(w)} (${w.workerUid || 'ไม่มีเลข'})</option>`).join('')}
+                        ${bulkImportWorkerPool().map(w => `<option value="${w.id}" ${row.workerId === w.id ? 'selected' : ''}>${workerFullName(w)} (${w.workerUid || 'ไม่มีเลข'})</option>`).join('')}
                     </select>
                 </td>
                 <td>
@@ -12664,7 +12688,7 @@ async function analyzeBulkImportWithAi(onlyUnattempted = false) {
 function matchBulkRowsFromOcr() {
     const workerKeyIndex = new Map();
     const ambiguousNameKeys = new Set(); // ชื่อซ้ำกันหลายคนในระบบ — จับคู่ด้วยชื่ออย่างเดียวไม่ได้
-    workers.forEach(w => getWorkerMatchKeys(w).forEach(k => {
+    bulkImportWorkerPool().forEach(w => getWorkerMatchKeys(w).forEach(k => {
         if (!workerKeyIndex.has(k)) workerKeyIndex.set(k, w.id);
         else if (/^(nm|tn|nx|tx):/.test(k) && workerKeyIndex.get(k) !== w.id) ambiguousNameKeys.add(k);
     }));
@@ -13065,7 +13089,7 @@ async function runBulkImport() {
     const newCandIds = [...new Set(rowsToImport.filter(r => isBulkNewWorkerId(r.workerId)).map(r => r.workerId.slice(BULK_NEW_WORKER_PREFIX.length)))];
     if (newCandIds.length > 0) {
         if (!bulkImportEmployerId) {
-            uiAlert('กรุณาเลือก "นายจ้างของคนงานใหม่" ก่อน (ช่องด้านบนรายการคนงานใหม่)');
+            uiAlert('กรุณาเลือก "นายจ้าง" ก่อน (ช่องบนสุดของหน้าต่าง)');
             document.getElementById('bulk-import-employer-search').focus();
             return;
         }

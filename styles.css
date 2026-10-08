@@ -2040,6 +2040,10 @@ select:disabled {
 .ewp-paste-table .data-table { min-width: 100%; font-size: 13px; }
 .ewp-paste-table tr.is-existing td { color: var(--text-muted); }
 
+/* ==================== BULK IMPORT: นายจ้างของรอบนี้ (เลือกก่อนแนบไฟล์) ==================== */
+.bulk-import-employer-group { margin-bottom: 12px; }
+.bulk-import-employer-note { font-weight: normal; font-size: 12px; }
+
 /* ==================== BULK IMPORT: คนงานใหม่ที่จะสร้าง ==================== */
 .bulk-new-workers-wrap {
     border: 1px solid var(--gold-border);

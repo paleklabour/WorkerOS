@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261008zi">
+    <link rel="stylesheet" href="styles.css?v=20261008zj">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -3225,6 +3225,15 @@
                         (เลข 13 หลัก/ชื่อ) — <strong>ตรวจสอบและแก้ไขให้ถูกต้องในตารางด้านล่างก่อนกดนำเข้าเสมอ</strong> แถวที่จับคู่ไม่ได้จะถูกไฮไลต์สีแดงให้เลือกเอง
                     </p>
 
+                    <!-- เลือกนายจ้างก่อนแนบไฟล์: จับคู่เฉพาะคนงานของนายจ้างนี้ + คนงานใหม่สร้างให้นายจ้างนี้ (ดู bulkImportWorkerPool ใน app.js) -->
+                    <div class="form-group bulk-import-employer-group">
+                        <label for="bulk-import-employer-search">นายจ้าง <span class="required">*</span> <span class="text-muted bulk-import-employer-note">เลือกก่อนแนบไฟล์ — ระบบจะจับคู่เฉพาะคนงานของนายจ้างนี้ และสร้างคนงานใหม่ให้นายจ้างนี้</span></label>
+                        <div class="search-box" style="max-width: 100%;">
+                            <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle class="fl" cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/></svg>
+                            <input type="text" id="bulk-import-employer-search" placeholder="พิมพ์ชื่อบริษัท/นายจ้างเพื่อค้นหา..." autocomplete="off">
+                        </div>
+                    </div>
+
                     <div id="bulk-import-dropzone"
                          ondragover="event.preventDefault(); this.style.borderColor='var(--gold-primary)';"
                          ondragleave="this.style.borderColor='#cbd5e1';"
@@ -3241,13 +3250,6 @@
                     <!-- คนงานใหม่ที่ AI เจอจากเอกสารแต่ยังไม่มีในระบบ (ดู matchBulkRowsFromOcr / renderBulkNewWorkers ใน app.js) -->
                     <div id="bulk-import-new-workers-wrap" class="bulk-new-workers-wrap hidden">
                         <div class="bulk-new-workers-title"><span class="ico" data-icon="sparkles" data-color="blue"></span> คนงานใหม่ที่จะสร้างให้ตอนกดนำเข้า — ตรวจ/แก้ข้อมูลที่ AI อ่านมาก่อน (ช่องขอบแดง = ต้องกรอก)</div>
-                        <div class="form-group" style="margin-bottom: 10px;">
-                            <label for="bulk-import-employer-search">นายจ้างของคนงานใหม่ทุกคนในรอบนี้ <span class="required">*</span></label>
-                            <div class="search-box" style="max-width: 100%;">
-                                <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle class="fl" cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/></svg>
-                                <input type="text" id="bulk-import-employer-search" placeholder="พิมพ์ชื่อบริษัท/นายจ้างเพื่อค้นหา..." autocomplete="off">
-                            </div>
-                        </div>
                         <div id="bulk-import-new-workers"></div>
                     </div>
 
@@ -3377,7 +3379,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261008zi"></script>
+    <script src="supabase-client.js?v=20261008zj"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3388,6 +3390,6 @@
     </script>
 
     <!-- Application Script -->
-    <script src="app.js?v=20261008zi"></script>
+    <script src="app.js?v=20261008zj"></script>
 </body>
 </html>
