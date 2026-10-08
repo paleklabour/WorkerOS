@@ -10361,7 +10361,7 @@ function renderCustomerFolderPreview() {
                 <small>${type.label}</small>
             </div>
             <div class="fv-bar-actions">
-                <a class="btn btn-sm btn-outline" href="${escapeHtml(url)}" target="_blank" rel="noopener">${icon('link')} เปิดแท็บใหม่</a>
+                <a class="btn btn-sm btn-outline" href="${escapeHtml(url)}" target="_blank" rel="noopener">${icon('link')} เปิดแท็บใหม่</a> <button type="button" class="btn btn-sm btn-outline" onclick="printFolderPreview('customer-folder-preview')" title="พิมพ์ไฟล์นี้">${icon('print')} พิมพ์</button>
                 <button type="button" class="btn btn-sm btn-outline" onclick="customerFolderAction('download')">${icon('inbox')} ดาวน์โหลด</button>
                 <button type="button" class="btn btn-sm btn-outline" onclick="customerFolderAction('share')">${icon('link')} แชร์</button>
                 <button type="button" class="btn btn-sm btn-outline btn-danger-outline drive-tile-action-btn danger" onclick="deleteCustomerFolderFileIndex('${sel.key}', ${sel.idx})" title="ลบไฟล์">${icon('trash')}</button>
@@ -11744,7 +11744,7 @@ function renderWorkerFolderPreview() {
     if (activeFolderSel.kind === 'photo') {
         box.innerHTML = `
             <div class="fv-bar"><div class="fv-bar-title"><b>รูปคนงาน</b><small>${escapeHtml(workerFullName(w))}</small></div>
-                <div class="fv-bar-actions"><a class="btn btn-sm btn-outline" href="${escapeHtml(w.photo)}" target="_blank" rel="noopener">${icon('link')} เปิดแท็บใหม่</a></div></div>
+                <div class="fv-bar-actions"><a class="btn btn-sm btn-outline" href="${escapeHtml(w.photo)}" target="_blank" rel="noopener">${icon('link')} เปิดแท็บใหม่</a> <button type="button" class="btn btn-sm btn-outline" onclick="printFolderPreview('worker-folder-preview')" title="พิมพ์ไฟล์นี้">${icon('print')} พิมพ์</button></div></div>
             <div class="fv-doc"><img src="${escapeHtml(w.photo)}" alt="รูปคนงาน"></div>`;
         return;
     }
@@ -11762,7 +11762,7 @@ function renderWorkerFolderPreview() {
                 <div class="fv-bar-title"><b>${escapeHtml(d.name)}</b>
                     <small>${escapeHtml(d.group)} • ${escapeHtml(getCleanJobTypeName(j.jobType))} (${escapeHtml(getJobDisplayNo(j))})${d.note ? ` • ${escapeHtml(d.note)}` : ''}</small></div>
                 <div class="fv-bar-actions">
-                    <a class="btn btn-sm btn-outline" href="${escapeHtml(jurl)}" target="_blank" rel="noopener">${icon('link')} เปิดแท็บใหม่</a>
+                    <a class="btn btn-sm btn-outline" href="${escapeHtml(jurl)}" target="_blank" rel="noopener">${icon('link')} เปิดแท็บใหม่</a> <button type="button" class="btn btn-sm btn-outline" onclick="printFolderPreview('worker-folder-preview')" title="พิมพ์ไฟล์นี้">${icon('print')} พิมพ์</button>
                     <button type="button" class="btn btn-sm btn-outline" onclick="workerFolderAction('download')">${icon('inbox')} ดาวน์โหลด</button>
                 </div>
             </div>
@@ -11787,13 +11787,47 @@ function renderWorkerFolderPreview() {
             </div>
             <div class="fv-bar-actions">
                 ${canEdit && !isPdfUrl(url) && w.photo !== url ? `<button type="button" class="btn btn-sm btn-outline" onclick="workerFolderAction('setPhoto')" title="ใช้รูปนี้เป็นรูปประจำตัวคนงาน (แสดงด้านบนแฟ้มและในตาราง)">${icon('photo')} ตั้งเป็นรูปคนงาน</button>` : ''}
-                <a class="btn btn-sm btn-outline" href="${escapeHtml(url)}" target="_blank" rel="noopener">${icon('link')} เปิดแท็บใหม่</a>
+                <a class="btn btn-sm btn-outline" href="${escapeHtml(url)}" target="_blank" rel="noopener">${icon('link')} เปิดแท็บใหม่</a> <button type="button" class="btn btn-sm btn-outline" onclick="printFolderPreview('worker-folder-preview')" title="พิมพ์ไฟล์นี้">${icon('print')} พิมพ์</button>
                 <button type="button" class="btn btn-sm btn-outline" onclick="workerFolderAction('download')">${icon('inbox')} ดาวน์โหลด</button>
                 <button type="button" class="btn btn-sm btn-outline" onclick="workerFolderAction('share')">${icon('link')} แชร์</button>
                 ${canEdit ? `<button type="button" class="btn btn-sm btn-outline btn-danger-outline drive-tile-action-btn danger" onclick="deleteFolderFileIndex('${activeFolderSel.key}', ${activeFolderSel.idx})" title="ลบไฟล์">${icon('trash')}</button>` : ''}
             </div>
         </div>
         <div class="fv-doc">${viewer}</div>`;
+}
+
+// ปุ่ม "พิมพ์" ในแฟ้มคนงาน/นายจ้าง — พิมพ์ไฟล์ที่พรีวิวอยู่ผ่าน iframe ซ่อน ไม่ต้องดาวน์โหลดหรือเปิดแท็บใหม่
+// รูป: วางกลางกระดาษ A4 ย่อให้พอดีหน้า; PDF: โหลดเป็น blob (กันข้อจำกัดข้ามโดเมนของ Storage) แล้วสั่งพิมพ์จาก viewer ของเบราว์เซอร์
+async function printFolderPreview(boxId) {
+    const doc = document.querySelector(`#${boxId} .fv-doc`);
+    const img = doc && doc.querySelector('img');
+    const frame = doc && doc.querySelector('iframe');
+    const src = img ? img.src : frame ? frame.src : '';
+    if (!src) return;
+    const old = document.getElementById('print-file-frame');
+    if (old) old.remove();
+    const pf = document.createElement('iframe');
+    pf.id = 'print-file-frame';
+    pf.style.cssText = 'position:fixed; right:0; bottom:0; width:0; height:0; border:0;';
+    const fail = () => showToast('⚠️ สั่งพิมพ์จากหน้านี้ไม่ได้ — กด "เปิดแท็บใหม่" แล้วพิมพ์จากแท็บนั้นแทน', 'warning');
+    const doPrint = () => { try { pf.contentWindow.focus(); pf.contentWindow.print(); } catch (e) { fail(); } };
+    const printImage = (imgSrc) => {
+        pf.onload = doPrint; // load ของ srcdoc รอรูปโหลดเสร็จก่อน
+        pf.srcdoc = `<!doctype html><html><head><meta charset="utf-8"><style>@page{size:A4;margin:10mm}html,body{margin:0;height:100%}` +
+            `body{display:flex;align-items:center;justify-content:center}img{max-width:100%;max-height:100%;object-fit:contain}</style></head>` +
+            `<body><img src="${escapeHtml(imgSrc)}"></body></html>`;
+        document.body.appendChild(pf);
+    };
+    if (img) { printImage(src); return; }
+    try {
+        const blob = await (await fetch(src)).blob();
+        if (/^image\//.test(blob.type)) { printImage(URL.createObjectURL(blob)); return; }
+        pf.onload = () => setTimeout(doPrint, 300); // ให้ viewer PDF วาดหน้าเสร็จก่อน
+        pf.src = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
+        document.body.appendChild(pf);
+    } catch (e) {
+        fail();
+    }
 }
 
 // ปุ่มดาวน์โหลด/แชร์ของไฟล์ที่เลือก — ไม่ฝัง URL ยาว ๆ (บางไฟล์เป็น base64) ไว้ใน onclick
