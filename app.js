@@ -12191,7 +12191,8 @@ const WORKER_DOC_TYPES = [
     { key: "worker-receipt", label: "ใบเสร็จรับเงิน", keywords: ["receipt", "ใบเสร็จ"] },
     { key: "worker-medical", label: "ใบรับรองแพทย์", keywords: ["medical", "แพทย์", "รับรองแพทย์"] },
     { key: "worker-insurance-doc", label: "ประกัน", keywords: ["insurance", "ประกัน"] },
-    { key: "worker-application", label: "ใบคำขอ", keywords: ["application", "คำขอ", "บต.46", "บต46"] }
+    { key: "worker-application", label: "ใบคำขอ", keywords: ["application", "คำขอ", "บต.46", "บต46"] },
+    { key: "worker-other", label: "อื่นๆ", keywords: [] } // เลือกเองเท่านั้น ไม่จับจากชื่อไฟล์ และไม่ให้ AI อ่าน
 ];
 
 function matchWorkerFromFilename(filename) {
@@ -12587,7 +12588,7 @@ function updateBulkImportWorker(idx, workerId) {
 // onlyUnattempted: ตอนกด "นำเข้า" ปุ่มเดียว อ่านเฉพาะไฟล์ที่ยังไม่เคยลองอ่าน (ไฟล์ที่ AI ไม่ว่างรอบก่อนไม่ต้องรอซ้ำ
 // — กดปุ่ม "ให้ AI อ่านและจับคู่" เองเพื่อลองอ่านไฟล์พวกนั้นใหม่)
 async function analyzeBulkImportWithAi(onlyUnattempted = false) {
-    const rowsToRead = bulkImportRows.filter(r => r.status !== 'success' && !r.parsedData && (!onlyUnattempted || !r.ocrStatus));
+    const rowsToRead = bulkImportRows.filter(r => r.status !== 'success' && !r.parsedData && r.docType !== 'worker-other' && (!onlyUnattempted || !r.ocrStatus));
     if (rowsToRead.length === 0) {
         if (!onlyUnattempted) showToast("ไม่มีไฟล์ที่ต้องให้ AI อ่าน (อ่านไปครบแล้ว)", "warning");
         return;
