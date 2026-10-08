@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261008zh">
+    <link rel="stylesheet" href="styles.css?v=20261008zi">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -677,6 +677,10 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
                                 </svg>
                                 <span>นำเข้าเอกสารหลายไฟล์</span>
+                            </button>
+                            <button class="btn btn-outline btn-add needs-ops" id="btn-ewp-paste" onclick="openEwpPasteModal()" title="วางรายชื่อคนงานที่ก๊อปจากเว็บ e-WorkPermit แล้วสร้างคนงานทีเดียวหลายคน">
+                                <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="3" width="8" height="4" rx="1"/><path d="M16 5h2a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2"/><path d="M9 12h6M9 16h4"/></svg>
+                                <span>วางรายชื่อจาก e-WorkPermit</span>
                             </button>
                             <button class="btn btn-gold btn-add" id="btn-add-worker" onclick="openWorkerModal()">
                                 <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
@@ -3277,6 +3281,55 @@
             </div>
         </div>
 
+        <!-- ==================== MODAL: วางรายชื่อจาก e-WorkPermit → สร้างคนงานหลายคน (ไม่ใช้ AI, ดู parseEwpPasteText ใน app.js) ==================== -->
+        <div id="ewp-paste-modal" class="modal-backdrop hidden" style="z-index: 1050;">
+            <div class="modal-content" style="max-width: 900px;">
+                <div class="modal-header">
+                    <h3><span class="ico" data-icon="users"></span> วางรายชื่อจาก e-WorkPermit</h3>
+                    <button class="close-btn" title="ปิดหน้าต่าง" onclick="closeEwpPasteModal()">&times;</button>
+                </div>
+                <div class="modal-body ewp-paste-body">
+                    <p class="text-muted ewp-paste-hint">
+                        เปิดหน้ารายชื่อคนงานในเว็บ e-WorkPermit แล้วก๊อปทั้งหน้า (Ctrl+A, Ctrl+C) มาวางในช่องนี้ ระบบจะแยกชื่อ เลขประจำตัว 13 หลัก
+                        เลขใบอนุญาต และวันหมดอายุให้เอง ส่วนเอกสารค่อยแนบในแฟ้มคนงานทีหลัง
+                    </p>
+                    <div class="form-group">
+                        <label for="ewp-paste-employer-search">นายจ้างของคนงานใหม่ทุกคนในรอบนี้ <span class="required">*</span></label>
+                        <div class="search-box" style="max-width: 100%;">
+                            <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle class="fl" cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/></svg>
+                            <input type="text" id="ewp-paste-employer-search" placeholder="พิมพ์ชื่อบริษัท/นายจ้างเพื่อค้นหา..." autocomplete="off">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="ewp-paste-text">ข้อความที่ก๊อปมา</label>
+                        <textarea id="ewp-paste-text" class="ewp-paste-text" rows="7" placeholder="Alien identification number : 00907910xxxxx&#10;Work permit number : 25069401xxxxx    Mr. WIN AUNG&#10;License Active    Myanmar    13 Feb 2027 ..." oninput="parseEwpPasteText()"></textarea>
+                    </div>
+                    <div id="ewp-paste-summary" class="text-muted ewp-paste-hint"></div>
+                    <div class="table-container ewp-paste-table hidden" id="ewp-paste-table-wrap">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th style="width:34px;"><input type="checkbox" id="ewp-paste-select-all" title="เลือกคนงานทั้งหมด" onchange="toggleAllEwpPasteRows(this.checked)"></th>
+                                    <th>ชื่อ</th>
+                                    <th>สัญชาติ</th>
+                                    <th>เลขประจำตัว 13 หลัก</th>
+                                    <th>เลขใบอนุญาต</th>
+                                    <th>หมดอายุ</th>
+                                    <th>สถานะ</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ewp-paste-tbody"></tbody>
+                        </table>
+                    </div>
+                    <div id="ewp-paste-progress" class="text-muted ewp-paste-hint hidden"></div>
+                </div>
+                <div class="modal-footer" style="display: flex; gap: 10px;">
+                    <button type="button" class="btn btn-outline" style="flex:1;" onclick="closeEwpPasteModal()">ยกเลิก</button>
+                    <button type="button" class="btn btn-gold" style="flex:1;" id="btn-run-ewp-paste" onclick="runEwpPasteImport()" title="สร้างคนงานใหม่ / อัปเดตคนงานเดิมที่เลือกไว้"><span class="ico" data-icon="users"></span> บันทึกคนงานที่เลือก</button>
+                </div>
+            </div>
+        </div>
+
         <!-- ==================== AI อ่านเอกสารไม่สำเร็จ: ให้เลือกกรอกเอง หรือรอแนบใหม่ (ดู askAiRejectedChoice ใน app.js) ==================== -->
         <div id="ai-rejected-modal" class="modal-backdrop hidden ai-rejected-backdrop">
             <div class="modal-content ai-rejected-content">
@@ -3324,7 +3377,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261008zh"></script>
+    <script src="supabase-client.js?v=20261008zi"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3335,6 +3388,6 @@
     </script>
 
     <!-- Application Script -->
-    <script src="app.js?v=20261008zh"></script>
+    <script src="app.js?v=20261008zi"></script>
 </body>
 </html>

@@ -9065,6 +9065,18 @@ function setupAllSearchSelects() {
         emptyText: 'ไม่พบนายจ้างที่ตรงกับคำค้นหา'
     });
 
+    // นายจ้างของคนงานใหม่จาก "วางรายชื่อจาก e-WorkPermit" — เก็บใน ewpPasteEmployerId
+    registerSearchSelect('ewp-paste-employer', {
+        inputId: 'ewp-paste-employer-search',
+        getValue: () => ewpPasteEmployerId,
+        setValue: (v) => { ewpPasteEmployerId = v || null; },
+        getPool: () => customers,
+        getId: c => c.id,
+        getLabel: c => c.companyName,
+        getSub: c => c.taxId ? 'ภาษี ' + c.taxId : '',
+        emptyText: 'ไม่พบนายจ้างที่ตรงกับคำค้นหา'
+    });
+
     // นายจ้างในฟอร์ม "แจ้งสั่งงาน" — <select id="job-customer-id"> ซ่อนไว้เป็นแหล่งเก็บค่าจริงเหมือนเดิม
     registerSearchSelect('job-customer', {
         inputId: 'job-customer-search',
@@ -12813,6 +12825,179 @@ async function createBulkNewWorkers(candIds, progressEl) {
         created.set(c.id, workerData.id);
     }
     return created;
+}
+
+// ==================== วางรายชื่อจาก e-WorkPermit → สร้างคนงานหลายคน (ไม่ใช้ AI) ====================
+// ข้อความที่ก๊อปจากหน้ารายชื่อคนงานของ eworkpermit.doe.go.th แต่ละคนหน้าตาประมาณ:
+//   RA17634556021271191
+//   Alien identification number : 0095011032132
+//   Work permit number : 2506940193805    Mr. SAW SHWE AUNG
+//   License Active    Myanmar    13 Feb 2027    Branch 5    Already informed
+// คนที่มีเลข 13 หลัก/เลขใบอนุญาตในระบบแล้ว = ไม่ติ๊กไว้ (ติ๊กเองถ้าต้องการอัปเดตเลขใบอนุญาต/วันหมดอายุ)
+let ewpPasteEmployerId = null;
+let ewpPasteRows = [];
+
+const EWP_MONTHS = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
+const EWP_NATIONALITIES = { myanmar: 'Myanmar', laos: 'Laos', lao: 'Laos', cambodia: 'Cambodia', vietnam: 'Vietnam' };
+const EWP_TITLES = { mr: ['นาย', 'Male'], mrs: ['นาง', 'Female'], miss: ['นางสาว', 'Female'], ms: ['นางสาว', 'Female'] };
+
+function openEwpPasteModal() {
+    if (!can('ops')) return;
+    ewpPasteRows = [];
+    presetSearchSelect('ewp-paste-employer', null);
+    document.getElementById('ewp-paste-text').value = '';
+    const progressEl = document.getElementById('ewp-paste-progress');
+    progressEl.classList.add('hidden');
+    progressEl.innerHTML = '';
+    renderEwpPasteTable();
+    document.getElementById('ewp-paste-modal').classList.remove('hidden');
+    document.getElementById('ewp-paste-text').focus();
+}
+
+function closeEwpPasteModal() {
+    document.getElementById('ewp-paste-modal').classList.add('hidden');
+}
+
+function parseEwpPasteText() {
+    const text = document.getElementById('ewp-paste-text').value || '';
+    const core = /(R?A\d{12,20})?\s*Alien identification number\s*:?\s*(\d{13})\s*Work permit number\s*:?\s*(\d{8,16})\s+(Mrs|Mr|Miss|Ms)\.?\s+([A-Za-z][A-Za-z .'-]*?)\s*(?=\t|\n|\s{2,}|$)/gi;
+    const matches = [...text.matchAll(core)];
+    const pool = allWorkers();
+    const seen = new Set();
+    ewpPasteRows = [];
+    matches.forEach((m, i) => {
+        const uid = m[2];
+        if (seen.has(uid)) return;
+        seen.add(uid);
+        // ข้อความหลังชื่อจนถึงคนถัดไป: สถานะใบอนุญาต / สัญชาติ / วันหมดอายุ
+        const rest = text.slice(m.index + m[0].length, i + 1 < matches.length ? matches[i + 1].index : text.length);
+        const natWord = (rest.match(/\b(Myanmar|Laos|Lao|Cambodia|Vietnam)\b/i) || [])[1];
+        const nationality = natWord ? EWP_NATIONALITIES[natWord.toLowerCase()] : '';
+        const d = rest.match(/\b(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+(\d{4})\b/i);
+        const permitExpiry = d ? `${toGregorianYear(d[3])}-${String(EWP_MONTHS[d[2].slice(0, 3).toLowerCase()]).padStart(2, '0')}-${d[1].padStart(2, '0')}` : '';
+        const licenseActive = /License\s+Active/i.test(rest);
+        let refNo = m[1] || '';
+        if (/^A\d{17}$/.test(refNo)) refNo = 'R' + refNo; // ก๊อปไม่ติดตัว R ตัวแรกของหน้า
+        const [title, gender] = EWP_TITLES[m[4].toLowerCase()] || ['', ''];
+        const name = m[5].trim().replace(/\s+/g, ' ').toUpperCase();
+        const existing = pool.find(w => normalizeIdForMatch(w.workerUid) === uid) ||
+            pool.find(w => w.permitNo && normalizeIdForMatch(w.permitNo) === m[3]);
+        ewpPasteRows.push({
+            title, gender, firstName: name, nationality, workerUid: uid, permitNo: m[3], permitExpiry, refNo,
+            licenseActive, existingId: existing ? existing.id : null, selected: !existing, status: null
+        });
+    });
+    renderEwpPasteTable();
+}
+
+function renderEwpPasteTable() {
+    const wrap = document.getElementById('ewp-paste-table-wrap');
+    const tbody = document.getElementById('ewp-paste-tbody');
+    const summary = document.getElementById('ewp-paste-summary');
+    const hasText = !!document.getElementById('ewp-paste-text').value.trim();
+    wrap.classList.toggle('hidden', ewpPasteRows.length === 0);
+    if (ewpPasteRows.length === 0) {
+        tbody.innerHTML = '';
+        summary.textContent = hasText ? 'ไม่พบรายชื่อในข้อความนี้ — ต้องมี "Alien identification number" และ "Work permit number" ตามด้วยชื่อ' : '';
+        return;
+    }
+    const pool = allWorkers();
+    const natTh = { Myanmar: 'เมียนมา', Laos: 'ลาว', Cambodia: 'กัมพูชา', Vietnam: 'เวียดนาม' };
+    tbody.innerHTML = ewpPasteRows.map((r, idx) => {
+        const ex = r.existingId ? pool.find(w => w.id === r.existingId) : null;
+        let badge;
+        if (r.status === 'success') badge = `<span class="badge badge-success">${icon("ok")} ${ex ? 'อัปเดตแล้ว' : 'สร้างแล้ว'}</span>`;
+        else if (r.status === 'failed') badge = `<span class="badge badge-danger">${icon("bad")} ไม่สำเร็จ</span>`;
+        else if (ex) badge = `<span class="badge badge-warning" title="ติ๊กเพื่ออัปเดตเลขใบอนุญาต/วันหมดอายุของ ${escapeHtml(workerFullName(ex))}">มีในระบบแล้ว</span>`;
+        else badge = `<span class="badge badge-gold">ใหม่</span>`;
+        return `<tr class="${ex ? 'is-existing' : ''}">
+            <td><input type="checkbox" ${r.selected ? 'checked' : ''} ${r.status === 'success' ? 'disabled' : ''} title="เลือกคนงานคนนี้" onchange="ewpPasteRows[${idx}].selected = this.checked"></td>
+            <td>${escapeHtml(`${r.title} ${r.firstName}`.trim())}</td>
+            <td>${natTh[r.nationality] || '<span class="text-danger">ไม่ระบุ</span>'}</td>
+            <td>${r.workerUid}</td>
+            <td>${r.permitNo}</td>
+            <td>${r.permitExpiry ? formatThaiDate(r.permitExpiry) : '-'}</td>
+            <td>${badge}</td>
+        </tr>`;
+    }).join('');
+    const newCount = ewpPasteRows.filter(r => !r.existingId).length;
+    summary.textContent = `พบ ${ewpPasteRows.length} คน — ใหม่ ${newCount} คน, มีในระบบแล้ว ${ewpPasteRows.length - newCount} คน`;
+}
+
+function toggleAllEwpPasteRows(checked) {
+    ewpPasteRows.forEach(r => { if (r.status !== 'success') r.selected = checked; });
+    renderEwpPasteTable();
+}
+
+async function runEwpPasteImport() {
+    if (!can('ops')) { showToast("❌ ตำแหน่งนี้ไม่มีสิทธิ์เพิ่มคนงาน", "danger"); return; }
+    const rows = ewpPasteRows.filter(r => r.selected && r.status !== 'success');
+    if (rows.length === 0) { uiAlert('ยังไม่ได้เลือกคนงาน — วางข้อความจาก e-WorkPermit แล้วติ๊กคนที่ต้องการ'); return; }
+    if (rows.some(r => !r.existingId) && !ewpPasteEmployerId) {
+        uiAlert('กรุณาเลือก "นายจ้างของคนงานใหม่" ก่อน');
+        document.getElementById('ewp-paste-employer-search').focus();
+        return;
+    }
+    if (rows.some(r => !r.existingId && !r.nationality)) {
+        uiAlert('มีคนงานใหม่ที่ไม่พบสัญชาติในข้อความ — ก๊อปมาให้ครบทั้งบรรทัด (License Active / สัญชาติ / วันหมดอายุ) แล้ววางใหม่');
+        return;
+    }
+
+    const btn = document.getElementById('btn-run-ewp-paste');
+    btn.disabled = true;
+    const progressEl = document.getElementById('ewp-paste-progress');
+    progressEl.classList.remove('hidden');
+    let created = 0, updated = 0, failed = 0;
+
+    for (let i = 0; i < rows.length; i++) {
+        const r = rows[i];
+        progressEl.innerHTML = `${icon("hourglass")} กำลังบันทึก ${i + 1}/${rows.length}: ${escapeHtml(r.firstName)}...`;
+        try {
+            const ex = r.existingId ? allWorkers().find(w => w.id === r.existingId) : null;
+            if (ex) {
+                const updatedWorker = { ...ex, workerUid: ex.workerUid || r.workerUid, permitNo: r.permitNo, refNo: r.refNo || ex.refNo };
+                if (r.permitExpiry) updatedWorker.permitExpiry = r.permitExpiry;
+                const res = await callCloudAPI("saveWorker", { workerData: updatedWorker });
+                if (!res || res.status === "error") throw new Error(res && res.message);
+                Object.assign(ex, updatedWorker);
+                updated++;
+            } else {
+                const workerData = {
+                    id: `work-${Date.now()}${i}`,
+                    title: r.title, gender: r.gender, firstName: r.firstName, lastName: '',
+                    nationality: r.nationality, dob: null, photo: '',
+                    workerUid: r.workerUid, permitNo: r.permitNo, permitExpiry: r.permitExpiry || null, refNo: r.refNo,
+                    employerId: ewpPasteEmployerId,
+                    workplace: getCustomerHQAddress(ewpPasteEmployerId),
+                    attachments: {},
+                    status: r.licenseActive ? 'active' : 'pending_register',
+                    skipNotifyEntry: false,
+                    createdAt: new Date().toISOString().split('T')[0]
+                };
+                const res = await callCloudAPI("saveWorker", { workerData });
+                if (!res || res.status === "error") throw new Error(res && res.message);
+                workers.push(workerData);
+                r.existingId = workerData.id;
+                created++;
+            }
+            r.status = 'success';
+            r.selected = false;
+        } catch (err) {
+            console.error('EWP paste import failed for', r.firstName, err);
+            r.status = 'failed';
+            failed++;
+        }
+        renderEwpPasteTable();
+    }
+
+    btn.disabled = false;
+    applyInactiveEmployers(); // นายจ้างที่ปิดใช้งาน: ย้ายคนงานใหม่ของเขาไป hiddenWorkers ตามกติกาเดิม
+    progressEl.innerHTML = `${icon("ok")} เสร็จสิ้น: สร้างคนงานใหม่ ${created} คน` + (updated ? `, อัปเดต ${updated} คน` : '') +
+        (failed ? ` • ${icon("warn")} ไม่สำเร็จ ${failed} คน (ลองกดบันทึกอีกครั้ง)` : '') +
+        ' — แนบเอกสารในแฟ้มคนงานได้ภายหลัง';
+    saveData();
+    renderWorkers();
+    renderDashboard();
 }
 
 function updateBulkImportDocType(idx, docType) {

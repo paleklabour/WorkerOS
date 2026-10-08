@@ -2027,6 +2027,19 @@ select:disabled {
 }
 
 
+/* ==================== วางรายชื่อจาก e-WorkPermit ==================== */
+.ewp-paste-body { padding-top: 10px; max-height: 70vh; overflow-y: auto; }
+.ewp-paste-hint { font-size: 13px; line-height: 1.5; margin-bottom: 10px; }
+.ewp-paste-text {
+    width: 100%;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 12.5px;
+    resize: vertical;
+}
+.ewp-paste-table { box-shadow: none; border: 1px solid var(--dk-line, #e2e8f0); }
+.ewp-paste-table .data-table { min-width: 100%; font-size: 13px; }
+.ewp-paste-table tr.is-existing td { color: var(--text-muted); }
+
 /* ==================== BULK IMPORT: คนงานใหม่ที่จะสร้าง ==================== */
 .bulk-new-workers-wrap {
     border: 1px solid var(--gold-border);
