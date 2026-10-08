@@ -6995,9 +6995,9 @@ input[type="file"][style*="display:none"] { display: none !important; }
 /* ==================== กรอบไอคอนโลโก้ (หน้า login / ตั้งรหัสใหม่ / หน้าโหลด) ตามธีม ==================== */
 /* โลโก้ยังหลายสีเหมือนเดิม — กรอบเป็นสีอ่อนของสีหลักธีม + เส้นขอบบาง (กรมท่า / ชมพู / มืด) */
 :root {
-    --logo-tile-bg: linear-gradient(160deg, #f2f5fd 0%, #dfe7f8 100%);
-    --logo-tile-ring: rgba(45, 79, 163, 0.28);
-    --logo-tile-shadow: 0 10px 24px rgba(45, 79, 163, 0.18);
+    --logo-tile-bg: #ffffff; /* ธีมสว่าง: กรอบขาวล้วน (owner's request 2026-10-08) */
+    --logo-tile-ring: rgba(0, 0, 0, 0.08);
+    --logo-tile-shadow: 0 10px 24px rgba(0, 0, 0, 0.10);
 }
 :root[data-theme="pink"] {
     --logo-tile-bg: linear-gradient(160deg, #fff4f8 0%, #fbdde9 100%);
