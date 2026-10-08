@@ -12279,10 +12279,15 @@ function getOcrMatchKeys(docType, p) {
     if (name && dob) keys.push(`nd:${name}|${dob}`);
     if (p.thaiName && dob) keys.push(`td:${String(p.thaiName).replace(/\s+/g, '')}|${dob}`);
     // เอกสารที่ไม่มีวันเกิด (เช่น ใบเสร็จ) — จับคู่ด้วยชื่ออย่างเดียวเป็นทางสุดท้าย (ใช้เฉพาะตอนชื่อตรงคนงานเดิมคนเดียว ดู matchBulkRowsFromOcr)
+    const nameKey = compactNameForMatch(p.firstName, p.lastName);
     if (!dob) {
-        const nameKey = compactNameForMatch(p.firstName, p.lastName);
         if (nameKey) keys.push(`nm:${nameKey}`);
         if (p.thaiName) keys.push(`tn:${String(p.thaiName).replace(/\s+/g, '')}`);
+    } else {
+        // เอกสารมีวันเกิด แต่คนงานในระบบยังไม่มีวันเกิด (สร้างจากนำเข้าหลายไฟล์โดยยังไม่รู้วันเกิด) — จับคู่ด้วยชื่อ แล้ว AI เติมวันเกิดให้
+        // คีย์ nx:/tx: มีเฉพาะฝั่งคนงานที่ยังไม่มีวันเกิด (getWorkerMatchKeys) — คนงานที่มีวันเกิดแล้วต้องตรงชื่อ+วันเกิด (nd:) เท่านั้น
+        if (nameKey) keys.push(`nx:${nameKey}`);
+        if (p.thaiName) keys.push(`tx:${String(p.thaiName).replace(/\s+/g, '')}`);
     }
     return keys;
 }
@@ -12308,13 +12313,17 @@ function getWorkerMatchKeys(w) {
     const nameKey = compactNameForMatch(w.firstName, w.lastName);
     if (nameKey) keys.push(`nm:${nameKey}`);
     if (w.thaiName) keys.push(`tn:${String(w.thaiName).replace(/\s+/g, '')}`);
+    if (!w.dob) { // ยังไม่มีวันเกิด — ให้เอกสารที่มีวันเกิดจับคู่ด้วยชื่อได้ (ดู getOcrMatchKeys)
+        if (nameKey) keys.push(`nx:${nameKey}`);
+        if (w.thaiName) keys.push(`tx:${String(w.thaiName).replace(/\s+/g, '')}`);
+    }
     return keys;
 }
 
 function describeMatchKey(key) {
     const prefix = key.split(':')[0];
     return { uid: 'เลขประจำตัว 13 หลัก', permit: 'เลขใบอนุญาต', ref: 'เลขอ้างอิง', passport: 'เลขพาสปอร์ต',
-        pink: 'เลขบัตรชมพู', ins: 'เลขประกัน', nd: 'ชื่อ+วันเกิด', td: 'ชื่อไทย+วันเกิด', nm: 'ชื่อ', tn: 'ชื่อไทย' }[prefix] || 'ข้อมูลเอกสาร';
+        pink: 'เลขบัตรชมพู', ins: 'เลขประกัน', nd: 'ชื่อ+วันเกิด', td: 'ชื่อไทย+วันเกิด', nm: 'ชื่อ', tn: 'ชื่อไทย', nx: 'ชื่อ (เติมวันเกิดให้)', tx: 'ชื่อไทย (เติมวันเกิดให้)' }[prefix] || 'ข้อมูลเอกสาร';
 }
 
 function isBulkNewWorkerId(workerId) {
@@ -12325,13 +12334,12 @@ function findBulkNewWorker(workerId) {
     return bulkNewWorkers.find(c => BULK_NEW_WORKER_PREFIX + c.id === workerId);
 }
 
-// ช่องที่ต้องมีก่อนสร้างคนงาน — ตรงกับที่ saveWorker บังคับ (นายจ้างเลือกรวมทั้งรอบ)
+// ช่องที่ต้องมีก่อนสร้างคนงาน (นายจ้างเลือกรวมทั้งรอบ) — วันเกิดไม่บังคับในหน้านำเข้าหลายไฟล์ (เจ้าของระบบกำหนด 2026-10-08)
 function getBulkNewWorkerMissingFields(c) {
     const missing = [];
     if (!c.data.title) missing.push('title');
     if (!c.data.firstName) missing.push('firstName');
     if (!c.data.nationality) missing.push('nationality');
-    if (!c.data.dob) missing.push('dob');
     return missing;
 }
 
@@ -12639,7 +12647,7 @@ function matchBulkRowsFromOcr() {
     const ambiguousNameKeys = new Set(); // ชื่อซ้ำกันหลายคนในระบบ — จับคู่ด้วยชื่ออย่างเดียวไม่ได้
     workers.forEach(w => getWorkerMatchKeys(w).forEach(k => {
         if (!workerKeyIndex.has(k)) workerKeyIndex.set(k, w.id);
-        else if (/^(nm|tn):/.test(k) && workerKeyIndex.get(k) !== w.id) ambiguousNameKeys.add(k);
+        else if (/^(nm|tn|nx|tx):/.test(k) && workerKeyIndex.get(k) !== w.id) ambiguousNameKeys.add(k);
     }));
     ambiguousNameKeys.forEach(k => workerKeyIndex.delete(k));
 
@@ -12660,7 +12668,9 @@ function matchBulkRowsFromOcr() {
 
         // 2) คนงานใหม่ที่เจอแล้วในรอบนี้ (มีคีย์ร่วมกัน) หรือสร้างกลุ่มใหม่
         row.matchNote = null;
-        let cand = bulkNewWorkers.find(c => keys.some(k => c.keys.has(k)));
+        // คนงานใหม่ที่ยังไม่มีวันเกิด: เอกสารที่มีวันเกิด (คีย์ nx:/tx:) จับคู่ด้วยชื่อ (nm:/tn:) ได้ แล้วเติมวันเกิดให้การ์ด
+        const nameOnly = k => k.replace(/^nx:/, 'nm:').replace(/^tx:/, 'tn:');
+        let cand = bulkNewWorkers.find(c => keys.some(k => c.keys.has(k) || (!c.data.dob && /^(nx|tx):/.test(k) && c.keys.has(nameOnly(k)))));
         if (!cand) {
             cand = { id: String(++bulkNewWorkerSeq), keys: new Set(), data: { title: '', firstName: '', lastName: '', nationality: '', dob: '', status: 'pending_register' } };
             bulkNewWorkers.push(cand);
@@ -12722,7 +12732,7 @@ function renderBulkNewWorkers() {
                     <select class="${bad('nationality')}" onchange="updateBulkNewWorkerField('${c.id}', 'nationality', this.value)">
                         ${natOpts.map(([v, l]) => `<option value="${v}" ${d.nationality === v ? 'selected' : ''}>${l}</option>`).join('')}
                     </select>
-                    <input type="text" class="${bad('dob')}" placeholder="วันเกิด วว/ดด/ปปปป *" value="${d.dob ? formatDateForInput(d.dob) : ''}" onchange="updateBulkNewWorkerField('${c.id}', 'dob', this.value)">
+                    <input type="text" class="${bad('dob')}" placeholder="วันเกิด วว/ดด/ปปปป" value="${d.dob ? formatDateForInput(d.dob) : ''}" onchange="updateBulkNewWorkerField('${c.id}', 'dob', this.value)">
                     <input type="text" placeholder="เลขประจำตัว 13 หลัก" value="${escapeHtml(d.workerUid || '')}" onchange="updateBulkNewWorkerField('${c.id}', 'workerUid', this.value)">
                 </div>
             </div>
@@ -12780,6 +12790,7 @@ async function createBulkNewWorkers(candIds, progressEl) {
         }
         const workerData = {
             ...c.data,
+            dob: c.data.dob || null, // วันเกิดไม่บังคับ — ค่าว่าง "" บันทึกลงคอลัมน์ date ไม่ได้ (เติมทีหลังจากเอกสารที่มีวันเกิด ดู nx:/tx: ใน getWorkerMatchKeys)
             photo,
             id: newId,
             employerId: bulkImportEmployerId,
@@ -12869,7 +12880,7 @@ async function runBulkImport() {
         const incomplete = newCandIds.map(id => bulkNewWorkers.findIndex(c => c.id === id))
             .filter(i => i !== -1 && getBulkNewWorkerMissingFields(bulkNewWorkers[i]).length > 0);
         if (incomplete.length > 0) {
-            uiAlert(`กรุณากรอกข้อมูลที่จำเป็น (คำนำหน้า ชื่อ สัญชาติ วันเกิด) ของคนงานใหม่ #${incomplete.map(i => i + 1).join(', #')} ให้ครบก่อน (ช่องที่ขอบแดง)`);
+            uiAlert(`กรุณากรอกข้อมูลที่จำเป็น (คำนำหน้า ชื่อ สัญชาติ) ของคนงานใหม่ #${incomplete.map(i => i + 1).join(', #')} ให้ครบก่อน (ช่องที่ขอบแดง)`);
             return;
         }
     }
