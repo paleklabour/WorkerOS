@@ -12619,6 +12619,8 @@ async function analyzeBulkImportWithAi(onlyUnattempted = false) {
                 // ประเภทเอกสาร: ถ้ายังไม่รู้ (ชื่อไฟล์ไม่บอก) ใช้ที่ AI จำแนกให้
                 const aiType = ocr.parsedData.documentType;
                 if (!row.docType && WORKER_DOC_TYPES.some(dt => dt.key === aiType)) row.docType = aiType;
+                // ไม่ใช่เอกสารที่รู้จัก (เช่น รูปข้อมูลคนงาน) = เก็บเข้า "อื่นๆ" แต่ยังใช้ข้อมูลที่ AI อ่านสร้าง/จับคู่คนงานได้
+                else if (!row.docType && aiType === 'other') row.docType = 'worker-other';
             } else {
                 row.ocrStatus = ocr.ocrError === 'busy' ? 'busy' : 'failed';
                 consecutiveBusy = row.ocrStatus === 'busy' ? consecutiveBusy + 1 : 0;
