@@ -12212,11 +12212,11 @@ const WORKER_DOC_TYPES = [
     { key: "worker-passport", label: "พาสปอร์ต/CI", keywords: ["passport", "พาสปอร์ต", "_ci_", "-ci-", " ci "] },
     { key: "worker-myanmar-id", label: "บัตรประชาชน/ทะเบียนบ้านพม่า", keywords: ["myanmar id", "myanmarid", "บัตรประชาชนพม่า", "ทะเบียนบ้าน", " ntid ", " mid "] },
     { key: "worker-pink-card", label: "บัตรชมพู", keywords: ["pink card", "pinkcard", "บัตรชมพู", "ชมพู", " pj "] },
-    { key: "worker-receipt", label: "ใบเสร็จรับเงิน", keywords: ["receipt", "ใบเสร็จ", "receip"] },
+    { key: "worker-receipt", label: "ใบเสร็จรับเงิน", keywords: ["receipt", "ใบเสร็จ", "receip", " rec "] },
     { key: "worker-medical", label: "ใบรับรองแพทย์", keywords: ["medical", "แพทย์", "รับรองแพทย์"] },
     { key: "worker-insurance-doc", label: "ประกัน", keywords: ["insurance", "ประกัน"] },
-    { key: "worker-application", label: "ใบคำขอ", keywords: ["application", "คำขอ", "บต.46", "บต46", " wp52 ", " wp53 ", " wp55 ", " ap ", " req "] },
-    { key: "worker-other", label: "อื่นๆ", keywords: [" visa "] } // ไม่ให้ AI อ่าน — วีซ่าไม่มีหมวดของตัวเอง (ตัวย่อชื่อไฟล์ของออฟฟิศ: PJ บัตรชมพู, NTID/MID บัตรพม่า, WP52/53/55 AP REQ ใบคำขอ)
+    { key: "worker-application", label: "ใบคำขอ", keywords: ["application", "คำขอ", "บต.46", "บต46", " wp22 ", " wp44 ", " wp46 ", " w46 ", " wp50 ", " wp52 ", " wp53 ", " wp55 ", " ap ", " req "] },
+    { key: "worker-other", label: "อื่นๆ", keywords: [" visa ", " inf ", "มอบอำนาจ"] } // ไม่ให้ AI อ่าน — วีซ่าไม่มีหมวดของตัวเอง (ตัวย่อชื่อไฟล์ของออฟฟิศ: PJ บัตรชมพู, NTID/MID บัตรพม่า, REC/RECEIP ใบเสร็จ, WPxx AP REQ แบบคำขอ, INF ข้อมูลลูกจ้าง)
 ];
 
 // relPath = ที่อยู่ไฟล์ในโฟลเดอร์ที่ลากมาวาง (เช่น "/มติ_8_ก.ค._68/0090791029671_MR._WIN_AUNG_EXP_13_FEB_2027/MR._WIN_AUNG_WP_R.jpg")
