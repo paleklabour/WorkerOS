@@ -345,6 +345,9 @@ button {
     margin-top: 12px;
 }
 
+/* 3 ปุ่ม (extraText): เรียงแนวตั้งแบบ iOS action sheet ข้อความยาวไม่ถูกบีบ */
+.ui-dialog-actions.has-extra { flex-direction: column; }
+
 .ui-dialog-actions .btn {
     flex: 1;
     padding: 11px 16px;

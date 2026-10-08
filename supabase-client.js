@@ -515,8 +515,11 @@
         }
         // options.confirmParsed(parsedData) = ถามผู้ใช้หลัง AI อ่านเสร็จ ก่อนอัปโหลดจริง — ตอบ false = ยกเลิก ไม่เก็บไฟล์
         // (เช่น เลข 13 หลักในเอกสารไม่ตรงกับคนงาน — ดู confirmWorkerUidChange ใน app.js)
-        if (typeof options.confirmParsed === "function" && parsedData && !(await options.confirmParsed(parsedData))) {
-            return { status: "cancelled", message: "ผู้ใช้ยกเลิก ไม่ได้อัปโหลดไฟล์" };
+        // ตอบ 'keep' = อัปโหลดไฟล์แต่ไม่ใช้ข้อมูลที่ AI อ่าน (parsedData = null → หน้าเว็บไม่เติม/ไม่ทับข้อมูลคนงาน)
+        if (typeof options.confirmParsed === "function" && parsedData) {
+            const decision = await options.confirmParsed(parsedData);
+            if (!decision) return { status: "cancelled", message: "ผู้ใช้ยกเลิก ไม่ได้อัปโหลดไฟล์" };
+            if (decision === "keep") parsedData = null;
         }
         // options.nameFromOcr(parsedData) = ตั้งชื่อไฟล์ใหม่จากข้อมูลที่ AI อ่านได้ (เช่น ใบอนุญาตทำงาน → เลข 13 หลัก_ชื่อ)
         if (typeof options.nameFromOcr === "function") {

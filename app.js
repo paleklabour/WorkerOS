@@ -1880,7 +1880,7 @@ document.addEventListener("DOMContentLoaded", () => hydrateIcons());
 // - คืนค่าเป็น Promise เสมอ — ฟังก์ชันที่เรียก uiConfirm/uiPrompt ต้องเป็น async แล้ว await
 // - card: แสดงข้อมูลของรายการที่กำลังจะลบ/แก้ไข { image, imageIcon, title, subtitle, rows: [[ป้าย, ค่า], ...], list: [...] }
 //   (สร้างด้วย dialogCardForWorker/Customer/Job/... ด้านล่าง) — ทุกค่าใส่ผ่าน textContent/src ไม่ตีความ HTML
-function showUiDialog({ kind, message, title, okText, cancelText, danger, inputType, placeholder, card, summary, wide }) {
+function showUiDialog({ kind, message, title, okText, cancelText, extraText, danger, inputType, placeholder, card, summary, wide }) {
     return new Promise(resolve => {
         const isDanger = danger ?? (kind === 'confirm' && /ลบ|ยกเลิกลิงก์/.test(message));
         const iconName = kind === 'alert' ? 'warn' : isDanger ? 'trash' : kind === 'prompt' ? 'lock' : 'clipboard';
@@ -1895,8 +1895,9 @@ function showUiDialog({ kind, message, title, okText, cancelText, danger, inputT
                 ${card ? '<div class="ui-dialog-card"></div>' : ''}
                 ${summary && summary.length ? '<div class="ui-dialog-summary"></div>' : ''}
                 ${kind === 'prompt' ? `<input class="ui-dialog-input" type="${inputType || 'text'}" name="ui-dialog-${Date.now()}" autocomplete="${inputType === 'password' ? 'new-password' : 'off'}" data-lpignore="true" data-1p-ignore>` : ''}
-                <div class="ui-dialog-actions">
+                <div class="ui-dialog-actions${extraText ? ' has-extra' : ''}">
                     <button type="button" class="btn ${isDanger ? 'btn-danger-solid' : 'btn-gold'} ui-dialog-ok"></button>
+                    ${extraText ? '<button type="button" class="btn btn-outline ui-dialog-extra"></button>' : ''}
                     ${kind === 'alert' ? '' : '<button type="button" class="btn btn-outline ui-dialog-cancel"></button>'}
                 </div>
             </div>`;
@@ -1911,6 +1912,9 @@ function showUiDialog({ kind, message, title, okText, cancelText, danger, inputT
         const input = backdrop.querySelector('.ui-dialog-input');
         okBtn.textContent = okText || (kind === 'alert' ? 'ตกลง' : isDanger ? 'ลบ' : 'ยืนยัน');
         if (cancelBtn) cancelBtn.textContent = cancelText || 'ยกเลิก';
+        // ปุ่มทางเลือกที่ 3 (extraText) — กดแล้วคืนค่า 'extra'
+        const extraBtn = backdrop.querySelector('.ui-dialog-extra');
+        if (extraBtn) extraBtn.textContent = extraText;
         if (input && placeholder) input.placeholder = placeholder;
 
         const prevFocus = document.activeElement;
@@ -1924,10 +1928,11 @@ function showUiDialog({ kind, message, title, okText, cancelText, danger, inputT
         const cancel = () => close(kind === 'prompt' ? null : kind === 'confirm' ? false : undefined);
         const onKey = (e) => {
             if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); cancel(); }
-            else if (e.key === 'Enter' && document.activeElement !== cancelBtn) { e.preventDefault(); e.stopPropagation(); ok(); }
+            else if (e.key === 'Enter' && document.activeElement !== cancelBtn && document.activeElement !== extraBtn) { e.preventDefault(); e.stopPropagation(); ok(); }
         };
         okBtn.addEventListener('click', ok);
         if (cancelBtn) cancelBtn.addEventListener('click', cancel);
+        if (extraBtn) extraBtn.addEventListener('click', () => close('extra'));
         backdrop.addEventListener('mousedown', (e) => { if (e.target === backdrop) cancel(); });
         document.addEventListener('keydown', onKey, true);
 
@@ -4497,13 +4502,14 @@ function applyGeminiTitleToWorkerForm(parsedData) {
 
 // กฎอ่านเอกสาร (2026-10-06): AI อ่านเลขประจำตัวคนต่างด้าว 13 หลักจากเอกสารที่แนบได้ แต่ไม่ตรงกับเลขเดิมของคนงาน
 // → ถามก่อนพร้อมชื่อ + เลข 13 หลักของเดิมและของใหม่ว่าจะเปลี่ยนไหม (อาจแนบเอกสารผิดคน)
-// คืน true = อัปโหลด + ใช้ข้อมูลจากเอกสาร (รวมเลขใหม่), false = ไม่อัปโหลดไฟล์เลย คงข้อมูลเดิม (ส่งเป็น options.confirmParsed ให้ uploadFile)
+// คืน true = อัปโหลด + ใช้ข้อมูลจากเอกสาร (รวมเลขใหม่), 'keep' = อัปโหลดไฟล์แต่ไม่เปลี่ยนข้อมูลคนงานเลย,
+// false = ไม่อัปโหลดไฟล์เลย คงข้อมูลเดิม (ส่งเป็น options.confirmParsed ให้ uploadFile)
 async function confirmWorkerUidChange(old, parsed, fileName) {
     const digits = v => String(v || '').replace(/\D/g, '');
     const oldUid = digits(old.uid), newUid = digits(parsed && parsed.uid);
     if (oldUid.length !== 13 || newUid.length !== 13 || oldUid === newUid) return true;
     const name = (f, l) => `${f || ''} ${l || ''}`.trim() || '-';
-    return uiConfirm(`เลขประจำตัวคนต่างด้าว 13 หลักในเอกสาร${fileName ? ` "${fileName}"` : ''} ไม่ตรงกับข้อมูลเดิมของคนงาน — อาจแนบเอกสารผิดคน\nต้องการอัปโหลดและเปลี่ยนเป็นข้อมูลจากเอกสารนี้หรือไม่? (กด "ไม่อัปโหลด" = ไม่เก็บไฟล์นี้ และคงข้อมูลเดิม)`, {
+    const choice = await uiConfirm(`เลขประจำตัวคนต่างด้าว 13 หลักในเอกสาร${fileName ? ` "${fileName}"` : ''} ไม่ตรงกับข้อมูลเดิมของคนงาน — อาจแนบเอกสารผิดคน\nต้องการอัปโหลดและเปลี่ยนเป็นข้อมูลจากเอกสารนี้หรือไม่? ("อัปโหลดแต่ไม่เปลี่ยนข้อมูล" = เก็บไฟล์ไว้ ข้อมูลคนงานเหมือนเดิม / "ไม่อัปโหลด" = ไม่เก็บไฟล์นี้)`, {
         title: 'เลข 13 หลักไม่ตรงกับข้อมูลเดิม',
         summary: [
             { heading: 'ข้อมูลเดิม' },
@@ -4514,9 +4520,11 @@ async function confirmWorkerUidChange(old, parsed, fileName) {
             { label: 'เลขประจำตัว 13 หลัก', value: newUid },
         ],
         okText: 'เปลี่ยนเป็นข้อมูลใหม่',
+        extraText: 'อัปโหลดแต่ไม่เปลี่ยนข้อมูล',
         cancelText: 'ไม่อัปโหลด',
         danger: false
     });
+    return choice === 'extra' ? 'keep' : choice;
 }
 
 function applyGeminiDataToWorkerForm(docType, parsedData) {
@@ -12093,7 +12101,9 @@ async function attachDocumentToWorker(w, docType, fileContent, preParsed = null)
 
     // เลข 13 หลักในเอกสารไม่ตรงกับคนงาน → ถามก่อนอัปโหลด กด "ไม่อัปโหลด" = ไม่เก็บไฟล์ ไม่แก้ข้อมูลคนงาน (throw .cancelled)
     const known = { uid: w.workerUid, firstName: w.firstName, lastName: w.lastName };
-    if (preParsed && !(await confirmWorkerUidChange(known, preParsed, fileName))) throw createUploadCancelledError();
+    const preDecision = preParsed ? await confirmWorkerUidChange(known, preParsed, fileName) : true;
+    if (!preDecision) throw createUploadCancelledError();
+    if (preDecision === 'keep') { preParsed = null; fileName = nameOptions.nameFromOcr(null); } // เก็บไฟล์ แต่ไม่ใช้ข้อมูลจากเอกสาร
     const uploadOptions = preParsed ? { skipOcr: true } : { ...nameOptions, confirmParsed: (p) => confirmWorkerUidChange(known, p, fileName) };
     const uploadResult = await uploadDocumentFile(fileContent, fileName, w.employerId, w.id, docType, uploadOptions);
     if (uploadResult && uploadResult.cancelled) throw createUploadCancelledError();
