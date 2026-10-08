@@ -2193,6 +2193,24 @@ window.addEventListener("resize", () => {
 // รูปคนงานตอนยังไม่มีรูป — ไอคอนคนสีเทา เหมือนตารางหน้าข้อมูลคนงานต่างด้าว
 const WORKER_AVATAR_PLACEHOLDER = 'data:image/svg+xml;utf8,<svg xmlns=%22http:' + '/' + '/www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 width=%2232%22 height=%2232%22 fill=%22%2394a3b8%22><path d=%22M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4.42 0-8 3.58-8 8v1h16v-1c0-4.42-3.58-8-8-8z%22/></svg>';
 
+// กลุ่มมติ ครม. = วันหมดอายุใบอนุญาตทำงานที่ตรงกันตั้งแต่ 2 คนขึ้นไป (นับจากคนงานที่ยังไม่พ้นสภาพทั้งหมด)
+// ใช้ร่วมกันระหว่างหน้าต่ออายุ (renderRenewalGroups) กับตัวกรองกลุ่มในหน้าข้อมูลคนงาน (renderWorkers)
+function permitExpiryKey(w) {
+    const d = w && w.permitExpiry ? safeParseDate(w.permitExpiry) : null;
+    return d ? d.toISOString().split('T')[0] : null;
+}
+function permitBatchGroups() {
+    const byKey = {};
+    workers.forEach(w => {
+        if (w.status === 'archived' || w.status === 'deleted') return;
+        const key = permitExpiryKey(w);
+        if (!key) return;
+        if (!byKey[key]) byKey[key] = { key, date: safeParseDate(w.permitExpiry), count: 0 };
+        byKey[key].count++;
+    });
+    return Object.values(byKey).filter(g => g.count >= 2).sort((a, b) => a.date - b.date);
+}
+
 function renderRenewalGroups() {
     const container = document.getElementById("renewal-groups-container");
     if (!container) return;
@@ -3216,6 +3234,8 @@ function viewEmployerAlertedWorkers(employerId) {
         const empRec = customers.find(c => c.id === employerId);
         if (searchWorker) searchWorker.value = empRec ? empRec.companyName : "";
     }
+    const selectGroup = document.getElementById("filter-worker-group");
+    if (selectGroup) selectGroup.value = "";
     const selectStatus = document.getElementById("filter-worker-employment-status");
     if (selectStatus) {
         selectStatus.value = "all"; // ทุกคนที่ยังไม่พ้นสภาพ (ปกติ + รอขึ้นทะเบียน) — คนพ้นสภาพดูได้จากตัวกรอง "เฉพาะแจ้งออก/พ้นสภาพ"
@@ -3628,6 +3648,23 @@ function markWorkerSortHeaders() {
     });
 }
 
+// เติมตัวเลือกกลุ่มมติ ครม. (1 ตัวเลือกต่อวันใบอนุญาตหมดอายุ) — คงค่าที่เลือกไว้ ถ้ากลุ่มนั้นหายไปแล้วกลับเป็น "ทุกกลุ่ม"
+function fillWorkerGroupFilter(batchGroups) {
+    const sel = document.getElementById("filter-worker-group");
+    if (!sel) return "";
+    const opts = [['', 'ทุกกลุ่ม (ครม./MOU)'], ['batch', 'เฉพาะกลุ่มมติ ครม. ทั้งหมด']]
+        .concat(batchGroups.map(g => ['batch:' + g.key, `มติ ครม. — ใบอนุญาตหมดอายุ ${formatThaiDate(g.date)} (${g.count} คน)`]))
+        .concat([['mou', 'เฉพาะกลุ่ม MOU']]);
+    const sig = opts.map(o => o.join('=')).join('|');
+    const prev = sel.value;
+    if (sel.dataset.sig !== sig) {
+        sel.innerHTML = opts.map(([v, t]) => `<option value="${v}">${escapeHtml(t)}</option>`).join('');
+        sel.dataset.sig = sig;
+    }
+    sel.value = opts.some(o => o[0] === prev) ? prev : '';
+    return sel.value;
+}
+
 function renderWorkers() {
     const searchVal = document.getElementById("search-worker").value.toLowerCase();
     const natFilter = document.getElementById("filter-worker-nationality").value;
@@ -3639,6 +3676,11 @@ function renderWorkers() {
     const tbody = document.getElementById("workers-list-tbody");
     const today = new Date();
     today.setHours(0,0,0,0);
+
+    // ตัวกรองกลุ่ม: มติ ครม. (แยกตามวันใบอนุญาตหมดอายุ) / MOU — กติกาเดียวกับหน้าต่ออายุ (permitBatchGroups)
+    const batchGroups = permitBatchGroups();
+    const batchKeys = new Set(batchGroups.map(g => g.key));
+    const groupFilter = fillWorkerGroupFilter(batchGroups);
 
     // Filtering logic
     const filtered = workers.filter(w => {
@@ -3694,7 +3736,15 @@ function renderWorkers() {
         else if (empStatusFilter === 'active') matchEmpStatus = searchVal ? true : wStatus === 'active'; // ค้นหา = เจอทั้งปกติและรอขึ้นทะเบียน
         else matchEmpStatus = true; // "all" = ทุกคนที่ยังไม่พ้นสภาพ
 
-        return matchSearch && matchNat && matchEmp && matchStatus && matchEmpStatus;
+        let matchGroup = true;
+        if (groupFilter) {
+            const key = permitExpiryKey(w);
+            if (groupFilter === 'batch') matchGroup = batchKeys.has(key);
+            else if (groupFilter === 'mou') matchGroup = !!key && !batchKeys.has(key);
+            else matchGroup = groupFilter === 'batch:' + key;
+        }
+
+        return matchSearch && matchNat && matchEmp && matchStatus && matchEmpStatus && matchGroup;
     });
 
     // คลิกหัวคอลัมน์เพื่อเรียง (sortWorkersBy) — เรียงก่อนแบ่งหน้า
@@ -10657,6 +10707,8 @@ function filterWorkersByEmployer(employerId) {
         const empRec = customers.find(c => c.id === employerId);
         if (searchWorker) searchWorker.value = empRec ? empRec.companyName : "";
     }
+    const selectGroup = document.getElementById("filter-worker-group");
+    if (selectGroup) selectGroup.value = "";
     const selectStatus = document.getElementById("filter-worker-employment-status");
     if (selectStatus) {
         selectStatus.value = "all"; // ทุกคนที่ยังไม่พ้นสภาพ (ปกติ + รอขึ้นทะเบียน) — คนพ้นสภาพดูได้จากตัวกรอง "เฉพาะแจ้งออก/พ้นสภาพ"
