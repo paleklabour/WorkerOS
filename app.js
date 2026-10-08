@@ -2187,28 +2187,55 @@ window.addEventListener("resize", () => {
 
 // ==================== RENEWALS VIEW (ข้อมูลคนงานต่ออายุ) ====================
 // จัดกลุ่มคนงานอัตโนมัติตาม "วันหมดอายุใบอนุญาตทำงาน" ที่ตรงกันเป๊ะ ๆ:
-//   - วันหมดอายุตรงกันตั้งแต่ 2 คนขึ้นไป = กลุ่มมติ/รอบลงทะเบียน (batch) ตั้งชื่อกลุ่มตามวันที่นั้นเลย
+//   - วันหมดอายุตรงกันตั้งแต่ 2 คนขึ้นไป = กลุ่มมติ ครม. ตั้งชื่อตามรอบวัน/เดือน (ต่ออายุปีถัดไปยังอยู่กลุ่มเดิม — ดู permitCohorts)
 //     กลุ่มใหม่จะโผล่ขึ้นเองทุกครั้งที่เพิ่มปีใหม่ ไม่ต้องแก้โค้ด
 //   - วันหมดอายุไม่ซ้ำกับใครเลย = เหมารวมไว้ในกลุ่ม MOU (แต่ละคนหมดอายุคนละวัน)
 // รูปคนงานตอนยังไม่มีรูป — ไอคอนคนสีเทา เหมือนตารางหน้าข้อมูลคนงานต่างด้าว
 const WORKER_AVATAR_PLACEHOLDER = 'data:image/svg+xml;utf8,<svg xmlns=%22http:' + '/' + '/www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 width=%2232%22 height=%2232%22 fill=%22%2394a3b8%22><path d=%22M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4.42 0-8 3.58-8 8v1h16v-1c0-4.42-3.58-8-8-8z%22/></svg>';
 
-// กลุ่มมติ ครม. = วันหมดอายุใบอนุญาตทำงานที่ตรงกันตั้งแต่ 2 คนขึ้นไป (นับจากคนงานที่ยังไม่พ้นสภาพทั้งหมด)
-// ใช้ร่วมกันระหว่างหน้าต่ออายุ (renderRenewalGroups) กับตัวกรองกลุ่มในหน้าข้อมูลคนงาน (renderWorkers)
+// ---------- กลุ่มมติ ครม. (ใช้ร่วมกันระหว่างหน้าต่ออายุ renderRenewalGroups กับตัวกรองหน้าข้อมูลคนงาน renderWorkers) ----------
+// ต่ออายุแล้ววันหมดอายุเลื่อนไปปีถัดไปแต่ "วัน/เดือน" เท่าเดิม (11/12/69 → 11/12/70) = ยังเป็นกลุ่มเดียวกัน
+// กลุ่มจึงนับตามวัน/เดือน (รอบ) ไม่ใช่วันที่เต็ม:
+//   1) วันที่เต็มที่มีคนหมดอายุตรงกันตั้งแต่ 2 คน = รอบ ครม. (กันคน MOU ที่บังเอิญวัน/เดือนตรงกันคนละปีถูกดึงเข้ากลุ่ม)
+//   2) คนงานทุกคนที่หมดอายุวัน/เดือนเดียวกับรอบนั้น (ปีไหนก็ได้) อยู่กลุ่มนั้น — ปีแรกสุด = ยังไม่ต่อ, ปีหลัง = ต่อแล้ว
+//   3) ที่เหลือ (มีวันหมดอายุ) = กลุ่ม MOU
+const TH_MONTHS_SHORT = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
 function permitExpiryKey(w) {
     const d = w && w.permitExpiry ? safeParseDate(w.permitExpiry) : null;
-    return d ? d.toISOString().split('T')[0] : null;
+    if (!d) return null;
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
-function permitBatchGroups() {
-    const byKey = {};
-    workers.forEach(w => {
-        if (w.status === 'archived' || w.status === 'deleted') return;
-        const key = permitExpiryKey(w);
-        if (!key) return;
-        if (!byKey[key]) byKey[key] = { key, date: safeParseDate(w.permitExpiry), count: 0 };
-        byKey[key].count++;
+// คืน { cohorts: [{ key 'MM-DD', label, workers, years: [{ key, date, count, renewed }] }], cohortOf(w) → key|null }
+function permitCohorts(list = workers.filter(w => w.status !== 'archived' && w.status !== 'deleted')) {
+    const byDate = {};
+    list.forEach(w => { const k = permitExpiryKey(w); if (k) byDate[k] = (byDate[k] || 0) + 1; });
+    const roundKeys = new Set(Object.keys(byDate).filter(k => byDate[k] >= 2).map(k => k.slice(5)));
+    const byRound = {};
+    list.forEach(w => {
+        const k = permitExpiryKey(w);
+        if (!k || !roundKeys.has(k.slice(5))) return;
+        const r = k.slice(5);
+        if (!byRound[r]) byRound[r] = { key: r, workers: [], years: {} };
+        byRound[r].workers.push(w);
+        if (!byRound[r].years[k]) byRound[r].years[k] = { key: k, date: safeParseDate(w.permitExpiry), count: 0 };
+        byRound[r].years[k].count++;
     });
-    return Object.values(byKey).filter(g => g.count >= 2).sort((a, b) => a.date - b.date);
+    const cohorts = Object.values(byRound).map(c => {
+        const years = Object.values(c.years).sort((a, b) => a.date - b.date);
+        years.forEach((y, i) => { y.renewed = i > 0; });
+        const [mm, dd] = c.key.split('-').map(Number);
+        return { key: c.key, label: `มติ ครม. รอบ ${dd} ${TH_MONTHS_SHORT[mm - 1]}`, workers: c.workers, years };
+    }).sort((a, b) => a.years[0].date - b.years[0].date);
+    return {
+        cohorts,
+        cohortOf: w => { const k = permitExpiryKey(w); return k && roundKeys.has(k.slice(5)) ? k.slice(5) : null; }
+    };
+}
+// "11/12/2569 — 5 คน (ยังไม่ต่อ)" — บอกว่าปีไหนต่อแล้ว เฉพาะกลุ่มที่มีมากกว่า 1 ปี
+function cohortYearLabel(c, y) {
+    const tag = c.years.length > 1 ? (y.renewed ? ' (ต่อแล้ว)' : ' (ยังไม่ต่อ)') : '';
+    return `${formatThaiDate(y.date)} — ${y.count} คน${tag}`;
 }
 
 function renderRenewalGroups() {
@@ -2247,26 +2274,9 @@ function renderRenewalGroups() {
     };
     const anyFilter = !!(query || natFilter || statusFilter || bookFilter || groupFilter);
 
-    const byDateKey = {};
-    relevant.forEach(w => {
-        const d = safeParseDate(w.permitExpiry);
-        if (!d) return;
-        const key = d.toISOString().split('T')[0];
-        if (!byDateKey[key]) byDateKey[key] = { date: d, workers: [] };
-        byDateKey[key].workers.push(w);
-    });
-
-    const batchGroups = [];
-    const mouWorkers = [];
-    Object.values(byDateKey).forEach(g => {
-        if (g.workers.length >= 2) {
-            batchGroups.push(g);
-        } else {
-            mouWorkers.push(...g.workers);
-        }
-    });
-    batchGroups.sort((a, b) => a.date - b.date);
-    mouWorkers.sort((a, b) => (safeParseDate(a.permitExpiry) || 0) - (safeParseDate(b.permitExpiry) || 0));
+    // รอบ ครม. นับตามวัน/เดือน — คนที่ต่ออายุแล้ว (ปีถัดไป) ยังอยู่กลุ่มเดิม ดู permitCohorts()
+    const { cohorts: batchGroups, cohortOf } = permitCohorts(relevant);
+    const mouWorkers = relevant.filter(w => permitExpiryKey(w) && !cohortOf(w));
 
     function daysLeftOf(w) {
         const d = safeParseDate(w.permitExpiry);
@@ -2299,12 +2309,17 @@ function renderRenewalGroups() {
         return `<span class="${cls}">${formatThaiDate(d)}</span>`;
     }
 
-    function buildGroupPanel(title, list) {
+    // byDate = กลุ่ม ครม.: เรียงคนที่ยังไม่ต่อ (ปีก่อน) ขึ้นก่อน แล้วค่อยตามนายจ้าง; subtitle = แยกจำนวนรายปี
+    function buildGroupPanel(title, list, { byDate = false, subtitle = '' } = {}) {
         const expiredCount = list.filter(w => { const d = daysLeftOf(w); return d !== null && d < 0; }).length;
         const warningCount = list.filter(w => { const d = daysLeftOf(w); return d !== null && d >= 0 && d <= 60; }).length;
         const noBookCount = list.filter(w => !hasBook(w)).length;
 
         const sortedList = [...list].sort((a, b) => {
+            if (byDate) {
+                const ka = permitExpiryKey(a) || '', kb = permitExpiryKey(b) || '';
+                if (ka !== kb) return ka < kb ? -1 : 1;
+            }
             const empA = customers.find(c => c.id === a.employerId);
             const empB = customers.find(c => c.id === b.employerId);
             return (empA ? empA.companyName : '').localeCompare(empB ? empB.companyName : '', 'th');
@@ -2344,7 +2359,10 @@ function renderRenewalGroups() {
         return `
             <div class="dashboard-panel" style="flex: 1; margin-bottom: 20px;">
                 <div class="panel-header">
-                    <h3 style="margin:0;">${title}</h3>
+                    <div>
+                        <h3 style="margin:0;">${title}</h3>
+                        ${subtitle ? `<small class="text-muted renewal-cohort-years">${subtitle}</small>` : ''}
+                    </div>
                     <span style="font-size: 13px; color: #64748b;">
                         ทั้งหมด ${list.length} คน • ${icon("warn")} ใกล้หมดอายุ ${warningCount} • ${icon("bad")} หมดอายุแล้ว ${expiredCount} • ${icon("book")} ยังไม่มีเล่ม ${noBookCount}
                     </span>
@@ -2376,7 +2394,8 @@ function renderRenewalGroups() {
             const list = g.workers.filter(matchesFilters);
             if (list.length === 0) return;
             shownCount += list.length;
-            html += buildGroupPanel(`มติ ครม. ต่ออายุ (ใบอนุญาตหมดอายุ ${formatThaiDate(g.date)})`, list);
+            const subtitle = 'ใบอนุญาตหมดอายุ ' + g.years.map(y => cohortYearLabel(g, y)).join(' • ');
+            html += buildGroupPanel(g.label, list, { byDate: true, subtitle });
         });
     }
     if (groupFilter !== 'batch') {
@@ -3648,13 +3667,17 @@ function markWorkerSortHeaders() {
     });
 }
 
-// เติมตัวเลือกกลุ่มมติ ครม. (1 ตัวเลือกต่อวันใบอนุญาตหมดอายุ) — คงค่าที่เลือกไว้ ถ้ากลุ่มนั้นหายไปแล้วกลับเป็น "ทุกกลุ่ม"
-function fillWorkerGroupFilter(batchGroups) {
+// เติมตัวเลือกกลุ่มมติ ครม. — 1 ตัวเลือกต่อรอบ (วัน/เดือน) + แยกรายปีใต้รอบนั้นถ้ามีทั้งคนที่ต่อแล้วและยังไม่ต่อ
+// ค่า: cohort:MM-DD (ทั้งรอบ) / date:YYYY-MM-DD (ปีเดียว) — คงค่าที่เลือกไว้ ถ้าหายไปแล้วกลับเป็น "ทุกกลุ่ม"
+function fillWorkerGroupFilter(cohorts) {
     const sel = document.getElementById("filter-worker-group");
     if (!sel) return "";
-    const opts = [['', 'ทุกกลุ่ม (ครม./MOU)'], ['batch', 'เฉพาะกลุ่มมติ ครม. ทั้งหมด']]
-        .concat(batchGroups.map(g => ['batch:' + g.key, `มติ ครม. — ใบอนุญาตหมดอายุ ${formatThaiDate(g.date)} (${g.count} คน)`]))
-        .concat([['mou', 'เฉพาะกลุ่ม MOU']]);
+    const opts = [['', 'ทุกกลุ่ม (ครม./MOU)'], ['batch', 'เฉพาะกลุ่มมติ ครม. ทั้งหมด']];
+    cohorts.forEach(c => {
+        opts.push(['cohort:' + c.key, `${c.label} (${c.workers.length} คน)`]);
+        if (c.years.length > 1) c.years.forEach(y => opts.push(['date:' + y.key, `　↳ หมดอายุ ${cohortYearLabel(c, y)}`]));
+    });
+    opts.push(['mou', 'เฉพาะกลุ่ม MOU']);
     const sig = opts.map(o => o.join('=')).join('|');
     const prev = sel.value;
     if (sel.dataset.sig !== sig) {
@@ -3677,10 +3700,9 @@ function renderWorkers() {
     const today = new Date();
     today.setHours(0,0,0,0);
 
-    // ตัวกรองกลุ่ม: มติ ครม. (แยกตามวันใบอนุญาตหมดอายุ) / MOU — กติกาเดียวกับหน้าต่ออายุ (permitBatchGroups)
-    const batchGroups = permitBatchGroups();
-    const batchKeys = new Set(batchGroups.map(g => g.key));
-    const groupFilter = fillWorkerGroupFilter(batchGroups);
+    // ตัวกรองกลุ่ม: มติ ครม. (รอบตามวัน/เดือนใบอนุญาตหมดอายุ) / MOU — กติกาเดียวกับหน้าต่ออายุ (permitCohorts)
+    const { cohorts, cohortOf } = permitCohorts();
+    const groupFilter = fillWorkerGroupFilter(cohorts);
 
     // Filtering logic
     const filtered = workers.filter(w => {
@@ -3738,10 +3760,11 @@ function renderWorkers() {
 
         let matchGroup = true;
         if (groupFilter) {
-            const key = permitExpiryKey(w);
-            if (groupFilter === 'batch') matchGroup = batchKeys.has(key);
-            else if (groupFilter === 'mou') matchGroup = !!key && !batchKeys.has(key);
-            else matchGroup = groupFilter === 'batch:' + key;
+            const round = cohortOf(w);
+            if (groupFilter === 'batch') matchGroup = !!round;
+            else if (groupFilter === 'mou') matchGroup = !!permitExpiryKey(w) && !round;
+            else if (groupFilter.startsWith('cohort:')) matchGroup = groupFilter === 'cohort:' + round;
+            else matchGroup = groupFilter === 'date:' + permitExpiryKey(w);
         }
 
         return matchSearch && matchNat && matchEmp && matchStatus && matchEmpStatus && matchGroup;
