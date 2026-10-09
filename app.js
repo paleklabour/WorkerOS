@@ -12369,9 +12369,8 @@ async function attachDocumentToWorker(w, docType, fileContent, preParsed = null,
     const hasReceipt = getAttachments(w, 'worker-receipt').length > 0;
     if (w.status === 'pending_register' && hasWp && hasReceipt) {
         w.status = 'active';
-        // ขึ้นทะเบียนเสร็จ = เข้าระบบแล้ว ไม่ต้องแจ้งเข้าซ้ำ (ไม่งั้นป้าย "⏳ รอแจ้งเข้า" ขึ้นทันทีที่สถานะเปลี่ยนเป็นปกติ
-        // เพราะคนงานยังไม่มีใบงาน) — admin ยกเลิกติ๊กได้ในฟอร์มคนงานถ้าคนนี้ต้องแจ้งเข้าจริง
-        w.skipNotifyEntry = true;
+        // ไม่ล้างป้าย "รอแจ้งเข้า" อัตโนมัติ — คนงานใหม่ต้องขึ้นรอแจ้งเข้าเสมอ จนกว่าจะตรวจผ่าน e-WorkPermit
+        // (วางรายชื่อที่ "แจ้งเข้าแล้ว") หรือ Admin กด "ผ่าน" (เจ้าของระบบกำหนด 2026-10-09)
     }
 
     // บันทึกข้อมูลคนงาน (attachments ใหม่ + ฟิลด์ที่ AI เติมให้) กลับขึ้นคลาวด์จริง —
@@ -13225,7 +13224,9 @@ function parseEwpPasteText() {
         const nationality = natWord ? EWP_NATIONALITIES[natWord.toLowerCase()] : '';
         const d = rest.match(/\b(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+(\d{4})\b/i);
         const permitExpiry = d ? `${toGregorianYear(d[3])}-${String(EWP_MONTHS[d[2].slice(0, 3).toLowerCase()]).padStart(2, '0')}-${d[1].padStart(2, '0')}` : '';
-        const licenseActive = /License\s+Active/i.test(rest);
+        const licenseActive = /License\s+Active|ได้รับใบอนุญาต/i.test(rest);
+        // ตรวจผ่านระบบ e-WorkPermit แล้วว่า "แจ้งเข้าแล้ว" = ไม่ต้องขึ้นป้ายรอแจ้งเข้า (เจ้าของระบบกำหนด 2026-10-09)
+        const informed = /Already\s+Informed|แจ้งเข้าแล้ว/i.test(rest);
         let refNo = m[1] || '';
         if (/^A\d{17}$/.test(refNo)) refNo = 'R' + refNo; // ก๊อปไม่ติดตัว R ตัวแรกของหน้า
         const [title, gender] = EWP_TITLES[m[4].toLowerCase()] || ['', ''];
@@ -13234,7 +13235,7 @@ function parseEwpPasteText() {
             pool.find(w => w.permitNo && normalizeIdForMatch(w.permitNo) === m[3]);
         ewpPasteRows.push({
             title, gender, firstName: name, nationality, workerUid: uid, permitNo: m[3], permitExpiry, refNo,
-            licenseActive, existingId: existing ? existing.id : null, selected: !existing, status: null
+            licenseActive, informed, existingId: existing ? existing.id : null, selected: !existing, status: null
         });
     });
     renderEwpPasteTable();
@@ -13306,6 +13307,7 @@ async function runEwpPasteImport() {
             const ex = r.existingId ? allWorkers().find(w => w.id === r.existingId) : null;
             if (ex) {
                 const updatedWorker = { ...ex, workerUid: ex.workerUid || r.workerUid, permitNo: r.permitNo, refNo: r.refNo || ex.refNo };
+                if (r.informed) updatedWorker.skipNotifyEntry = true;
                 if (r.permitExpiry) updatedWorker.permitExpiry = r.permitExpiry;
                 const res = await callCloudAPI("saveWorker", { workerData: updatedWorker });
                 if (!res || res.status === "error") throw new Error(res && res.message);
@@ -13321,7 +13323,8 @@ async function runEwpPasteImport() {
                     workplace: getCustomerHQAddress(ewpPasteEmployerId),
                     attachments: {},
                     status: r.licenseActive ? 'active' : 'pending_register',
-                    skipNotifyEntry: false,
+                    skipNotifyEntry: !!r.informed, // e-WorkPermit บอกว่าแจ้งเข้าแล้ว = ตรวจผ่านระบบแล้ว
+
                     createdAt: new Date().toISOString().split('T')[0]
                 };
                 const res = await callCloudAPI("saveWorker", { workerData });

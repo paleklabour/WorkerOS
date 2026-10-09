@@ -105,6 +105,22 @@ office's file-name abbreviations map to doc types (`WORKER_DOC_TYPES`), and
 unmatched files do **not** create new workers unless "สร้างคนงานใหม่จากไฟล์ที่
 จับคู่ไม่ได้" is ticked (owner's request).
 
+Owner's rules (2026-10-09):
+- Section 1.3 of the worker form (pink card no / Thai name / insurance no) is filled
+  **only** from a pink card read; nothing else (WP, receipt, e-WorkPermit QR, insurance
+  doc) writes those fields, and the pink card writes nothing outside 1.3. Not found = leave blank.
+- Bulk import has a per-file "AI อ่าน" checkbox (`row.aiRead`, default from
+  `bulkAiDefault()`); unticked = attach only (`attachDocumentToWorker(..., { noAi: true })`).
+- OCR may only set `workerUid` if it is exactly 13 digits.
+- `uploadFile` in `supabase-client.js` sniffs the real file type from the bytes
+  (`sniffFileMime`) — Drive had JPEGs named `.pdf` that wouldn't open.
+- Every new worker, whatever the path, shows "รอแจ้งเข้า" until it's verified in
+  e-WorkPermit (the e-WorkPermit paste import sets `skipNotifyEntry` when the row says
+  "Already Informed"/"แจ้งเข้าแล้ว") or an Admin clicks "ผ่าน". Don't auto-clear it
+  elsewhere (the pending_register→active transition used to).
+- Document folders have an image editor (`openImageEditor`: crop / rotate / brightness /
+  contrast), images only, saving replaces the original (no copy kept).
+
 ## Search-to-select fields (standing rule)
 
 Any input where the user searches to pick **one existing record** (employer,
