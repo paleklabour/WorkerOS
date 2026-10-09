@@ -114,6 +114,10 @@ Owner's rules (2026-10-09):
   doc) writes those fields, and the pink card writes nothing outside 1.3. Not found = leave blank.
 - Bulk import has a per-file "AI อ่าน" checkbox (`row.aiRead`, default from
   `bulkAiDefault()`); unticked = attach only (`attachDocumentToWorker(..., { noAi: true })`).
+- Worker document file names are the office abbreviation only (owner, 2026-10-09):
+  WP / WP_FB / CI / PASSPORT / VISA / PinkCard / REC / REC1900 / WP22 / AP / REQ / NTID /
+  MED / INS / INF / OTHER, plus _2, _3 for duplicates in a slot (`workerDocCode`,
+  `uniqueWorkerDocName`). The original file name is the hint for the finer code.
 - OCR may only set `workerUid` if it is exactly 13 digits.
 - `uploadFile` in `supabase-client.js` sniffs the real file type from the bytes
   (`sniffFileMime`) — Drive had JPEGs named `.pdf` that wouldn't open.

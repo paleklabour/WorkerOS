@@ -4770,23 +4770,53 @@ const WORKER_DOC_FILE_CODES = {
     'worker-pink-card': 'PinkCard', 'worker-receipt': 'Receipt', 'worker-medical': 'Medical',
     'worker-insurance-doc': 'Insurance', 'worker-application': 'Application', 'worker-other': 'Other'
 };
-function workerDocFileName(uid, firstName, lastName, docType, suffix, ext) {
-    const digits = String(uid || '').replace(/\D/g, '');
-    const name = [firstName, lastName].map(s => String(s || '').trim()).filter(Boolean).join(' ').replace(/\s+/g, '_') || 'worker';
-    const code = WORKER_DOC_FILE_CODES[docType] || String(docType || 'doc').replace(/^worker-/, '');
-    return `${digits.length === 13 ? `${digits}_` : ''}${name}_${code}${suffix}${ext}`;
+// ชื่อไฟล์เอกสารคนงาน = ตัวย่อของออฟฟิศอย่างเดียว (เจ้าของระบบเลือก 2026-10-09 ตามแฟ้ม AYE LIN AUNG) เช่น
+// WP_FB.pdf / CI.pdf / VISA.pdf / PinkCard.pdf / REC1900.pdf / WP22.pdf / NTID.jpg — ไฟล์อยู่ในแฟ้มของคนงานคนนั้นอยู่แล้ว
+// hint = ชื่อไฟล์ต้นฉบับ/ชื่อเดิม ใช้เก็บตัวย่อที่ละเอียดกว่า (WP_FB, REC410, WP46, NTID_FB, VISA, INF) ไว้
+// p = ข้อมูลที่ AI อ่าน (เช่น passportType บอก Passport/CI) — ชื่อซ้ำในช่องเดียวกันต่อท้าย _2, _3 (ดู uniqueWorkerDocName)
+function workerDocCode(docType, hint, p) {
+    // ชื่อแบบเก่าที่ระบบตั้งเอง (เลข13หลัก_ชื่อ_Passport / worker_xxx) ไม่ได้บอกอะไรเพิ่ม — ตัดออกก่อนดูตัวย่อ
+    const raw = String(hint || '').replace(/\.[a-z0-9]{1,5}$/i, '')
+        .replace(/_(Passport|Receipt|Application|MyanmarID|Medical|Insurance|Other|WP|PinkCard|worker-[a-z-]+)(_\d+)?$/i, m => /visa/i.test(m) ? m : '');
+    const h = ` ${raw.toUpperCase().replace(/[\s.\-()]+/g, '_')}_`;
+    const pick = (re, fallback) => { const m = h.match(re); return m ? m[1] : fallback; };
+    switch (docType) {
+        case 'worker-wp-doc': return pick(/_(WP_(?:FB|F|B|R)(?:_\d)?)_/, 'WP');
+        case 'worker-passport':
+            if (/_CI_VISA_/.test(h)) return 'CI_VISA';
+            if (/VISA/.test(h)) return pick(/_(VISA(?:_(?:R|\d))?)_/, 'VISA');
+            if (/PASSPORT/.test(h) || (p && /passport/i.test(String(p.passportType || '')))) return 'PASSPORT';
+            return 'CI';
+        case 'worker-visa': return 'VISA';
+        case 'worker-myanmar-id': return pick(/_((?:NTID|MID)(?:_(?:FB|F|B))?)_/, 'NTID');
+        case 'worker-pink-card': return 'PinkCard';
+        case 'worker-receipt': { const m = h.match(/_REC(?:EIPT?)?_?(\d{2,5})(_[A-Z]{1,2})?_/); return m ? `REC${m[1]}${m[2] || ''}` : 'REC'; }
+        case 'worker-application': return pick(/_(WP_?\d{2})_/, '').replace('_', '') || (/_REQ_/.test(h) ? 'REQ' : 'AP');
+        case 'worker-medical': return 'MED';
+        case 'worker-insurance-doc': return 'INS';
+        default: return /_INF_/.test(h) ? 'INF' : 'OTHER';
+    }
 }
 
-// ให้ uploadDocumentFile ตั้งชื่อไฟล์จากข้อมูลคนงานที่มีอยู่ ส่วนที่ยังว่าง (เช่น เพิ่มคนงานใหม่ เลข 13 หลัก/ชื่อยังไม่ได้กรอก)
-// เติมจากที่ AI อ่านได้จากเอกสารใบนั้น
-function workerDocNameOptions(known, docType, suffix, ext) {
+function workerDocFileName(uid, firstName, lastName, docType, suffix, ext, hint = '', p = null) {
+    return `${workerDocCode(docType, hint, p)}${suffix || ''}${ext || ''}`;
+}
+
+// กันชื่อซ้ำในช่องเอกสารเดียวกัน: CI.pdf มีแล้ว → CI_2.pdf, CI_3.pdf
+function uniqueWorkerDocName(list, name, skipIdx = -1) {
+    const taken = new Set((list || []).filter((f, i) => i !== skipIdx && f && f.name).map(f => String(f.name).toLowerCase()));
+    if (!taken.has(name.toLowerCase())) return name;
+    const m = name.match(/^(.*?)(\.[a-z0-9]{1,5})?$/i);
+    for (let n = 2; ; n++) {
+        const candidate = `${m[1]}_${n}${m[2] || ''}`;
+        if (!taken.has(candidate.toLowerCase())) return candidate;
+    }
+}
+
+// ให้ uploadDocumentFile ตั้งชื่อไฟล์หลัง AI อ่าน (ใช้ passportType แยก CI/PASSPORT) — list = ไฟล์ที่มีอยู่แล้วในช่องนี้ กันชื่อซ้ำ
+function workerDocNameOptions(known, docType, suffix, ext, hint = '', list = []) {
     return {
-        nameFromOcr: (p) => {
-            const knownUid = String(known.uid || '').replace(/\D/g, '').length === 13;
-            const uid = knownUid ? known.uid : (p && p.uid) || known.uid;
-            const useOcrName = !String(known.firstName || '').trim() && p && p.firstName;
-            return workerDocFileName(uid, useOcrName ? p.firstName : known.firstName, useOcrName ? (p.lastName || '') : known.lastName, docType, suffix, ext);
-        }
+        nameFromOcr: (p) => uniqueWorkerDocName(list, workerDocFileName('', '', '', docType, '', ext, hint, p))
     };
 }
 
@@ -4802,21 +4832,22 @@ async function renameAllWorkerDocFiles() {
         Object.keys(atts).forEach(docType => {
             // getAttachments แปลงไฟล์แบบเก่า (string เดี่ยว) เป็นรายการให้ด้วย — ห้ามทิ้งไฟล์ที่ไม่ใช่ array
             const list = getAttachments(w, docType);
-            next[docType] = list.map((f, idx) => {
-                if (!f || typeof f !== 'object') return f;
+            const renamed = [];
+            list.forEach(f => {
+                if (!f || typeof f !== 'object') { renamed.push(f); return; }
                 const m = String(f.name || '').match(/\.[A-Za-z0-9]{1,5}$/);
                 const ext = m ? m[0] : extFromDataUrl(String(f.data || ''));
-                const name = workerDocFileName(w.workerUid, w.firstName, w.lastName, docType, idx > 0 ? `_${idx + 1}` : '', ext);
-                if (name === f.name) return f;
-                changed++;
-                return { ...f, name };
+                const name = uniqueWorkerDocName(renamed, workerDocFileName('', '', '', docType, '', ext, f.name));
+                if (name !== f.name) changed++;
+                renamed.push(name === f.name ? f : { ...f, name });
             });
+            next[docType] = renamed;
         });
         if (changed) pending.push({ w, next, changed });
     });
     if (!pending.length) { uiAlert("ชื่อไฟล์เอกสารคนงานทุกไฟล์เป็นรูปแบบใหม่อยู่แล้ว"); return; }
     const files = pending.reduce((s, p) => s + p.changed, 0);
-    if (!(await uiConfirm(`จะเปลี่ยนชื่อไฟล์ ${files} ไฟล์ ของคนงาน ${pending.length} คน\nเป็นรูปแบบ เลข13หลัก_ชื่อ_ประเภท (เช่น 1234567890123_AUNG_NAING_WP.pdf)\nลิงก์ไฟล์เดิมยังใช้ได้ ไม่ต้องอัปโหลดใหม่`, {
+    if (!(await uiConfirm(`จะเปลี่ยนชื่อไฟล์ ${files} ไฟล์ ของคนงาน ${pending.length} คน\nเป็นตัวย่อของออฟฟิศ (เช่น WP_FB.pdf, CI.pdf, VISA.pdf, PinkCard.pdf, REC1900.pdf, WP22.pdf)\nลิงก์ไฟล์เดิมยังใช้ได้ ไม่ต้องอัปโหลดใหม่`, {
         title: 'เปลี่ยนชื่อไฟล์เอกสารคนงานย้อนหลัง', okText: 'เปลี่ยนชื่อ', danger: false }))) return;
     let ok = 0, fail = 0;
     for (const { w, next } of pending) {
@@ -4849,14 +4880,13 @@ function processUploadedFile(file, docType) {
             const employerId = document.getElementById("worker-employer-id").value;
             const workerUid = document.getElementById("worker-uid").value.trim();
             const existingList = tempWorkerAttachments[docType] || [];
-            const suffix = existingList.length > 0 ? `_${existingList.length + 1}` : "";
             const ext = extFromDataUrl(fileContent);
             const known = { uid: workerUid, firstName: document.getElementById("worker-first-name").value.trim(), lastName: document.getElementById("worker-last-name").value.trim() };
-            let fileName = workerDocFileName(known.uid, known.firstName, known.lastName, docType, suffix, ext);
+            let fileName = uniqueWorkerDocName(existingList, workerDocFileName('', '', '', docType, '', ext, file.name));
 
             // เลข 13 หลักในเอกสารไม่ตรงกับในฟอร์ม → ถามก่อนอัปโหลด (กด "ไม่อัปโหลด" = ไม่เก็บไฟล์)
             const uploadResult = await uploadDocumentFile(fileContent, fileName, employerId, editId, docType, {
-                ...workerDocNameOptions(known, docType, suffix, ext),
+                ...workerDocNameOptions(known, docType, '', ext, file.name, existingList),
                 confirmParsed: (p) => confirmWorkerUidChange(known, p, file.name)
             });
             if (uploadResult && uploadResult.cancelled) {
@@ -12351,9 +12381,9 @@ function isWorkerDocFileExpired(fItem, fIdx, list, docType) {
 // แนบไฟล์ 1 ไฟล์เข้าแฟ้มคนงาน 1 คน (upload + OCR + อัปเดตข้อมูล) — ใช้ร่วมกันทั้งอัปโหลดทีละไฟล์ และ bulk import
 async function attachDocumentToWorker(w, docType, fileContent, preParsed = null, opts = {}) {
     const currentList = getAttachments(w, docType);
-    const suffix = currentList.length > 0 ? `_${currentList.length + 1}` : "";
     const ext = extFromDataUrl(fileContent);
-    const nameOptions = workerDocNameOptions({ uid: w.workerUid, firstName: w.firstName, lastName: w.lastName }, docType, suffix, ext);
+    // opts.hint = ชื่อไฟล์ต้นฉบับ (เก็บตัวย่อ WP_FB / REC410 / WP46 ฯลฯ ไว้ในชื่อใหม่)
+    const nameOptions = workerDocNameOptions({ uid: w.workerUid, firstName: w.firstName, lastName: w.lastName }, docType, '', ext, opts.hint || '', currentList);
     let fileName = nameOptions.nameFromOcr(preParsed);
 
     // เลข 13 หลักในเอกสารไม่ตรงกับคนงาน → ถามก่อนอัปโหลด กด "ไม่อัปโหลด" = ไม่เก็บไฟล์ ไม่แก้ข้อมูลคนงาน (throw .cancelled)
@@ -12432,7 +12462,7 @@ async function handleFolderFileUpload(event) {
         try {
             const fileContent = await readFileAsDataUrl(file);
             // หมวด "เอกสารอื่นๆ" แนบไฟล์อย่างเดียว ไม่ให้ AI อ่าน/ย้ายหมวด (owner's request 2026-10-08)
-            const uploadResult = await attachDocumentToWorker(w, activeFolderDocType, fileContent);
+            const uploadResult = await attachDocumentToWorker(w, activeFolderDocType, fileContent, null, { hint: file.name });
             if (uploadResult && uploadResult.parsedData) anyAiRead = true;
             if (uploadResult && uploadResult.manualEntry) needsManualEntry = true;
             if (wasPending && w.status === 'active') {
@@ -13542,7 +13572,7 @@ async function runBulkImport() {
 
             // อ่านด้วย AI ไปแล้วในขั้น "ให้ AI อ่านและจับคู่" -> ใช้ผลเดิม ไม่เรียก AI ซ้ำ
             // ไม่ติ๊ก "AI อ่าน" = แนบอย่างเดียว ไม่เรียก AI
-            const uploadResult = await attachDocumentToWorker(w, row.docType, fileContent, row.parsedData || null, { noAi: row.aiRead === false });
+            const uploadResult = await attachDocumentToWorker(w, row.docType, fileContent, row.parsedData || null, { noAi: row.aiRead === false, hint: row.fileName });
             row.status = 'success';
             row.aiStatus = row.parsedData ? 'filled' : row.aiRead === false ? null : getBulkImportAiStatus(uploadResult);
             successCount++;
