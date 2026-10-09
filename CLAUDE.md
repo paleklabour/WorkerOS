@@ -107,6 +107,9 @@ unmatched files do **not** create new workers unless "สร้างคนง�
 
 Owner's rules (2026-10-09):
 - Section 1.3 of the worker form (pink card no / Thai name / insurance no) is filled
+  only from a THAI pink card (Thai script, บัตรประจำตัวคนซึ่งไม่มีสัญชาติไทย). A Myanmar
+  national ID is also pink but in Burmese script: attach only (`enforcePinkCardRule` in
+  ocr-document drops 1.3 fields when `scriptLanguage` is burmese). Section 1.3 is filled
   **only** from a pink card read; nothing else (WP, receipt, e-WorkPermit QR, insurance
   doc) writes those fields, and the pink card writes nothing outside 1.3. Not found = leave blank.
 - Bulk import has a per-file "AI อ่าน" checkbox (`row.aiRead`, default from

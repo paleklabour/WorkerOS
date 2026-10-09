@@ -32,8 +32,10 @@ const ALLOWED_DOC_TYPES = [
 const WORKER_AUTO_DOC_TYPES: Record<string, string> = {
   "worker-wp-doc": "Thai work permit card/document or e-WorkPermit (ใบอนุญาตทำงาน)",
   "worker-passport": "passport or CI (Certificate of Identity)",
-  "worker-myanmar-id": "Myanmar national ID card or household registration",
-  "worker-pink-card": "Thai pink card for non-Thai persons (บัตรชมพู / บัตรประจำตัวคนซึ่งไม่มีสัญชาติไทย)",
+  "worker-myanmar-id": "Myanmar national ID card (NRC, နိုင်ငံသားစိစစ်ရေးကတ်) or household registration — often PINK too, " +
+    "but its text is in BURMESE script (round Myanmar letters) with no Thai text",
+  "worker-pink-card": "Thai pink card for non-Thai persons (บัตรชมพู) — issued by Thailand, its text is in THAI script, " +
+    "headed 'บัตรประจำตัวคนซึ่งไม่มีสัญชาติไทย', with a 13-digit number and the holder's name printed in Thai",
   "worker-receipt": "payment receipt (ใบเสร็จรับเงิน)",
   "worker-medical": "medical certificate (ใบรับรองแพทย์)",
   "worker-insurance-doc": "health/accident insurance policy",
@@ -161,8 +163,15 @@ function buildPrompt(docType: string): string {
     ? `First identify which kind of document this is and put the matching key in "documentType", choosing ONLY from: ` +
       `${JSON.stringify(WORKER_AUTO_DOC_TYPES)} (or "other" if none fit). Then extract the fields below that apply to that kind of document. ` +
       `Each identifier belongs only to its own document kind: never copy a pink card number into "uid", and only fill "uid" ` +
-      `from a work permit's 13-digit worker ID (เลขประจำตัวคนต่างด้าว). `
+      `from a work permit's 13-digit worker ID (เลขประจำตัวคนต่างด้าว). ` +
+      `A Thai pink card and a Myanmar national ID card are BOTH pink — tell them apart by the script: Thai script = ` +
+      `"worker-pink-card", Burmese script = "worker-myanmar-id". Never classify a Burmese-script card as a pink card. `
     : "";
+  // บัตรชมพู (ไทย) กับบัตรประชาชนพม่าเป็นสีชมพูเหมือนกัน — ช่องส่วนที่ 1.3 อ่านจากบัตรชมพูภาษาไทยเท่านั้น (เจ้าของระบบกำหนด 2026-10-09)
+  const pinkRule = `"pinkCardNo", "thaiName" and "insuranceNo" may ONLY come from a Thai pink card (Thai-script card ` +
+    `headed บัตรประจำตัวคนซึ่งไม่มีสัญชาติไทย). If the document is a Myanmar national ID card (Burmese script) or anything ` +
+    `else, omit those three fields — never transliterate a Burmese name into Thai. Always fill "scriptLanguage" with the ` +
+    `main script printed on the card/document: "thai", "burmese", "latin", or "other". `;
   return `You are a professional assistant. ${classify}Parse this migrant worker document (${docType}) and extract the relevant fields. ` +
     `Convert all dates to DD/MM/YYYY format${BE_YEAR_RULE} Only fill fields you can actually read from the document — ` +
     `leave a field out entirely (do not guess or invent values) if it is not clearly present in the image/PDF. ` +
@@ -173,6 +182,7 @@ function buildPrompt(docType: string): string {
     `"firstName"/"lastName" MUST be in English (Latin letters A-Z) exactly as romanized on the document — NEVER output ` +
     `Burmese/Myanmar, Khmer, Lao or Thai script in these two fields, and never transliterate a native-script name yourself. ` +
     `If the document prints the name only in a non-Latin script (e.g. a Myanmar national ID card), omit "firstName" and "lastName". ` +
+    pinkRule +
     `Output ONLY a valid JSON object matching this schema, without markdown wrapping, json declaration, or backticks:\n` +
     `{\n` +
     (docType === "worker-auto"
@@ -204,7 +214,8 @@ function buildPrompt(docType: string): string {
     `  "refNo": "17-digit reference number (รหัสอ้างอิงคนต่างด้าว) starting with RA if found",\n` +
     `  "pinkCardNo": "13-digit pink card number (เลขที่บัตรชมพู) if this is a pink card",\n` +
     `  "thaiName": "Full name as printed in Thai script on the pink card, if this is a pink card",\n` +
-    `  "insuranceNo": "Health insurance number (เลขประกันสุขภาพ) if found, e.g. on a pink card",\n` +
+    `  "insuranceNo": "Health insurance number (เลขประกันสุขภาพ) printed on a Thai pink card only",\n` +
+    `  "scriptLanguage": "thai, burmese, latin, or other — the main script printed on the document",\n` +
     `  "email": "Email address (อีเมล / Email) printed on the document if found, e.g. the Email field on a Department of Employment receipt"\n` +
     `}`;
 }
@@ -216,6 +227,18 @@ function dropNonEnglishNames(p: Record<string, unknown>) {
   for (const key of ["firstName", "lastName"]) {
     if (typeof p[key] === "string" && NON_LATIN_LETTER_RE.test(p[key] as string)) delete p[key];
   }
+}
+
+// บัตรชมพู (ไทย) vs บัตรประชาชนพม่า: ทั้งคู่สีชมพู — เป็นอักษรพม่า = บัตรพม่า (เก็บไฟล์อย่างเดียว) ห้ามเติมส่วนที่ 1.3
+// และชื่อไทยต้องเป็นอักษรไทยจริง (กัน AI ถอดชื่อพม่าเป็นไทยเอง) — เจ้าของระบบกำหนด 2026-10-09
+const THAI_LETTER_RE = /[ก-ฮ]/;
+function enforcePinkCardRule(p: Record<string, unknown>) {
+  const burmese = String(p.scriptLanguage || "").toLowerCase() === "burmese";
+  if (burmese && p.documentType === "worker-pink-card") p.documentType = "worker-myanmar-id";
+  if (burmese || p.documentType === "worker-myanmar-id") {
+    delete p.pinkCardNo; delete p.thaiName; delete p.insuranceNo;
+  }
+  if (typeof p.thaiName === "string" && !THAI_LETTER_RE.test(p.thaiName)) delete p.thaiName;
 }
 
 Deno.serve(async (req) => {
@@ -298,7 +321,11 @@ Deno.serve(async (req) => {
         console.error("Failed to parse Gemini JSON output:", e, cleaned);
       }
     }
-    if (parsedData && typeof parsedData === "object") dropNonEnglishNames(parsedData);
+    if (parsedData && typeof parsedData === "object") {
+      for (const p of (Array.isArray(parsedData) ? parsedData : [parsedData])) {
+        if (p && typeof p === "object") { dropNonEnglishNames(p); enforcePinkCardRule(p); }
+      }
+    }
 
     return new Response(JSON.stringify({ status: "success", parsedData }), {
       headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
