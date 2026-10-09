@@ -7444,3 +7444,64 @@ th.sortable-th:hover::after { opacity: 0.8; }
 
 /* ไอคอน SVG ที่เขียนตรงใน index.html (ช่องค้นหา / ปุ่มเพิ่ม / รีเฟรช) ใช้รูปทรงชุดเดียวกับ icon() — ส่วนทึบสีจาง */
 .ios-glyph .fl { fill: color-mix(in srgb, currentColor 16%, transparent); }
+
+/* ==================== แก้ไขรูปในแฟ้มเอกสาร (openImageEditor ใน app.js) ==================== */
+.img-editor-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 9000;
+    background: rgba(15, 23, 42, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+.img-editor-backdrop.hidden { display: none; }
+.img-editor {
+    background: var(--dk-card, #ffffff);
+    color: var(--text-dark);
+    border-radius: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 18px 48px rgba(0, 0, 0, 0.22);
+    width: min(960px, 100%);
+    max-height: calc(100vh - 32px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.img-editor-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--dk-line, #e2e8f0);
+}
+.img-editor-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; }
+.img-editor-stage {
+    flex: 1;
+    min-height: 240px;
+    height: 58vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--dk-subtle, #f1f5f9);
+    padding: 12px;
+    overflow: hidden;
+}
+.img-editor-stage canvas { max-width: 100%; max-height: 100%; cursor: crosshair; touch-action: none; border-radius: 4px; }
+.img-editor-hint { padding: 6px 16px 0; font-size: 12px; }
+.img-editor-tools {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 14px;
+    padding: 10px 16px;
+}
+.img-editor-slider { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; }
+.img-editor-slider input { width: 120px; }
+.img-editor-foot {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--dk-line, #e2e8f0);
+}

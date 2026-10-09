@@ -10122,6 +10122,207 @@ async function uploadFileToServer(fileContent, fileName) {
 // (เดิมตอนลบไฟล์จากแฟ้มเอกสาร ระบบลบแค่ reference ใน jsonb ไฟล์จริงยังค้างอยู่ใน Storage ตลอดไป — ไม่มี path
 // เก็บแยกไว้ต่างหาก จึงต้องแยกเอา path ออกจาก URL เอง) ทำแบบ fire-and-forget ไม่บล็อกการลบ reference หลัก
 // เพราะการลบไฟล์จริงพลาดไม่ควรทำให้ผู้ใช้ลบรายการออกจากแฟ้มไม่ได้
+// ==================== แก้ไขรูปในแฟ้มเอกสาร (2026-10-09) ====================
+// ตัดกรอบ (ลากบนรูป) / หมุน 90° / ปรับความสว่าง-ความคมชัด — เฉพาะไฟล์รูป ไม่ใช้กับ PDF
+// บันทึกแล้ว "แทนที่ไฟล์เดิม" ไม่เก็บต้นฉบับ (เจ้าของระบบกำหนด) — อัปโหลดไฟล์ใหม่ (ไม่ผ่าน AI) แล้วลบไฟล์เก่าใน Storage
+let imageEditor = null; // { kind, docType, idx, bmp, rot, bright, contrast, crop: {x,y,w,h} ในพิกัดรูปที่หมุนแล้ว, view: {scale} }
+
+function imageEditorOwner(kind) {
+    return kind === 'worker' ? workers.find(w => w.id === activeFolderWorkerId) : customers.find(c => c.id === activeFolderCustomerId);
+}
+
+async function openImageEditor(kind, docType, idx) {
+    if (!can('ops')) return;
+    const owner = imageEditorOwner(kind);
+    const item = owner && getAttachments(owner, docType)[idx];
+    const url = item && (kind === 'worker' ? workerFolderFileUrl(item) : item.data);
+    if (!url) return;
+    let bmp;
+    try {
+        bmp = await createImageBitmap(await (await fetch(url)).blob());
+    } catch (e) {
+        showToast("❌ เปิดรูปไม่ได้ — ไฟล์อาจไม่ใช่รูปภาพ", "danger");
+        return;
+    }
+    imageEditor = { kind, docType, idx, url, item, bmp, rot: 0, bright: 100, contrast: 100, crop: null };
+    let el = document.getElementById('image-editor');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'image-editor';
+        el.className = 'img-editor-backdrop';
+        document.body.appendChild(el);
+    }
+    el.innerHTML = `
+        <div class="img-editor" role="dialog" aria-label="แก้ไขรูป">
+            <div class="img-editor-head">
+                <b>${icon('edit')} แก้ไขรูป</b>
+                <span class="text-muted img-editor-name">${escapeHtml(item.name || '')}</span>
+                <button type="button" class="close-btn" onclick="closeImageEditor()" title="ปิดหน้าต่าง">&times;</button>
+            </div>
+            <div class="img-editor-stage"><canvas id="img-editor-canvas"></canvas></div>
+            <div class="img-editor-hint text-muted">ลากบนรูปเพื่อเลือกส่วนที่ต้องการเก็บ (ตัดกรอบ) — ไม่ลาก = ใช้ทั้งรูป</div>
+            <div class="img-editor-tools">
+                <button type="button" class="btn btn-sm btn-outline" onclick="imageEditorRotate(-90)" title="หมุนรูปทวนเข็มนาฬิกา 90°">↺ หมุนซ้าย</button>
+                <button type="button" class="btn btn-sm btn-outline" onclick="imageEditorRotate(90)" title="หมุนรูปตามเข็มนาฬิกา 90°">↻ หมุนขวา</button>
+                <label class="img-editor-slider">ความสว่าง <input type="range" min="50" max="200" value="100" oninput="imageEditorSet('bright', this.value)"></label>
+                <label class="img-editor-slider">ความคมชัด <input type="range" min="50" max="200" value="100" oninput="imageEditorSet('contrast', this.value)"></label>
+                <button type="button" class="btn btn-sm btn-outline" onclick="imageEditorReset()" title="ล้างการแก้ไขทั้งหมด กลับเป็นรูปเดิม">ล้างการแก้ไข</button>
+            </div>
+            <div class="img-editor-foot">
+                <button type="button" class="btn btn-outline" onclick="closeImageEditor()" title="ปิดโดยไม่บันทึก">ยกเลิก</button>
+                <button type="button" class="btn btn-gold" id="img-editor-save" onclick="saveImageEditor()" title="บันทึกรูปที่แก้แทนไฟล์เดิม (ไม่เก็บต้นฉบับ)">${icon('ok')} บันทึกแทนไฟล์เดิม</button>
+            </div>
+        </div>`;
+    el.classList.remove('hidden');
+    bindImageEditorCanvas();
+    drawImageEditor();
+}
+
+function closeImageEditor() {
+    const el = document.getElementById('image-editor');
+    if (el) el.classList.add('hidden');
+    if (imageEditor && imageEditor.bmp && imageEditor.bmp.close) imageEditor.bmp.close();
+    imageEditor = null;
+}
+
+// รูปหลังหมุน (ยังไม่ตัด/ไม่ปรับสี) ขนาดเต็ม
+function imageEditorRotatedSize() {
+    const { bmp, rot } = imageEditor;
+    return rot % 180 === 0 ? { w: bmp.width, h: bmp.height } : { w: bmp.height, h: bmp.width };
+}
+
+function imageEditorPaint(ctx, scale, withFilter) {
+    const { bmp, rot, bright, contrast } = imageEditor;
+    const size = imageEditorRotatedSize();
+    ctx.save();
+    if (withFilter) ctx.filter = `brightness(${bright}%) contrast(${contrast}%)`;
+    ctx.scale(scale, scale);
+    ctx.translate(size.w / 2, size.h / 2);
+    ctx.rotate(rot * Math.PI / 180);
+    ctx.drawImage(bmp, -bmp.width / 2, -bmp.height / 2);
+    ctx.restore();
+}
+
+function drawImageEditor() {
+    const cv = document.getElementById('img-editor-canvas');
+    if (!cv || !imageEditor) return;
+    const stage = cv.parentElement;
+    const size = imageEditorRotatedSize();
+    const scale = Math.min((stage.clientWidth || 800) / size.w, (stage.clientHeight || 500) / size.h, 1);
+    imageEditor.scale = scale;
+    cv.width = Math.round(size.w * scale);
+    cv.height = Math.round(size.h * scale);
+    const ctx = cv.getContext('2d');
+    imageEditorPaint(ctx, scale, true);
+    const c = imageEditor.crop;
+    if (c && c.w > 2 && c.h > 2) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(0,0,0,0.45)';
+        ctx.beginPath();
+        ctx.rect(0, 0, cv.width, cv.height);
+        ctx.rect(c.x * scale, c.y * scale, c.w * scale, c.h * scale);
+        ctx.fill('evenodd');
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 4]);
+        ctx.strokeRect(c.x * scale, c.y * scale, c.w * scale, c.h * scale);
+        ctx.restore();
+    }
+}
+
+function bindImageEditorCanvas() {
+    const cv = document.getElementById('img-editor-canvas');
+    let start = null;
+    const pt = (e) => {
+        const r = cv.getBoundingClientRect();
+        const size = imageEditorRotatedSize();
+        const x = (e.clientX - r.left) * (cv.width / r.width) / imageEditor.scale;
+        const y = (e.clientY - r.top) * (cv.height / r.height) / imageEditor.scale;
+        return { x: Math.max(0, Math.min(size.w, x)), y: Math.max(0, Math.min(size.h, y)) };
+    };
+    cv.addEventListener('pointerdown', e => { if (!imageEditor) return; start = pt(e); cv.setPointerCapture(e.pointerId); imageEditor.crop = null; });
+    cv.addEventListener('pointermove', e => {
+        if (!start || !imageEditor) return;
+        const p = pt(e);
+        imageEditor.crop = { x: Math.min(start.x, p.x), y: Math.min(start.y, p.y), w: Math.abs(p.x - start.x), h: Math.abs(p.y - start.y) };
+        drawImageEditor();
+    });
+    cv.addEventListener('pointerup', () => {
+        start = null;
+        if (imageEditor && imageEditor.crop && (imageEditor.crop.w < 10 || imageEditor.crop.h < 10)) { imageEditor.crop = null; drawImageEditor(); }
+    });
+}
+
+function imageEditorRotate(deg) {
+    if (!imageEditor) return;
+    imageEditor.rot = (imageEditor.rot + deg + 360) % 360;
+    imageEditor.crop = null; // พิกัดกรอบเปลี่ยนเมื่อหมุน — ให้ลากใหม่
+    drawImageEditor();
+}
+
+function imageEditorSet(key, val) {
+    if (!imageEditor) return;
+    imageEditor[key] = Number(val);
+    drawImageEditor();
+}
+
+function imageEditorReset() {
+    if (!imageEditor) return;
+    Object.assign(imageEditor, { rot: 0, bright: 100, contrast: 100, crop: null });
+    document.querySelectorAll('#image-editor input[type=range]').forEach(i => { i.value = 100; });
+    drawImageEditor();
+}
+
+async function saveImageEditor() {
+    const ed = imageEditor;
+    if (!ed) return;
+    const changed = ed.rot || ed.bright !== 100 || ed.contrast !== 100 || ed.crop;
+    if (!changed) { closeImageEditor(); return; }
+    const btn = document.getElementById('img-editor-save');
+    if (btn) btn.disabled = true;
+    try {
+        // วาดรูปเต็มขนาดที่หมุน+ปรับสีแล้ว แล้วตัดเฉพาะกรอบที่เลือก
+        const size = imageEditorRotatedSize();
+        const full = document.createElement('canvas');
+        full.width = size.w; full.height = size.h;
+        imageEditorPaint(full.getContext('2d'), 1, true);
+        const c = ed.crop || { x: 0, y: 0, w: size.w, h: size.h };
+        const out = document.createElement('canvas');
+        out.width = Math.round(c.w); out.height = Math.round(c.h);
+        out.getContext('2d').drawImage(full, Math.round(c.x), Math.round(c.y), out.width, out.height, 0, 0, out.width, out.height);
+        const isPng = /\.png$/i.test(ed.item.name || '') || /\.png(\?|$)/i.test(ed.url);
+        const dataUrl = out.toDataURL(isPng ? 'image/png' : 'image/jpeg', 0.92);
+
+        const owner = imageEditorOwner(ed.kind);
+        if (!owner) throw new Error('ไม่พบเจ้าของแฟ้ม');
+        const custId = ed.kind === 'worker' ? owner.employerId : owner.id;
+        const workerId = ed.kind === 'worker' ? owner.id : '';
+        const up = await window.supabaseAdapter.uploadFile(dataUrl, ed.item.name || 'image.jpg', custId, workerId, ed.docType, currentUser, { skipOcr: true });
+        if (!up || up.status !== 'success') throw new Error(up && up.message || 'อัปโหลดไม่สำเร็จ');
+
+        const entry = getAttachments(owner, ed.docType)[ed.idx];
+        const oldUrl = entry.data || entry.url;
+        entry.data = up.fileUrl;
+        if (entry.url) entry.url = up.fileUrl;
+        if (ed.kind === 'worker' && owner.photo === oldUrl) owner.photo = up.fileUrl;
+        const res = await callCloudAPI(ed.kind === 'worker' ? 'saveWorker' : 'saveCustomer', ed.kind === 'worker' ? { workerData: owner } : { customerData: owner });
+        if (!res || res.status === 'error') {
+            entry.data = oldUrl; if (entry.url) entry.url = oldUrl;
+            deleteStorageFileByUrl(up.fileUrl);
+            throw new Error(res && res.message || 'บันทึกไม่สำเร็จ');
+        }
+        saveData();
+        deleteStorageFileByUrl(oldUrl);
+        closeImageEditor();
+        showToast("บันทึกรูปที่แก้ไขแล้ว", "success");
+        if (ed.kind === 'worker') { openWorkerFolderModal(owner.id); renderWorkers(); }
+        else { openCustomerFolderModal(owner.id); renderCustomers(); }
+    } catch (e) {
+        if (btn) btn.disabled = false;
+        showToast("❌ บันทึกรูปไม่สำเร็จ: " + e.message, "danger");
+    }
+}
+
 async function deleteStorageFileByUrl(url) {
     if (!window.supabaseAdapter || !url || typeof url !== 'string') return;
     const marker = '/worker-documents/';
@@ -10407,6 +10608,7 @@ function renderCustomerFolderPreview() {
                 <small>${type.label}</small>
             </div>
             <div class="fv-bar-actions">
+                ${canEdit && !isPdfUrl(url) ? `<button type="button" class="btn btn-sm btn-outline" onclick="openImageEditor('customer', '${sel.key}', ${sel.idx})" title="ตัดกรอบ หมุน ปรับความสว่างของรูปนี้">${icon('edit')} แก้ไขรูป</button>` : ''}
                 <a class="btn btn-sm btn-outline" href="${escapeHtml(url)}" target="_blank" rel="noopener">${icon('link')} เปิดแท็บใหม่</a> <button type="button" class="btn btn-sm btn-outline" onclick="printFolderPreview('customer-folder-preview')" title="พิมพ์ไฟล์นี้">${icon('print')} พิมพ์</button>
                 <button type="button" class="btn btn-sm btn-outline" onclick="customerFolderAction('download')">${icon('inbox')} ดาวน์โหลด</button>
                 <button type="button" class="btn btn-sm btn-outline" onclick="customerFolderAction('share')">${icon('link')} แชร์</button>
@@ -11832,6 +12034,7 @@ function renderWorkerFolderPreview() {
                 <small>${type.label}${fItem.expiryDate ? ` • หมดอายุ ${formatThaiDate(fItem.expiryDate)}` : ''}${fItem.note ? ` • ${escapeHtml(fItem.note)}` : ''}</small>
             </div>
             <div class="fv-bar-actions">
+                ${canEdit && !isPdfUrl(url) ? `<button type="button" class="btn btn-sm btn-outline" onclick="openImageEditor('worker', '${activeFolderSel.key}', ${activeFolderSel.idx})" title="ตัดกรอบ หมุน ปรับความสว่างของรูปนี้">${icon('edit')} แก้ไขรูป</button>` : ''}
                 ${canEdit && !isPdfUrl(url) && w.photo !== url ? `<button type="button" class="btn btn-sm btn-outline" onclick="workerFolderAction('setPhoto')" title="ใช้รูปนี้เป็นรูปประจำตัวคนงาน (แสดงด้านบนแฟ้มและในตาราง)">${icon('photo')} ตั้งเป็นรูปคนงาน</button>` : ''}
                 <a class="btn btn-sm btn-outline" href="${escapeHtml(url)}" target="_blank" rel="noopener">${icon('link')} เปิดแท็บใหม่</a> <button type="button" class="btn btn-sm btn-outline" onclick="printFolderPreview('worker-folder-preview')" title="พิมพ์ไฟล์นี้">${icon('print')} พิมพ์</button>
                 <button type="button" class="btn btn-sm btn-outline" onclick="workerFolderAction('download')">${icon('inbox')} ดาวน์โหลด</button>
