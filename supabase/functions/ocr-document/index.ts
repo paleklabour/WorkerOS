@@ -70,7 +70,11 @@ function buildExpenseSlipPrompt(): string {
     `  "amount": "numeric amount only, e.g. 1500.00",\n` +
     `  "date": "transaction/receipt date in DD/MM/YYYY format",\n` +
     `  "description": "short description — payee name, memo, or what this payment is for",\n` +
-    `  "category": "one value from the fixed category list above, only if it clearly matches"\n` +
+    `  "category": "one value from the fixed category list above, only if it clearly matches",\n` +
+    // DOE-LINK (ทดลอง 2026-10-09): สลิปจ่ายบิลค่าธรรมเนียมใบอนุญาตทำงาน → ชนกับเลขที่ใบแจ้งชำระเงินในใบเสร็จกรมการจัดหางาน
+    `  "time": "transaction time HH:MM if printed",\n` +
+    `  "billPaymentNo": "รหัสอ้างอิงใบแจ้งชำระเงิน (bill payment reference, usually 15 digits starting 19 or 11) if printed, digits only",\n` +
+    `  "billRef1": "รหัสอ้างอิง / Ref.1 printed under the biller (e.g. 18 digits) if printed, digits only"\n` +
     `}`;
 }
 
@@ -216,6 +220,10 @@ function buildPrompt(docType: string): string {
     `  "thaiName": "Full name as printed in Thai script on the pink card, if this is a pink card",\n` +
     `  "insuranceNo": "Health insurance number (เลขประกันสุขภาพ) printed on a Thai pink card only",\n` +
     `  "scriptLanguage": "thai, burmese, latin, or other — the main script printed on the document",\n` +
+    // DOE-LINK (ทดลอง 2026-10-09): ใบเสร็จรับเงินกรมการจัดหางาน
+    `  "billPaymentNo": "เลขที่ใบแจ้งชำระเงิน (Bill Payment No.) on a Department of Employment receipt, digits only",\n` +
+    `  "receiptNo": "เลขที่ใบเสร็จรับเงิน (Receipt No.) on a Department of Employment receipt, digits only",\n` +
+    `  "receiptAmount": "รวมเป็นเงินทั้งสิ้น (total amount) on a Department of Employment receipt, digits only e.g. 900.00",\n` +
     `  "email": "Email address (อีเมล / Email) printed on the document if found, e.g. the Email field on a Department of Employment receipt"\n` +
     `}`;
 }

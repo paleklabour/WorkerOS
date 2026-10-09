@@ -4906,7 +4906,9 @@ function processUploadedFile(file, docType) {
             const storedUrl = uploadResult ? uploadResult.fileUrl : null;
             const serverUrl = storedUrl || await uploadFileToServer(fileContent, fileName);
             // เก็บสะสมทุกไฟล์ที่เคยแนบไว้ (เช่น เอกสารต่ออายุรายปี) ไม่ลบของเก่าทิ้งเมื่อแนบไฟล์ใหม่
-            const updatedList = [...(tempWorkerAttachments[docType] || []), { name: fileName, data: serverUrl || fileContent, expiryDate: extractDocExpiryDate(docType, uploadResult && uploadResult.parsedData) }];
+            // DOE-LINK: ใบเสร็จกรมการจัดหางาน → เก็บเลขที่ใบแจ้งชำระเงินไว้ชนกับสลิป
+            const doe = docType === 'worker-receipt' ? await doeReceiptInfoFromFile(fileContent, uploadResult && uploadResult.parsedData) : null;
+            const updatedList = [...(tempWorkerAttachments[docType] || []), Object.assign({ name: fileName, data: serverUrl || fileContent, expiryDate: extractDocExpiryDate(docType, uploadResult && uploadResult.parsedData) }, doe ? { doe } : {})];
             tempWorkerAttachments[docType] = updatedList;
 
             if (uploadResult && uploadResult.parsedData) {
@@ -7759,6 +7761,92 @@ function expenseSlipFileSelectHandler(e) {
     }
 }
 
+// ==================== DOE-LINK (ทดลอง 2026-10-09) ====================
+// เชื่อม สลิปจ่ายบิลค่าธรรมเนียมใบอนุญาตทำงาน ↔ ใบเสร็จรับเงินกรมการจัดหางาน ด้วย "เลขที่ใบแจ้งชำระเงิน" (Bill Payment No.)
+// ใบเสร็จ: PDF จากระบบกรมมีข้อความจริง → อ่านตรงด้วย pdf.js (ไม่ใช้ AI) / รูปสแกน → ใช้เลขที่ AI อ่าน (billPaymentNo)
+// เก็บไว้ที่ไฟล์ใบเสร็จในแฟ้มคนงาน: attachments['worker-receipt'][i].doe = [{ bill, receiptNo, ra, amount, paidAt }] (1 หน้า = 1 คน)
+// แสดงผลจับคู่อย่างเดียว ไม่เติมตัวเลขลงใบงาน/รายจ่าย และนับเฉพาะคนงานที่มีใบงานในระบบ (เจ้าของระบบกำหนด)
+// ถ้าไม่ใช้แล้ว: ลบส่วนนี้ + จุดที่เรียก doeReceiptInfoFromFile / renderDoeSlipMatch / doeReceiptBadgeHtml
+function dataUrlToBytes(dataUrl) {
+    const b64 = String(dataUrl || '').split(',')[1] || '';
+    const bin = atob(b64);
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+}
+
+function parseDoeReceiptPageText(t) {
+    const num = re => { const m = t.match(re); return m ? m[1].replace(/\D/g, '') : ''; };
+    const bill = num(/เลขที่ใบแจ้งชำระเงิน[\s\S]{0,40}?(\d{12,18})/) || num(/Bill Payment No\.?\)?[\s\S]{0,40}?(\d{12,18})/);
+    if (!bill) return null;
+    const amountM = t.match(/รวมเป็นเงินทั้งสิ้น[\s\S]{0,80}?([\d,]+\.\d{2})/);
+    const dateM = t.match(/วันที่ชำระเงิน[\s\S]{0,40}?(\d{2})-(\d{2})-(\d{4})\s+(\d{2}:\d{2})/);
+    return {
+        bill,
+        receiptNo: num(/เลขที่ใบเสร็จรับเงิน[\s\S]{0,40}?(\d{10,18})/),
+        ra: (t.match(/\bRA\d{17}\b/) || [''])[0],
+        amount: amountM ? parseFloat(amountM[1].replace(/,/g, '')) : null,
+        paidAt: dateM ? `${toGregorianYear(dateM[3])}-${dateM[2]}-${dateM[1]} ${dateM[4]}` : ''
+    };
+}
+
+async function doeReceiptInfoFromFile(fileContent, parsed) {
+    try {
+        if (/^data:application\/pdf/i.test(String(fileContent)) && window.pdfjsLib) {
+            const pdf = await window.pdfjsLib.getDocument({ data: dataUrlToBytes(fileContent) }).promise;
+            const pages = [];
+            for (let p = 1; p <= Math.min(pdf.numPages, 20); p++) {
+                const tc = await (await pdf.getPage(p)).getTextContent();
+                const info = parseDoeReceiptPageText(tc.items.map(i => i.str).join('\n'));
+                if (info) pages.push(info);
+            }
+            if (pages.length) return pages;
+        }
+    } catch (e) { console.warn('DOE receipt text read failed:', e); }
+    const bill = parsed && String(parsed.billPaymentNo || '').replace(/\D/g, '');
+    if (!bill) return null;
+    const amount = parsed.receiptAmount ? parseFloat(String(parsed.receiptAmount).replace(/,/g, '')) : null;
+    return [{ bill, receiptNo: String(parsed.receiptNo || '').replace(/\D/g, ''), ra: parsed.refNo || '', amount: isNaN(amount) ? null : amount, paidAt: '' }];
+}
+
+// ใบเสร็จทุกหน้าที่ใช้เลขที่ใบแจ้งชำระเงินนี้ — เฉพาะคนงานที่มีใบงานในระบบ (หน้าไหนเลข RA เป็นของคนงานอื่นในระบบ นับเป็นของคนนั้น)
+function findDoeReceiptsByBill(bill) {
+    const want = String(bill || '').replace(/\D/g, '');
+    if (!want) return [];
+    const out = [];
+    const seen = new Set();
+    allWorkers().forEach(owner => getAttachments(owner, 'worker-receipt').forEach(f => (f && Array.isArray(f.doe) ? f.doe : []).forEach(pg => {
+        if (pg.bill !== want) return;
+        const w = (pg.ra && allWorkers().find(x => x.refNo === pg.ra)) || owner;
+        const key = `${w.id}|${pg.receiptNo || f.data}`;
+        if (seen.has(key) || !jobs.some(j => j.workerId === w.id)) return;
+        seen.add(key);
+        out.push({ worker: w, page: pg, file: f });
+    })));
+    return out;
+}
+
+// สลิปรายจ่ายที่ AI อ่านเลขที่ใบแจ้งชำระเงินได้ → บอกว่าจ่ายให้คนงานคนไหน (แสดงอย่างเดียว ไม่เติมยอด)
+function renderDoeSlipMatch(parsed) {
+    const box = document.getElementById("status-expense-slip");
+    const bill = parsed && String(parsed.billPaymentNo || '').replace(/\D/g, '');
+    if (!box || !bill) return;
+    const hits = findDoeReceiptsByBill(bill);
+    const names = hits.map(h => `${escapeHtml(workerFullName(h.worker))} (${escapeHtml((customers.find(c => c.id === h.worker.employerId) || {}).companyName || '-')})`);
+    box.insertAdjacentHTML('beforeend', hits.length
+        ? `<div class="doe-match">${icon('link')} ใบแจ้งชำระ ${escapeHtml(bill)} ตรงกับใบเสร็จกรมของ: ${names.join(', ')}</div>`
+        : `<div class="doe-match is-none">${icon('search')} ใบแจ้งชำระ ${escapeHtml(bill)} — ยังไม่พบใบเสร็จกรมของคนงานที่มีใบงานในระบบ</div>`);
+}
+
+// ป้ายในแฟ้มคนงาน (ไฟล์ใบเสร็จ): เลขที่ใบแจ้งชำระ + สลิปรายจ่ายที่จ่ายเลขนี้ (ถ้ามี)
+function doeReceiptBadgeHtml(fItem) {
+    const pages = fItem && Array.isArray(fItem.doe) ? fItem.doe : [];
+    if (!pages.length) return '';
+    const bills = [...new Set(pages.map(p => p.bill))];
+    const paid = bills.some(b => (expenses || []).some(e => e.attachment && e.attachment.billPaymentNo === b));
+    return ` • ${icon(paid ? 'ok' : 'link')} ใบแจ้งชำระ ${bills.map(escapeHtml).join(', ')}${paid ? ' (มีสลิปจ่ายในรายจ่ายแล้ว)' : ''}`;
+}
+
 function processExpenseSlipFile(file) {
     const statusEl = document.getElementById("status-expense-slip");
     const uploadBox = document.getElementById("drop-expense-slip");
@@ -7781,12 +7869,14 @@ function processExpenseSlipFile(file) {
             return;
         }
 
-        tempExpenseAttachment = { name: fileName, data: storedUrl };
+        const slipBill = uploadResult.parsedData && String(uploadResult.parsedData.billPaymentNo || '').replace(/\D/g, '');
+        tempExpenseAttachment = Object.assign({ name: fileName, data: storedUrl }, slipBill ? { billPaymentNo: slipBill } : {});
         showExpenseSlipAttached();
         uploadBox.classList.add("success-upload");
         statusEl.innerHTML = `<span class="ai-success">${icon("ok")} แนบไฟล์สำเร็จ</span>`;
 
         if (uploadResult.parsedData) {
+            renderDoeSlipMatch(uploadResult.parsedData); // DOE-LINK
             applyGeminiDataToExpenseForm(uploadResult.parsedData);
             showToast("✨ AI อ่านข้อมูลจากสลิปและกรอกฟอร์มให้อัตโนมัติแล้ว กรุณาตรวจสอบความถูกต้องอีกครั้ง", "success");
         } else if (uploadResult.manualEntry) {
@@ -12134,7 +12224,7 @@ function renderWorkerFolderPreview() {
             <div class="fv-bar-title">
                 ${canEdit ? `<input type="text" class="fv-name" value="${escapeHtml(fItem.name || '')}" title="แก้ชื่อไฟล์แล้วกด Enter" onchange="renameFolderFileIndex('${activeFolderSel.key}', ${activeFolderSel.idx}, this.value)">`
                     : `<b>${escapeHtml(fItem.name || '-')}</b>`}
-                <small>${type.label}${fItem.expiryDate ? ` • หมดอายุ ${formatThaiDate(fItem.expiryDate)}` : ''}${fItem.note ? ` • ${escapeHtml(fItem.note)}` : ''}</small>
+                <small>${type.label}${fItem.expiryDate ? ` • หมดอายุ ${formatThaiDate(fItem.expiryDate)}` : ''}${fItem.note ? ` • ${escapeHtml(fItem.note)}` : ''}${doeReceiptBadgeHtml(fItem)}</small>
             </div>
             <div class="fv-bar-actions">
                 ${canEdit && !isPdfUrl(url) ? `<button type="button" class="btn btn-sm btn-outline" onclick="openImageEditor('worker', '${activeFolderSel.key}', ${activeFolderSel.idx})" title="ตัดกรอบ หมุน ปรับองศา ปรับความสว่างของรูปนี้">${icon('edit')} แก้ไขรูป</button>` : ''}
@@ -12458,11 +12548,13 @@ async function attachDocumentToWorker(w, docType, fileContent, preParsed = null,
 
     w.attachments = w.attachments || {};
     w.attachments[docType] = currentList;
-    w.attachments[docType].push({
+    // DOE-LINK (ทดลอง 2026-10-09): ใบเสร็จกรมการจัดหางาน → เก็บเลขที่ใบแจ้งชำระเงิน/เลขใบเสร็จ/เลข RA ไว้ชนกับสลิปจ่ายบิล
+    const doe = docType === 'worker-receipt' ? await doeReceiptInfoFromFile(fileContent, preParsed || (uploadResult && uploadResult.parsedData)) : null;
+    w.attachments[docType].push(Object.assign({
         name: fileName,
         data: serverUrl || fileContent,
         expiryDate: extractDocExpiryDate(docType, preParsed || (uploadResult && uploadResult.parsedData))
-    });
+    }, doe ? { doe } : {}));
 
     const parsedForWorker = preParsed || (uploadResult && uploadResult.parsedData);
     if (parsedForWorker) applyOcrDataToWorker(w, docType, parsedForWorker);

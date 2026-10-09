@@ -7518,3 +7518,7 @@ th.sortable-th:hover::after { opacity: 0.8; }
 .job-close-doc .job-close-rename { width: 24px; height: 24px; }
 /* ไอคอนหมุนซ้าย = ไอคอน refresh กลับด้าน */
 .img-editor-rot-left { display: inline-flex; transform: scaleX(-1); }
+
+/* DOE-LINK (ทดลอง): ผลจับคู่สลิปจ่ายบิล ↔ ใบเสร็จกรมการจัดหางาน ในหน้าแนบสลิปรายจ่าย */
+.doe-match { margin-top: 6px; font-size: 12.5px; color: var(--dk-ok, #047857); display: flex; gap: 4px; align-items: flex-start; }
+.doe-match.is-none { color: var(--text-muted); }
