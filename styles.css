@@ -7512,3 +7512,7 @@ th.sortable-th:hover::after { opacity: 0.8; }
     padding: 12px 16px;
     border-top: 1px solid var(--dk-line, #e2e8f0);
 }
+
+/* เอกสารปิดงาน: ชื่อไฟล์ + ปุ่มแก้ชื่อ (renameJobCloseDoc) */
+.job-close-doc { display: inline-flex; align-items: center; gap: 2px; }
+.job-close-doc .job-close-rename { width: 24px; height: 24px; }

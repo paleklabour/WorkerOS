@@ -1891,7 +1891,7 @@ document.addEventListener("DOMContentLoaded", () => hydrateIcons());
 // - คืนค่าเป็น Promise เสมอ — ฟังก์ชันที่เรียก uiConfirm/uiPrompt ต้องเป็น async แล้ว await
 // - card: แสดงข้อมูลของรายการที่กำลังจะลบ/แก้ไข { image, imageIcon, title, subtitle, rows: [[ป้าย, ค่า], ...], list: [...] }
 //   (สร้างด้วย dialogCardForWorker/Customer/Job/... ด้านล่าง) — ทุกค่าใส่ผ่าน textContent/src ไม่ตีความ HTML
-function showUiDialog({ kind, message, title, okText, cancelText, extraText, danger, inputType, placeholder, card, summary, wide }) {
+function showUiDialog({ kind, message, title, okText, cancelText, extraText, danger, inputType, placeholder, value, card, summary, wide }) {
     return new Promise(resolve => {
         const isDanger = danger ?? (kind === 'confirm' && /ลบ|ยกเลิกลิงก์/.test(message));
         const iconName = kind === 'alert' ? 'warn' : isDanger ? 'trash' : kind === 'prompt' ? 'lock' : 'clipboard';
@@ -1927,6 +1927,7 @@ function showUiDialog({ kind, message, title, okText, cancelText, extraText, dan
         const extraBtn = backdrop.querySelector('.ui-dialog-extra');
         if (extraBtn) extraBtn.textContent = extraText;
         if (input && placeholder) input.placeholder = placeholder;
+        if (input && value != null && inputType !== 'password') input.value = value; // ค่าเริ่มต้นในช่อง (เช่น ชื่อไฟล์เดิมตอนแก้ชื่อ)
 
         const prevFocus = document.activeElement;
         const close = (result) => {
@@ -6748,9 +6749,41 @@ function jobCloseDocsHtml(j, pre = j.status !== 'ปิดงานแล้ว'
                <input type="file" multiple hidden onchange="addJobCloseDocs('${j.id}', this)"></label>`
         : '';
     if (!docs.length) return `<div class="job-close-docs text-muted">${pre ? 'ยังไม่ได้แนบเอกสารปิดงาน' : 'ไม่มีเอกสารแนบตอนปิดงาน'} ${addBtn}</div>`;
+    const canRename = canEditJob(j);
     return `<div class="job-close-docs"><strong>เอกสารปิดงาน:</strong>${docs.map((f, k) =>
-        `<a href="${escapeHtml(f.url)}" target="_blank" rel="noopener">${icon('clip')} ${escapeHtml(f.name || `ไฟล์ ${k + 1}`)}</a>`).join('')}${addBtn}` +
+        `<span class="job-close-doc"><a href="${escapeHtml(f.url)}" target="_blank" rel="noopener">${icon('clip')} ${escapeHtml(f.name || `ไฟล์ ${k + 1}`)}</a>` +
+        `${canRename ? `<button type="button" class="action-icon-btn job-close-rename" onclick="renameJobCloseDoc('${j.id}', ${k})" title="แก้ชื่อไฟล์เอกสารปิดงาน">${icon('edit')}</button>` : ''}</span>`).join('')}${addBtn}` +
         `${docs.find(f => f.note) ? `<small class="text-muted">หมายเหตุ: ${escapeHtml(docs.find(f => f.note).note)}</small>` : ''}</div>`;
+}
+
+// แก้ชื่อไฟล์เอกสารปิดงาน (เปลี่ยนเฉพาะชื่อที่แสดง/ชื่อตอนดาวน์โหลด ลิงก์ไฟล์เดิม) — คงนามสกุลไฟล์เดิมไว้ถ้าไม่ได้พิมพ์มา
+async function renameJobCloseDoc(jobId, idx) {
+    const j = jobs.find(item => item.id === jobId);
+    if (!j || !canEditJob(j)) return;
+    const docs = Array.isArray(j.attachments) ? j.attachments : [];
+    const f = docs[idx];
+    if (!f) return;
+    const ext = (String(f.name || '').match(/\.[a-z0-9]{1,5}$/i) || [''])[0];
+    const input = await uiPrompt('ชื่อไฟล์ใหม่', { title: 'แก้ชื่อไฟล์เอกสารปิดงาน', value: String(f.name || '').replace(/\.[a-z0-9]{1,5}$/i, ''), okText: 'บันทึก' });
+    if (input == null) return;
+    let name = String(input).trim().replace(/[\\/:*?"<>|]+/g, '_');
+    if (!name) return;
+    if (ext && !/\.[a-z0-9]{1,5}$/i.test(name)) name += ext;
+    if (name === f.name) return;
+    const attachments = docs.map((d, i) => i === idx ? Object.assign({}, d, { name }) : d);
+    const jobData = Object.assign({}, j, { attachments });
+    const res = await callCloudAPI("saveJob", { jobData });
+    if (!res || res.status === "error") {
+        showToast("❌ แก้ชื่อไฟล์ไม่สำเร็จ: " + (res && res.message ? res.message : "กรุณาลองใหม่"), "danger");
+        return;
+    }
+    const jIdx = jobs.findIndex(item => item.id === jobId);
+    if (jIdx !== -1) jobs[jIdx] = jobData;
+    saveData();
+    const docsEl = document.querySelector('#job-modal .job-close-docs');
+    if (docsEl) docsEl.outerHTML = jobCloseDocsHtml(jobData);
+    renderJobs();
+    showToast(`แก้ชื่อไฟล์เป็น "${name}" แล้ว`, "success");
 }
 
 // แนบเอกสารปิดงานย้อนหลัง (งานที่ปิดไปแล้ว) — เพิ่มต่อท้าย jobs.attachments ไม่ทับของเดิม
