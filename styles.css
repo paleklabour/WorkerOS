@@ -3135,6 +3135,13 @@ td > .ico {
 
 /* ตารางแจ้งงาน: ประเภทงานตัวใหญ่ขึ้น (เจ้าของระบบขอ 2026-10-08) */
 .badge.job-type-badge { font-size: 15.5px; padding: 6px 14px; line-height: 1.35; white-space: normal; }
+/* หัวข้องานในตารางแจ้งงาน: พื้นกรมท่าอ่อน ตัวทองคลาสสิก (เจ้าของระบบเลือก 2026-10-09) — รูปทรงเดิม เปลี่ยนแค่สี */
+.badge.badge-gold.job-type-badge {
+    background-color: var(--jt-bg, #2d4fa3);
+    color: var(--jt-fg, #f2cf63);
+    border-color: var(--jt-bg, #2d4fa3);
+}
+:root[data-theme="dark"] { --jt-bg: #3a5cb5; --jt-fg: #f5d675; }
 
 /* ตารางแจ้งงาน: แท็บงานอื่นในชุดเดียวกัน (กดเปิดใบงานนั้น) */
 .job-batch-tab {
