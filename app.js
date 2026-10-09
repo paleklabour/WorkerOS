@@ -6095,11 +6095,10 @@ function jobDaysOpen(j) {
     return start ? Math.max(0, Math.floor((end - start) / 86400000)) : 0;
 }
 
-// รายละเอียดการปิดงาน: วันเวลาที่ปิด + ใช้เวลากี่วันนับจากวันแจ้งงาน (เจ้าของระบบขอ 2026-10-09)
+// วันที่ปิดงาน (เฉพาะวันที่ ไม่แสดงเวลา/จำนวนวันที่ใช้ — เจ้าของระบบขอ 2026-10-09)
 function jobClosedInfoText(j) {
     if (j.status !== 'ปิดงานแล้ว' || !j.closedAt) return '';
-    const days = jobDaysOpen(j);
-    return `ปิดเมื่อ ${formatThaiDate(j.closedAt, true)} • ใช้เวลา ${days === 0 ? 'ภายในวันเดียว' : `${days} วัน`}`;
+    return `ปิดเมื่อ ${formatThaiDate(j.closedAt)}`;
 }
 
 // สรุปงาน: แจ้งเข้าในเดือน / ปิดในเดือน / ค้างอยู่ตอนนี้ + แยกตามประเภทงาน ผู้รับผิดชอบ นายจ้าง + นัดหมาย 7 วัน + งานค้างนาน
@@ -7052,9 +7051,8 @@ function openJobModal(id = null) {
             statusGroup.style.display = 'none';
             closedBanner.style.display = 'block';
             document.getElementById("job-closed-banner-text").innerHTML =
-                `${icon("lock")} ปิดงานแล้วเมื่อ ${j.closedAt ? formatThaiDate(j.closedAt, true) : '-'}` +
+                `${icon("lock")} ปิดงานแล้วเมื่อ ${j.closedAt ? formatThaiDate(j.closedAt) : '-'}` +
                 (j.closedBy ? ` โดย ${getUserNameById(j.closedBy)}` : '') +
-                (j.closedAt ? ` • ใช้เวลา ${jobDaysOpen(j) === 0 ? 'ภายในวันเดียว' : `${jobDaysOpen(j)} วัน`} นับจากวันแจ้งงาน` : '') +
                 jobCloseDocsHtml(j);
         } else {
             statusGroup.style.display = '';
