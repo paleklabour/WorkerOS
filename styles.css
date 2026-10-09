@@ -7516,3 +7516,5 @@ th.sortable-th:hover::after { opacity: 0.8; }
 /* เอกสารปิดงาน: ชื่อไฟล์ + ปุ่มแก้ชื่อ (renameJobCloseDoc) */
 .job-close-doc { display: inline-flex; align-items: center; gap: 2px; }
 .job-close-doc .job-close-rename { width: 24px; height: 24px; }
+/* ไอคอนหมุนซ้าย = ไอคอน refresh กลับด้าน */
+.img-editor-rot-left { display: inline-flex; transform: scaleX(-1); }

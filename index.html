@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261009n">
+    <link rel="stylesheet" href="styles.css?v=20261009o">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -1955,7 +1955,7 @@
                 </div>
                 <div class="modal-body">
                     <div class="no-print bt46-toolbar">
-                        <span class="text-muted">คลิกช่องเส้นประเพื่อแก้ไข • คลิก ☐ เพื่อติ๊ก • ลายเซ็นมาจากแฟ้มนายจ้าง "ลายเซ็นนายจ้าง"</span>
+                        <span class="text-muted">คลิกช่องเส้นประเพื่อแก้ไข • คลิกช่องสี่เหลี่ยมเพื่อติ๊ก • ลายเซ็นมาจากแฟ้มนายจ้าง "ลายเซ็นนายจ้าง"</span>
                         <button class="btn btn-gold" onclick="window.print()"><span class="ico" data-icon="print"></span> พิมพ์ (Print)</button>
                     </div>
                     <div class="bt46-sheet" id="bt46-sheet"></div>
@@ -3385,7 +3385,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261009n"></script>
+    <script src="supabase-client.js?v=20261009o"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3396,6 +3396,6 @@
     </script>
 
     <!-- Application Script -->
-    <script src="app.js?v=20261009n"></script>
+    <script src="app.js?v=20261009o"></script>
 </body>
 </html>

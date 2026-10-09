@@ -10225,12 +10225,12 @@ async function openImageEditor(kind, docType, idx) {
             <div class="img-editor-stage"><canvas id="img-editor-canvas"></canvas></div>
             <div class="img-editor-hint text-muted">ลากบนรูปเพื่อเลือกส่วนที่ต้องการเก็บ (ตัดกรอบ) — ไม่ลาก = ใช้ทั้งรูป • ถ้าจะปรับองศา ให้ปรับก่อนแล้วค่อยลากตัดกรอบ</div>
             <div class="img-editor-tools">
-                <button type="button" class="btn btn-sm btn-outline" onclick="imageEditorRotate(-90)" title="หมุนรูปทวนเข็มนาฬิกา 90°">↺ หมุนซ้าย</button>
-                <button type="button" class="btn btn-sm btn-outline" onclick="imageEditorRotate(90)" title="หมุนรูปตามเข็มนาฬิกา 90°">↻ หมุนขวา</button>
+                <button type="button" class="btn btn-sm btn-outline" onclick="imageEditorRotate(-90)" title="หมุนรูปทวนเข็มนาฬิกา 90°"><span class="img-editor-rot-left">${icon('refresh')}</span> หมุนซ้าย</button>
+                <button type="button" class="btn btn-sm btn-outline" onclick="imageEditorRotate(90)" title="หมุนรูปตามเข็มนาฬิกา 90°">${icon('refresh')} หมุนขวา</button>
                 <label class="img-editor-slider" title="ปรับองศาทีละนิด ใช้ดัดรูปเอกสารที่ถ่ายเอียงให้ตรง">ปรับองศา <input type="range" id="img-editor-fine" min="-45" max="45" step="0.5" value="0" oninput="imageEditorSet('fine', this.value)"> <output id="img-editor-fine-val">0°</output></label>
                 <label class="img-editor-slider">ความสว่าง <input type="range" min="50" max="200" value="100" oninput="imageEditorSet('bright', this.value)"></label>
                 <label class="img-editor-slider">ความคมชัด <input type="range" min="50" max="200" value="100" oninput="imageEditorSet('contrast', this.value)"></label>
-                <button type="button" class="btn btn-sm btn-outline" onclick="imageEditorReset()" title="ล้างการแก้ไขทั้งหมด กลับเป็นรูปเดิม">ล้างการแก้ไข</button>
+                <button type="button" class="btn btn-sm btn-outline" onclick="imageEditorReset()" title="ล้างการแก้ไขทั้งหมด กลับเป็นรูปเดิม">${icon('xmark')} ล้างการแก้ไข</button>
             </div>
             <div class="img-editor-foot">
                 <button type="button" class="btn btn-outline" onclick="closeImageEditor()" title="ปิดโดยไม่บันทึก">ยกเลิก</button>
