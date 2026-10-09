@@ -1587,6 +1587,14 @@ function renderClientWorkersTab(list) {
         </div>`;
 }
 
+// พอร์ทัลนายจ้าง: เอกสารปิดงานดาวน์โหลดได้เมื่อบิลของงานนั้นชำระครบแล้ว หรืองานตั้งเป็น "ไม่เรียกเก็บเงิน"
+// ยังไม่ออกบิล / บิลค้างหรือจ่ายบางส่วน → ซ่อนลิงก์ (เจ้าของระบบกำหนด 2026-10-09) — แฟ้มเอกสารคนงานยังเปิดได้ตามเดิม
+function clientJobDocsUnlocked(j) {
+    if (isJobNoCharge(j)) return true;
+    const inv = getJobInvoice(j);
+    return !!inv && invoiceBalance(inv) <= 0;
+}
+
 function renderClientJobsTab(list) {
     const monthSel = document.getElementById("cp-job-month");
     const month = monthSel ? monthSel.value : localDateISO(new Date()).slice(0, 7);
@@ -1615,7 +1623,7 @@ function renderClientJobsTab(list) {
                         <td>${escapeHtml(w ? workerFullName(w) : '-')}</td>
                         <td>${formatThaiDate(String(j.createdAt || j.updatedAt || '').slice(0, 10))}</td>
                         <td><span class="badge ${statusCls[j.status] || ''}">${escapeHtml(j.status || '-')}</span>${j.status === 'ปิดงานแล้ว' && j.closedAt ? `<br><small class="text-muted">ปิดเมื่อ ${formatThaiDate(j.closedAt)}</small>` : ''}${j.appointmentDate && isJobStatusOpen(j.status) ? `<br><small class="text-muted">นัด ${formatThaiDate(j.appointmentDate)}${j.appointmentTime ? ` ${escapeHtml(j.appointmentTime)}` : ''}</small>` : ''}</td>
-                        <td>${docs.length ? docs.map((f, k) => `<a href="${escapeHtml(f.url)}" target="_blank" rel="noopener" title="${escapeHtml(f.note || f.name || '')}">${icon('clip')} ${escapeHtml(f.name || `ไฟล์ ${k + 1}`)}</a>`).join('<br>') : '<span class="text-muted">-</span>'}</td>
+                        <td>${docs.length && !clientJobDocsUnlocked(j) ? `<span class="text-muted" title="เอกสาร ${docs.length} ไฟล์">${icon('lock')} ชำระเงินแล้วจึงดาวน์โหลดได้</span>` : docs.length ? docs.map((f, k) => `<a href="${escapeHtml(f.url)}" target="_blank" rel="noopener" title="${escapeHtml(f.note || f.name || '')}">${icon('clip')} ${escapeHtml(f.name || `ไฟล์ ${k + 1}`)}</a>`).join('<br>') : '<span class="text-muted">-</span>'}</td>
                     </tr>`;
                 }).join('') : `<tr><td colspan="6" class="text-muted" style="text-align:center; padding:24px;">ไม่มีงานที่แจ้งในเดือนนี้</td></tr>`}</tbody>
             </table></div>
