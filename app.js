@@ -4592,12 +4592,10 @@ function applyGeminiDataToWorkerForm(docType, parsedData) {
         applyGeminiGenderToWorkerForm(parsedData.gender);
         applyGeminiTitleToWorkerForm(parsedData);
     } else if (docType === 'worker-pink-card') {
+        // บัตรชมพูเติมเฉพาะส่วนที่ 1.3 (เลขบัตร / ชื่อไทย / เลขประกัน) — อ่านไม่เจอ = เว้นว่างไว้ (เจ้าของระบบกำหนด 2026-10-09)
         setVal("worker-pink-card-no", parsedData.pinkCardNo);
         setVal("worker-thai-name", parsedData.thaiName);
         setVal("worker-insurance-no", parsedData.insuranceNo);
-        setVal("worker-dob", parsedData.dob);
-        applyGeminiGenderToWorkerForm(parsedData.gender);
-        applyGeminiTitleToWorkerForm(parsedData);
     } else if (docType === 'worker-myanmar-id') {
         setVal("worker-first-name", parsedData.firstName);
         setVal("worker-last-name", parsedData.lastName);
@@ -4605,8 +4603,6 @@ function applyGeminiDataToWorkerForm(docType, parsedData) {
         applyNationality();
         applyGeminiGenderToWorkerForm(parsedData.gender);
         applyGeminiTitleToWorkerForm(parsedData);
-    } else if (docType === 'worker-insurance-doc') {
-        setVal("worker-insurance-no", parsedData.insuranceNo);
     } else if (docType === 'worker-receipt') {
         // ใบเสร็จ: เติมเฉพาะช่องที่ยังว่าง (ไม่ทับข้อมูลจากใบอนุญาตทำงาน)
         if (!document.getElementById("worker-uid").value.trim()) setVal("worker-uid", parsedData.uid);
@@ -12063,12 +12059,10 @@ function applyOcrDataToWorker(w, docType, p) {
         if (gender) w.gender = gender;
         if (title) w.title = title;
     } else if (docType === 'worker-pink-card') {
+        // เฉพาะส่วนที่ 1.3 — อ่านไม่เจอ = ไม่แตะ (เจ้าของระบบกำหนด 2026-10-09)
         if (p.pinkCardNo) w.pinkCardNo = p.pinkCardNo;
         if (p.thaiName) w.thaiName = p.thaiName;
         if (p.insuranceNo) w.insuranceNo = p.insuranceNo;
-        if (p.dob) w.dob = parseDateInput(p.dob) || w.dob;
-        if (gender) w.gender = gender;
-        if (title) w.title = title;
     } else if (docType === 'worker-myanmar-id') {
         if (p.firstName) w.firstName = p.firstName;
         if (p.lastName) w.lastName = p.lastName;
@@ -12080,8 +12074,6 @@ function applyOcrDataToWorker(w, docType, p) {
             w.firstName = `${w.firstName} ${w.lastName}`.trim();
             w.lastName = '';
         }
-    } else if (docType === 'worker-insurance-doc') {
-        if (p.insuranceNo) w.insuranceNo = p.insuranceNo;
     } else if (docType === 'worker-receipt') {
         // ใบเสร็จกรมการจัดหางาน: เติมเฉพาะช่องที่ยังว่าง — ไม่ทับข้อมูลจากใบอนุญาตทำงาน/พาสปอร์ตที่แม่นกว่า
         if (p.uid && !w.workerUid) w.workerUid = p.uid;
