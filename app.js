@@ -6770,11 +6770,21 @@ async function renameJobCloseDoc(jobId, idx) {
     const docs = Array.isArray(j.attachments) ? j.attachments : [];
     const f = docs[idx];
     if (!f) return;
-    const ext = (String(f.name || '').match(/\.[a-z0-9]{1,5}$/i) || [''])[0];
     const input = await uiPrompt('ชื่อไฟล์ใหม่', { title: 'แก้ชื่อไฟล์เอกสารปิดงาน', value: String(f.name || '').replace(/\.[a-z0-9]{1,5}$/i, ''), okText: 'บันทึก' });
     if (input == null) return;
-    let name = String(input).trim().replace(/[\\/:*?"<>|]+/g, '_');
-    if (!name) return;
+    await saveJobCloseDocName(jobId, idx, input);
+}
+
+// บันทึกชื่อใหม่ของเอกสารปิดงาน (ใช้ทั้งปุ่มแก้ชื่อในใบงาน และช่องชื่อในแฟ้มเอกสาร > เอกสารทั้งหมด)
+async function saveJobCloseDocName(jobId, idx, input) {
+    const j = jobs.find(item => item.id === jobId);
+    if (!j || !canEditJob(j)) return;
+    const docs = Array.isArray(j.attachments) ? j.attachments : [];
+    const f = docs[idx];
+    if (!f) return;
+    const ext = (String(f.name || '').match(/\.[a-z0-9]{1,5}$/i) || [''])[0];
+    let name = String(input || '').trim().replace(/[\\/:*?"<>|]+/g, '_');
+    if (!name) { if (document.getElementById('worker-folder-modal') && !document.getElementById('worker-folder-modal').classList.contains('hidden')) renderWorkerFolderPreview(); return; }
     if (ext && !/\.[a-z0-9]{1,5}$/i.test(name)) name += ext;
     if (name === f.name) return;
     const attachments = docs.map((d, i) => i === idx ? Object.assign({}, d, { name }) : d);
@@ -6789,6 +6799,9 @@ async function renameJobCloseDoc(jobId, idx) {
     saveData();
     const docsEl = document.querySelector('#job-modal .job-close-docs');
     if (docsEl) docsEl.outerHTML = jobCloseDocsHtml(jobData);
+    // แฟ้มเอกสารคนงานที่เปิดอยู่ (แท็บ "เอกสารทั้งหมด") แสดงชื่อใหม่ทันที
+    const folderModal = document.getElementById('worker-folder-modal');
+    if (folderModal && !folderModal.classList.contains('hidden') && activeFolderWorkerId === jobData.workerId) renderWorkerFolderTiles();
     renderJobs();
     showToast(`แก้ชื่อไฟล์เป็น "${name}" แล้ว`, "success");
 }
@@ -12091,9 +12104,13 @@ function renderWorkerFolderPreview() {
         const jviewer = isPdfUrl(jurl)
             ? `<iframe src="${escapeHtml(jurl)}" title="${escapeHtml(d.name)}"></iframe>`
             : `<img src="${escapeHtml(jurl)}" alt="${escapeHtml(d.name)}" onerror="this.outerHTML = '<iframe src=&quot;' + this.src + '&quot;></iframe>'">`;
+        // เอกสารปิดงานแก้ชื่อได้ตรงนี้ (คนที่แก้ใบงานนั้นได้) — ใบนัดหมายไม่มีชื่อไฟล์ให้แก้
+        const canRenameJobDoc = d.group === 'เอกสารปิดงาน' && canEditJob(j);
         box.innerHTML = `
             <div class="fv-bar">
-                <div class="fv-bar-title"><b>${escapeHtml(d.name)}</b>
+                <div class="fv-bar-title">${canRenameJobDoc
+                    ? `<input type="text" class="fv-name" value="${escapeHtml(d.name)}" title="แก้ชื่อไฟล์แล้วกด Enter" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}" onchange="saveJobCloseDocName('${j.id}', ${activeFolderSel.idx}, this.value)">`
+                    : `<b>${escapeHtml(d.name)}</b>`}
                     <small>${escapeHtml(d.group)} • ${escapeHtml(getCleanJobTypeName(j.jobType))} (${escapeHtml(getJobDisplayNo(j))})${d.note ? ` • ${escapeHtml(d.note)}` : ''}</small></div>
                 <div class="fv-bar-actions">
                     <a class="btn btn-sm btn-outline" href="${escapeHtml(jurl)}" target="_blank" rel="noopener">${icon('link')} เปิดแท็บใหม่</a> <button type="button" class="btn btn-sm btn-outline" onclick="printFolderPreview('worker-folder-preview')" title="พิมพ์ไฟล์นี้">${icon('print')} พิมพ์</button>
