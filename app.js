@@ -1589,8 +1589,10 @@ function renderClientWorkersTab(list) {
 
 // พอร์ทัลนายจ้าง: เอกสารปิดงานดาวน์โหลดได้เมื่อบิลของงานนั้นชำระครบแล้ว หรืองานตั้งเป็น "ไม่เรียกเก็บเงิน"
 // ยังไม่ออกบิล / บิลค้างหรือจ่ายบางส่วน → ซ่อนลิงก์ (เจ้าของระบบกำหนด 2026-10-09) — แฟ้มเอกสารคนงานยังเปิดได้ตามเดิม
+// Admin เปิดล็อกรายลูกค้าได้ที่หน้าจัดการผู้ใช้ (customers.unlockUnpaidJobDocs, toggleCustomerDocsLock)
 function clientJobDocsUnlocked(j) {
     if (isJobNoCharge(j)) return true;
+    if ((customers.find(c => c.id === j.customerId) || {}).unlockUnpaidJobDocs) return true;
     const inv = getJobInvoice(j);
     return !!inv && invoiceBalance(inv) <= 0;
 }
@@ -5275,7 +5277,7 @@ async function saveCustomer(e) {
             const oldDriveId = customers[idx].drive_folder_id || "";
             const oldAttachments = JSON.parse(JSON.stringify(customers[idx].attachments || {}));
             customerData = {
-                id: editId, status: customers[idx].status || "active", taxId, companyName, directorId, businessType, coordinator, phone, referredByAgentId, billingNote, requirePrepayment, email, driveShare, certIssueDate, certExpiry, deliveryAddress, branches: customerBranches, createdAt: oldCreatedAt, drive_folder_id: oldDriveId, attachments: oldAttachments
+                id: editId, status: customers[idx].status || "active", unlockUnpaidJobDocs: !!customers[idx].unlockUnpaidJobDocs, taxId, companyName, directorId, businessType, coordinator, phone, referredByAgentId, billingNote, requirePrepayment, email, driveShare, certIssueDate, certExpiry, deliveryAddress, branches: customerBranches, createdAt: oldCreatedAt, drive_folder_id: oldDriveId, attachments: oldAttachments
             };
         }
     } else {
@@ -8388,7 +8390,14 @@ function renderUsers() {
             <td>${escapeHtml(u.name || '-')}</td>
             <td>${escapeHtml(emailOf(u) || '-')}</td>
             <td><span class="badge">${getRoleLabel(u.role)}</span></td>
-            <td>${u.role === 'client' ? escapeHtml((customers.find(c => c.id === u.customer_id) || {}).companyName || u.customer_id || '-') : '-'}</td>
+            <td>${u.role === 'client' ? (() => {
+                const c = customers.find(x => x.id === u.customer_id);
+                const name = escapeHtml((c || {}).companyName || u.customer_id || '-');
+                if (!c) return name;
+                const open = !!c.unlockUnpaidJobDocs;
+                return `${name}<div><button type="button" class="btn btn-sm btn-outline" style="margin-top:4px;" onclick="toggleCustomerDocsLock('${c.id}')"
+                    title="${open ? 'ล็อกเอกสารปิดงานที่ยังไม่ชำระ' : 'เปิดล็อกเอกสารปิดงานที่ยังไม่ชำระ'}">${icon(open ? 'unlock' : 'lock')} ${open ? 'เอกสารปิดงาน: เปิดให้ดูก่อนชำระ' : 'เอกสารปิดงาน: ต้องชำระก่อน'}</button></div>`;
+            })() : '-'}</td>
             <td>${status}</td>
             <td style="text-align:center; white-space:nowrap;">
                 <button class="action-icon-btn" onclick="openUserModal('${u.id}')" title="แก้ไขชื่อ/บทบาท">${icon("edit")}</button>
@@ -8401,6 +8410,27 @@ function renderUsers() {
             </td>
         </tr>`;
     }).join('');
+}
+
+// เปิด/ปิดล็อกเอกสารปิดงานที่ยังไม่ชำระ ในพอร์ทัลของลูกค้ารายนี้ (ทุกบัญชีที่ผูกกับนายจ้างเดียวกันได้ผลเหมือนกัน)
+async function toggleCustomerDocsLock(customerId) {
+    if (currentUser.role !== 'admin') return;
+    const c = customers.find(x => x.id === customerId);
+    if (!c) return;
+    const unlock = !c.unlockUnpaidJobDocs;
+    const msg = unlock
+        ? `เปิดล็อกให้ "${c.companyName}" ดาวน์โหลดเอกสารปิดงานได้ทันที แม้ยังไม่ออกบิลหรือบิลยังค้างชำระ?`
+        : `ล็อกเอกสารปิดงานของ "${c.companyName}" — ลูกค้าจะดาวน์โหลดได้เมื่อบิลของงานนั้นชำระครบแล้วเท่านั้น?`;
+    if (!(await uiConfirm(msg, { okText: unlock ? "เปิดล็อก" : "ล็อก" }))) return;
+    const res = await callCloudAPI("saveCustomer", { customerData: Object.assign({}, c, { unlockUnpaidJobDocs: unlock }) });
+    if (!res || res.status === "error") {
+        showToast("❌ บันทึกไม่สำเร็จ: " + (res && res.message ? res.message : "unknown error"), "danger");
+        return;
+    }
+    c.unlockUnpaidJobDocs = unlock;
+    saveData();
+    renderUsers();
+    showToast(unlock ? `เปิดล็อกเอกสารปิดงานให้ "${c.companyName}" แล้ว` : `ล็อกเอกสารปิดงานของ "${c.companyName}" แล้ว`, "success");
 }
 
 async function askAdminPin() {

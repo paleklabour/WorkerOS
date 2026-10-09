@@ -32,7 +32,8 @@
         attachments: "attachments", shareToken: "share_token", referredByAgentId: "referred_by_agent_id",
         billingNote: "billing_note", deliveryAddress: "delivery_address", requirePrepayment: "require_prepayment",
         certIssueDate: "cert_issue_date", certExpiry: "cert_expiry", status: "status",
-        email: "email", driveShare: "drive_share" // แชร์โฟลเดอร์สำรองใน Google Drive ให้ลูกค้า (drive-backup)
+        email: "email", driveShare: "drive_share", // แชร์โฟลเดอร์สำรองใน Google Drive ให้ลูกค้า (drive-backup)
+        unlockUnpaidJobDocs: "unlock_unpaid_job_docs" // พอร์ทัล: ให้ดาวน์โหลดเอกสารปิดงานได้แม้ยังไม่ชำระ (20261009030430)
     };
     const WORKER_MAP = {
         id: "id", employerId: "employer_id", title: "title", nationality: "nationality",
