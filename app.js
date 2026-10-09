@@ -4571,7 +4571,7 @@ function applyGeminiDataToWorkerForm(docType, parsedData) {
     };
 
     if (docType === 'worker-wp-doc') {
-        setPermitVal("worker-uid", parsedData.uid);
+        if (/^\d{13}$/.test(String(parsedData.uid || ''))) setPermitVal("worker-uid", parsedData.uid);
         setPermitVal("worker-permit-no", parsedData.permitNo);
         setPermitVal("worker-permit-expiry", parsedData.permitExpiry);
         setPermitVal("worker-first-name", parsedData.firstName);
@@ -12033,7 +12033,7 @@ function applyOcrDataToWorker(w, docType, p) {
     } else if (docType === 'worker-wp-doc') {
         if (p.permitNo) w.permitNo = p.permitNo;
         if (p.permitExpiry) w.permitExpiry = parseDateInput(p.permitExpiry) || w.permitExpiry;
-        if (p.uid) w.workerUid = p.uid;
+        if (/^\d{13}$/.test(String(p.uid || ''))) w.workerUid = p.uid; // AI อ่านเลขขาด/เกิน = ไม่เขียนทับ (เคยเจอ 12 หลัก 2026-10-09)
         if (p.firstName) w.firstName = p.firstName;
         if (p.lastName) w.lastName = p.lastName;
         if (p.dob) w.dob = parseDateInput(p.dob) || w.dob;
