@@ -494,14 +494,37 @@
 
     // -------------------- File upload (Supabase Storage + OCR edge function) --------------------
     // options.skipOcr = ผู้ใช้เลือก "บันทึกไฟล์ กรอกเอง" หลัง AI อ่านไม่สำเร็จ — อัปโหลดเลยโดยไม่เรียก AI ซ้ำ
+    const MIME_EXT = { "application/pdf": "pdf", "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif" };
+    function sniffFileMime(bytes) {
+        const b = i => bytes[i];
+        if (b(0) === 0x25 && b(1) === 0x50 && b(2) === 0x44 && b(3) === 0x46) return "application/pdf";
+        if (b(0) === 0xFF && b(1) === 0xD8 && b(2) === 0xFF) return "image/jpeg";
+        if (b(0) === 0x89 && b(1) === 0x50 && b(2) === 0x4E && b(3) === 0x47) return "image/png";
+        if (b(0) === 0x52 && b(1) === 0x49 && b(2) === 0x46 && b(3) === 0x46 && b(8) === 0x57 && b(9) === 0x45) return "image/webp";
+        if (b(0) === 0x47 && b(1) === 0x49 && b(2) === 0x46) return "image/gif";
+        return null;
+    }
+    function fixFileExtension(name, mime) {
+        const ext = MIME_EXT[mime];
+        if (!ext) return name;
+        return /\.[a-z0-9]{2,5}$/i.test(name) ? name.replace(/\.[a-z0-9]{2,5}$/i, "." + ext) : `${name}.${ext}`;
+    }
+
     async function uploadFile(fileDataUrl, fileName, customerId, workerId, docType, currentUser, options = {}) {
         const parts = fileDataUrl.split(",");
         if (parts.length < 2) return { status: "error", message: "invalid file data" };
-        const mimeType = parts[0].match(/:(.*?);/)[1];
+        let mimeType = parts[0].match(/:(.*?);/)[1];
         const base64Data = parts[1];
         const binary = atob(base64Data);
         const bytes = new Uint8Array(binary.length);
         for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        // เบราว์เซอร์เดาประเภทไฟล์จากนามสกุล — รูป JPEG ที่ตั้งชื่อ .pdf (เจอในไฟล์จาก Google Drive) ถูกเก็บเป็น PDF แล้วเปิดไม่ได้
+        // ดูจากเนื้อไฟล์จริงแทน แล้วแก้ทั้งประเภทและนามสกุลให้ตรง (2026-10-09)
+        const realMime = sniffFileMime(bytes);
+        if (realMime && realMime !== mimeType) {
+            mimeType = realMime;
+            fileName = fixFileExtension(fileName, realMime);
+        }
 
         // ให้ AI อ่านก่อนอัปโหลด — เอกสารประเภทที่ใช้ AI ถ้าอ่านไม่สำเร็จ (Gemini ไม่ว่าง/อ่านไม่ได้) จะไม่เก็บไฟล์เลย
         // ให้ผู้ใช้แนบใหม่ทีหลัง แทนที่จะมีไฟล์ค้างในระบบแล้วแนบซ้ำจนไฟล์ซ้ำซ้อน
@@ -525,7 +548,7 @@
         // options.nameFromOcr(parsedData) = ตั้งชื่อไฟล์ใหม่จากข้อมูลที่ AI อ่านได้ (เช่น ใบอนุญาตทำงาน → เลข 13 หลัก_ชื่อ)
         if (typeof options.nameFromOcr === "function") {
             const renamed = options.nameFromOcr(parsedData);
-            if (renamed) fileName = renamed;
+            if (renamed) fileName = realMime ? fixFileExtension(renamed, realMime) : renamed;
         }
 
         const path =`${customerId || "misc"}/${workerId || "employer"}/${Date.now()}_${sanitizeStorageFileName(fileName)}`;

@@ -4618,15 +4618,14 @@ function applyGeminiDataToWorkerForm(docType, parsedData) {
 }
 
 // ข้อมูลจาก QR ของกรมการจัดหางาน (parsedData.ewp — ดู ewpCardToParsedData ใน supabase-client.js) เป็นข้อมูลทางการ
-// เติมครบทุกช่องที่กรมส่งมา ไม่ว่าจะแนบไว้ในช่องเอกสารประเภทไหน
+// เติมครบทุกช่องที่กรมส่งมา ไม่ว่าจะแนบไว้ในช่องเอกสารประเภทไหน — ยกเว้นชื่อไทย: เจ้าของระบบกำหนด (2026-10-09)
+// ให้อ่านจากบัตรชมพูเท่านั้น ไม่มีบัตรชมพู = ไม่ต้องเติม (ดู applyOcrDataToWorker / applyGeminiDataToWorkerForm ช่อง worker-pink-card)
 const EWP_FORM_FIELDS = {
     uid: "worker-uid", permitNo: "worker-permit-no", permitExpiry: "worker-permit-expiry",
-    firstName: "worker-first-name", lastName: "worker-last-name", dob: "worker-dob", position: "worker-position",
-    thaiName: "worker-thai-name"
+    firstName: "worker-first-name", lastName: "worker-last-name", dob: "worker-dob", position: "worker-position"
 };
 const EWP_OBJECT_FIELDS = {
-    uid: "workerUid", permitNo: "permitNo", firstName: "firstName", lastName: "lastName", position: "position",
-    thaiName: "thaiName"
+    uid: "workerUid", permitNo: "permitNo", firstName: "firstName", lastName: "lastName", position: "position"
 };
 const EWP_OBJECT_DATE_FIELDS = { permitExpiry: "permitExpiry", dob: "dob" };
 
@@ -12139,7 +12138,7 @@ function isWorkerDocFileExpired(fItem, fIdx, list, docType) {
 }
 
 // แนบไฟล์ 1 ไฟล์เข้าแฟ้มคนงาน 1 คน (upload + OCR + อัปเดตข้อมูล) — ใช้ร่วมกันทั้งอัปโหลดทีละไฟล์ และ bulk import
-async function attachDocumentToWorker(w, docType, fileContent, preParsed = null) {
+async function attachDocumentToWorker(w, docType, fileContent, preParsed = null, opts = {}) {
     const currentList = getAttachments(w, docType);
     const suffix = currentList.length > 0 ? `_${currentList.length + 1}` : "";
     const ext = extFromDataUrl(fileContent);
@@ -12151,7 +12150,7 @@ async function attachDocumentToWorker(w, docType, fileContent, preParsed = null)
     const preDecision = preParsed ? await confirmWorkerUidChange(known, preParsed, fileName) : true;
     if (!preDecision) throw createUploadCancelledError();
     if (preDecision === 'keep') { preParsed = null; fileName = nameOptions.nameFromOcr(null); } // เก็บไฟล์ แต่ไม่ใช้ข้อมูลจากเอกสาร
-    const uploadOptions = preParsed ? { skipOcr: true } : { ...nameOptions, confirmParsed: (p) => confirmWorkerUidChange(known, p, fileName) };
+    const uploadOptions = (preParsed || opts.noAi) ? { skipOcr: true } : { ...nameOptions, confirmParsed: (p) => confirmWorkerUidChange(known, p, fileName) };
     const uploadResult = await uploadDocumentFile(fileContent, fileName, w.employerId, w.id, docType, uploadOptions);
     if (uploadResult && uploadResult.cancelled) throw createUploadCancelledError();
     if (uploadResult && uploadResult.aiRejected) throw createAiRejectedError(uploadResult.ocrError);
@@ -12344,6 +12343,34 @@ function onBulkImportAllowNewChanged() {
 // แถวที่ให้ AI อ่านตอน "ให้ AI อ่านและจับคู่": ยังไม่รู้ประเภท (ให้ AI จำแนก) หรือเป็น 4 ประเภทที่ใช้ AI อ่าน
 // (ใบอนุญาตทำงาน / passport / บัตรชมพู / ใบเสร็จ — ตรงกับ OCR_DOC_TYPES ใน supabase-client.js) ประเภทอื่นแนบอย่างเดียว
 const BULK_AI_DOC_TYPES = ['worker-wp-doc', 'worker-passport', 'worker-pink-card', 'worker-receipt'];
+
+// ช่อง "AI อ่าน" รายไฟล์ (เจ้าของระบบขอ 2026-10-09): ค่าเริ่มต้น = ติ๊กเฉพาะไฟล์ที่ AI ควรอ่านตามกฎข้างบน
+// ผู้ใช้เอาติ๊กออกได้ = แนบอย่างเดียว ไม่เรียก AI ทั้งตอน "ให้ AI อ่านและจับคู่" และตอนนำเข้า (row.aiManual = เลือกเองแล้ว เปลี่ยนประเภทไม่ทับ)
+function bulkAiDefault(docType) {
+    return !docType || BULK_AI_DOC_TYPES.includes(docType);
+}
+
+function setBulkImportRowAi(idx, checked) {
+    const row = bulkImportRows[idx];
+    if (!row) return;
+    row.aiRead = checked;
+    row.aiManual = true;
+    syncBulkImportAiAll();
+}
+
+function toggleAllBulkImportAi(checked) {
+    bulkImportRows.forEach(r => { if (r.status !== 'success' && !r.parsedData) { r.aiRead = checked; r.aiManual = true; } });
+    renderBulkImportTable();
+}
+
+function syncBulkImportAiAll() {
+    const el = document.getElementById('bulk-import-ai-all');
+    if (!el) return;
+    const rows = bulkImportRows.filter(r => r.status !== 'success' && !r.parsedData);
+    const on = rows.filter(r => r.aiRead !== false).length;
+    el.checked = rows.length > 0 && on === rows.length;
+    el.indeterminate = on > 0 && on < rows.length;
+}
 
 // คนงานที่ไฟล์ในรอบนี้จับคู่ได้: เลือกนายจ้างแล้ว = เฉพาะคนงานของนายจ้างนั้น (กันแนบผิดคน/ผิดบริษัท)
 function bulkImportWorkerPool() {
@@ -12631,6 +12658,7 @@ function addFilesToBulkImport(fileArray) {
             workerId: wMatch.workerId,
             confidence: wMatch.confidence,
             docType: docType,
+            aiRead: bulkAiDefault(docType),
             selected: !!(wMatch.workerId && docType),
             status: 'pending' // pending | success | failed
         });
@@ -12645,7 +12673,7 @@ function renderBulkImportTable() {
     const summary = document.getElementById('bulk-import-summary');
 
     if (bulkImportRows.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="text-muted" style="text-align:center; padding:20px;">ยังไม่ได้เลือกไฟล์</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="text-muted" style="text-align:center; padding:20px;">ยังไม่ได้เลือกไฟล์</td></tr>`;
         if (summary) summary.style.display = 'none';
         syncBulkImportSelectAll();
         // ต้องวาดการ์ดคนงานใหม่ด้วย ไม่งั้นการ์ดเก่าค้างบนจอหลังลบไฟล์สุดท้าย/กดไม่สร้าง/เปิดหน้าต่างใหม่ และกดเอาออกไม่ได้
@@ -12690,6 +12718,7 @@ function renderBulkImportTable() {
                         ${WORKER_DOC_TYPES.map(dt => `<option value="${dt.key}" ${row.docType === dt.key ? 'selected' : ''}>${dt.label}</option>`).join('')}
                     </select>
                 </td>
+                <td style="text-align:center;">${row.parsedData ? `<span title="AI อ่านไฟล์นี้แล้ว">${icon("bot")}</span>` : `<input type="checkbox" ${row.aiRead !== false ? 'checked' : ''} ${row.status === 'success' ? 'disabled' : ''} onchange="setBulkImportRowAi(${idx}, this.checked)" title="ติ๊ก = ให้ AI อ่านไฟล์นี้, ไม่ติ๊ก = แนบอย่างเดียว">`}</td>
                 <td>${statusBadge}</td>
                 <td><button type="button" class="action-icon-btn delete-btn" onclick="removeBulkImportRow(${idx})" title="ลบแถวนี้ออกจากรายการ">${icon("trash")}</button></td>
             </tr>
@@ -12703,6 +12732,7 @@ function renderBulkImportTable() {
             (bulkNewWorkers.length > 0 ? ` • จะสร้างคนงานใหม่ ${bulkNewWorkers.length} คน` : '');
     }
     syncBulkImportSelectAll();
+    syncBulkImportAiAll();
     renderBulkNewWorkers();
 }
 
@@ -12719,9 +12749,9 @@ function updateBulkImportWorker(idx, workerId) {
 // onlyUnattempted: ตอนกด "นำเข้า" ปุ่มเดียว อ่านเฉพาะไฟล์ที่ยังไม่เคยลองอ่าน (ไฟล์ที่ AI ไม่ว่างรอบก่อนไม่ต้องรอซ้ำ
 // — กดปุ่ม "ให้ AI อ่านและจับคู่" เองเพื่อลองอ่านไฟล์พวกนั้นใหม่)
 async function analyzeBulkImportWithAi(onlyUnattempted = false) {
-    const rowsToRead = bulkImportRows.filter(r => r.status !== 'success' && !r.parsedData && (!r.docType || BULK_AI_DOC_TYPES.includes(r.docType)) && (!onlyUnattempted || !r.ocrStatus));
+    const rowsToRead = bulkImportRows.filter(r => r.status !== 'success' && !r.parsedData && r.aiRead !== false && (!onlyUnattempted || !r.ocrStatus));
     if (rowsToRead.length === 0) {
-        if (!onlyUnattempted) showToast("ไม่มีไฟล์ที่ต้องให้ AI อ่าน (อ่านไปครบแล้ว)", "warning");
+        if (!onlyUnattempted) showToast("ไม่มีไฟล์ที่ต้องให้ AI อ่าน (อ่านครบแล้ว หรือไม่ได้ติ๊ก \"AI อ่าน\")", "warning");
         return;
     }
 
@@ -13182,6 +13212,7 @@ async function splitBulkImportPdf(idx) {
 function updateBulkImportDocType(idx, docType) {
     if (!bulkImportRows[idx]) return;
     bulkImportRows[idx].docType = docType || null;
+    if (!bulkImportRows[idx].aiManual) bulkImportRows[idx].aiRead = bulkAiDefault(bulkImportRows[idx].docType);
     bulkImportRows[idx].selected = !!(bulkImportRows[idx].workerId && bulkImportRows[idx].docType);
     renderBulkImportTable();
 }
@@ -13296,9 +13327,10 @@ async function runBulkImport() {
             if (!w) throw new Error(isBulkNewWorkerId(row.workerId) ? 'สร้างคนงานใหม่ไม่สำเร็จ' : 'ไม่พบคนงานที่จับคู่ไว้');
 
             // อ่านด้วย AI ไปแล้วในขั้น "ให้ AI อ่านและจับคู่" -> ใช้ผลเดิม ไม่เรียก AI ซ้ำ
-            const uploadResult = await attachDocumentToWorker(w, row.docType, fileContent, row.parsedData || null);
+            // ไม่ติ๊ก "AI อ่าน" = แนบอย่างเดียว ไม่เรียก AI
+            const uploadResult = await attachDocumentToWorker(w, row.docType, fileContent, row.parsedData || null, { noAi: row.aiRead === false });
             row.status = 'success';
-            row.aiStatus = row.parsedData ? 'filled' : getBulkImportAiStatus(uploadResult);
+            row.aiStatus = row.parsedData ? 'filled' : row.aiRead === false ? null : getBulkImportAiStatus(uploadResult);
             successCount++;
         } catch (err) {
             console.error('Bulk import failed for', row.fileName, err);
