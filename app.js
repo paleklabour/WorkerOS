@@ -14003,6 +14003,7 @@ function paymentSlipListHtml(prefix) {
             .filter(Boolean).join(' • ');
         return `<div class="payment-slip-item">
             <a href="${escapeHtml(s.url)}" target="_blank" rel="noopener">${icon('clip')} ${escapeHtml(s.name)}</a>
+            ${slipQrBadgeHtml(s.qr)}
             ${info ? `<small class="text-muted">${escapeHtml(info)}</small>` : ''}
             <button type="button" class="btn btn-sm btn-outline delete-btn" onclick="removePaymentSlip('${prefix}', ${i})">ลบ</button>
         </div>`;
@@ -14054,7 +14055,9 @@ async function processPaymentSlipFiles(prefix, files) {
                 : `<span class="ai-error">${icon("bad")} อัปโหลด "${escapeHtml(file.name)}" ไม่สำเร็จ</span>`;
             continue;
         }
-        paymentSlipState[prefix].push({ name: paymentSlipFileName(prefix, file.name, up.parsedData), url: up.fileUrl, slip: up.parsedData || null });
+        if (statusEl) statusEl.innerHTML = `<span class="ai-processing">${icon("bot")} กำลังตรวจ QR บนสลิป "${escapeHtml(file.name)}"...</span>`;
+        const qr = await checkSlipQr(file, up.parsedData);
+        paymentSlipState[prefix].push({ name: paymentSlipFileName(prefix, file.name, up.parsedData), url: up.fileUrl, slip: up.parsedData || null, qr });
         added++;
         if (up.parsedData) readByAi++;
     }
@@ -14062,9 +14065,135 @@ async function processPaymentSlipFiles(prefix, files) {
     if (list) list.innerHTML = paymentSlipListHtml(prefix);
     if (!added) return;
     if (box) box.classList.add('success-upload');
-    if (statusEl) statusEl.innerHTML = `<span class="ai-success">${icon("ok")} แนบสลิปแล้ว ${paymentSlipState[prefix].length} ไฟล์${readByAi ? ' — AI กรอกข้อมูลให้แล้ว กรุณาตรวจสอบ' : ''}</span>`;
+    const qrIssues = paymentSlipState[prefix].filter(s => s.qr && s.qr.status !== 'ok').length;
+    if (statusEl) statusEl.innerHTML = `<span class="ai-success">${icon("ok")} แนบสลิปแล้ว ${paymentSlipState[prefix].length} ไฟล์${readByAi ? ' — AI กรอกข้อมูลให้แล้ว กรุณาตรวจสอบ' : ''}</span>`
+        + (qrIssues ? `<br><span class="ai-error">${icon("warn", "amber")} ${qrIssues} สลิปตรวจ QR ไม่ผ่าน — ตรวจยอดเข้าบัญชีก่อนบันทึก (ชี้ที่ป้ายเพื่อดูรายละเอียด)</span>` : '');
     if (readByAi) applyPaymentSlipsToForm(prefix);
     warnDuplicatePaymentSlips(prefix);
+}
+
+// ---------- ตรวจ QR บนสลิปโอนเงิน (2026-10-09) ----------
+// QR มุมสลิปธนาคารไทย = TLV: 00 → [00 API id, 01 รหัสธนาคารผู้โอน, 02 เลขอ้างอิงรายการ], 51 "TH", 91 CRC16
+// ใน QR ไม่มียอดเงิน/ชื่อ — ตรวจได้แค่ว่ามี QR สลิปจริง, CRC ถูก, เลขอ้างอิงตรงกับที่พิมพ์บนสลิป (AI อ่าน) และไม่ซ้ำสลิปเดิม
+// (ยืนยันว่าเงินเข้าจริง 100% ต้องเอาเลขไปถามธนาคาร — ยังไม่ได้ทำ เพราะบริการตรวจสลิปส่วนใหญ่มีค่าใช้จ่าย)
+// ผลเก็บใน proof_urls[].qr = { status, ref, bank, raw } — status: ok | mismatch | none | bad
+const SLIP_QR_BANKS = { '002': 'กรุงเทพ', '004': 'กสิกรไทย', '006': 'กรุงไทย', '011': 'ทหารไทยธนชาต', '014': 'ไทยพาณิชย์', '025': 'กรุงศรี', '030': 'ออมสิน', '034': 'ธ.ก.ส.', '069': 'เกียรตินาคินภัทร', '022': 'ซีไอเอ็มบี', '024': 'ยูโอบี', '066': 'อิสลาม', '067': 'ทิสโก้', '073': 'แลนด์ แอนด์ เฮ้าส์' };
+const SLIP_QR_LABELS = {
+    ok: { cls: 'slip-qr-ok', ico: 'ok', text: 'QR ถูกต้อง' },
+    mismatch: { cls: 'slip-qr-warn', ico: 'warn', text: 'QR ไม่ตรงกับสลิป' },
+    bad: { cls: 'slip-qr-warn', ico: 'warn', text: 'QR ไม่ใช่สลิป/ข้อมูลเสีย' },
+    none: { cls: 'slip-qr-none', ico: 'warn', text: 'ไม่พบ QR' }
+};
+
+function slipQrCrc16(s) {
+    let c = 0xFFFF;
+    for (const ch of s) {
+        c ^= ch.charCodeAt(0) << 8;
+        for (let i = 0; i < 8; i++) c = (c & 0x8000) ? ((c << 1) ^ 0x1021) & 0xFFFF : (c << 1) & 0xFFFF;
+    }
+    return c.toString(16).toUpperCase().padStart(4, '0');
+}
+
+function parseSlipQrTlv(s) {
+    const out = {};
+    let i = 0;
+    while (i + 4 <= s.length) {
+        const len = parseInt(s.substr(i + 2, 2), 10);
+        if (isNaN(len) || i + 4 + len > s.length) return null;
+        out[s.substr(i, 2)] = s.substr(i + 4, len);
+        i += 4 + len;
+    }
+    return out;
+}
+
+// raw = ข้อความใน QR → { ref, bank } ถ้าเป็น QR สลิปที่ CRC ถูก ไม่งั้น null
+function parseSlipQr(raw) {
+    const s = String(raw || '').trim();
+    const top = parseSlipQrTlv(s);
+    if (!top || !top['00'] || !top['91'] || slipQrCrc16(s.slice(0, -4)) !== s.slice(-4).toUpperCase()) return null;
+    const inner = parseSlipQrTlv(top['00']);
+    if (!inner || !inner['02']) return null;
+    return { ref: inner['02'], bank: inner['01'] || '' };
+}
+
+// หา QR ในไฟล์สลิป (รูป หรือ PDF หน้า 1–2) ด้วย jsQR + pdf.js ที่โหลดไว้แล้ว — คืนข้อความใน QR หรือ null (ไม่ throw)
+async function findQrTextInFile(file) {
+    if (typeof jsQR !== 'function') return null;
+    const scan = (canvas) => {
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        const code = jsQR(ctx.getImageData(0, 0, canvas.width, canvas.height).data, canvas.width, canvas.height, { inversionAttempts: 'attemptBoth' });
+        return code && code.data;
+    };
+    try {
+        if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) {
+            if (!window.pdfjsLib) return null;
+            const pdf = await window.pdfjsLib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+            for (let p = 1; p <= Math.min(2, pdf.numPages); p++) {
+                const page = await pdf.getPage(p);
+                const base = page.getViewport({ scale: 1 });
+                for (const dim of [1500, 2500]) {
+                    const viewport = page.getViewport({ scale: dim / Math.max(base.width, base.height) });
+                    const canvas = document.createElement('canvas');
+                    canvas.width = Math.round(viewport.width); canvas.height = Math.round(viewport.height);
+                    await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+                    const text = scan(canvas);
+                    if (text) return text;
+                }
+            }
+            return null;
+        }
+        const bmp = await createImageBitmap(file);
+        const full = Math.max(bmp.width, bmp.height);
+        for (const dim of [...new Set([Math.min(1000, full), Math.min(1600, full), full])]) {
+            const s = dim / full;
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.round(bmp.width * s); canvas.height = Math.round(bmp.height * s);
+            canvas.getContext('2d').drawImage(bmp, 0, 0, canvas.width, canvas.height);
+            const text = scan(canvas);
+            if (text) return text;
+        }
+    } catch (e) {
+        console.warn('Slip QR scan failed:', e);
+    }
+    return null;
+}
+
+// บนสลิปมักพิมพ์เลขอ้างอิงแบบย่อ (ตัดเลข 0 / ท้ายรหัส) — ถือว่าตรงถ้าตัวเลขชุดหนึ่งอยู่ในอีกชุด
+function slipRefsMatch(a, b) {
+    const norm = v => String(v || '').toUpperCase().replace(/[^0-9A-Z]/g, '');
+    const x = norm(a), y = norm(b);
+    if (!x || !y) return false;
+    if (x === y) return true;
+    if (Math.min(x.length, y.length) >= 8 && (x.includes(y) || y.includes(x))) return true;
+    const dx = x.replace(/\D/g, '').replace(/^0+/, ''), dy = y.replace(/\D/g, '').replace(/^0+/, '');
+    return dx.length >= 6 && dy.length >= 6 && (dx.includes(dy) || dy.includes(dx));
+}
+
+async function checkSlipQr(file, slip) {
+    const raw = await findQrTextInFile(file);
+    if (!raw) return { status: 'none' };
+    const parsed = parseSlipQr(raw);
+    if (!parsed) return { status: 'bad', raw: raw.slice(0, 200) };
+    const aiRef = slip && slip.transactionRef;
+    return { status: aiRef && !slipRefsMatch(aiRef, parsed.ref) ? 'mismatch' : 'ok', ref: parsed.ref, bank: parsed.bank, raw };
+}
+
+function slipQrBadgeHtml(qr) {
+    if (!qr || !SLIP_QR_LABELS[qr.status]) return '';
+    const l = SLIP_QR_LABELS[qr.status];
+    const bank = qr.bank ? (SLIP_QR_BANKS[qr.bank] || `รหัส ${qr.bank}`) : '';
+    const tip = qr.status === 'ok' ? `QR สลิปถูกต้อง${bank ? ` • ธนาคารผู้โอน ${bank}` : ''} • เลขอ้างอิง ${qr.ref} — ยังไม่ได้ยืนยันกับธนาคาร ตรวจยอดเข้าบัญชีอีกครั้ง`
+        : qr.status === 'mismatch' ? `เลขอ้างอิงใน QR (${qr.ref}) ไม่ตรงกับที่พิมพ์บนสลิป — สลิปอาจถูกแก้ไข`
+        : qr.status === 'bad' ? 'QR ในไฟล์ไม่ใช่ QR สลิปโอนเงิน หรือข้อมูลเสีย — ตรวจยอดเข้าบัญชีก่อน'
+        : 'ไม่พบ QR ในไฟล์ (เช่น ใบยืนยันจาก K BIZ/ภาพตัดขอบ) — ตรวจยอดเข้าบัญชีก่อนบันทึก';
+    return `<span class="slip-qr-badge ${l.cls}" title="${escapeHtml(tip)}">${icon(l.ico)} ${l.text}</span>`;
+}
+
+// สลิปใบไหนเคยบันทึกในใบเสร็จแล้ว (ไม่นับใบที่ยกเลิก) — เทียบเลขจาก QR ก่อน ไม่มีค่อยใช้เลขที่ AI อ่าน
+function findReceiptWithSlipRef(ref) {
+    if (!ref) return null;
+    return receipts.find(r => !r.voided && (r.proofUrls || []).some(u =>
+        (u.qr && u.qr.ref && slipRefsMatch(u.qr.ref, ref)) || (u.slip && u.slip.transactionRef && slipRefsMatch(u.slip.transactionRef, ref)))) || null;
 }
 
 // ชื่อสลิปที่แนบ = ชื่อลูกค้า_วันที่โอน_ยอดโอน (เจ้าของระบบขอ 2026-10-09) เช่น "บริษัท_ABC_จำกัด_2026-10-09_15000.jpg"
@@ -14125,9 +14254,9 @@ function matchBankFromSlip(slip) {
 // สลิปเดียวกันเคยบันทึกรับเงินไปแล้ว (เลขอ้างอิงซ้ำ) → เตือน กันบันทึกเงินเข้าซ้ำ
 function warnDuplicatePaymentSlips(prefix) {
     for (const s of paymentSlipState[prefix]) {
-        const ref = s.slip && String(s.slip.transactionRef || '').trim();
+        const ref = (s.qr && s.qr.ref) || (s.slip && String(s.slip.transactionRef || '').trim());
         if (!ref) continue;
-        const dup = receipts.find(r => !r.voided && (r.proofUrls || []).some(u => u.slip && String(u.slip.transactionRef || '').trim() === ref));
+        const dup = findReceiptWithSlipRef(ref);
         if (dup) uiAlert(`สลิป "${s.name}" (เลขอ้างอิง ${ref}) เคยบันทึกรับเงินไปแล้วในใบเสร็จ ${dup.receiptNo || '-'} — ตรวจสอบก่อนบันทึกซ้ำ`, { title: 'สลิปนี้อาจถูกบันทึกแล้ว' });
     }
 }
@@ -14195,7 +14324,7 @@ function newPaymentId() { return 'pay-' + Date.now().toString(36) + Math.random(
 // คืน { receipt, failedAllocs, jobFails } หรือ null ถ้ายังไม่ได้บันทึกอะไรเลย
 // proofUploads = สลิปที่อัปโหลด + AI อ่านไว้แล้วตอนเลือกไฟล์ (paymentSlipState) — [{ name, url, slip }]
 async function createReceiptWithAllocations({ customerId, snapshot, amount, paidDate, methodVal, note, proofUploads, allocations }) {
-    const proofUrls = (proofUploads || []).map(u => u.slip ? { name: u.name, url: u.url, slip: u.slip } : { name: u.name, url: u.url });
+    const proofUrls = (proofUploads || []).map(u => Object.assign({ name: u.name, url: u.url }, u.slip ? { slip: u.slip } : {}, u.qr ? { qr: u.qr } : {}));
 
     const noRes = await callCloudAPI("nextDocNo", { prefix: "RC" });
     if (!noRes || !noRes.docNo) return null;
@@ -14481,7 +14610,7 @@ function renderInvoicePaymentsPanel(inv) {
             <td><strong>${escapeHtml(paymentReceiptNo(p) || '-')}</strong>${tag}${p.voided ? `<br><small class="text-danger">ยกเลิก: ${escapeHtml(p.voidReason || '-')}</small>` : ''}</td>
             <td>${p.method === 'cash' ? `${icon('cash')} เงินสด` : `${renderBankLogoBadge(paymentMethodLabel(p), 18)} ${escapeHtml(paymentMethodLabel(p))}`}</td>
             <td class="inv-num"><strong>${fmtMoney(p.amount)}</strong></td>
-            <td>${proofs.map((f, k) => `<a href="${escapeHtml(f.url)}" target="_blank" rel="noopener" title="${escapeHtml(f.slip ? [f.slip.fromName && `ผู้โอน ${f.slip.fromName}`, f.slip.fromBank, f.slip.transactionRef && `อ้างอิง ${f.slip.transactionRef}`].filter(Boolean).join(' • ') : '')}">${icon('clip')} สลิป ${k + 1}</a>${f.slip && f.slip.transactionRef ? `<br><small class="text-muted">อ้างอิง ${escapeHtml(f.slip.transactionRef)}</small>` : ''}`).join(' ') || '-'}</td>
+            <td>${proofs.map((f, k) => `<a href="${escapeHtml(f.url)}" target="_blank" rel="noopener" title="${escapeHtml(f.slip ? [f.slip.fromName && `ผู้โอน ${f.slip.fromName}`, f.slip.fromBank, f.slip.transactionRef && `อ้างอิง ${f.slip.transactionRef}`].filter(Boolean).join(' • ') : '')}">${icon('clip')} สลิป ${k + 1}</a>${f.qr ? ` ${slipQrBadgeHtml(f.qr)}` : ''}${f.slip && f.slip.transactionRef ? `<br><small class="text-muted">อ้างอิง ${escapeHtml(f.slip.transactionRef)}</small>` : ''}`).join(' ') || '-'}</td>
             <td class="pay-actions">
                 ${p.voided ? '' : `<button type="button" class="btn btn-sm btn-outline" onclick="openReceiptModal('${p.id}')">${icon('print')} ใบเสร็จ</button>`}
                 ${!p.voided && isAdmin && r && r.customerId ? `<button type="button" class="btn btn-sm btn-outline" onclick="unapplyPayment('${p.id}')" title="เงินยังอยู่ ย้ายไปเป็นมัดจำของลูกค้า">${icon('refresh')} ถอนออกจากบิล</button>` : ''}
