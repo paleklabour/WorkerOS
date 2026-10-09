@@ -4105,6 +4105,10 @@ function findPasteTarget() {
     const box = el.closest('.upload-box[id^="drop-"]');
     if (box) {
         const docType = box.id.slice('drop-'.length);
+        // สลิปรับเงิน (หน้าบิล "pay" / หน้าต่างรับเงิน-มัดจำ "receive") และสลิปรายจ่าย
+        const slip = docType.match(/^(pay|receive)-slip$/);
+        if (slip) return { kind: 'payment-slip', docType: slip[1], el: box };
+        if (docType === 'expense-slip') return { kind: 'expense-slip', docType, el: box };
         if (docType.startsWith('worker-')) return { kind: 'worker-form', docType, el: box };
         if (docType.startsWith('cust-') || docType === 'employer-house') return { kind: 'customer-form', docType, el: box };
     }
@@ -4145,6 +4149,10 @@ document.addEventListener('paste', async e => {
     } else if (target.kind === 'customer-folder') {
         activeFolderCustomerDocType = target.docType;
         await handleCustomerFolderFileUpload({ target: { files } });
+    } else if (target.kind === 'payment-slip') {
+        await processPaymentSlipFiles(target.docType, files);
+    } else if (target.kind === 'expense-slip') {
+        processExpenseSlipFile(files[0]);
     }
 });
 
@@ -13981,7 +13989,7 @@ function paymentSlipBoxHtml(prefix) {
                 <input type="file" id="file-${prefix}-slip" class="file-input" accept="image/*,application/pdf" multiple onchange="paymentSlipFileSelected(event, '${prefix}')">
                 <div class="upload-icon">${icon('receipt')}</div>
                 <span class="doc-title">สลิปการโอนเงิน</span>
-                <span class="upload-hint">ลากไฟล์วางที่นี่ หรือคลิกเพื่ออัปโหลด — AI อ่านยอดเงิน วันที่โอน และบัญชีที่เงินเข้าให้</span>
+                <span class="upload-hint">ลากไฟล์วางที่นี่ คลิกเพื่ออัปโหลด หรือชี้แล้วกด Ctrl+V — AI อ่านยอดเงิน วันที่โอน และบัญชีที่เงินเข้าให้</span>
             </div>
             <div class="ocr-status" id="status-${prefix}-slip"></div>
         </div>
@@ -14046,7 +14054,7 @@ async function processPaymentSlipFiles(prefix, files) {
                 : `<span class="ai-error">${icon("bad")} อัปโหลด "${escapeHtml(file.name)}" ไม่สำเร็จ</span>`;
             continue;
         }
-        paymentSlipState[prefix].push({ name: file.name, url: up.fileUrl, slip: up.parsedData || null });
+        paymentSlipState[prefix].push({ name: paymentSlipFileName(prefix, file.name, up.parsedData), url: up.fileUrl, slip: up.parsedData || null });
         added++;
         if (up.parsedData) readByAi++;
     }
@@ -14057,6 +14065,22 @@ async function processPaymentSlipFiles(prefix, files) {
     if (statusEl) statusEl.innerHTML = `<span class="ai-success">${icon("ok")} แนบสลิปแล้ว ${paymentSlipState[prefix].length} ไฟล์${readByAi ? ' — AI กรอกข้อมูลให้แล้ว กรุณาตรวจสอบ' : ''}</span>`;
     if (readByAi) applyPaymentSlipsToForm(prefix);
     warnDuplicatePaymentSlips(prefix);
+}
+
+// ชื่อสลิปที่แนบ = ชื่อลูกค้า_วันที่โอน_ยอดโอน (เจ้าของระบบขอ 2026-10-09) เช่น "บริษัท_ABC_จำกัด_2026-10-09_15000.jpg"
+// ใช้วันที่/ยอดที่ AI อ่านจากสลิป — อ่านไม่ได้ใช้วันนี้ / ไม่ใส่ยอด, ชื่อซ้ำในชุดเดียวกันต่อท้าย _2, _3
+// (เปลี่ยนเฉพาะชื่อที่แสดง/บันทึกใน proof_urls — ไฟล์ใน Storage ยังชื่อเดิม)
+function paymentSlipFileName(prefix, originalName, slip) {
+    const ext = (String(originalName).match(/\.[a-z0-9]+$/i) || [''])[0].toLowerCase();
+    const cust = customers.find(c => c.id === PAYMENT_SLIP_FIELDS[prefix].customerId());
+    const clean = s => String(s || '').trim().replace(/[\\/:*?"<>|#%]+/g, '').replace(/\s+/g, '_');
+    const date = (slip && parseDateInput(slip.date || '')) || localDateISO(new Date());
+    const amount = slip ? parseFloat(String(slip.amount || '').replace(/,/g, '')) : NaN;
+    const base = [clean(cust ? cust.companyName : '') || 'สลิป', date, amount > 0 ? String(round2(amount)) : ''].filter(Boolean).join('_');
+    const taken = new Set(paymentSlipState[prefix].map(s => s.name));
+    let name = base + ext;
+    for (let n = 2; taken.has(name); n++) name = `${base}_${n}${ext}`;
+    return name;
 }
 
 // เติมฟอร์มจากสลิปทุกใบที่แนบ: ยอดเงิน = ผลรวมยอดทุกสลิป, วันที่ = วันที่โอนล่าสุด, บัญชีเงินเข้า = จับคู่เลขบัญชี/ชื่อธนาคาร
