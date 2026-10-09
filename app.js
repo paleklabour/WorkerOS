@@ -6095,6 +6095,13 @@ function jobDaysOpen(j) {
     return start ? Math.max(0, Math.floor((end - start) / 86400000)) : 0;
 }
 
+// รายละเอียดการปิดงาน: วันเวลาที่ปิด + ใช้เวลากี่วันนับจากวันแจ้งงาน (เจ้าของระบบขอ 2026-10-09)
+function jobClosedInfoText(j) {
+    if (j.status !== 'ปิดงานแล้ว' || !j.closedAt) return '';
+    const days = jobDaysOpen(j);
+    return `ปิดเมื่อ ${formatThaiDate(j.closedAt, true)} • ใช้เวลา ${days === 0 ? 'ภายในวันเดียว' : `${days} วัน`}`;
+}
+
 // สรุปงาน: แจ้งเข้าในเดือน / ปิดในเดือน / ค้างอยู่ตอนนี้ + แยกตามประเภทงาน ผู้รับผิดชอบ นายจ้าง + นัดหมาย 7 วัน + งานค้างนาน
 function renderJobsSummary(baseJobs, monthKey) {
     const box = document.getElementById("jobs-summary-container");
@@ -6440,6 +6447,7 @@ function renderJobs() {
                 <td>
                     <span style="font-size:13px;">${getUserNameById(j.openedBy)}</span>
                     ${j.closedBy ? `<br><span style="font-size:11.5px; color:var(--text-muted);">${icon("lock")} ปิดโดย: ${getUserNameById(j.closedBy)}</span>` : ''}
+                    ${jobClosedInfoText(j) ? `<br><span style="font-size:11.5px; color:var(--text-muted);">${icon("calendar")} ${jobClosedInfoText(j)}</span>` : ''}
                 </td>
                 <td class="actions-col" onclick="event.stopPropagation()">
                     <div class="actions-cell">
@@ -7046,6 +7054,7 @@ function openJobModal(id = null) {
             document.getElementById("job-closed-banner-text").innerHTML =
                 `${icon("lock")} ปิดงานแล้วเมื่อ ${j.closedAt ? formatThaiDate(j.closedAt, true) : '-'}` +
                 (j.closedBy ? ` โดย ${getUserNameById(j.closedBy)}` : '') +
+                (j.closedAt ? ` • ใช้เวลา ${jobDaysOpen(j) === 0 ? 'ภายในวันเดียว' : `${jobDaysOpen(j)} วัน`} นับจากวันแจ้งงาน` : '') +
                 jobCloseDocsHtml(j);
         } else {
             statusGroup.style.display = '';
@@ -13991,6 +14000,7 @@ function renderJobsKanban(filtered) {
                     ${prepaymentBadge}
                     ${jobAgent ? `<div style="font-size: 11.5px; color: #64748b;">${icon("user")} Agent: ${jobAgent.name}</div>` : ''}
                     <div style="font-size: 11.5px; color: #94a3b8;">${icon("edit")} เปิดงานโดย: ${getUserNameById(j.openedBy)}${j.closedBy ? ` • ${icon("lock")} ปิดโดย: ${getUserNameById(j.closedBy)}` : ''}</div>
+                    ${jobClosedInfoText(j) ? `<div style="font-size: 11.5px; color: #94a3b8;">${icon("calendar")} ${jobClosedInfoText(j)}</div>` : ''}
                     ${batchTag}
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; padding-top: 8px; border-top: 1px solid #f1f5f9;">
                         <div style="font-size: 12.5px; font-weight: 700; color: #0f172a;">${icon("moneybag")} ${j.fee.toLocaleString()} บ.</div>
