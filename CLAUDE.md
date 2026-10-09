@@ -116,8 +116,9 @@ Owner's rules (2026-10-09):
   (`sniffFileMime`) — Drive had JPEGs named `.pdf` that wouldn't open.
 - Every new worker, whatever the path, shows "รอแจ้งเข้า" until it's verified in
   e-WorkPermit (the e-WorkPermit paste import sets `skipNotifyEntry` when the row says
-  "Already Informed"/"แจ้งเข้าแล้ว") or an Admin clicks "ผ่าน". Don't auto-clear it
-  elsewhere (the pending_register→active transition used to).
+  "Already Informed"/"แจ้งเข้าแล้ว"), an Admin clicks "ผ่าน", or the worker has a job
+  with status "ปิดงานแล้ว" (rule from 2026-10-08, the owner confirmed keeping it). Don't
+  auto-clear it anywhere else (the pending_register→active transition used to).
 - Document folders have an image editor (`openImageEditor`: crop / rotate / brightness /
   contrast), images only, saving replaces the original (no copy kept).
 
