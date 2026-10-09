@@ -4778,13 +4778,13 @@ function workerDocCode(docType, hint, p) {
     // ชื่อแบบเก่าที่ระบบตั้งเอง (เลข13หลัก_ชื่อ_Passport / worker_xxx) ไม่ได้บอกอะไรเพิ่ม — ตัดออกก่อนดูตัวย่อ
     const raw = String(hint || '').replace(/\.[a-z0-9]{1,5}$/i, '')
         .replace(/_(Passport|Receipt|Application|MyanmarID|Medical|Insurance|Other|WP|PinkCard|worker-[a-z-]+)(_\d+)?$/i, m => /visa/i.test(m) ? m : '');
-    const h = ` ${raw.toUpperCase().replace(/[\s.\-()]+/g, '_')}_`;
+    const h = `_${raw.toUpperCase().replace(/[\s.\-()]+/g, '_')}_`;
     const pick = (re, fallback) => { const m = h.match(re); return m ? m[1] : fallback; };
     switch (docType) {
         case 'worker-wp-doc': return pick(/_(WP_(?:FB|F|B|R)(?:_\d)?)_/, 'WP');
         case 'worker-passport':
             if (/_CI_VISA_/.test(h)) return 'CI_VISA';
-            if (/VISA/.test(h)) return pick(/_(VISA(?:_(?:R|\d))?)_/, 'VISA');
+            if (/VISA/.test(h)) return pick(/_(VISA(?:_R)?)_/, 'VISA');
             if (/PASSPORT/.test(h) || (p && /passport/i.test(String(p.passportType || '')))) return 'PASSPORT';
             return 'CI';
         case 'worker-visa': return 'VISA';
