@@ -119,7 +119,7 @@ Owner's rules (2026-10-09):
   "Already Informed"/"แจ้งเข้าแล้ว"), an Admin clicks "ผ่าน", or the worker has a job
   with status "ปิดงานแล้ว" (rule from 2026-10-08, the owner confirmed keeping it). Don't
   auto-clear it anywhere else (the pending_register→active transition used to).
-- Document folders have an image editor (`openImageEditor`: crop / rotate / brightness /
+- Document folders have an image editor (`openImageEditor`: crop / rotate 90° + fine angle / brightness /
   contrast), images only, saving replaces the original (no copy kept).
 
 ## Search-to-select fields (standing rule)

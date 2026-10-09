@@ -10144,7 +10144,7 @@ async function openImageEditor(kind, docType, idx) {
         showToast("❌ เปิดรูปไม่ได้ — ไฟล์อาจไม่ใช่รูปภาพ", "danger");
         return;
     }
-    imageEditor = { kind, docType, idx, url, item, bmp, rot: 0, bright: 100, contrast: 100, crop: null };
+    imageEditor = { kind, docType, idx, url, item, bmp, rot: 0, fine: 0, bright: 100, contrast: 100, crop: null };
     let el = document.getElementById('image-editor');
     if (!el) {
         el = document.createElement('div');
@@ -10160,10 +10160,11 @@ async function openImageEditor(kind, docType, idx) {
                 <button type="button" class="close-btn" onclick="closeImageEditor()" title="ปิดหน้าต่าง">&times;</button>
             </div>
             <div class="img-editor-stage"><canvas id="img-editor-canvas"></canvas></div>
-            <div class="img-editor-hint text-muted">ลากบนรูปเพื่อเลือกส่วนที่ต้องการเก็บ (ตัดกรอบ) — ไม่ลาก = ใช้ทั้งรูป</div>
+            <div class="img-editor-hint text-muted">ลากบนรูปเพื่อเลือกส่วนที่ต้องการเก็บ (ตัดกรอบ) — ไม่ลาก = ใช้ทั้งรูป • ถ้าจะปรับองศา ให้ปรับก่อนแล้วค่อยลากตัดกรอบ</div>
             <div class="img-editor-tools">
                 <button type="button" class="btn btn-sm btn-outline" onclick="imageEditorRotate(-90)" title="หมุนรูปทวนเข็มนาฬิกา 90°">↺ หมุนซ้าย</button>
                 <button type="button" class="btn btn-sm btn-outline" onclick="imageEditorRotate(90)" title="หมุนรูปตามเข็มนาฬิกา 90°">↻ หมุนขวา</button>
+                <label class="img-editor-slider" title="ปรับองศาทีละนิด ใช้ดัดรูปเอกสารที่ถ่ายเอียงให้ตรง">ปรับองศา <input type="range" id="img-editor-fine" min="-45" max="45" step="0.5" value="0" oninput="imageEditorSet('fine', this.value)"> <output id="img-editor-fine-val">0°</output></label>
                 <label class="img-editor-slider">ความสว่าง <input type="range" min="50" max="200" value="100" oninput="imageEditorSet('bright', this.value)"></label>
                 <label class="img-editor-slider">ความคมชัด <input type="range" min="50" max="200" value="100" oninput="imageEditorSet('contrast', this.value)"></label>
                 <button type="button" class="btn btn-sm btn-outline" onclick="imageEditorReset()" title="ล้างการแก้ไขทั้งหมด กลับเป็นรูปเดิม">ล้างการแก้ไข</button>
@@ -10185,20 +10186,28 @@ function closeImageEditor() {
     imageEditor = null;
 }
 
-// รูปหลังหมุน (ยังไม่ตัด/ไม่ปรับสี) ขนาดเต็ม
+// รูปหลังหมุน (ยังไม่ตัด/ไม่ปรับสี) ขนาดเต็ม — หมุน 90° + ปรับองศาละเอียด (fine) = กรอบใหม่ที่ครอบรูปที่เอียงทั้งรูป
+function imageEditorAngle() {
+    return ((imageEditor.rot + imageEditor.fine) * Math.PI) / 180;
+}
+
 function imageEditorRotatedSize() {
-    const { bmp, rot } = imageEditor;
-    return rot % 180 === 0 ? { w: bmp.width, h: bmp.height } : { w: bmp.height, h: bmp.width };
+    const { bmp } = imageEditor;
+    const a = imageEditorAngle();
+    const c = Math.abs(Math.cos(a)), s = Math.abs(Math.sin(a));
+    return { w: Math.round(bmp.width * c + bmp.height * s), h: Math.round(bmp.width * s + bmp.height * c) };
 }
 
 function imageEditorPaint(ctx, scale, withFilter) {
-    const { bmp, rot, bright, contrast } = imageEditor;
+    const { bmp, bright, contrast } = imageEditor;
     const size = imageEditorRotatedSize();
     ctx.save();
+    // มุมที่เกิดจากการเอียงเติมสีขาว (เหมือนกระดาษ) ไม่ให้เป็นพื้นโปร่ง/ดำตอนบันทึกเป็น JPG
+    if (imageEditor.fine) { ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, size.w * scale, size.h * scale); }
     if (withFilter) ctx.filter = `brightness(${bright}%) contrast(${contrast}%)`;
     ctx.scale(scale, scale);
     ctx.translate(size.w / 2, size.h / 2);
-    ctx.rotate(rot * Math.PI / 180);
+    ctx.rotate(imageEditorAngle());
     ctx.drawImage(bmp, -bmp.width / 2, -bmp.height / 2);
     ctx.restore();
 }
@@ -10263,20 +10272,27 @@ function imageEditorRotate(deg) {
 function imageEditorSet(key, val) {
     if (!imageEditor) return;
     imageEditor[key] = Number(val);
+    if (key === 'fine') {
+        imageEditor.crop = null; // กรอบรูปเปลี่ยนขนาดเมื่อเอียง — ให้ลากตัดกรอบใหม่หลังปรับองศา
+        const out = document.getElementById('img-editor-fine-val');
+        if (out) out.textContent = `${Number(val) > 0 ? '+' : ''}${Number(val)}°`;
+    }
     drawImageEditor();
 }
 
 function imageEditorReset() {
     if (!imageEditor) return;
-    Object.assign(imageEditor, { rot: 0, bright: 100, contrast: 100, crop: null });
-    document.querySelectorAll('#image-editor input[type=range]').forEach(i => { i.value = 100; });
+    Object.assign(imageEditor, { rot: 0, fine: 0, bright: 100, contrast: 100, crop: null });
+    document.querySelectorAll('#image-editor input[type=range]').forEach(i => { i.value = i.id === 'img-editor-fine' ? 0 : 100; });
+    const out = document.getElementById('img-editor-fine-val');
+    if (out) out.textContent = '0°';
     drawImageEditor();
 }
 
 async function saveImageEditor() {
     const ed = imageEditor;
     if (!ed) return;
-    const changed = ed.rot || ed.bright !== 100 || ed.contrast !== 100 || ed.crop;
+    const changed = ed.rot || ed.fine || ed.bright !== 100 || ed.contrast !== 100 || ed.crop;
     if (!changed) { closeImageEditor(); return; }
     const btn = document.getElementById('img-editor-save');
     if (btn) btn.disabled = true;
@@ -10608,7 +10624,7 @@ function renderCustomerFolderPreview() {
                 <small>${type.label}</small>
             </div>
             <div class="fv-bar-actions">
-                ${canEdit && !isPdfUrl(url) ? `<button type="button" class="btn btn-sm btn-outline" onclick="openImageEditor('customer', '${sel.key}', ${sel.idx})" title="ตัดกรอบ หมุน ปรับความสว่างของรูปนี้">${icon('edit')} แก้ไขรูป</button>` : ''}
+                ${canEdit && !isPdfUrl(url) ? `<button type="button" class="btn btn-sm btn-outline" onclick="openImageEditor('customer', '${sel.key}', ${sel.idx})" title="ตัดกรอบ หมุน ปรับองศา ปรับความสว่างของรูปนี้">${icon('edit')} แก้ไขรูป</button>` : ''}
                 <a class="btn btn-sm btn-outline" href="${escapeHtml(url)}" target="_blank" rel="noopener">${icon('link')} เปิดแท็บใหม่</a> <button type="button" class="btn btn-sm btn-outline" onclick="printFolderPreview('customer-folder-preview')" title="พิมพ์ไฟล์นี้">${icon('print')} พิมพ์</button>
                 <button type="button" class="btn btn-sm btn-outline" onclick="customerFolderAction('download')">${icon('inbox')} ดาวน์โหลด</button>
                 <button type="button" class="btn btn-sm btn-outline" onclick="customerFolderAction('share')">${icon('link')} แชร์</button>
@@ -12034,7 +12050,7 @@ function renderWorkerFolderPreview() {
                 <small>${type.label}${fItem.expiryDate ? ` • หมดอายุ ${formatThaiDate(fItem.expiryDate)}` : ''}${fItem.note ? ` • ${escapeHtml(fItem.note)}` : ''}</small>
             </div>
             <div class="fv-bar-actions">
-                ${canEdit && !isPdfUrl(url) ? `<button type="button" class="btn btn-sm btn-outline" onclick="openImageEditor('worker', '${activeFolderSel.key}', ${activeFolderSel.idx})" title="ตัดกรอบ หมุน ปรับความสว่างของรูปนี้">${icon('edit')} แก้ไขรูป</button>` : ''}
+                ${canEdit && !isPdfUrl(url) ? `<button type="button" class="btn btn-sm btn-outline" onclick="openImageEditor('worker', '${activeFolderSel.key}', ${activeFolderSel.idx})" title="ตัดกรอบ หมุน ปรับองศา ปรับความสว่างของรูปนี้">${icon('edit')} แก้ไขรูป</button>` : ''}
                 ${canEdit && !isPdfUrl(url) && w.photo !== url ? `<button type="button" class="btn btn-sm btn-outline" onclick="workerFolderAction('setPhoto')" title="ใช้รูปนี้เป็นรูปประจำตัวคนงาน (แสดงด้านบนแฟ้มและในตาราง)">${icon('photo')} ตั้งเป็นรูปคนงาน</button>` : ''}
                 <a class="btn btn-sm btn-outline" href="${escapeHtml(url)}" target="_blank" rel="noopener">${icon('link')} เปิดแท็บใหม่</a> <button type="button" class="btn btn-sm btn-outline" onclick="printFolderPreview('worker-folder-preview')" title="พิมพ์ไฟล์นี้">${icon('print')} พิมพ์</button>
                 <button type="button" class="btn btn-sm btn-outline" onclick="workerFolderAction('download')">${icon('inbox')} ดาวน์โหลด</button>
