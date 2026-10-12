@@ -10794,6 +10794,7 @@ function renderCustomerFolderPreview() {
                 <a class="btn btn-sm btn-outline" href="${escapeHtml(url)}" target="_blank" rel="noopener">${icon('link')} เปิดแท็บใหม่</a> <button type="button" class="btn btn-sm btn-outline" onclick="printFolderPreview('customer-folder-preview')" title="พิมพ์ไฟล์นี้">${icon('print')} พิมพ์</button>
                 <button type="button" class="btn btn-sm btn-outline" onclick="customerFolderAction('download')">${icon('inbox')} ดาวน์โหลด</button>
                 <button type="button" class="btn btn-sm btn-outline" onclick="customerFolderAction('share')">${icon('link')} แชร์</button>
+                ${driveFileButtonHtml(url)}
                 <button type="button" class="btn btn-sm btn-outline btn-danger-outline drive-tile-action-btn danger" onclick="deleteCustomerFolderFileIndex('${sel.key}', ${sel.idx})" title="ลบไฟล์">${icon('trash')}</button>
             </div>
         </div>
@@ -10826,6 +10827,7 @@ function openCustomerFolderModal(customerId) {
     if (searchInput && !reopening) searchInput.value = '';
 
     renderCustomerFolderTiles();
+    updateFolderDriveButton('btn-customer-drive', `customer:${c.id}`, () => { if (activeFolderCustomerId === c.id) renderCustomerFolderPreview(); });
     document.getElementById("customer-folder-modal").classList.remove("hidden");
 }
 
@@ -12198,6 +12200,7 @@ function renderWorkerFolderPreview() {
                 <div class="fv-bar-actions">
                     <a class="btn btn-sm btn-outline" href="${escapeHtml(jurl)}" target="_blank" rel="noopener">${icon('link')} เปิดแท็บใหม่</a> <button type="button" class="btn btn-sm btn-outline" onclick="printFolderPreview('worker-folder-preview')" title="พิมพ์ไฟล์นี้">${icon('print')} พิมพ์</button>
                     <button type="button" class="btn btn-sm btn-outline" onclick="workerFolderAction('download')">${icon('inbox')} ดาวน์โหลด</button>
+                    ${driveFileButtonHtml(jurl)}
                 </div>
             </div>
             <div class="fv-doc">${jviewer}</div>`;
@@ -12225,6 +12228,7 @@ function renderWorkerFolderPreview() {
                 <a class="btn btn-sm btn-outline" href="${escapeHtml(url)}" target="_blank" rel="noopener">${icon('link')} เปิดแท็บใหม่</a> <button type="button" class="btn btn-sm btn-outline" onclick="printFolderPreview('worker-folder-preview')" title="พิมพ์ไฟล์นี้">${icon('print')} พิมพ์</button>
                 <button type="button" class="btn btn-sm btn-outline" onclick="workerFolderAction('download')">${icon('inbox')} ดาวน์โหลด</button>
                 <button type="button" class="btn btn-sm btn-outline" onclick="workerFolderAction('share')">${icon('link')} แชร์</button>
+                ${driveFileButtonHtml(url)}
                 ${canEdit ? `<button type="button" class="btn btn-sm btn-outline btn-danger-outline drive-tile-action-btn danger" onclick="deleteFolderFileIndex('${activeFolderSel.key}', ${activeFolderSel.idx})" title="ลบไฟล์">${icon('trash')}</button>` : ''}
             </div>
         </div>
@@ -12342,6 +12346,66 @@ async function moveWorkerFileExpiryState(e, markExpired) {
     }
 }
 
+// ==================== ปุ่ม "เปิดใน Google Drive" (เฉพาะ Admin — Drive สำรองเป็นของเจ้าของระบบ) ====================
+// จับคู่ไฟล์ในระบบกับไฟล์สำรองด้วย path ใน Storage (คีย์เดียวกับ supabase/functions/drive-backup: drive_backup_files.source_key)
+// โหลดครั้งแรกตอนเปิดแฟ้ม แล้วรีเฟรชอย่างมากทุก 5 นาที; ยังไม่สำรอง/ยังไม่ตั้งค่า Drive = ไม่มีปุ่ม
+let driveBackupIndex = null; // { files: Map(path → drive_id), folders: Map(key → drive_id), at }
+let _driveIndexLoading = null;
+
+function loadDriveBackupIndex() {
+    if (!can('admin') || !window.supabaseAdapter) return Promise.resolve(null);
+    if (driveBackupIndex && Date.now() - driveBackupIndex.at < 5 * 60 * 1000) return Promise.resolve(driveBackupIndex);
+    if (!_driveIndexLoading) {
+        _driveIndexLoading = callCloudAPI("getDriveBackupIndex", {}).then(res => {
+            if (res && res.status === "success") {
+                driveBackupIndex = {
+                    files: new Map(res.files.map(r => [r.source_key, r.drive_id])),
+                    folders: new Map(res.folders.map(r => [r.key, r.drive_id])),
+                    at: Date.now()
+                };
+            }
+            return driveBackupIndex;
+        }).catch(() => driveBackupIndex).finally(() => { _driveIndexLoading = null; });
+    }
+    return _driveIndexLoading;
+}
+
+function driveStoragePath(url) {
+    const s = String(url || '');
+    const i = s.indexOf('/worker-documents/');
+    if (i === -1) return null;
+    try { return decodeURIComponent(s.slice(i + '/worker-documents/'.length).split('?')[0]); } catch (e) { return null; }
+}
+
+function driveFileLink(url) {
+    const id = driveBackupIndex && driveBackupIndex.files.get(driveStoragePath(url));
+    return id ? `https://drive.google.com/file/d/${encodeURIComponent(id)}/view` : '';
+}
+
+function driveFolderLink(key) {
+    const id = driveBackupIndex && driveBackupIndex.folders.get(key);
+    return id ? `https://drive.google.com/drive/folders/${encodeURIComponent(id)}` : '';
+}
+
+function driveFileButtonHtml(url) {
+    const link = can('admin') ? driveFileLink(url) : '';
+    return link ? `<a class="btn btn-sm btn-outline" href="${escapeHtml(link)}" target="_blank" rel="noopener" title="เปิดไฟล์นี้ใน Google Drive (ไฟล์สำรอง)">${icon('cloud')} Drive</a>` : '';
+}
+
+// ปุ่มท้ายแฟ้ม: แสดงเมื่อมีโฟลเดอร์นั้นใน Drive แล้ว — โหลดดัชนีเสร็จทีหลังก็วาดพรีวิวใหม่ให้มีปุ่ม Drive ของไฟล์
+function updateFolderDriveButton(btnId, folderKey, rerender) {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+    const apply = () => {
+        const link = driveFolderLink(folderKey);
+        btn.classList.toggle('hidden', !link);
+        if (link) btn.href = link; else btn.removeAttribute('href');
+    };
+    apply();
+    const had = driveBackupIndex;
+    loadDriveBackupIndex().then(idx => { if (idx && idx !== had) { apply(); if (rerender) rerender(); } });
+}
+
 function openWorkerFolderModal(workerId) {
     // เรียกซ้ำหลังแนบ/เปลี่ยนชื่อ/ลบไฟล์ (แฟ้มเดิมยังเปิดอยู่) → คงไฟล์ที่เลือกและคำค้นหาไว้
     const reopening = workerId === activeFolderWorkerId && !document.getElementById("worker-folder-modal").classList.contains("hidden");
@@ -12363,6 +12427,7 @@ function openWorkerFolderModal(workerId) {
 
     renderWorkerFolderTiles();
     document.getElementById("btn-copy-worker-folder").setAttribute("onclick", `copyWorkerFolderLink('${w.id}')`);
+    updateFolderDriveButton('btn-worker-drive', `worker:${w.id}`, () => { if (activeFolderWorkerId === w.id) renderWorkerFolderPreview(); });
     document.getElementById("worker-folder-modal").classList.remove("hidden");
 }
 

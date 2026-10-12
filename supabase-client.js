@@ -685,6 +685,15 @@
                 if (error) return { status: "error", message: error.message };
                 return { status: "success" };
             }
+            case "getDriveBackupIndex": {
+                // ไฟล์/โฟลเดอร์ที่สำรองขึ้น Google Drive แล้ว (อ่านได้เฉพาะ admin ตาม RLS) — ใช้ทำปุ่ม "เปิดใน Google Drive"
+                const [files, folders] = await Promise.all([
+                    sb.from("drive_backup_files").select("source_key, drive_id").eq("deleted", false),
+                    sb.from("drive_backup_folders").select("key, drive_id")
+                ]);
+                if (files.error || folders.error) return { status: "error", message: (files.error || folders.error).message };
+                return { status: "success", files: files.data || [], folders: folders.data || [] };
+            }
             case "setMyTheme": {
                 // แก้ได้เฉพาะธีมของแถวตัวเอง (profiles อื่น ๆ แก้ได้แค่ admin) — ดู 20261002035144_profile_theme.sql
                 const { error } = await sb.rpc("set_my_theme", { p_theme: payload.theme });

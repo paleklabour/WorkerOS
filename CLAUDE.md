@@ -229,6 +229,9 @@ tables one-way into the owner's personal Gmail Drive (`WorkerOS Backup/นาย
 job-close files keep the same file name as in the app (`WP.pdf`, `PinkCard_2.jpg`,
 " (หมดอายุ)" added when expired), so renaming in the app renames in Drive (owner, 2026-10-12); `การเงิน/` slips by month; `ข้อมูลระบบ/` 30 days; files
 removed from WorkerOS move to `ถูกลบ/`). Supabase stays the source of truth.
+Admin sees "เปิดใน Google Drive" buttons in the worker/customer folder (folder button in the
+footer, per-file "Drive" button in the preview bar) once that item has been backed up — matched by
+Storage path via `getDriveBackupIndex` / `driveFileLink` (2026-10-12).
 Incremental, tracked in `drive_backup_files` / `drive_backup_folders`, runs hourly
 via pg_cron (`20261008090100_drive_backup_cron.sql`, apply only after the function
 and its secrets exist). Customer folders are shared read-only to `customers.email`
