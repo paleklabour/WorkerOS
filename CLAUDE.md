@@ -213,11 +213,13 @@ button. Icon-only buttons (✕, edit, delete, download …) must have a `title`.
 Wording pattern: verb + what it acts on, short — "ลบคนงาน", "แก้ไขใบงาน",
 "ดาวน์โหลดไฟล์", "ปิดหน้าต่าง" — not a bare "ลบ" / "แก้ไข".
 
-Dashboard overview and finance overview cards are widgets the user can
-reorder/resize ("แก้ไขหน้า"), saved per account in `profiles.ui_layout` via
-`set_my_ui_layout()`. A new card/panel on those two pages must be registered in
-`WIDGET_BOARDS` in `app.js` (id, kind `pill`/`block`, default size) or it won't
-be part of the board.
+Dashboard overview, finance overview, completed-jobs and jobs-summary cards sit
+in a 12-column widget grid with a fixed order/size from `WIDGET_BOARDS` in
+`app.js`. The "แก้ไขหน้า" (reorder/resize per account) feature was removed at
+the owner's request (2026-10-12); `profiles.ui_layout` / `set_my_ui_layout()`
+still exist in the DB but the app no longer reads or writes them. A new
+card/panel on those pages must be registered in `WIDGET_BOARDS` (id, kind
+`pill`/`block`, size) or it won't be part of the grid.
 
 ## Google Drive backup (2026-10-08)
 

@@ -6343,36 +6343,8 @@ input[type="checkbox"], input[type="radio"], input[type="range"] {
     .stat-pill { border-radius: 20px; }
 }
 
-/* ==================== วิดเจ็ตแบบ iPad (จัดลำดับ/ปรับขนาด) ==================== */
+/* ==================== วิดเจ็ตแบบ iPad (กริด 12 ช่อง) ==================== */
 /* setupWidgetBoards() ใน app.js ห่อการ์ดเดิมเป็น .widget ในกริด 12 ช่อง — ขนาด = จำนวนช่อง (--span) */
-.widget-board-bar {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-    margin: -6px 0 10px;
-}
-
-.widget-bar-btn {
-    padding: 6px 14px;
-    border: none;
-    border-radius: 999px;
-    background: transparent;
-    color: var(--gold-primary);
-    font-family: inherit;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-}
-.widget-bar-btn:hover { background-color: var(--gold-light); }
-.widget-reset-btn, .widget-done-btn { display: none; }
-.widget-board-bar.is-editing .widget-edit-btn { display: none; }
-.widget-board-bar.is-editing .widget-reset-btn { display: inline-block; color: var(--text-muted); }
-.widget-board-bar.is-editing .widget-done-btn {
-    display: inline-block;
-    background-color: var(--gold-primary);
-    color: var(--on-primary, #ffffff);
-}
-
 .widget-board {
     display: grid;
     grid-template-columns: repeat(12, minmax(0, 1fr));
@@ -6397,71 +6369,6 @@ input[type="checkbox"], input[type="radio"], input[type="range"] {
 /* panel-alerts/panel-charts เคยมี flex: 1.8/1.2 จากแถวเดิม — ในวิดเจ็ตไม่ใช้แล้ว */
 .widget > .dashboard-panel { flex-basis: auto; }
 
-.widget-shield,
-.widget-edit-ui { display: none; }
-
-/* โหมดแก้ไข: การ์ดสั่นแบบไอคอน iOS (ใช้ property rotate แยกจาก transform ที่ใช้ตอนลาก/เลื่อน) */
-.widget-board.is-editing .widget {
-    animation: widget-jiggle 0.28s ease-in-out infinite alternate;
-}
-.widget-board.is-editing .widget[data-kind="block"] { animation-name: widget-jiggle-soft; }
-.widget-board.is-editing .widget:nth-child(2n) { animation-delay: -0.14s; }
-.widget-board.is-editing .widget.is-dragging { animation: none; z-index: 30; }
-
-@keyframes widget-jiggle {
-    from { rotate: -0.6deg; }
-    to   { rotate: 0.6deg; }
-}
-@keyframes widget-jiggle-soft {
-    from { rotate: -0.12deg; }
-    to   { rotate: 0.12deg; }
-}
-
-.widget-board.is-editing .widget-shield {
-    display: block;
-    position: absolute;
-    inset: 0;
-    z-index: 5;
-    border-radius: 22px;
-    cursor: grab;
-    touch-action: none;
-    outline: 2px dashed var(--gold-border);
-    outline-offset: 3px;
-    background-color: rgba(255, 255, 255, 0.04);
-}
-.widget.is-dragging .widget-shield {
-    cursor: grabbing;
-    box-shadow: var(--shadow-lg);
-}
-
-.widget-board.is-editing .widget-edit-ui {
-    display: flex;
-    position: absolute;
-    top: -12px;
-    right: 12px;
-    z-index: 6;
-    gap: 2px;
-    padding: 3px;
-    border-radius: 10px;
-    background-color: var(--gray-card);
-    box-shadow: var(--shadow-md), 0 0 0 1px var(--dk-line, #e2e8f0);
-}
-.widget-edit-ui button {
-    padding: 3px 9px;
-    border: none;
-    border-radius: 7px;
-    background: transparent;
-    color: var(--text-muted);
-    font-family: inherit;
-    font-size: 12.5px;
-    cursor: pointer;
-}
-.widget-edit-ui button.is-active {
-    background-color: var(--gold-primary);
-    color: var(--on-primary, #ffffff);
-    font-weight: 600;
-}
-
 /* จอแคบ (iPad แนวตั้ง/มือถือ): การ์ดเต็มแถว แคปซูลครึ่งแถว — ขนาดที่เลือกไว้ใช้กับจอกว้าง */
 @media (max-width: 900px) {
     .widget { grid-column: span 12; }
@@ -6469,10 +6376,6 @@ input[type="checkbox"], input[type="radio"], input[type="range"] {
 }
 @media (max-width: 480px) {
     .widget[data-kind="pill"] { grid-column: span 12; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .widget-board.is-editing .widget { animation: none; }
 }
 
 /* ==================== ปรับแต่งเพิ่ม (2026-10-02) ==================== */
@@ -6523,7 +6426,6 @@ input[type="checkbox"], input[type="radio"], input[type="range"] {
 
 /* หน้าสรุปงาน (ระบบแจ้งงาน) แบบเดียวกับแดชบอร์ด/บัญชี: บัตรหลัก Wallet + การ์ดสถานะ + แคปซูล + การ์ดย่อย (วิดเจ็ต) */
 .jobs-summary .js-hint { margin: 0 0 4px; font-size: 13px; }
-.jobs-summary .widget-board-bar { margin-top: -26px; }
 .widget > .js-card,
 .widget > .fin-list-card { flex-grow: 1; }
 .widget > .js-card { border-radius: 22px; box-shadow: var(--shadow-md); padding: 16px 18px; }

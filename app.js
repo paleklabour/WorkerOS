@@ -379,11 +379,6 @@ async function loadData() {
             // เปลี่ยนธีมจากอีกเครื่องไว้ → ใช้ธีมล่าสุดของบัญชี (ตอนเปิดระบบ/กดรีเฟรช)
             const me = currentUser ? users.find(u => u.id === currentUser.id) : null;
             if (me) syncThemeFromAccount(me.theme);
-            // การจัดหน้าวิดเจ็ตล่าสุดของบัญชี (อาจจัดจากอีกเครื่อง) — ข้ามถ้ามีการแก้ในเครื่องนี้ที่ยังรอบันทึก
-            if (me && !_widgetSaveTimer && JSON.stringify(me.uiLayout || null) !== JSON.stringify(currentUser.uiLayout || null)) {
-                currentUser.uiLayout = me.uiLayout || null;
-                applyAllWidgetLayouts();
-            }
 
             // Cache locally
             localStorage.setItem("mw_customers", JSON.stringify(customers));
@@ -6174,10 +6169,8 @@ function renderJobsSummary(baseJobs, monthKey) {
         <div class="fin-row"><span>แจ้งงานเข้าวันนี้</span><strong>${todayOpened}</strong></div>
     </div>`;
 
-    const wasEditing = !!box.querySelector('.widget-board.is-editing');
     box.innerHTML = `
         <p class="js-hint text-muted">เลือกเดือน/ประเภทงาน/ผู้รับผิดชอบได้จากตัวกรองด้านบน • "ค้างอยู่" นับงานที่ยังไม่ปิด ณ วันนี้</p>
-        ${widgetBarHtml('jobs')}
         <div class="widget-board" data-board="jobs">
             ${widget('hero', 'block', hero)}
             ${widget('status', 'block', statusCard)}
@@ -6191,7 +6184,7 @@ function renderJobsSummary(baseJobs, monthKey) {
             ${widget('list-stale', 'block', jobListCard(`งานค้างนานเกิน ${JOB_STALE_DAYS} วัน`, stale, j => `${j.status} • ${jobDaysOpen(j)} วัน${j.assignedTo ? ` • ${escapeHtml(getUserNameById(j.assignedTo))}` : ' • ยังไม่มอบหมาย'}`, 'ไม่มีงานค้างนาน'))}
             ${widget('list-unassigned', 'block', jobListCard('ยังไม่มอบหมายผู้รับผิดชอบ', unassigned, j => `${j.status} • แจ้งเมื่อ ${formatThaiDate(String(j.createdAt || '').slice(0, 10))}`, 'มอบหมายครบทุกงานแล้ว'))}
         </div>`;
-    mountWidgetBoard('jobs', wasEditing);
+    mountWidgetBoard('jobs');
 }
 
 // งาน "จบครบแล้ว" = ปิดงาน + ปิดบิล (ชำระครบ หรือไม่เรียกเก็บเงิน) และจบไปตั้งแต่เดือนก่อน ๆ
@@ -16679,13 +16672,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ==================== วิดเจ็ตแบบ iPad: จัดลำดับ/ปรับขนาดการ์ดในแดชบอร์ดและสรุปการเงิน ====================
 // ห่อการ์ด/แผงที่มีอยู่แล้วเป็น .widget ใน .widget-board (ย้าย DOM เดิม id เดิม — โค้ด render เดิมไม่ต้องแก้)
-// กด "แก้ไขหน้า" → การ์ดสั่นแบบ iOS ลากสลับที่ได้ เลือกขนาด เล็ก/กลาง/ใหญ่/เต็ม (ช่องในกริด 12 ช่อง)
-// การจัดหน้าเก็บต่อบัญชีใน profiles.ui_layout (set_my_ui_layout) — ดู 20261002082104_profile_ui_layout.sql
+// ขนาด เล็ก/กลาง/ใหญ่/เต็ม = จำนวนช่องในกริด 12 ช่อง — ลำดับ/ขนาดตายตัวตาม WIDGET_BOARDS
+// (ปุ่ม "แก้ไขหน้า" ลากสลับ/ปรับขนาด เอาออกแล้วตามที่เจ้าของสั่ง 2026-10-12)
 const WIDGET_SPANS = {
     pill:  { s: 2, m: 3, l: 4, xl: 6 },
     block: { s: 4, m: 6, l: 8, xl: 12 }
 };
-const WIDGET_SIZE_LABELS = { s: 'เล็ก', m: 'กลาง', l: 'ใหญ่', xl: 'เต็ม' };
 
 const pillOf = id => { const el = document.getElementById(id); return el ? el.closest('.stat-pill') : null; };
 const panelOf = id => { const el = document.getElementById(id); return el ? el.closest('.dashboard-panel') : null; };
@@ -16766,70 +16758,19 @@ function widgetSpan(kind, size) {
 function setWidgetSize(widget, size) {
     widget.dataset.size = size;
     widget.style.setProperty('--span', widgetSpan(widget.dataset.kind, size));
-    widget.querySelectorAll(':scope > .widget-edit-ui button').forEach(b => b.classList.toggle('is-active', b.dataset.size === size));
 }
 
-// FLIP: จำตำแหน่งก่อนเปลี่ยน → เปลี่ยน → เลื่อนจากที่เดิมไปที่ใหม่แบบนุ่ม ๆ (magic move)
-function flipWidgets(board, change, skip) {
-    const items = Array.from(board.querySelectorAll(':scope > .widget')).filter(w => w !== skip);
-    const before = new Map(items.map(w => [w, w.getBoundingClientRect()]));
-    change();
-    if (iosReducedMotion()) return;
-    items.forEach(w => {
-        const a = before.get(w), b = w.getBoundingClientRect();
-        const dx = a.left - b.left, dy = a.top - b.top;
-        if (!dx && !dy) return;
-        w.style.transition = 'none';
-        w.style.transform = `translate(${dx}px, ${dy}px)`;
-        w.getBoundingClientRect();
-        w.style.transition = `transform 0.38s ${IOS_EASE}`;
-        w.style.transform = '';
-    });
-}
-
-function widgetLayoutState() {
-    if (!currentUser) return {};
-    if (!currentUser.uiLayout || typeof currentUser.uiLayout !== 'object') currentUser.uiLayout = {};
-    return currentUser.uiLayout;
-}
-
-let _widgetSaveTimer = null;
-function saveWidgetLayout(boardName) {
-    const board = document.querySelector(`.widget-board[data-board="${boardName}"]`);
-    if (!board || !currentUser) return;
-    const widgets = Array.from(board.querySelectorAll(':scope > .widget'));
-    const state = widgetLayoutState();
-    state[boardName] = {
-        order: widgets.map(w => w.dataset.widgetId),
-        sizes: Object.fromEntries(widgets.map(w => [w.dataset.widgetId, w.dataset.size]))
-    };
-    persistWidgetLayout();
-}
-
-function persistWidgetLayout() {
-    try { localStorage.setItem("mw_current_user", JSON.stringify(currentUser)); } catch (e) { /* ไม่เป็นไร */ }
-    clearTimeout(_widgetSaveTimer);
-    _widgetSaveTimer = setTimeout(() => {
-        _widgetSaveTimer = null;
-        if (currentUser && currentUser.id && window.supabaseAdapter) callCloudAPI("setMyUiLayout", { layout: currentUser.uiLayout || {} });
-    }, 600);
-}
-
+// จัดลำดับ/ขนาดตามค่าเริ่มต้นใน WIDGET_BOARDS (ฟังก์ชัน "แก้ไขหน้า" เอาออกแล้ว 2026-10-12 — ไม่ใช้ profiles.ui_layout)
 function applyWidgetLayout(boardName) {
     const cfg = WIDGET_BOARDS[boardName];
     const board = document.querySelector(`.widget-board[data-board="${boardName}"]`);
     if (!cfg || !board) return;
-    const saved = (currentUser && currentUser.uiLayout && currentUser.uiLayout[boardName]) || {};
     const byId = new Map(Array.from(board.querySelectorAll(':scope > .widget')).map(w => [w.dataset.widgetId, w]));
-    const defaultOrder = cfg.widgets.map(w => w.id);
-    // ลำดับที่บันทึกไว้ก่อน แล้วต่อด้วยวิดเจ็ตใหม่ที่ยังไม่เคยอยู่ในลำดับที่บันทึก (เผื่อเพิ่มการ์ดทีหลัง)
-    const order = [...(saved.order || []).filter(id => byId.has(id)), ...defaultOrder.filter(id => !(saved.order || []).includes(id))];
-    order.filter(id => byId.has(id)).forEach(id => board.appendChild(byId.get(id))); // ใบที่ไม่มีข้อมูลรอบนี้ (ไม่ได้สร้าง) ข้ามไป
     cfg.widgets.forEach(def => {
         const w = byId.get(def.id);
-        if (!w) return;
-        const size = saved.sizes && WIDGET_SPANS[def.kind][saved.sizes[def.id]] ? saved.sizes[def.id] : def.size;
-        setWidgetSize(w, size);
+        if (!w) return; // ใบที่ไม่มีข้อมูลรอบนี้ (ไม่ได้สร้าง) ข้ามไป
+        board.appendChild(w);
+        setWidgetSize(w, def.size);
     });
 }
 
@@ -16837,106 +16778,9 @@ function applyAllWidgetLayouts() {
     Object.keys(WIDGET_BOARDS).forEach(applyWidgetLayout);
 }
 
-function resetWidgetLayout(boardName) {
-    const board = document.querySelector(`.widget-board[data-board="${boardName}"]`);
-    const state = widgetLayoutState();
-    delete state[boardName];
-    flipWidgets(board, () => applyWidgetLayout(boardName));
-    persistWidgetLayout();
-}
-
-function setWidgetEditing(boardName, on) {
-    const board = document.querySelector(`.widget-board[data-board="${boardName}"]`);
-    const bar = document.querySelector(`.widget-board-bar[data-board="${boardName}"]`);
-    if (!board || !bar) return;
-    board.classList.toggle('is-editing', on);
-    bar.classList.toggle('is-editing', on);
-}
-
-// ลากสลับที่ด้วย pointer events (ใช้ได้ทั้งเมาส์และนิ้วบน iPad)
-function startWidgetDrag(e, widget) {
-    if (e.button !== undefined && e.button !== 0) return;
-    const board = widget.parentElement;
-    const shield = e.currentTarget;
-    e.preventDefault();
-    try { shield.setPointerCapture(e.pointerId); } catch (err) { /* ไม่เป็นไร */ }
-    const start = widget.getBoundingClientRect();
-    const offX = e.clientX - start.left, offY = e.clientY - start.top;
-    widget.classList.add('is-dragging');
-    widget.style.transition = 'none';
-
-    const follow = (x, y) => {
-        widget.style.transform = 'none';
-        const r = widget.getBoundingClientRect();
-        widget.style.transform = `translate(${x - offX - r.left}px, ${y - offY - r.top}px) scale(1.02)`;
-    };
-
-    const move = ev => {
-        // ลากชิดขอบจอ → เลื่อนหน้าให้
-        if (ev.clientY < 70) window.scrollBy(0, -14);
-        else if (ev.clientY > window.innerHeight - 70) window.scrollBy(0, 14);
-        const hit = document.elementsFromPoint(ev.clientX, ev.clientY).find(el => el.classList && el.classList.contains('widget') && el !== widget && el.parentElement === board);
-        if (hit) {
-            const items = Array.from(board.children);
-            const from = items.indexOf(widget), to = items.indexOf(hit);
-            flipWidgets(board, () => board.insertBefore(widget, from < to ? hit.nextSibling : hit), widget);
-        }
-        follow(ev.clientX, ev.clientY);
-    };
-
-    const end = () => {
-        shield.removeEventListener('pointermove', move);
-        shield.removeEventListener('pointerup', end);
-        shield.removeEventListener('pointercancel', end);
-        widget.classList.remove('is-dragging');
-        widget.style.transition = `transform 0.35s ${IOS_EASE}`;
-        widget.style.transform = '';
-        saveWidgetLayout(board.dataset.board);
-    };
-
-    shield.addEventListener('pointermove', move);
-    shield.addEventListener('pointerup', end);
-    shield.addEventListener('pointercancel', end);
-}
-
-// แถบปุ่ม แก้ไขหน้า / คืนค่าเริ่มต้น / เสร็จ ของกระดานหนึ่ง
-function widgetBarHtml(boardName) {
-    return `<div class="widget-board-bar" data-board="${boardName}">
-        <button type="button" class="widget-bar-btn widget-edit-btn" onclick="setWidgetEditing('${boardName}', true)">แก้ไขหน้า</button>
-        <button type="button" class="widget-bar-btn widget-reset-btn" onclick="resetWidgetLayout('${boardName}')">คืนค่าเริ่มต้น</button>
-        <button type="button" class="widget-bar-btn widget-done-btn" onclick="setWidgetEditing('${boardName}', false)">เสร็จ</button>
-    </div>`;
-}
-
-// ใส่ที่จับลาก (shield) + ปุ่มเลือกขนาดให้ .widget หนึ่งใบ
-function enhanceWidget(w, board) {
-    if (w._widgetReady) return;
-    w._widgetReady = true;
-    const kind = w.dataset.kind;
-
-    const shield = document.createElement('div');
-    shield.className = 'widget-shield';
-    shield.setAttribute('aria-hidden', 'true');
-    shield.addEventListener('pointerdown', e => startWidgetDrag(e, w));
-    w.appendChild(shield);
-
-    const ui = document.createElement('div');
-    ui.className = 'widget-edit-ui';
-    ui.innerHTML = Object.keys(WIDGET_SPANS[kind]).map(s => `<button type="button" data-size="${s}">${WIDGET_SIZE_LABELS[s]}</button>`).join('');
-    ui.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
-        flipWidgets(board, () => setWidgetSize(w, b.dataset.size));
-        saveWidgetLayout(board.dataset.board);
-    }));
-    w.appendChild(ui);
-}
-
-// กระดานที่ HTML ถูกสร้างใหม่ทุกครั้งที่ render (เช่น หน้าสรุปงาน): เรียกหลัง innerHTML เพื่อผูกที่จับ + จัดตามที่บันทึก
-function mountWidgetBoard(boardName, wasEditing) {
-    const board = document.querySelector(`.widget-board[data-board="${boardName}"]`);
-    if (!board) return;
-    board.querySelectorAll(':scope > .widget').forEach(w => enhanceWidget(w, board));
+// กระดานที่ HTML ถูกสร้างใหม่ทุกครั้งที่ render (เช่น หน้าสรุปงาน): เรียกหลัง innerHTML เพื่อจัดขนาด/ลำดับ
+function mountWidgetBoard(boardName) {
     applyWidgetLayout(boardName);
-    if (wasEditing) setWidgetEditing(boardName, true);
 }
 
 function buildWidgetBoard(boardName) {
@@ -16944,7 +16788,6 @@ function buildWidgetBoard(boardName) {
     const anchor = cfg.anchor && cfg.anchor();
     if (!anchor || document.querySelector(`.widget-board[data-board="${boardName}"]`)) return;
 
-    anchor.insertAdjacentHTML('beforebegin', widgetBarHtml(boardName));
     const board = document.createElement('div');
     board.className = 'widget-board';
     board.dataset.board = boardName;
@@ -16964,7 +16807,6 @@ function buildWidgetBoard(boardName) {
             w.appendChild(el);
         });
         board.appendChild(w);
-        enhanceWidget(w, board);
         setWidgetSize(w, def.size);
     });
 
