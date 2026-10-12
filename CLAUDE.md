@@ -225,8 +225,9 @@ card/panel on those pages must be registered in `WIDGET_BOARDS` (id, kind
 
 `supabase/functions/drive-backup` copies Storage files + a daily JSON of all
 tables one-way into the owner's personal Gmail Drive (`WorkerOS Backup/นายจ้าง/
-<company (tax id)>/คนงาน/<uid_name>/` — files are not split by doc type, the type
-is in the file name; `การเงิน/` slips by month; `ข้อมูลระบบ/` 30 days; files
+<company (tax id)>/คนงาน/<uid_name>/` — files are not split by doc type; worker and
+job-close files keep the same file name as in the app (`WP.pdf`, `PinkCard_2.jpg`,
+" (หมดอายุ)" added when expired), so renaming in the app renames in Drive (owner, 2026-10-12); `การเงิน/` slips by month; `ข้อมูลระบบ/` 30 days; files
 removed from WorkerOS move to `ถูกลบ/`). Supabase stays the source of truth.
 Incremental, tracked in `drive_backup_files` / `drive_backup_folders`, runs hourly
 via pg_cron (`20261008090100_drive_backup_cron.sql`, apply only after the function

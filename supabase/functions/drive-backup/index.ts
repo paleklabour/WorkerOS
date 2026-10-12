@@ -4,7 +4,7 @@
 //
 //   WorkerOS Backup/
 //   ├─ นายจ้าง/<ชื่อบริษัท (เลขนิติบุคคล)>/00 เอกสารนายจ้าง/<วันที่_ประเภท_เลขนิติบุคคล>.pdf
-//   │                                  └─ คนงาน/<เลข13หลัก_ชื่อ>/<วันที่_ประเภท_เลข13หลัก_ชื่อ>.pdf  (ไม่แยกโฟลเดอร์ประเภท)
+//   │                                  └─ คนงาน/<เลข13หลัก_ชื่อ>/<ชื่อไฟล์ตามในระบบ เช่น WP.pdf, PinkCard_2.jpg>  (ไม่แยกโฟลเดอร์ประเภท)
 //   ├─ การเงิน/สลิปรับเงิน/<ปี-เดือน>/  และ  การเงิน/สลิปรายจ่าย/<ปี-เดือน>/
 //   ├─ ข้อมูลระบบ/<วันที่>_ข้อมูลทั้งระบบ.json  (วันละไฟล์ เก็บ 30 วัน)
 //   └─ ถูกลบ/  (ไฟล์ที่ลบออกจากระบบแล้ว ย้ายมาไว้ที่นี่ ไม่ลบทิ้ง)
@@ -72,6 +72,14 @@ function dateFromPath(path: string, fallback = ""): string {
 }
 const extOf = (path: string) => (path.split("/").pop()!.match(/\.([A-Za-z0-9]{2,5})$/) || [])[1]?.toLowerCase() || "";
 const withExt = (name: string, path: string) => (extOf(path) ? `${name}.${extOf(path)}` : name);
+// ชื่อไฟล์ตามที่เห็นในแฟ้มของระบบ (เช่น PinkCard.pdf, WP_2.pdf — เจ้าของระบบขอ 2026-10-12) แก้ชื่อในระบบแล้วชื่อใน Drive ตามไป
+// suffix (เช่น " (หมดอายุ)") แทรกก่อนนามสกุล; ไม่มีชื่อ = "" ให้ผู้เรียกใช้ชื่อแบบเดิม
+const sysFileName = (name: unknown, path: string, suffix = "") => {
+  const n = clean(name);
+  if (!n) return "";
+  const m = n.match(/^(.*?)(\.[A-Za-z0-9]{2,5})?$/)!;
+  return `${m[1]}${suffix}${m[2] || (extOf(path) ? `.${extOf(path)}` : "")}`;
+};
 const jobNo = (j: any) =>
   `${String(j.created_at || "").slice(0, 10).replace(/-/g, "")}-${String(j.id || "").replace(/\D/g, "").slice(-6) || "000000"}`;
 const money = (n: unknown) => Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -173,11 +181,12 @@ async function runBackup(sb: SupabaseClient, trigger: string) {
 
   const wants: Want[] = [];
   const seen = new Set<string>();
-  const want = (url: unknown, parentKey: string, name: string) => {
+  // fullName = ชื่อไฟล์ครบพร้อมนามสกุลแล้ว (ชื่อในระบบ) — ไม่ส่งก็ประกอบจาก name + นามสกุลของไฟล์ใน Storage
+  const want = (url: unknown, parentKey: string, name: string, fullName = "") => {
     const path = storagePath(url);
     if (!path || seen.has(path)) return;
     seen.add(path);
-    wants.push({ key: path, path, parentKey, name: withExt(clean(name), path) });
+    wants.push({ key: path, path, parentKey, name: fullName || withExt(clean(name), path) });
   };
   const today = bkkDate();
 
@@ -215,7 +224,8 @@ async function runBackup(sb: SupabaseClient, trigger: string) {
         const p = storagePath(url);
         if (!p) return;
         const expired = f && (f.manualExpired === true || (f.manualExpired !== false && f.expiryDate && String(f.expiryDate).slice(0, 10) < today));
-        want(url, fk, `${dateFromPath(p, f?.uploadedAt)}_${WORKER_DOC_LABELS[type] || "เอกสาร"}_${workerTag(w)}${expired ? " (หมดอายุ)" : ""}`);
+        const suffix = expired ? " (หมดอายุ)" : "";
+        want(url, fk, `${dateFromPath(p, f?.uploadedAt)}_${WORKER_DOC_LABELS[type] || "เอกสาร"}_${workerTag(w)}${suffix}`, sysFileName(f?.name, p, suffix));
       });
     });
   });
@@ -231,7 +241,7 @@ async function runBackup(sb: SupabaseClient, trigger: string) {
     }
     (Array.isArray(j.attachments) ? j.attachments : []).forEach((f: any) => {
       const p = storagePath(f?.url);
-      if (p) want(f.url, fk, `${dateFromPath(p, f.uploadedAt)}_เอกสารปิดงาน_${jobNo(j)}_${workerTag(w)}`);
+      if (p) want(f.url, fk, `${dateFromPath(p, f.uploadedAt)}_เอกสารปิดงาน_${jobNo(j)}_${workerTag(w)}`, sysFileName(f.name, p));
     });
   });
 
