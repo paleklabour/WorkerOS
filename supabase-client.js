@@ -687,9 +687,19 @@
             }
             case "getDriveBackupIndex": {
                 // ไฟล์/โฟลเดอร์ที่สำรองขึ้น Google Drive แล้ว (อ่านได้เฉพาะ admin ตาม RLS) — ใช้ทำปุ่ม "เปิดใน Google Drive"
+                // ดึงทีละ 1000 แถวจนครบ (PostgREST คืนได้ครั้งละไม่เกิน 1000 แถว)
+                const all = async (q) => {
+                    const out = [];
+                    for (let from = 0; ; from += 1000) {
+                        const { data, error } = await q().range(from, from + 999);
+                        if (error) return { error };
+                        out.push(...(data || []));
+                        if (!data || data.length < 1000) return { data: out };
+                    }
+                };
                 const [files, folders] = await Promise.all([
-                    sb.from("drive_backup_files").select("source_key, drive_id").eq("deleted", false),
-                    sb.from("drive_backup_folders").select("key, drive_id")
+                    all(() => sb.from("drive_backup_files").select("source_key, drive_id").eq("deleted", false).order("source_key")),
+                    all(() => sb.from("drive_backup_folders").select("key, drive_id").order("key"))
                 ]);
                 if (files.error || folders.error) return { status: "error", message: (files.error || folders.error).message };
                 return { status: "success", files: files.data || [], folders: folders.data || [] };

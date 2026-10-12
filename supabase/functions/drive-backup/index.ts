@@ -137,9 +137,50 @@ const patchFile = (id: string, name: string | null, addParent?: string, removePa
     method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(name ? { name } : {}),
   });
 
+// ---------- เก็บกวาดไฟล์ซ้ำ (Admin สั่งเอง: body {"cleanup": true}) ----------
+// ไฟล์ใน Drive ที่แอปสร้าง แต่ไม่มีแถวใน drive_backup_files = สำเนาเกินที่อัปโหลดซ้ำ (บั๊กอ่านได้แค่ 1000 แถว, 2026-10-12)
+// ย้ายไปถังขยะของ Drive (กู้คืนได้ 30 วัน) — ข้ามไฟล์ที่เพิ่งสร้างไม่ถึง 15 นาที กันชนกับรอบสำรองที่กำลังวิ่ง
+async function cleanupUntracked(sb: SupabaseClient, dryRun = false) {
+  const started = Date.now();
+  accessToken = await googleToken();
+  const { data: rows, error } = await selectAll(sb, "drive_backup_files", "drive_id", "source_key");
+  if (error) throw new Error(`drive_backup_files: ${error.message}`);
+  const tracked = new Set((rows || []).map((r: any) => r.drive_id));
+  const cutoff = new Date(Date.now() - 15 * 60_000).toISOString();
+  const extra: string[] = [];
+  let total = 0, pageToken = "";
+  do {
+    const q = encodeURIComponent(`mimeType != '${FOLDER_MIME}' and trashed = false`);
+    const page = await drive(`/files?q=${q}&pageSize=1000&fields=nextPageToken,files(id,createdTime)${pageToken ? `&pageToken=${pageToken}` : ""}`);
+    for (const f of page.files || []) { total++; if (!tracked.has(f.id) && f.createdTime < cutoff) extra.push(f.id); }
+    pageToken = page.nextPageToken || "";
+  } while (pageToken);
+  let trashed = 0;
+  for (const id of extra) {
+    if (dryRun || Date.now() - started > TIME_BUDGET_MS) break;
+    await drive(`/files/${id}?fields=id`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ trashed: true }) });
+    trashed++;
+  }
+  return { driveFiles: total, tracked: tracked.size, untracked: extra.length, trashed, left: extra.length - trashed };
+}
+
 // ---------- งานหลัก ----------
 type Want = { key: string; path: string | null; parentKey: string; name: string; data?: string };
 type FolderSpec = { key: string; name: string; parentKey: string | null };
+
+// ดึงทุกแถว — PostgREST คืนได้ครั้งละไม่เกิน 1000 แถว ถ้าไม่แบ่งหน้า แถวที่เกินจะหายไป
+// (เคยทำให้ไฟล์ที่เกิน 1000 ถูกอัปโหลดซ้ำทุกรอบ, 2026-10-12)
+async function selectAll(sb: SupabaseClient, table: string, cols = "*", orderCol = "id") {
+  const PAGE = 1000;
+  const out: any[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await sb.from(table).select(cols).order(orderCol).range(from, from + PAGE - 1);
+    if (error && from === 0) return await sb.from(table).select(cols); // ตารางไม่มีคอลัมน์ id (เช่น service_prices — แถวน้อย)
+    if (error) return { data: out, error };
+    out.push(...(data || []));
+    if (!data || data.length < PAGE) return { data: out, error: null };
+  }
+}
 
 async function runBackup(sb: SupabaseClient, trigger: string) {
   const started = Date.now();
@@ -148,7 +189,7 @@ async function runBackup(sb: SupabaseClient, trigger: string) {
   accessToken = await googleToken();
 
   const load = async (table: string, cols = "*") => {
-    const { data, error } = await sb.from(table).select(cols);
+    const { data, error } = await selectAll(sb, table, cols);
     if (error) throw new Error(`${table}: ${error.message}`);
     return (data || []) as any[];
   };
@@ -269,7 +310,8 @@ async function runBackup(sb: SupabaseClient, trigger: string) {
   });
 
   // ---------- สร้าง/เปลี่ยนชื่อ/ย้ายโฟลเดอร์ ----------
-  const { data: folderRows } = await sb.from("drive_backup_folders").select("*");
+  const { data: folderRows, error: folderErr } = await selectAll(sb, "drive_backup_folders", "*", "key");
+  if (folderErr) throw new Error(`drive_backup_folders: ${folderErr.message}`);
   const folderDb = new Map<string, any>((folderRows || []).map((r: any) => [r.key, r]));
   const neededFolders = new Set<string>(); // สร้างเฉพาะโฟลเดอร์ที่มีไฟล์อยู่จริง (ไม่สร้างโฟลเดอร์ว่างของคนงานที่ยังไม่มีเอกสาร)
   const markNeeded = (key: string | null) => {
@@ -302,7 +344,8 @@ async function runBackup(sb: SupabaseClient, trigger: string) {
   for (const key of neededFolders) { if (outOfTime()) break; await folderId(key); }
 
   // ---------- ไฟล์ ----------
-  const { data: fileRows } = await sb.from("drive_backup_files").select("*");
+  const { data: fileRows, error: fileErr } = await selectAll(sb, "drive_backup_files", "*", "source_key");
+  if (fileErr) throw new Error(`drive_backup_files: ${fileErr.message}`);
   const fileDb = new Map<string, any>((fileRows || []).map((r: any) => [r.source_key, r]));
 
   for (const w of wants) {
@@ -354,7 +397,7 @@ async function runBackup(sb: SupabaseClient, trigger: string) {
     const tables = ["customers", "workers", "jobs", "invoices", "payments", "receipts", "expenses", "banks", "agents", "service_prices", "free_invoices", "line_groups"];
     const dump: Record<string, unknown> = { version: "drive-backup-1", exportDate: new Date().toISOString() };
     for (const t of tables) {
-      const { data, error } = await sb.from(t).select("*");
+      const { data, error } = await selectAll(sb, t);
       dump[t] = error ? { error: error.message } : data;
     }
     const name = `${today}_ข้อมูลทั้งระบบ.json`;
@@ -426,6 +469,12 @@ Deno.serve(async (req) => {
   if (!trigger) return json({ status: "error", message: "ไม่มีสิทธิ์" }, 401);
   if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !GOOGLE_REFRESH_TOKEN) {
     return json({ status: "error", message: "ยังไม่ได้ตั้งค่าการเชื่อมต่อ Google Drive (secrets)" }, 500);
+  }
+
+  const body = await req.json().catch(() => ({}));
+  if (trigger === "manual" && body?.cleanup) {
+    try { return json({ status: "success", ...(await cleanupUntracked(sb, !!body.dryRun)) }); }
+    catch (e) { return json({ status: "error", message: (e as Error).message || String(e) }, 500); }
   }
 
   const { data: run } = await sb.from("drive_backup_runs").insert({ trigger }).select("id").single();
