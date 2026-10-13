@@ -7361,3 +7361,77 @@ th.sortable-th:hover::after { opacity: 0.8; }
 .fin-pie-box { display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .fin-pie-box > div { width: 100%; }
 @media (max-width: 640px) { .fin-pies-row { grid-template-columns: 1fr; } }
+
+/* ไฟล์ขนาดใหญ่ผิดปกติ (หน้าสำรองข้อมูล — openLargeFilesTool ใน app.js) */
+.large-files-card .backup-actions { align-items: center; flex-wrap: wrap; }
+.large-files-list { margin-top: 10px; max-height: 420px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+.lf-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border: 1px solid var(--dk-line, #e5e7eb);
+    border-radius: 10px;
+    background: var(--dk-card, #ffffff);
+}
+.lf-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--gold-primary); }
+.lf-main { min-width: 0; display: flex; flex-direction: column; }
+.lf-main a { font-weight: 600; font-size: 13px; color: var(--text-dark); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lf-main a:hover { color: var(--gold-primary); }
+.lf-main small { font-size: 11.5px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lf-size { font-weight: 600; font-size: 13px; font-variant-numeric: tabular-nums; }
+.lf-state { font-size: 12px; display: inline-flex; align-items: center; gap: 6px; max-width: 220px; }
+.lf-state .ios-spin { width: 16px; height: 16px; }
+.lf-ok { color: var(--success, #16a34a); font-weight: 600; }
+@media (max-width: 760px) {
+    .lf-row { grid-template-columns: auto minmax(0, 1fr) auto; }
+    .lf-state { grid-column: 2 / 4; max-width: none; }
+    .lf-row .btn { grid-column: 3; grid-row: 1; }
+}
+
+/* Note วางบิลตอนออกบิล/รวมบิล (renderBillingNoteBox ใน app.js) — เห็นเฉพาะเจ้าหน้าที่ แก้ได้โดยการเงิน/ปฏิบัติการ */
+.billing-note-box {
+    background-color: var(--dk-warn-bg, #fffbeb);
+    border: 1px solid #fde68a;
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    font-size: 13.5px;
+    color: var(--dk-warn, #92400e);
+}
+.billing-note-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.billing-note-box p { margin: 6px 0 0; white-space: pre-line; line-height: 1.5; }
+.billing-note-input {
+    width: 100%;
+    margin-top: 8px;
+    padding: 8px 10px;
+    border: 1px solid #fcd34d;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 13.5px;
+    background: var(--dk-card, #ffffff);
+    color: var(--text-dark);
+    resize: vertical;
+}
+.billing-note-input:focus { outline: none; border-color: var(--gold-primary); box-shadow: 0 0 0 3px rgba(45, 79, 163, 0.12); }
+.billing-note-actions { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.billing-note-actions small { flex: 1; font-size: 11.5px; opacity: 0.85; }
+.billing-note-add { color: var(--dk-warn, #92400e); border-style: dashed; }
+
+/* สำเนาแผ่นบิลนอกจอสำหรับ "คัดลอกเป็นรูป" (buildPrintLikeClone ใน app.js) — จัดหน้าเหมือนตอนบันทึก PDF/พิมพ์:
+   A4 กว้าง 210 มม. ขอบ 10 มม. ไม่มี zoom/เงา/มุมโค้ง พื้นขาว (ตรงกับ .invoice-sheet ใน @media print) */
+.inv-snapshot-holder { position: fixed; left: -10000px; top: 0; width: 210mm; background: #ffffff; pointer-events: none; z-index: -1; }
+.inv-snapshot-holder .invoice-sheet.inv-snapshot {
+    width: 210mm !important;
+    max-width: none !important;
+    min-height: 297mm !important;
+    margin: 0 !important;
+    padding: 10mm !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    zoom: 1 !important;
+    background-color: #ffffff !important;
+    overflow: visible !important;
+}
+.inv-snapshot-value { white-space: pre-wrap; }

@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261013n">
+    <link rel="stylesheet" href="styles.css?v=20261013t">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -1272,7 +1272,7 @@
                                 </div>
                             </div>
                             <p class="section-desc" style="margin: -8px 0 15px;">
-                                ใบงานที่ยังไม่ออกบิล กด <strong>ออกบิล</strong> เพื่อดูร่างและรับเลขที่บิล — บิลที่ออกแล้วกด <strong>เปิดบิล</strong> เพื่อรับเงิน (รับหลายงวดได้) พิมพ์ใบเสร็จ หรือยกเลิกบิล — ลูกค้าโอนก้อนเดียวจ่ายหลายบิล หรือจ่ายมัดจำก่อนออกบิล กด <strong>รับเงิน / มัดจำ</strong>
+                                ใบงานที่ยังไม่ออกบิล กด <strong>ออกบิล</strong> เพื่อดูร่างและรับเลขที่บิล — บิลที่ออกแล้วกด <strong>ดูบิล</strong> เพื่อรับเงิน (รับหลายงวดได้) พิมพ์ใบเสร็จ หรือยกเลิกบิล — ลูกค้าโอนก้อนเดียวจ่ายหลายบิล หรือจ่ายมัดจำก่อนออกบิล กด <strong>รับเงิน / มัดจำ</strong>
                             </p>
                             <div id="billing-credit-panel" class="billing-credit-panel hidden"></div>
                             <div class="table-container">
@@ -1514,6 +1514,26 @@
                                         </button>
                                     </div>
                                     <div id="drive-backup-status" class="backup-last-info"></div>
+                                </div>
+
+                                <!-- ไฟล์ขนาดใหญ่ผิดปกติ + ย่อขนาด (Admin) — ดู openLargeFilesTool() / compressLargeFile() ใน app.js -->
+                                <div class="drive-backup-card large-files-card">
+                                    <h4><span class="ico" data-icon="warn"></span> ไฟล์ขนาดใหญ่ผิดปกติ</h4>
+                                    <p>
+                                        ค้นหาไฟล์เอกสารที่ใหญ่เกิน 5 MB (ส่วนใหญ่เป็น PDF สแกนความละเอียดสูง — ไฟล์ไม่เกิน 5 MB ถือว่าปกติ) แล้วย่อขนาดให้เล็กลง ลิงก์ไฟล์เดิมใช้ได้เหมือนเดิม
+                                        ย่อได้เฉพาะไฟล์ที่มีต้นฉบับสำรองใน Google Drive แล้ว และจะเก็บไฟล์ใหม่ก็ต่อเมื่อเล็กลงอย่างน้อย 20%
+                                    </p>
+                                    <div class="backup-actions">
+                                        <select id="large-files-min" title="ขนาดขั้นต่ำของไฟล์ที่ถือว่าใหญ่ผิดปกติ" onchange="openLargeFilesTool()">
+                                            <option value="2097152">ใหญ่กว่า 2 MB</option>
+                                            <option value="5242881" selected>ใหญ่กว่า 5 MB (ผิดปกติ)</option>
+                                            <option value="10485761">ใหญ่กว่า 10 MB</option>
+                                        </select>
+                                        <button class="btn btn-outline" onclick="openLargeFilesTool()" title="ค้นหาไฟล์ขนาดใหญ่ผิดปกติอีกครั้ง"><span class="ico" data-icon="search"></span> ค้นหาไฟล์ใหญ่</button>
+                                        <button class="btn btn-gold" id="btn-compress-all" onclick="compressAllLargeFiles()" title="ย่อขนาดไฟล์ที่ติ๊กเลือกทั้งหมด" disabled>ย่อขนาดที่เลือก</button>
+                                    </div>
+                                    <div id="large-files-summary" class="backup-last-info"></div>
+                                    <div id="large-files-list" class="large-files-list"></div>
                                 </div>
 
                                 <!-- Section 2: Import Data from Drive file -->
@@ -3439,7 +3459,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261013n"></script>
+    <script src="supabase-client.js?v=20261013t"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3450,6 +3470,6 @@
     </script>
 
     <!-- Application Script -->
-    <script src="app.js?v=20261013n"></script>
+    <script src="app.js?v=20261013t"></script>
 </body>
 </html>

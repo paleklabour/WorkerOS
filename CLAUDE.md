@@ -176,6 +176,11 @@ or credit (`customerCredit()`), and it can be applied to later invoices
 customer; the real account is the one picked when recording the money. Schema:
 `supabase/migrations/20261002032303_receipts_and_customer_credit.sql`.
 
+Billing note (`customers.billing_note`, staff-only, never printed): besides the customer
+form, finance and ops roles add/edit it right in the invoice and combine-bills screens
+(`renderBillingNoteBox` → `set_customer_billing_note()` RPC, owner 2026-10-13) — needed
+because Account Managers are read-only on customers.
+
 ## Roles & permissions (standing rule, confirmed 2026-10-02)
 
 `admin` = Admin/GM (everything), `account_manager` (billing, payments,
@@ -269,6 +274,18 @@ the owner's request (2026-10-12); `profiles.ui_layout` / `set_my_ui_layout()`
 still exist in the DB but the app no longer reads or writes them. A new
 card/panel on those pages must be registered in `WIDGET_BOARDS` (id, kind
 `pill`/`block`, size) or it won't be part of the grid.
+
+## Large-file shrink tool (2026-10-13)
+
+Backup page (Admin) → "ไฟล์ขนาดใหญ่ผิดปกติ": `admin_large_files(min_bytes)` RPC lists Storage
+objects over a threshold (default over 5 MB — owner: up to 5 MB is fine) with `backed_up` (has a Drive copy). "ย่อ" re-renders
+PDFs at ~150 dpi JPEG via pdf.js + pdf-lib (`shrinkPdfBlob`) or downsizes images
+(`shrinkImageBlob`) in the browser and overwrites the same Storage path
+(`replaceStorageFile`, links unchanged). Only for files already backed up to Drive
+(drive-backup never re-uploads changed content, so the Drive copy stays the original),
+and only kept if ≥ 20% smaller. Free plan Storage is 1 GB — was 1.42 GB on 2026-10-13.
+New uploads shrink automatically too: `uploadDocumentFile` runs `autoShrinkDataUrl` first
+(PDF or image over 5 MB, kept only if ≥ 20% smaller) before AI read and upload.
 
 ## Google Drive backup (2026-10-08)
 

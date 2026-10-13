@@ -1734,6 +1734,7 @@ function switchView(viewName) {
         titleEl.innerText = "สำรองและกู้คืนข้อมูลระบบ";
         renderLastBackupInfo();
         renderDriveBackupStatus();
+        openLargeFilesTool();
     }
 
     // Refresh contents
@@ -2881,7 +2882,7 @@ function switchFinancePageTab(tabName) {
 
 // แท็บ "ออกบิล / รับเงิน" — 2 ส่วนในตารางเดียว:
 //   1) ใบงานที่ยังไม่ออกบิล (ไม่มีบิลที่ใช้งานอยู่) → ปุ่ม "ออกบิล" เปิดร่างบิล
-//   2) บิลที่ออกแล้วทุกใบ (invoices) พร้อมยอดรับแล้ว/คงเหลือ → ปุ่ม "เปิดบิล" (รับเงิน/พิมพ์/ใบเสร็จ/ยกเลิก)
+//   2) บิลที่ออกแล้วทุกใบ (invoices) พร้อมยอดรับแล้ว/คงเหลือ → ปุ่ม "ดูบิล" (รับเงิน/พิมพ์/ใบเสร็จ/ยกเลิก)
 function renderBillingTab() {
     const searchInput = document.getElementById("search-billing");
     const squash = s => String(s || '').toLowerCase().replace(/\s+/g, ' ').trim(); // ช่องว่างซ้อนในชื่อไม่มีผลกับการค้นหา
@@ -2957,7 +2958,7 @@ function renderBillingTab() {
                 </td>
                 <td><span class="badge badge-lg ${meta.cls}">${icon(meta.icon)} ${meta.label}</span></td>
                 <td class="actions-col">
-                    <button class="btn btn-sm btn-gold" onclick="openStoredInvoice('${inv.id}')" style="white-space: nowrap;">${icon("receipt")} เปิดบิล</button>
+                    <button class="btn btn-sm btn-gold" onclick="openStoredInvoice('${inv.id}')" style="white-space: nowrap;">${icon("receipt")} ดูบิล</button>
                     ${inv.status === 'void' && currentUser.role === 'admin' ? `<button class="btn btn-sm btn-outline" onclick="restoreVoidInvoice('${inv.id}')" style="white-space: nowrap;" title="กู้คืนบิลที่ยกเลิกผิดใบ — ตรวจใบงานซ้ำก่อนกู้">${icon("refresh")} กู้คืน</button>` : ''}
                     ${inv.status === 'void' && currentUser.role === 'admin' ? `<button class="btn btn-sm btn-outline btn-danger-outline" onclick="deleteVoidInvoice('${inv.id}')" style="white-space: nowrap;" title="ลบถาวร — ใช้เฉพาะบิลที่ออกผิดจริง ๆ (ปกติให้เก็บบิลที่ยกเลิกไว้เป็นหลักฐาน)">${icon("trash")} ลบบิล</button>` : ''}
                 </td>
@@ -8502,6 +8503,189 @@ async function loadUserAuthInfo(force = false) {
     renderUsers();
 }
 
+// ==================== ไฟล์ขนาดใหญ่ผิดปกติ + ย่อขนาด (Admin, owner 2026-10-13) ====================
+// พื้นที่ Storage แผนฟรีมี 1 GB — ไฟล์เกิน 5 MB ถือว่าใหญ่ผิดปกติ (owner 2026-10-13: ถึง 5 MB ยังโอเค)
+// ย่อในเบราว์เซอร์: PDF → เรนเดอร์ทุกหน้า (pdf.js) ~150 dpi เป็น JPEG แล้วประกอบเป็น PDF ใหม่ขนาดหน้าเดิม (pdf-lib)
+//                    รูป → ย่อด้านยาวไม่เกิน 2000px เป็น JPEG
+// เขียนทับ path เดิม (ลิงก์ในข้อมูลไม่เปลี่ยน) — ทำได้เฉพาะไฟล์ที่มีต้นฉบับใน Google Drive แล้ว (drive-backup ไม่อัปโหลดทับ
+// เมื่อเนื้อไฟล์เปลี่ยน ต้นฉบับจึงยังอยู่ใน Drive) และเก็บไฟล์ใหม่ก็ต่อเมื่อเล็กลงอย่างน้อย 20%
+let largeFiles = [];
+const fmtMB = b => `${(b / 1048576).toFixed(1)} MB`;
+
+function largeFileOwner(path) {
+    const [cid, wid] = String(path).split('/');
+    const c = customers.find(x => x.id === cid);
+    const w = allWorkers().find(x => x.id === wid);
+    const parts = [c ? c.companyName : (cid === 'misc' ? 'ยังไม่ผูกนายจ้าง (อัปโหลดก่อนบันทึก)' : ''), w ? workerFullName(w) : ''];
+    return parts.filter(Boolean).join(' • ') || '-';
+}
+
+const largeFileCompressible = f => f.backed_up && (/pdf/i.test(f.mime || '') || /^image\//i.test(f.mime || ''));
+
+async function openLargeFilesTool() {
+    if (!can('admin')) return;
+    const listEl = document.getElementById('large-files-list');
+    if (!listEl) return;
+    listEl.innerHTML = `<p class="text-muted">${IOS_SPINNER_HTML} กำลังค้นหาไฟล์ขนาดใหญ่…</p>`;
+    const minBytes = Number((document.getElementById('large-files-min') || {}).value) || 5242880;
+    const res = await callCloudAPI("getLargeFiles", { minBytes });
+    if (!res || res.status !== 'success') { listEl.innerHTML = '<p class="text-muted">ค้นหาไม่สำเร็จ</p>'; return; }
+    largeFiles = res.files.map(f => ({ ...f, state: '', done: false }));
+    renderLargeFiles();
+}
+
+function renderLargeFiles() {
+    const listEl = document.getElementById('large-files-list');
+    const sumEl = document.getElementById('large-files-summary');
+    if (!listEl) return;
+    const total = largeFiles.reduce((s, f) => s + Number(f.bytes || 0), 0);
+    const ok = largeFiles.filter(largeFileCompressible);
+    sumEl.innerHTML = largeFiles.length
+        ? `พบ <b>${largeFiles.length}</b> ไฟล์ รวม <b>${fmtMB(total)}</b> — ย่อได้ ${ok.length} ไฟล์ (มีต้นฉบับใน Drive แล้ว)`
+        : 'ไม่พบไฟล์ขนาดใหญ่ผิดปกติ 🎉';
+    listEl.innerHTML = largeFiles.map((f, i) => {
+        const allowed = largeFileCompressible(f) && !f.done;
+        const name = f.name.split('/').pop().replace(/^\d{10,}_/, '');
+        const why = !f.backed_up ? 'ยังไม่มีสำเนาใน Drive' : !largeFileCompressible(f) ? 'ชนิดไฟล์นี้ย่อไม่ได้' : '';
+        return `<div class="lf-row" id="lf-row-${i}">
+            <input type="checkbox" class="lf-check" data-i="${i}" ${allowed ? 'checked' : 'disabled'} onchange="updateLargeFilesButton()" title="${allowed ? 'เลือกไฟล์นี้เพื่อย่อขนาด' : escapeHtml(why || 'ย่อแล้ว')}">
+            <div class="lf-main">
+                <a href="${escapeHtml(f.url)}" target="_blank" rel="noopener" title="เปิดไฟล์ในแท็บใหม่">${escapeHtml(name)}</a>
+                <small>${escapeHtml(largeFileOwner(f.name))} • ${formatThaiDate(f.created_at)}</small>
+            </div>
+            <span class="lf-size">${fmtMB(f.bytes)}</span>
+            <span class="lf-state" id="lf-state-${i}">${f.state || (why ? `<span class="text-muted">${escapeHtml(why)}</span>` : '')}</span>
+            <button type="button" class="btn btn-sm btn-outline" onclick="compressLargeFile(${i})" ${allowed ? '' : 'disabled'} title="ย่อขนาดไฟล์นี้">ย่อ</button>
+        </div>`;
+    }).join('');
+    updateLargeFilesButton();
+}
+
+function updateLargeFilesButton() {
+    const btn = document.getElementById('btn-compress-all');
+    if (btn) btn.disabled = !document.querySelector('.lf-check:checked:not(:disabled)');
+}
+
+async function shrinkPdfBlob(buf) {
+    const PDFLib = await loadPdfLib();
+    if (!window.pdfjsLib) throw new Error('ตัวอ่าน PDF ยังโหลดไม่เสร็จ');
+    const task = window.pdfjsLib.getDocument({ data: new Uint8Array(buf) });
+    const src = await task.promise;
+    const out = await PDFLib.PDFDocument.create();
+    for (let p = 1; p <= src.numPages; p++) {
+        const page = await src.getPage(p);
+        const base = page.getViewport({ scale: 1 });
+        const scale = Math.min(150 / 72, 1700 / Math.max(base.width, base.height));
+        const viewport = page.getViewport({ scale });
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.ceil(viewport.width);
+        canvas.height = Math.ceil(viewport.height);
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        await page.render({ canvas, canvasContext: ctx, viewport }).promise;
+        const jpg = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.72));
+        const img = await out.embedJpg(new Uint8Array(await jpg.arrayBuffer()));
+        out.addPage([base.width, base.height]).drawImage(img, { x: 0, y: 0, width: base.width, height: base.height });
+        canvas.width = canvas.height = 0;
+        page.cleanup();
+    }
+    // pdf.js v6: ปิดเอกสารที่ loadingTask (PDFDocumentProxy.destroy ไม่มีแล้ว) — ปิดไม่ได้ก็ไม่เป็นไร ไฟล์ย่อเสร็จแล้ว
+    try { await (task.destroy ? task.destroy() : src.destroy && src.destroy()); } catch (e) {}
+    return new Blob([await out.save()], { type: 'application/pdf' });
+}
+
+async function shrinkImageBlob(blob) {
+    const bmp = await createImageBitmap(blob);
+    const k = Math.min(1, 2000 / Math.max(bmp.width, bmp.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(bmp.width * k);
+    canvas.height = Math.round(bmp.height * k);
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+    bmp.close && bmp.close();
+    return await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.8));
+}
+
+// ย่อไฟล์อัตโนมัติตอนอัปโหลด (uploadDocumentFile) — คืน data URL ใหม่ หรือ null ถ้าไม่ต้องย่อ/ย่อแล้วไม่เล็กลงพอ
+const AUTO_SHRINK_PDF_BYTES = 5 * 1024 * 1024;   // owner 2026-10-13: ไฟล์ถึง 5 MB ถือว่าปกติ
+const AUTO_SHRINK_IMAGE_BYTES = 5 * 1024 * 1024;
+async function autoShrinkDataUrl(dataUrl, onStart) {
+    const m = String(dataUrl || '').match(/^data:([^;,]+)/);
+    if (!m) return null;
+    const mime = m[1].toLowerCase();
+    const approxBytes = Math.floor((dataUrl.length - dataUrl.indexOf(',') - 1) * 3 / 4);
+    const isPdf = mime === 'application/pdf';
+    const isImg = /^image\/(jpeg|jpg|png|webp|bmp)$/.test(mime);
+    if (!(isPdf && approxBytes > AUTO_SHRINK_PDF_BYTES) && !(isImg && approxBytes > AUTO_SHRINK_IMAGE_BYTES)) return null;
+    if (onStart) onStart();
+    const orig = await (await fetch(dataUrl)).blob();
+    const small = isPdf ? await shrinkPdfBlob(await orig.arrayBuffer()) : await shrinkImageBlob(orig);
+    if (!small || small.size > orig.size * 0.8) return null;
+    console.info(`auto shrink: ${fmtMB(orig.size)} → ${fmtMB(small.size)}`);
+    return await new Promise((resolve, reject) => {
+        const fr = new FileReader();
+        fr.onload = () => resolve(fr.result);
+        fr.onerror = () => reject(fr.error);
+        fr.readAsDataURL(small);
+    });
+}
+
+async function compressLargeFile(i, quiet = false) {
+    const f = largeFiles[i];
+    if (!f || !largeFileCompressible(f) || f.done) return 0;
+    const stateEl = document.getElementById(`lf-state-${i}`);
+    const setState = html => { f.state = html; if (stateEl) stateEl.innerHTML = html; };
+    f.failed = false;
+    setState(`${IOS_SPINNER_HTML} กำลังย่อ…`);
+    try {
+        const resp = await fetch(f.url, { cache: 'no-store' });
+        if (!resp.ok) throw new Error('ดาวน์โหลดไฟล์ไม่ได้');
+        const orig = await resp.blob();
+        const small = /pdf/i.test(f.mime) ? await shrinkPdfBlob(await orig.arrayBuffer()) : await shrinkImageBlob(orig);
+        if (!small || small.size > orig.size * 0.8) {
+            setState(`<span class="text-muted">ย่อแล้วไม่เล็กลงพอ — คงไฟล์เดิมไว้</span>`);
+            f.done = true;
+            return 0;
+        }
+        const res = await callCloudAPI("replaceStorageFile", { path: f.name, blob: small, contentType: small.type });
+        if (!res || res.status !== 'success') throw new Error((res && res.message) || 'อัปโหลดไม่สำเร็จ');
+        const saved = orig.size - small.size;
+        setState(`<span class="lf-ok">✓ ${fmtMB(orig.size)} → ${fmtMB(small.size)}</span>`);
+        f.done = true;
+        f.bytes = small.size;
+        const row = document.getElementById(`lf-row-${i}`);
+        if (row) { row.querySelector('.lf-size').textContent = fmtMB(small.size); row.querySelectorAll('input, button').forEach(x => { x.disabled = true; x.checked = false; }); }
+        if (!quiet) showToast(`ย่อแล้ว — ลดลง ${fmtMB(saved)}`, 'success');
+        return saved;
+    } catch (err) {
+        f.failed = true;
+        console.error('compressLargeFile failed:', f.name, err);
+        setState(`<span class="text-danger">ย่อไม่สำเร็จ: ${escapeHtml((err && err.message) || String(err))}</span>`);
+        return 0;
+    } finally {
+        updateLargeFilesButton();
+    }
+}
+
+async function compressAllLargeFiles() {
+    const idx = Array.from(document.querySelectorAll('.lf-check:checked:not(:disabled)')).map(c => Number(c.dataset.i));
+    if (!idx.length) return;
+    if (!(await uiConfirm(`ย่อขนาด ${idx.length} ไฟล์? ระบบจะเขียนทับไฟล์ใน Storage (ต้นฉบับยังอยู่ใน Google Drive) — ใช้เวลาสักครู่ อย่าปิดหน้านี้ระหว่างทำ`, { okText: 'เริ่มย่อขนาด', danger: false }))) return;
+    const btn = document.getElementById('btn-compress-all');
+    if (btn) btn.disabled = true;
+    let saved = 0, okCount = 0, failCount = 0;
+    for (let k = 0; k < idx.length; k++) {
+        showUploadPill('load', `กำลังย่อไฟล์ ${k + 1}/${idx.length}`, largeFiles[idx[k]].name.split('/').pop(), 600000);
+        const r = await compressLargeFile(idx[k], true);
+        if (r > 0) { saved += r; okCount++; } else if (largeFiles[idx[k]].failed) failCount++;
+    }
+    const sub = `ย่อสำเร็จ ${okCount} ไฟล์ • ได้พื้นที่คืน ${fmtMB(saved)}${failCount ? ` • ไม่สำเร็จ ${failCount} ไฟล์` : ''}`;
+    showUploadPill(failCount && !okCount ? 'bad' : failCount ? 'warn' : 'ok', failCount && !okCount ? 'ย่อขนาดไม่สำเร็จ' : 'ย่อขนาดเสร็จแล้ว', sub, 6000);
+}
+
 // ==================== ปฏิทินของฉัน: โน้ตส่วนตัว (owner, 2026-10-13) ====================
 // ผู้ใช้ภายในทุกบทบาท (ไม่ใช่บัญชีนายจ้าง) จดโน้ตวันละ 1 รายการ ไม่เกิน 200 ตัวอักษร — เห็นเฉพาะเจ้าของ (RLS calendar_notes)
 // โหลดตอนเปิดหน้า (ไม่รวมใน loadData) เก็บไว้ใน calendarNotes: { 'YYYY-MM-DD': { note, updatedAt } }
@@ -9619,15 +9803,58 @@ function setupAllSearchSelects() {
 
 // แสดง note วางบิลของนายจ้างรายนี้ (ถ้ามี) ให้เจ้าหน้าที่เห็นก่อนออกบิล — เป็น no-print จึงไม่ถูกพิมพ์ลงในใบแจ้งหนี้ที่ให้ลูกค้า
 function updateInvoiceBillingNote(cust) {
-    const noteWrap = document.getElementById("invoice-billing-note-wrap");
-    const noteText = document.getElementById("invoice-billing-note-text");
-    if (!noteWrap || !noteText) return;
-    if (cust && cust.billingNote) {
-        noteText.innerText = cust.billingNote;
-        noteWrap.classList.remove("hidden");
-    } else {
-        noteWrap.classList.add("hidden");
+    renderBillingNoteBox("invoice-billing-note-wrap", cust);
+}
+
+// กล่อง Note วางบิล (ตอนออกบิล / รวมบิล) — เห็นเฉพาะเจ้าหน้าที่ ไม่พิมพ์ลงใบแจ้งหนี้ (.no-print)
+// การเงิน (Account Manager) และฝ่ายปฏิบัติการ เพิ่ม/แก้ได้ตรงนี้เลย (set_customer_billing_note — owner 2026-10-13)
+function renderBillingNoteBox(wrapId, cust, editing = false) {
+    const wrap = document.getElementById(wrapId);
+    if (!wrap) return;
+    const canEdit = can('finance') || can('ops');
+    const note = (cust && cust.billingNote) || '';
+    if (!cust || (!note && !canEdit)) { wrap.classList.add('hidden'); wrap.innerHTML = ''; return; }
+    wrap.classList.remove('hidden');
+    const id = escapeHtml(cust.id);
+    if (editing) {
+        wrap.innerHTML = `<div class="billing-note-box">
+            <strong>${icon('pin')} Note วางบิลของนายจ้างรายนี้</strong>
+            <textarea class="billing-note-input" rows="3" maxlength="2000" placeholder="เช่น ต้องส่งบิลผ่านแผนกบัญชี, วางบิลทุกวันที่ 25, แนบสำเนาใบอนุญาตทุกครั้ง">${escapeHtml(note)}</textarea>
+            <div class="billing-note-actions">
+                <small>เห็นเฉพาะเจ้าหน้าที่ ไม่แสดงในใบแจ้งหนี้ที่พิมพ์ให้ลูกค้า</small>
+                <button type="button" class="btn btn-sm btn-outline" onclick="renderBillingNoteBox('${wrapId}', customers.find(c => c.id === '${id}'))" title="ยกเลิกการแก้ไข Note วางบิล">ยกเลิก</button>
+                <button type="button" class="btn btn-sm btn-gold" onclick="saveBillingNoteFromBox('${wrapId}', '${id}')" title="บันทึก Note วางบิลของนายจ้างรายนี้">บันทึก Note</button>
+            </div>
+        </div>`;
+        const ta = wrap.querySelector('textarea');
+        ta.focus();
+        ta.setSelectionRange(ta.value.length, ta.value.length);
+        return;
     }
+    wrap.innerHTML = note
+        ? `<div class="billing-note-box">
+            <div class="billing-note-head"><strong>${icon('pin')} Note วางบิลของนายจ้างรายนี้:</strong>
+            ${canEdit ? `<button type="button" class="btn btn-sm btn-outline" onclick="renderBillingNoteBox('${wrapId}', customers.find(c => c.id === '${id}'), true)" title="แก้ไข Note วางบิลของนายจ้างรายนี้">${icon('edit')} แก้ไข</button>` : ''}</div>
+            <p>${escapeHtml(note)}</p>
+        </div>`
+        : `<button type="button" class="btn btn-sm btn-outline billing-note-add" onclick="renderBillingNoteBox('${wrapId}', customers.find(c => c.id === '${id}'), true)" title="เพิ่ม Note วางบิลให้นายจ้างรายนี้ (เห็นเฉพาะเจ้าหน้าที่)">${icon('plus')} เพิ่ม Note วางบิล</button>`;
+}
+
+async function saveBillingNoteFromBox(wrapId, customerId) {
+    const wrap = document.getElementById(wrapId);
+    const ta = wrap && wrap.querySelector('textarea');
+    if (!ta) return;
+    const note = ta.value.trim();
+    const res = await callCloudAPI("setCustomerBillingNote", { customerId, note });
+    if (!res || res.status === "error") {
+        showToast("❌ บันทึก Note วางบิลไม่สำเร็จ: " + ((res && res.message) || 'unknown error'), "danger");
+        return;
+    }
+    const c = customers.find(x => x.id === customerId);
+    if (c) c.billingNote = note;
+    saveData();
+    renderBillingNoteBox(wrapId, c);
+    showToast(note ? "บันทึก Note วางบิลแล้ว" : "ลบ Note วางบิลแล้ว", "success");
 }
 
 function closeInvoiceModal() {
@@ -10050,17 +10277,8 @@ function onCombineCustomerChange() {
     const listContainer = document.getElementById("combine-jobs-list");
 
     // แสดง note วางบิลของนายจ้างรายนี้ (ถ้ามี) ให้เจ้าหน้าที่เห็นก่อนออกบิล — ไม่ถูกพิมพ์ลงในใบแจ้งหนี้
-    const noteWrap = document.getElementById("combine-billing-note-wrap");
-    const noteText = document.getElementById("combine-billing-note-text");
     const cust = customers.find(c => c.id === custId);
-    if (noteWrap && noteText) {
-        if (cust && cust.billingNote) {
-            noteText.innerText = cust.billingNote;
-            noteWrap.classList.remove("hidden");
-        } else {
-            noteWrap.classList.add("hidden");
-        }
-    }
+    renderBillingNoteBox("combine-billing-note-wrap", cust);
 
     // Filter unpaid jobs under this customer
     // เฉพาะใบงานที่ยังไม่ได้อยู่ในบิลใด (บิลที่ออกแล้วรับเงินผ่านหน้าบิลนั้นแทน)
@@ -10945,7 +11163,7 @@ function beginUploadUi(fileName) {
     const label = ov.querySelector('.upl-label');
     const end = () => { ov.remove(); if (!host.querySelector(':scope > .upl-overlay')) host.classList.remove('upl-host'); };
     return {
-        stage(s) { label.textContent = s === 'ocr' ? 'AI กำลังอ่านเอกสาร…' : 'กำลังอัปโหลด…'; },
+        stage(s) { label.textContent = s === 'shrink' ? 'กำลังย่อไฟล์ขนาดใหญ่…' : s === 'ocr' ? 'AI กำลังอ่านเอกสาร…' : 'กำลังอัปโหลด…'; },
         done(ai) {
             if (!ov.isConnected) return;
             ov.classList.add('is-done');
@@ -10961,6 +11179,12 @@ async function uploadDocumentFile(fileDataUrl, fileName, customerId = "", worker
     if (isViewingAs()) { showToast("👁 กำลังดูหน้าจอแบบผู้ใช้อื่น — อัปโหลดไม่ได้", "warning"); return null; }
 
     let ui = beginUploadUi(fileName);
+    // ย่อไฟล์ใหญ่ผิดปกติก่อนอัปโหลด (owner, 2026-10-13): PDF / รูป เกิน 5 MB → ย่อในเบราว์เซอร์ (shrinkPdfBlob / shrinkImageBlob)
+    // ก่อนส่งให้ AI อ่านและก่อนเก็บ — ใช้ไฟล์ใหม่เฉพาะเมื่อเล็กลงอย่างน้อย 20%; ย่อไม่สำเร็จ = ใช้ไฟล์เดิม
+    try {
+        const shrunk = await autoShrinkDataUrl(fileDataUrl, () => { if (ui) ui.stage('shrink'); else showUploadPill('load', 'กำลังย่อไฟล์ขนาดใหญ่', fileName); });
+        if (shrunk) fileDataUrl = shrunk;
+    } catch (err) { console.warn('auto shrink skipped:', err); }
     const userOnStage = options.onStage;
     options = { ...options, onStage: s => { if (ui) ui.stage(s); else showUploadPill('load', s === 'ocr' ? 'AI กำลังอ่านเอกสาร' : 'กำลังอัปโหลด', fileName); if (typeof userOnStage === 'function') userOnStage(s); } };
     try {
@@ -11205,7 +11429,7 @@ async function renderPdfPageThumbnail(url) {
         const canvas = document.createElement("canvas");
         canvas.width = viewport.width;
         canvas.height = viewport.height;
-        await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+        await page.render({ canvas, canvasContext: canvas.getContext("2d"), viewport }).promise;
         result = canvas.toDataURL("image/jpeg", 0.8);
     } catch (e) {
         console.warn("renderPdfPageThumbnail failed:", url, e);
@@ -13216,7 +13440,7 @@ async function cropPhotoFromFile(file, box) {
             source = document.createElement('canvas');
             source.width = viewport.width;
             source.height = viewport.height;
-            await page.render({ canvasContext: source.getContext('2d'), viewport }).promise;
+            await page.render({ canvas: source, canvasContext: source.getContext('2d'), viewport }).promise;
         } else {
             source = await new Promise((resolve, reject) => {
                 const img = new Image();
@@ -14876,7 +15100,7 @@ async function findQrTextInFile(file) {
                     const viewport = page.getViewport({ scale: dim / Math.max(base.width, base.height) });
                     const canvas = document.createElement('canvas');
                     canvas.width = Math.round(viewport.width); canvas.height = Math.round(viewport.height);
-                    await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+                    await page.render({ canvas, canvasContext: canvas.getContext('2d'), viewport }).promise;
                     const text = scan(canvas);
                     if (text) return text;
                 }
@@ -15199,6 +15423,69 @@ function loadHtml2Canvas() {
     });
 }
 
+// รูปใบวางบิลให้หน้าตาเหมือน PDF ที่บันทึก/พิมพ์ (owner 2026-10-13 — เดิมเพี้ยน):
+// บนจอแผ่นบิลถูกขยาย (zoom 1.2–1.35) และกว้าง 245 มม. เพราะมีคอลัมน์ภายใน → html2canvas วาดเพี้ยน
+// จึงโคลนแผ่นบิลไปวางนอกจอในขนาด A4 จริง จัดแบบตอนพิมพ์ (ขอบ 10 มม., ไม่มี zoom/เงา/มุมโค้ง, ตัดส่วน no-print)
+// แล้วถ่ายด้วย html-to-image (ให้เบราว์เซอร์จัดหน้าเอง ตัวหนังสือไทยไม่เพี้ยน) — โหลดไม่ได้ค่อยใช้ html2canvas
+let htmlToImageLoading = null;
+function loadHtmlToImage() {
+    if (window.htmlToImage) return Promise.resolve(window.htmlToImage);
+    if (!htmlToImageLoading) {
+        htmlToImageLoading = new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = 'https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.js';
+            s.onload = () => window.htmlToImage ? resolve(window.htmlToImage) : reject(new Error('html-to-image'));
+            s.onerror = () => { htmlToImageLoading = null; reject(new Error('โหลดตัวสร้างรูปไม่สำเร็จ')); };
+            document.head.appendChild(s);
+        });
+    }
+    return htmlToImageLoading;
+}
+
+function buildPrintLikeClone(sheet) {
+    const holder = document.createElement('div');
+    holder.className = 'inv-snapshot-holder';
+    const clone = sheet.cloneNode(true);
+    // ค่าที่พิมพ์ในช่องกรอก (input/select/textarea) ไม่ติดไปกับ cloneNode → แทนด้วยข้อความ
+    const srcFields = sheet.querySelectorAll('input, select, textarea');
+    clone.querySelectorAll('input, select, textarea').forEach((el, i) => {
+        const src = srcFields[i];
+        if (!src || el.type === 'hidden' || el.type === 'checkbox' || el.type === 'radio' || el.type === 'file') { if (el.type === 'hidden' || el.type === 'file') el.remove(); return; }
+        const span = document.createElement('span');
+        span.className = 'inv-snapshot-value';
+        span.textContent = src.tagName === 'SELECT' ? ((src.selectedOptions[0] || {}).textContent || '') : src.value;
+        el.replaceWith(span);
+    });
+    clone.querySelectorAll('.no-print').forEach(e => e.remove());
+    clone.querySelectorAll('[contenteditable]').forEach(e => e.removeAttribute('contenteditable'));
+    clone.querySelectorAll('.inv-editable').forEach(e => e.classList.remove('inv-editable'));
+    clone.querySelectorAll('[data-placeholder]').forEach(e => e.removeAttribute('data-placeholder'));
+    clone.removeAttribute('id');
+    clone.querySelectorAll('[id]').forEach(e => e.removeAttribute('id'));
+    clone.classList.add('inv-snapshot');
+    holder.appendChild(clone);
+    document.body.appendChild(holder);
+    return { holder, clone };
+}
+
+async function snapshotInvoiceSheet(sheet) {
+    const { holder, clone } = buildPrintLikeClone(sheet);
+    try {
+        if (document.fonts && document.fonts.ready) await document.fonts.ready;
+        try {
+            const lib = await loadHtmlToImage();
+            const blob = await lib.toBlob(clone, { pixelRatio: 3, backgroundColor: '#ffffff', cacheBust: false });
+            if (blob) return blob;
+        } catch (e) {
+            console.warn('html-to-image failed, falling back to html2canvas:', e);
+        }
+        const h2c = await loadHtml2Canvas();
+        const canvas = await h2c(clone, { scale: 3, backgroundColor: '#ffffff', useCORS: true, logging: false });
+        return await new Promise(r => canvas.toBlob(r, 'image/png'));
+    } finally {
+        holder.remove();
+    }
+}
 async function copyInvoiceImage() {
     const sheet = document.getElementById('invoice-sheet-container');
     if (!sheet) return;
@@ -15206,27 +15493,17 @@ async function copyInvoiceImage() {
     if (btn) btn.disabled = true;
     try {
         showToast("📸 กำลังสร้างรูปใบวางบิล...", "warning");
-        const h2c = await loadHtml2Canvas();
-        const canvas = await h2c(sheet, {
-            scale: 3, backgroundColor: '#ffffff', useCORS: true, logging: false,
-            ignoreElements: el => !!(el.classList && el.classList.contains('no-print')),
-            onclone: doc => {
-                // หน้าตาเหมือนตอนพิมพ์: แผ่นบิลสีขาวเสมอ ไม่มีเส้นประ/คำแนะนำของช่องที่แก้ได้
-                doc.documentElement.removeAttribute('data-theme');
-                doc.querySelectorAll('[contenteditable]').forEach(e => e.removeAttribute('contenteditable'));
-                doc.querySelectorAll('.inv-editable').forEach(e => e.classList.remove('inv-editable'));
-                doc.querySelectorAll('[data-placeholder]').forEach(e => e.removeAttribute('data-placeholder'));
-            }
-        });
-        const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+        const blobPromise = snapshotInvoiceSheet(sheet);
         const name = `${(document.getElementById('inv-no') || {}).innerText || 'invoice'}.png`.replace(/[\\/:*?"<>|\s]+/g, '_');
         if (navigator.clipboard && window.ClipboardItem) {
             try {
-                await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+                // ส่ง Promise ให้ ClipboardItem ทันทีตอนกด — สร้างรูปนานหลายวินาทีแล้วสิทธิ์คัดลอกจากการคลิกไม่หมดอายุ
+                await navigator.clipboard.write([new ClipboardItem({ 'image/png': blobPromise })]);
                 showToast("✅ คัดลอกรูปใบวางบิลแล้ว — เปิดแชท LINE แล้วกด Ctrl+V", "success");
                 return;
             } catch (e) { /* ไปใช้เมนูแชร์แทน */ }
         }
+        const blob = await blobPromise;
         const file = new File([blob], name, { type: 'image/png' });
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
             await navigator.share({ files: [file], title: name });
@@ -15631,7 +15908,7 @@ function renderReceiveInvoiceList() {
     const credit = customerCredit(receiveCustomerId);
     const note = document.getElementById("receive-credit-note");
     note.classList.toggle('hidden', credit <= 0);
-    note.innerHTML = credit > 0 ? `${icon('cash')} นายจ้างรายนี้มีมัดจำคงเหลืออยู่แล้ว <strong>${fmtMoney(credit)} บาท</strong> — ถ้าจะใช้หักบิล ให้เปิดบิลนั้นแล้วกด "หักมัดจำเข้าบิลนี้"` : '';
+    note.innerHTML = credit > 0 ? `${icon('cash')} นายจ้างรายนี้มีมัดจำคงเหลืออยู่แล้ว <strong>${fmtMoney(credit)} บาท</strong> — ถ้าจะใช้หักบิล ให้ดูบิลนั้นแล้วกด "หักมัดจำเข้าบิลนี้"` : '';
     updateReceiveSummary();
 }
 
@@ -15760,7 +16037,7 @@ function renderBillingCreditPanel() {
                     </td>
                 </tr>`).join('')}</tbody>
         </table></div>
-        <p class="text-muted pay-empty">หักมัดจำ: เปิดบิลของนายจ้างรายนั้นแล้วกด "หักมัดจำเข้าบิลนี้" — ระบบจะถามให้อัตโนมัติตอนออกบิลใหม่ด้วย</p>`;
+        <p class="text-muted pay-empty">หักมัดจำ: ดูบิลของนายจ้างรายนั้นแล้วกด "หักมัดจำเข้าบิลนี้" — ระบบจะถามให้อัตโนมัติตอนออกบิลใหม่ด้วย</p>`;
 }
 
 function registerReceiveMoneySearchSelect() {

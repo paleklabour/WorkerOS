@@ -685,6 +685,25 @@
                 if (error) return { status: "error", message: error.message };
                 return { status: "success" };
             }
+            case "setCustomerBillingNote": {
+                // Note วางบิล — การเงิน/ปฏิบัติการ แก้ได้ตอนออกบิล ดู 20261013060106_customer_billing_note_finance.sql
+                const { error } = await sb.rpc("set_customer_billing_note", { p_customer_id: payload.customerId, p_note: payload.note || "" });
+                if (error) return { status: "error", message: error.message };
+                return { status: "success" };
+            }
+            case "getLargeFiles": {
+                // ไฟล์ขนาดใหญ่ผิดปกติ (Admin) ดู 20261013055112_admin_large_files.sql
+                const { data, error } = await sb.rpc("admin_large_files", { p_min_bytes: payload.minBytes || 2097152 });
+                if (error) return { status: "error", message: error.message };
+                return { status: "success", files: (data || []).map(f => ({ ...f, url: sb.storage.from("worker-documents").getPublicUrl(f.name).data.publicUrl })) };
+            }
+            case "replaceStorageFile": {
+                // เขียนทับไฟล์เดิมที่ path เดิม (ลิงก์ในข้อมูลไม่เปลี่ยน) — ใช้กับเครื่องมือย่อขนาดไฟล์ใหญ่ (Admin)
+                const { error } = await sb.storage.from("worker-documents")
+                    .upload(payload.path, payload.blob, { contentType: payload.contentType, upsert: true, cacheControl: "60" });
+                if (error) return { status: "error", message: error.message };
+                return { status: "success" };
+            }
             case "getMyCalendarNotes": {
                 // โน้ตปฏิทินส่วนตัว (RLS: เฉพาะของตัวเอง + ผู้ใช้ภายใน) ดู 20261013050105_calendar_notes.sql
                 const { data, error } = await sb.from("calendar_notes").select("note_date, note, updated_at").order("note_date");
