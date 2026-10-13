@@ -58,6 +58,19 @@ body {
 ::-webkit-scrollbar-thumb:hover {
     background: var(--dk-line, #cbd5e1);
 }
+/* แถบเลื่อนขึ้น-ลง หนาเท่าแถบเลื่อนแนวนอนลอยท้ายจอ (.floating-hscroll): ช่อง 14px ตัวจับ 8px (owner, 2026-10-13)
+   แถบแนวนอนทั่วไปยังบาง 6px เหมือนเดิม */
+::-webkit-scrollbar { width: 14px; }
+::-webkit-scrollbar-thumb:vertical {
+    background: #cbd5e1;
+    border: 3px solid transparent;
+    background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:vertical:hover { background: #94a3b8; background-clip: padding-box; }
+:root[data-theme="dark"] ::-webkit-scrollbar-thumb:vertical { background: #56637f; background-clip: padding-box; }
+:root[data-theme="dark"] ::-webkit-scrollbar-thumb:vertical:hover { background: #6b7896; background-clip: padding-box; }
+:root[data-theme="pink"] ::-webkit-scrollbar-thumb:vertical { background: #e2b9ca; background-clip: padding-box; }
+:root[data-theme="pink"] ::-webkit-scrollbar-thumb:vertical:hover { background: #d49bb3; background-clip: padding-box; }
 
 h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-head);
@@ -124,6 +137,16 @@ button {
     background-color: var(--dk-subtle, #f8fafc);
     border-color: var(--dk-line, #cbd5e1);
     color: var(--navy-dark);
+}
+
+/* ปุ่มตัวหนังสือในคอลัมน์จัดการ (ปิดงาน / เปิดงาน / ไม่เรียกเก็บเงิน …): พื้นทึบ ไม่โปร่งทับข้อความในแถว
+   ชี้เมาส์แล้วทึบขึ้นเป็นสีหลักอ่อน + ขอบ/ตัวอักษรสีหลัก (owner, 2026-10-13) */
+td.actions-col .btn-outline { background-color: var(--dk-card, #ffffff); }
+td.actions-col .btn-outline:hover {
+    background-color: var(--dk-head, #e6ecf8);
+    border-color: var(--gold-primary);
+    color: var(--gold-primary);
+    box-shadow: 0 2px 8px rgba(45, 79, 163, 0.18);
 }
 
 .btn-danger {
@@ -851,62 +874,13 @@ select:disabled {
     font-weight: 500;
 }
 
-.demo-accounts {
-    margin-top: 24px;
-    border-top: 1px solid var(--dk-line, #e2e8f0);
-    padding-top: 20px;
-}
 
-.demo-accounts h4 {
-    color: var(--text-muted);
-    font-size: 11.5px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-bottom: 12px;
-    text-align: center;
-    font-weight: 500;
-}
 
-.demo-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
 
-.demo-badge {
-    background-color: var(--dk-subtle, #f8fafc);
-    border: 1px solid var(--dk-line, #e2e8f0);
-    padding: 8px 12px;
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-    transition: var(--transition);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    color: var(--text-dark);
-    text-align: left;
-    font-family: inherit;
-}
 
-.demo-badge:hover {
-    background-color: var(--dk-subtle, #f1f5f9);
-    border-color: var(--gold-primary);
-}
 
-.demo-badge strong {
-    font-size: 13px;
-    font-weight: 500;
-}
 
-.demo-badge span {
-    font-size: 11.5px;
-    color: var(--text-muted);
-}
 
-.demo-badge.admin strong { color: var(--gold-primary); }
-.demo-badge.manager strong { color: #0284c7; }
-.demo-badge.staff strong { color: #059669; }
 
 
 /* ==================== LAYOUT (SIDEBAR & MAIN) ==================== */
@@ -1351,61 +1325,15 @@ select:disabled {
     background-color: var(--gold-primary);
 }
 
-.stats-card.alert-card {
-    background-color: var(--gray-card);
-    border-color: rgba(239, 68, 68, 0.2);
-}
 
-.stats-card.alert-card:hover {
-    border-color: var(--danger);
-}
 
-.stats-card.alert-card:hover::after {
-    background-color: var(--danger);
-}
 
-.stats-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    background-color: rgba(45, 79, 163, 0.05);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--gold-primary);
-    transition: var(--transition);
-}
 
-.stats-card:hover .stats-icon {
-    background-color: var(--gold-primary);
-    color: var(--on-primary, #ffffff);
-}
 
-.stats-icon.text-danger {
-    background-color: var(--dk-bad-bg, #fef2f2);
-    color: var(--danger);
-}
 
-.stats-card.alert-card:hover .stats-icon.text-danger {
-    background-color: var(--danger);
-    color: #ffffff;
-}
 
-.stats-icon svg {
-    width: 22px;
-    height: 22px;
-}
 
-/* ไอคอนสองโทน (.ico) ในวงกลมการ์ดสรุป — ไม่งั้นจะเล็กตามตัวหนังสือ (1.15em ≈ 16px) */
-.stats-icon .ico {
-    width: 26px;
-    height: 26px;
-}
 
-.stats-icon .ico svg {
-    width: 100%;
-    height: 100%;
-}
 
 /* แท็บหน้าการเงิน (สรุปการเงิน / ออกบิล / จัดการรายจ่าย / บัญชีธนาคาร) */
 [id^="btn-finpage-tab-"] .ico {
@@ -1413,20 +1341,7 @@ select:disabled {
     height: 18px;
 }
 
-.stats-info h3 {
-    font-size: 26px;
-    font-weight: 600;
-    line-height: 1.1;
-    margin-bottom: 4px;
-    color: var(--navy-dark);
-    letter-spacing: -0.02em;
-}
 
-.stats-info p {
-    color: var(--text-muted);
-    font-size: 13px;
-    font-weight: 500;
-}
 
 /* Dashboard Panels */
 .dashboard-grid {
@@ -1474,60 +1389,15 @@ select:disabled {
     gap: 12px;
 }
 
-.alert-item {
-    padding: 16px;
-    border-radius: var(--radius-sm);
-    border-left: 4px solid var(--danger);
-    background-color: var(--dk-bad-bg, #fff8f8);
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 16px;
-    transition: var(--transition);
-}
 
-.alert-item:hover {
-    box-shadow: 0 4px 8px rgba(0,0,0,0.03);
-}
 
-.alert-item.warning {
-    border-left-color: var(--warning);
-    background-color: var(--dk-warn-bg, #fffbeb);
-}
 
-.alert-icon {
-    font-size: 20px;
-    line-height: 1;
-}
 
-.alert-body {
-    flex-grow: 1;
-}
 
-.alert-body h4 {
-    font-size: 14.5px;
-    font-weight: 600;
-    margin-bottom: 4px;
-}
 
-.alert-body p {
-    font-size: 13.5px;
-    color: var(--text-muted);
-}
 
-.alert-meta {
-    display: flex;
-    gap: 12px;
-    margin-top: 6px;
-}
 
-.alert-meta span {
-    font-size: 11.5px;
-}
 
-.alert-action {
-    flex-shrink: 0;
-}
 
 .empty-state {
     display: flex;
@@ -1886,6 +1756,30 @@ select:disabled {
     -webkit-overflow-scrolling: touch;
 }
 
+/* แถบเลื่อนแนวนอนลอยท้ายจอ สำหรับตารางกว้างที่ขอบล่างยังอยู่นอกจอ (setupFloatingHScroll ใน app.js) */
+.floating-hscroll {
+    position: fixed;
+    z-index: 3000;
+    height: 18px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    background: var(--dk-card, rgba(255, 255, 255, 0.85));
+    border-top: 1px solid var(--dk-line, #e2e8f0);
+    backdrop-filter: blur(8px);
+}
+.floating-hscroll.hidden { display: none; }
+/* แถบเลื่อนทั่วระบบบางแค่ 6px — แถบลอยนี้ทำให้หนาขึ้น จับลากง่าย */
+.floating-hscroll::-webkit-scrollbar { height: 14px; }
+.floating-hscroll::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border: 3px solid transparent;
+    background-clip: padding-box;
+}
+.floating-hscroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; background-clip: padding-box; }
+:root[data-theme="dark"] .floating-hscroll::-webkit-scrollbar-thumb { background: #56637f; background-clip: padding-box; }
+:root[data-theme="pink"] .floating-hscroll::-webkit-scrollbar-thumb { background: #e2b9ca; background-clip: padding-box; }
+.floating-hscroll-inner { height: 1px; }
+
 .data-table {
     width: 100%;
     border-collapse: collapse;
@@ -1935,6 +1829,68 @@ select:disabled {
     display: flex;
     gap: 6px;
     justify-content: flex-end;
+}
+
+/* คอลัมน์ "จัดการ" แบบปุ่มลอยบนแถว (แบบ Gmail, owner 2026-10-13): บนจอที่ใช้เมาส์ ไม่มีคอลัมน์จัดการในตาราง
+   (ได้ที่ว่างคืน) — ชี้เมาส์ที่แถวไหน ปุ่มของแถวนั้นลอยขึ้นมาทับขอบขวาของแถว สไลด์เข้าจากขวา
+   ขอบขวา = ขอบที่มองเห็นของกล่องตาราง แม้ตารางกว้างแล้วเลื่อนแนวนอนอยู่ (--row-actions-right ตั้งจาก setupRowActionsOverlay ใน app.js)
+   ไม่ใช้กับ: พอร์ทัลนายจ้าง (ปุ่มเปิดแฟ้มเป็นปุ่มหลักของลูกค้า) และตารางราคา (ต้องกดบันทึกหลังพิมพ์ในแถว)
+   มือถือ/iPad ไม่มี hover → แสดงคอลัมน์จัดการตามปกติ */
+@media (hover: hover) and (pointer: fine) {
+    body:not(.is-client-portal) .data-table th.actions-col:not(.prices-table *) { display: none; }
+    body:not(.is-client-portal) .data-table tr:has(> td.actions-col):not(.prices-table *) { position: relative; }
+    /* แถบปุ่มอยู่ในทุกแถวตลอด (ลอยทับ ไม่กินที่ในตาราง) แต่ซ่อนไว้นอกขอบขวา — ชี้แถวแล้วสไลด์เข้ามาธรรมดา ไม่จาง
+       เอาเมาส์ออกก็สไลด์กลับออกไป (owner 2026-10-13 — แบบจาง/display:none ดูกระตุก) */
+    body:not(.is-client-portal) .data-table tr > td.actions-col:not(.prices-table *) {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
+        position: absolute;
+        /* แบบ "ไล่สีจางแบบ Gmail" (owner เลือก 2026-10-13): สูงเต็มแถว ไม่มีกรอบ พื้นค่อยๆ จางจากใสไปทึบทางขวา
+           ข้อความในแถวถูกกลืนนุ่มๆ ไม่ถูกตัดขาด — ชั้นบน = สีแถวตอนชี้เมาส์, ชั้นล่าง = สีการ์ด (ธีมมืด/ชมพูใช้ --dk-card) */
+        top: 0;
+        bottom: 1px; /* ไม่ทับเส้นคั่นแถว */
+        right: var(--row-actions-right, 0px);
+        width: auto;
+        padding: 0 16px 0 90px;
+        border: none;
+        border-radius: 0;
+        background:
+            linear-gradient(to right, rgba(45, 79, 163, 0), rgba(45, 79, 163, 0.04) 70px),
+            linear-gradient(to right, transparent, var(--dk-card, #ffffff) 70px);
+        z-index: 5;
+        white-space: nowrap;
+        /* ส่วนที่จางทะลุคลิกได้ — กดปุ่มในแถวที่อยู่ใต้ส่วนจาง (เช่น "เปิดแฟ้มเอกสาร" ของนายจ้าง/คนงาน) ได้ */
+        pointer-events: none;
+        visibility: hidden;
+        /* สไลด์ธรรมดา ไม่จาง: ตัวช่องอยู่กับที่และตัดขอบ (overflow: hidden) — ปุ่มกับพื้นไล่สีเลื่อนเข้ามาจากขวาภายในช่อง
+           (ไม่ translate ตัวช่องเอง เพราะจะทำให้กล่องตารางมีแถบเลื่อนแนวนอนโผล่ทุกตาราง) */
+        overflow: hidden;
+        background-repeat: no-repeat;
+        background-position: 280px 0;
+        transition: background-position 0.22s cubic-bezier(0.4, 0, 1, 1), visibility 0s linear 0.22s;
+    }
+    body:not(.is-client-portal) .data-table tr > td.actions-col:not(.prices-table *) > * {
+        transform: translateX(280px);
+        transition: transform 0.22s cubic-bezier(0.4, 0, 1, 1);
+    }
+    body:not(.is-client-portal) .data-table tr:is(:hover, :focus-within):not(.actions-dodge) > td.actions-col:not(.prices-table *) {
+        visibility: visible;
+        background-position: 0 0;
+        transition: background-position 0.3s cubic-bezier(0.22, 1, 0.36, 1), visibility 0s;
+    }
+    body:not(.is-client-portal) .data-table tr:is(:hover, :focus-within):not(.actions-dodge) > td.actions-col:not(.prices-table *) > * {
+        transform: none;
+        transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    body:not(.is-client-portal) .data-table tr > td.actions-col:not(.prices-table *) :is(button, a, input, select, .actions-cell) { pointer-events: auto; }
+    /* ชี้ปุ่มอื่นในแถวอยู่ (เช่น เปิดแฟ้ม / ป้ายจำนวนคนงาน) → .actions-dodge (ใส่จาก setupRowActionsOverlay)
+       แถบปุ่มลอยสไลด์หลบออกไปทางขวา ให้ปุ่มนั้นกดได้เต็มๆ */
+}
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: reduce) {
+    body:not(.is-client-portal) .data-table tr > td.actions-col:not(.prices-table *),
+    body:not(.is-client-portal) .data-table tr > td.actions-col:not(.prices-table *) > * { transition: none !important; }
 }
 
 .action-icon-btn {
@@ -2178,7 +2134,7 @@ select:disabled {
     width: 220px;
     height: 32px;
     border: 1px solid var(--dk-line, #cbd5e1);
-    border-radius: var(--radius-sm);
+    border-radius: 999px; /* ทรงแคปซูล (owner, 2026-10-13 — เดิมเหลี่ยมไป) */
     background-color: var(--dk-card, #fff);
     overflow: hidden;
     transition: var(--transition);
@@ -2192,7 +2148,7 @@ select:disabled {
 .order-no-prefix {
     display: inline-flex;
     align-items: center;
-    padding: 0 8px;
+    padding: 0 8px 0 12px;
     font-size: 12.5px;
     font-weight: 600;
     color: var(--text-muted);
@@ -2220,7 +2176,8 @@ select:disabled {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
+    width: 36px;
+    padding-right: 4px;
     border: none;
     background-color: var(--gold-primary);
     color: var(--on-primary, #fff);
@@ -2336,6 +2293,8 @@ select:disabled {
     color: var(--navy-dark);
 }
 
+
+
 .modal-body {
     padding: 28px;
     overflow-y: auto;
@@ -2363,6 +2322,33 @@ select:disabled {
     font-weight: 600;
     color: var(--gold-primary);
 }
+
+/* ==================== ยุบ/กางหัวข้อ (setupCollapsibleSections ใน app.js) ==================== */
+/* หัวข้อที่กดพับได้: ลูกศรท้ายหัวข้อ (ชี้ลง = กางอยู่, ชี้ขวา = พับอยู่) */
+:is(.panel-header:not(.fin-period-bar), .form-section-header, .section-title-bar, .documents-section > h4) {
+    cursor: pointer;
+    user-select: none;
+}
+.form-section-header, .documents-section > h4 { display: flex; align-items: center; }
+:is(.panel-header:not(.fin-period-bar), .form-section-header, .section-title-bar, .documents-section > h4)::after {
+    content: '';
+    flex-shrink: 0;
+    width: 12px;
+    height: 12px;
+    margin-left: 10px;
+    background-color: var(--text-muted);
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 12' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1.5 4.5 5 8l3.5-3.5'/%3E%3C/svg%3E") center / contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 12' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1.5 4.5 5 8l3.5-3.5'/%3E%3C/svg%3E") center / contain no-repeat;
+    transition: transform 0.25s var(--ios-spring, cubic-bezier(0.32, 0.72, 0, 1));
+}
+.form-section-header::after, .documents-section > h4::after { margin-left: auto; }
+.is-collapsed::after { transform: rotate(-90deg); }
+:is(.panel-header, .form-section-header, .section-title-bar, .documents-section > h4):hover::after { background-color: var(--gold-primary); }
+.sec-collapsed-away { display: none !important; }
+/* การ์ดที่พับแล้วไม่ยืดสูงตามการ์ดข้างๆ ในแถวเดียวกัน */
+.has-collapsed-header { height: auto !important; min-height: 0 !important; align-self: start; }
+.has-collapsed-header > .panel-header { border-bottom: none; }
+.widget:has(.has-collapsed-header) { align-self: start; }
 
 
 /* ==================== BRANCHES ADDRESS UNIT ==================== */
@@ -2437,9 +2423,6 @@ select:disabled {
     gap: 16px;
 }
 
-.doc-upload-grid.four-cols {
-    grid-template-columns: repeat(4, 1fr);
-}
 
 .upload-box {
     border: 2px dashed var(--dk-line, #cbd5e1);
@@ -4474,9 +4457,6 @@ tr.is-voided-row td {
         padding: 18px;
     }
 
-    .doc-upload-grid.four-cols {
-        grid-template-columns: repeat(2, 1fr);
-    }
 
     /* ป้องกัน iOS Safari ซูมหน้าจอเข้าเองทุกครั้งที่แตะช่องกรอกข้อมูล (เกิดเมื่อ font-size ช่องกรอก < 16px) */
     .form-group input,
@@ -4522,9 +4502,6 @@ tr.is-voided-row td {
         grid-template-columns: 1fr 1fr;
     }
 
-    .doc-upload-grid.four-cols {
-        grid-template-columns: 1fr 1fr;
-    }
 
     .filter-box {
         flex-wrap: wrap;
@@ -4586,12 +4563,6 @@ tr.is-voided-row td {
 }
 
 /* ==================== GOOGLE-DRIVE-STYLE DOCUMENT FOLDER GRID ==================== */
-.drive-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 14px;
-}
-
 .drive-tile {
     position: relative;
     display: flex;
@@ -4608,18 +4579,8 @@ tr.is-voided-row td {
     box-shadow: var(--shadow-sm);
 }
 
-.drive-tile-expired {
-    opacity: 0.7;
-    border-style: dashed;
-}
 
-.drive-tile-expired:hover {
-    opacity: 1;
-}
 
-.drive-tile-thumb-link {
-    display: contents;
-}
 
 .drive-tile-thumb {
     position: relative;
@@ -4638,57 +4599,11 @@ tr.is-voided-row td {
     object-fit: contain;
 }
 
-.drive-tile-body {
-    padding: 8px 10px;
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-}
 
-.drive-tile-category {
-    font-size: 11.5px;
-    font-weight: 700;
-    color: var(--gold-dark, var(--gold-primary));
-    text-transform: uppercase;
-    letter-spacing: 0.02em;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
 
-.drive-tile-name {
-    font-size: 12.5px;
-    font-weight: 500;
-    color: var(--navy-dark);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    border: none;
-    background: transparent;
-    width: 100%;
-    padding: 1px 0;
-}
 
-.drive-tile-name:focus {
-    outline: 1px solid var(--gold-primary);
-    border-radius: 3px;
-}
 
-.drive-tile-actions {
-    position: absolute;
-    top: 6px;
-    right: 6px;
-    display: flex;
-    gap: 4px;
-    opacity: 0;
-    transform: translateY(-4px);
-    transition: opacity 0.15s, transform 0.15s;
-}
 
-.drive-tile:hover .drive-tile-actions {
-    opacity: 1;
-    transform: none;
-}
 
 .drive-tile-action-btn {
     width: 26px;
@@ -4714,33 +4629,9 @@ tr.is-voided-row td {
     color: var(--danger);
 }
 
-.drive-tile.add-tile {
-    align-items: center;
-    justify-content: center;
-    min-height: 212px;
-    border-style: dashed;
-    background-color: var(--dk-subtle, #f8fafc);
-    color: var(--text-muted);
-    cursor: pointer;
-}
 
-.drive-tile.add-tile:hover {
-    border-color: var(--gold-primary);
-    color: var(--gold-primary);
-    background-color: var(--dk-subtle, #fffdf7);
-}
 
-.drive-tile.add-tile .add-tile-icon {
-    font-size: 24px;
-    margin-bottom: 6px;
-}
 
-.drive-tile.add-tile .add-tile-label {
-    font-size: 11.5px;
-    text-align: center;
-    line-height: 1.35;
-    padding: 0 10px;
-}
 
 .pagination-info {
     font-size: 14px;
@@ -5242,57 +5133,12 @@ tr.is-voided-row td {
 /* ==================== สรุปงาน (ระบบแจ้งงาน → สรุปงาน) ดู renderJobsSummary ==================== */
 .jobs-summary { margin-top: 10px; }
 
-.js-head {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 6px 14px;
-    margin-bottom: 14px;
-}
 
-.js-head h3 {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin: 0;
-    font-size: 17px;
-    color: var(--navy-dark);
-}
 
-.js-head .text-muted { font-size: 13px; }
 
-.js-tiles {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-    gap: 12px;
-    margin-bottom: 16px;
-}
 
-.js-tile {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    padding: 14px 16px;
-    border-radius: var(--radius-md);
-    background-color: var(--gray-card);
-    box-shadow: var(--shadow-sm);
-    border-top: 4px solid var(--gold-primary);
-}
 
-.js-tile span { font-size: 13px; color: var(--text-muted); }
-.js-tile strong { font-family: var(--font-head); font-size: 26px; font-weight: 500; color: var(--navy-dark); }
-.js-tile small { font-size: 12px; color: var(--text-muted); }
-.js-tile.is-ok { border-top-color: var(--success); }
-.js-tile.is-warn { border-top-color: var(--warning); }
-.js-tile.is-bad { border-top-color: var(--danger); }
-.js-tile.is-bad strong { color: var(--danger); }
 
-.js-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 14px;
-    margin-bottom: 14px;
-}
 
 .js-card {
     padding: 14px 16px;
@@ -7277,15 +7123,16 @@ body.has-camera .upload-hint { display: none; }
 .job-remark-input {
     width: 100%;
     min-width: 120px;
-    padding: 6px 8px;
+    height: 32px;
+    padding: 0 14px;
     border: 1px solid var(--dk-line, #e2e8f0);
-    border-radius: 8px;
+    border-radius: 999px; /* ทรงแคปซูลเหมือนช่อง Order No. */
     font-family: inherit;
     font-size: 13px;
     background-color: var(--dk-card, #ffffff);
     color: var(--text-dark);
 }
-.job-remark-input:focus { outline: none; border-color: var(--gold-primary); }
+.job-remark-input:focus { outline: none; border-color: var(--gold-primary); box-shadow: 0 0 0 3px rgba(45, 79, 163, 0.12); }
 .job-close-add-btn { cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
 
 /* หัวคอลัมน์ที่คลิกเรียงได้ (ตารางระบบจัดการแจ้งงาน — sortJobsBy) */

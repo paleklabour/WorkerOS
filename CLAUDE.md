@@ -205,11 +205,20 @@ mouse devices (`openIosSelect` — the native `<select>` still holds the value),
 charts animate via `setupChartMagicMove`. Keep new UI consistent with that.
 Smallest UI font is 11.5px; don't add smaller sizes (printed sheets excepted).
 
+Table action columns (owner, 2026-10-13): on mouse devices the "จัดการ" column
+(`th`/`td.actions-col` in a `.data-table`) is removed from the layout and the row's
+buttons float over the row's right edge on hover, Gmail-style (pinned to the visible
+edge of a horizontally scrolled table via `setupRowActionsOverlay`). Not applied in the
+client portal or `.prices-table`; touch devices keep the normal column. A new table's
+action column just needs `class="actions-col"` on both the `th` and the `td`. Wide
+tables get a floating bottom scrollbar (`setupFloatingHScroll`).
+
 Button descriptions (tooltips) — standing rule (2026-10-08): every button's
 description is a plain `title="..."` attribute; `setupIosTooltips()` in `app.js`
 turns every `[title]` (including ones `app.js` renders later) into the iOS
 tooltip (`.ios-tooltip`). Don't build another tooltip system or a custom one per
-button. Icon-only buttons (✕, edit, delete, download …) must have a `title`.
+button (it also strips ancestor `title`s and SVG `<title>`s while showing, so the browser's own
+black tooltip never appears alongside it). Icon-only buttons (✕, edit, delete, download …) must have a `title`.
 Wording pattern: verb + what it acts on, short — "ลบคนงาน", "แก้ไขใบงาน",
 "ดาวน์โหลดไฟล์", "ปิดหน้าต่าง" — not a bare "ลบ" / "แก้ไข".
 
@@ -230,8 +239,10 @@ job-close files keep the same file name as in the app (`WP.pdf`, `PinkCard_2.jpg
 " (หมดอายุ)" added when expired), so renaming in the app renames in Drive (owner, 2026-10-12); `การเงิน/` slips by month; `ข้อมูลระบบ/` 30 days; files
 removed from WorkerOS move to `ถูกลบ/`). Supabase stays the source of truth.
 Admin sees "เปิดใน Google Drive" buttons in the worker/customer folder (folder button in the
-footer, per-file "Drive" button in the preview bar) once that item has been backed up — matched by
-Storage path via `getDriveBackupIndex` / `driveFileLink` (2026-10-12).
+footer, plus a "Drive" button in the preview bar) once that item has been backed up — matched by
+Storage path via `getDriveBackupIndex` / `driveFileLink` (2026-10-12). The preview-bar "Drive" button
+opens the whole worker/employer Drive folder, not the single file (owner, 2026-10-13;
+`driveFolderButtonHtml`, falls back to the file link only if the folder isn't tracked).
 Incremental, tracked in `drive_backup_files` / `drive_backup_folders`, runs hourly
 via pg_cron (`20261008090100_drive_backup_cron.sql`, apply only after the function
 and its secrets exist). Customer folders are shared read-only to `customers.email`

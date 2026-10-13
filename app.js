@@ -157,17 +157,6 @@ const BUSINESS_TYPES = [
     "โรงงาน/อุตสาหกรรมแปรรูป"
 ];
 
-// Local offline mock accounts — ONLY used when this app is opened without a
-// cloud backend URL saved (see handleLogin below). These are NOT the real
-// production credentials; real credentials live only in the Users sheet on
-// the server and are checked via Code.gs / doPost. Do not reuse these
-// values as real passwords, and do not expose them on the login screen.
-const USERS = {
-    "demo-admin@local.test": { email: "demo-admin@local.test", name: "Demo Admin (Offline)", role: "admin", password: "demo-only-local-1" },
-    "demo-manager@local.test": { email: "demo-manager@local.test", name: "Demo Manager (Offline)", role: "account_manager", password: "demo-only-local-2" },
-    "demo-staff@local.test": { email: "demo-staff@local.test", name: "Demo Staff (Offline)", role: "staff", password: "demo-only-local-3" }
-};
-
 // ==================== JOB RULES: 1 ประเภทงาน = 1 ใบงาน ====================
 // กติกาธุรกิจ:
 // 1) ทุกครั้งที่แจ้งงาน ถ้าติ๊กเลือกหลายประเภทงาน ระบบจะแตกเป็นคนละ "ใบงาน" (job)
@@ -832,7 +821,7 @@ function seedMockData() {
 async function initApp() {
     try {
         await loadData();
-        applyAllWidgetLayouts(); // จัดวิดเจ็ตตามที่บัญชีนี้บันทึกไว้ (profiles.ui_layout)
+        applyAllWidgetLayouts(); // จัดวิดเจ็ตตามค่าเริ่มต้นใน WIDGET_BOARDS
         hideLoginView();
         showMainLayout();
         
@@ -1220,11 +1209,6 @@ function setupFormPermissions() {
 }
 
 // ==================== AUTHENTICATION ====================
-function fillDemoLogin(email, password) {
-    document.getElementById("login-username").value = email;
-    document.getElementById("login-password").value = password;
-}
-
 async function handleLogin(e) {
     e.preventDefault();
     const email = document.getElementById("login-username").value.trim();
@@ -1250,8 +1234,7 @@ async function handleLogin(e) {
                     name: result.user.name,
                     role: result.user.role,
                     customer_id: result.user.customer_id,
-                    theme: result.user.theme || null,
-                    uiLayout: result.user.uiLayout || null
+                    theme: result.user.theme || null
                 };
                 localStorage.setItem("mw_current_user", JSON.stringify(currentUser));
                 syncThemeFromAccount(result.user.theme);
@@ -1274,23 +1257,9 @@ async function handleLogin(e) {
         return;
     }
 
-    // Fallback: Offline Mock login
-    const matchedUser = USERS[email];
-    if (matchedUser && matchedUser.password === password) {
-        errorEl.style.display = 'none';
-        currentUser = {
-            email: matchedUser.email,
-            name: matchedUser.name,
-            role: matchedUser.role,
-            customer_id: "ALL" // Mock admin has access to all
-        };
-        localStorage.setItem("mw_current_user", JSON.stringify(currentUser));
-        showToast(`เข้าสู่ระบบสำเร็จในสิทธิ์ ${getRoleLabel(currentUser.role)}`, 'success');
-        await initApp();
-    } else {
-        errorEl.style.display = 'block';
-        errorEl.innerText = "อีเมลหรือรหัสผ่านไม่ถูกต้อง";
-    }
+    // ไม่มี Supabase (โหลด supabase-js ไม่ขึ้น) — เดิมมีบัญชีทดลองแบบออฟไลน์ ถอดออกแล้ว (2026-10-13)
+    errorEl.style.display = 'block';
+    errorEl.innerText = "ไม่สามารถเชื่อมต่อ Supabase ได้ กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองใหม่";
 }
 
 function logout() {
@@ -2869,23 +2838,6 @@ function switchFinancePageTab(tabName) {
     }
 }
 
-// badge สถานะการเงิน ใช้ร่วมกันทั้งบิลที่ผูกใบงานจริง (jobs) และบิลอิสระ (freeInvoices) ในตาราง "ออกบิล/รับเงิน"
-function buildFinancePaymentBadge(paymentStatus, paymentMethod, isClosedUnpaid) {
-    let badge = `<span class="badge badge-warning" style="font-size: 11.5px; padding: 2px 6px;">${icon("hourglass")} ยังไม่ออกบิล</span>`;
-    if (paymentStatus === JOB_NO_CHARGE) {
-        badge = `<span class="badge badge-nocharge">${icon("ok")} ไม่เรียกเก็บเงิน</span>`;
-    } else if (isClosedUnpaid && paymentStatus === 'ยังไม่ออกบิล') {
-        badge = `<span class="badge badge-danger" style="font-size: 11.5px; padding: 2px 6px;">${icon("warn")} ยังไม่ออกบิล/ยังไม่ชำระ</span>`;
-    } else if (isClosedUnpaid && paymentStatus === 'ออกบิลแล้ว') {
-        badge = `<span class="badge badge-danger" style="font-size: 11.5px; padding: 2px 6px;">${icon("warn")} ออกบิลแล้ว รอชำระ</span>`;
-    } else if (paymentStatus === 'ออกบิลแล้ว') {
-        badge = `<span class="badge" style="font-size: 11.5px; padding: 2px 6px; background-color: #3b82f6; color: white;">${icon("receipt")} ออกบิลแล้ว</span>`;
-    } else if (paymentStatus === 'ชำระเงินแล้ว') {
-        badge = `<span class="badge badge-success" style="font-size: 11.5px; padding: 2px 6px;">${icon("ok")} ชำระเงินแล้ว${paymentMethod ? ` (${paymentMethod})` : ''}</span>`;
-    }
-    return badge;
-}
-
 // แท็บ "ออกบิล / รับเงิน" — 2 ส่วนในตารางเดียว:
 //   1) ใบงานที่ยังไม่ออกบิล (ไม่มีบิลที่ใช้งานอยู่) → ปุ่ม "ออกบิล" เปิดร่างบิล
 //   2) บิลที่ออกแล้วทุกใบ (invoices) พร้อมยอดรับแล้ว/คงเหลือ → ปุ่ม "เปิดบิล" (รับเงิน/พิมพ์/ใบเสร็จ/ยกเลิก)
@@ -3455,13 +3407,13 @@ function renderCustomers() {
                     <div>${c.coordinator}</div>
                     <small class="text-muted">${c.phone}</small>
                 </td>
-                <td>${referredAgentHtml}</td>
                 <td>
                     <span class="badge badge-lg badge-gold" style="cursor: pointer;" onclick="event.stopPropagation(); filterWorkersByEmployer('${c.id}')" title="คลิกเพื่อสืบค้นรายชื่อคนงาน">
                         ${icon("user")} ${activeWorkersCount} คน (ทั้งหมด ${totalWorkersCount} คน)
                     </span>
                 </td>
                 <td onclick="event.stopPropagation()">${attachHtml}</td>
+                <td>${referredAgentHtml}</td>
                 <td class="actions-col" onclick="event.stopPropagation()">
                     <div class="actions-cell">
                         ${deleteBtn}
@@ -3912,8 +3864,8 @@ function renderWorkers() {
                     <div class="employer-name">${empName}</div>
                     ${buildEmployerIdLinesHtml(emp)}
                 </td>
-                <td>${statusBadge}</td>
                 <td onclick="event.stopPropagation()">${attachHtml}</td>
+                <td>${statusBadge}</td>
                 <td class="actions-col" onclick="event.stopPropagation()">
                     <div class="actions-cell">
                         ${deleteBtn}
@@ -8568,7 +8520,7 @@ function renderUsers() {
                     title="${open ? 'ล็อกเอกสารปิดงานที่ยังไม่ชำระ' : 'เปิดล็อกเอกสารปิดงานที่ยังไม่ชำระ'}">${icon(open ? 'unlock' : 'lock')} ${open ? 'เอกสารปิดงาน: เปิดให้ดูก่อนชำระ' : 'เอกสารปิดงาน: ต้องชำระก่อน'}</button></div>`;
             })() : '-'}</td>
             <td>${status}</td>
-            <td style="text-align:center; white-space:nowrap;">
+            <td class="actions-col" style="text-align:center; white-space:nowrap;">
                 <button class="action-icon-btn" onclick="openUserModal('${u.id}')" title="แก้ไขชื่อ/บทบาท">${icon("edit")}</button>
                 <button class="action-icon-btn" onclick="adminSetUserPassword('${u.id}', '${safeName}')" title="ตั้งรหัสผ่านใหม่">${icon("lock")}</button>
                 <button class="action-icon-btn" onclick="adminChangeUserEmail('${u.id}', '${safeName}')" title="เปลี่ยนอีเมลเข้าระบบ">${icon("outbox")}</button>
@@ -9041,11 +8993,6 @@ function openStoredInvoice(invoiceId) {
     loadInvoiceLayoutForCurrent();
     renderInvoiceStatusUi();
     document.getElementById("invoice-modal").classList.remove("hidden");
-}
-
-// เดิมใช้เปิดบิลอิสระที่ "วางบิล" ไว้ — บิลอิสระย้ายเข้า invoices แล้ว (id เดิม) จึงเปิดผ่าน openStoredInvoice
-function openFreeInvoiceModal(invoiceId) {
-    openStoredInvoice(invoiceId);
 }
 
 // ปุ่ม "ออกบิล (รับเลขที่)" — บันทึกร่างที่เปิดอยู่เป็นบิลจริง: ขอเลขที่ INV-ปปปป-NNNN จากฐานข้อมูล
@@ -10794,7 +10741,7 @@ function renderCustomerFolderPreview() {
                 <a class="btn btn-sm btn-outline" href="${escapeHtml(url)}" target="_blank" rel="noopener">${icon('link')} เปิดแท็บใหม่</a> <button type="button" class="btn btn-sm btn-outline" onclick="printFolderPreview('customer-folder-preview')" title="พิมพ์ไฟล์นี้">${icon('print')} พิมพ์</button>
                 <button type="button" class="btn btn-sm btn-outline" onclick="customerFolderAction('download')">${icon('inbox')} ดาวน์โหลด</button>
                 <button type="button" class="btn btn-sm btn-outline" onclick="customerFolderAction('share')">${icon('link')} แชร์</button>
-                ${driveFileButtonHtml(url)}
+                ${driveFolderButtonHtml(`customer:${c.id}`, 'นายจ้าง', url)}
                 <button type="button" class="btn btn-sm btn-outline btn-danger-outline drive-tile-action-btn danger" onclick="deleteCustomerFolderFileIndex('${sel.key}', ${sel.idx})" title="ลบไฟล์">${icon('trash')}</button>
             </div>
         </div>
@@ -10896,37 +10843,6 @@ function tryPdfThumbFallback(imgEl) {
     container.innerHTML = '' + icon("file") + '';
     container.setAttribute('data-pdf-thumb', url);
     hydrateSinglePdfThumb(container);
-}
-
-// pasteTarget ("worker-folder:<ประเภท>" / "customer-folder:<ประเภท>") = ชี้เมาส์ที่ช่องนี้แล้วกด Ctrl+V วางภาพได้ (ดู findPasteTarget)
-function renderDriveAddTile(label, triggerCall, pasteTarget = '', iconName = '', cameraCall = '') {
-    return `
-        <div class="drive-tile add-tile" onclick="${triggerCall}" ${pasteTarget ? `data-paste-target="${pasteTarget}"` : ''} title="แนบไฟล์: ${label}${pasteTarget ? ' — คลิกเลือกไฟล์ หรือชี้แล้วกด Ctrl+V วางภาพ' : ''}">
-            <div class="add-tile-icon">${icon("plus")}</div>
-            <div class="add-tile-label">${iconName ? icon(iconName) + ' ' : ''}${label}</div>
-            ${cameraCall && isCameraDevice() ? cameraButtonHtml(cameraCall) : ''}
-        </div>
-    `;
-}
-
-function renderCustomerDriveTile(docInfo, fileItem, idx, entityName) {
-    const data = fileItem.data || '';
-    const safeName = (fileItem.name || '').replace(/'/g, "\\'");
-    const safeEntityName = (entityName || '').replace(/'/g, "\\'");
-    return `
-        <div class="drive-tile">
-            <a class="drive-tile-thumb-link" href="${data}" target="_blank" rel="noopener">${renderDriveThumbnail(data)}</a>
-            <div class="drive-tile-body">
-                <span class="drive-tile-category" title="${docInfo.label}">${icon(docInfo.icon)} ${docInfo.label}</span>
-                <input type="text" class="drive-tile-name" value="${fileItem.name}" title="${fileItem.name}" onchange="renameCustomerFolderFileIndex('${docInfo.key}', ${idx}, this.value)">
-            </div>
-            <div class="drive-tile-actions">
-                <button type="button" class="drive-tile-action-btn" onclick="downloadAttachment('${safeName}', '${data}')" title="ดาวน์โหลดไฟล์">${icon("inbox")}</button>
-                <button type="button" class="drive-tile-action-btn" onclick="shareAttachment('${safeName}', '${safeEntityName}', '${data}')" title="แชร์ลิงก์">${icon("link")}</button>
-                <button type="button" class="drive-tile-action-btn danger" onclick="deleteCustomerFolderFileIndex('${docInfo.key}', ${idx})" title="ลบไฟล์">${icon("trash")}</button>
-            </div>
-        </div>
-    `;
 }
 
 async function renameCustomerFolderFileIndex(docType, index, newName) {
@@ -11348,11 +11264,6 @@ function renderMonthlyDetails() {
 // ==================== FINANCE AND ACCOUNTING STATS ====================
 function isJobPaid(j) {
     return !!(j && j.paymentStatus === 'ชำระเงินแล้ว');
-}
-
-function getJobPaymentMethod(j) {
-    if (!isJobPaid(j)) return null;
-    return j.paymentMethod || "ไม่ระบุบัญชี";
 }
 
 // สร้างตัวเลือกช่วงเวลา (ปี/เดือน) จากวันที่เปิดงานจริงของ jobs และวันที่ของ expenses ทั้งหมด — คงค่าที่เลือกไว้เดิม
@@ -12200,7 +12111,7 @@ function renderWorkerFolderPreview() {
                 <div class="fv-bar-actions">
                     <a class="btn btn-sm btn-outline" href="${escapeHtml(jurl)}" target="_blank" rel="noopener">${icon('link')} เปิดแท็บใหม่</a> <button type="button" class="btn btn-sm btn-outline" onclick="printFolderPreview('worker-folder-preview')" title="พิมพ์ไฟล์นี้">${icon('print')} พิมพ์</button>
                     <button type="button" class="btn btn-sm btn-outline" onclick="workerFolderAction('download')">${icon('inbox')} ดาวน์โหลด</button>
-                    ${driveFileButtonHtml(jurl)}
+                    ${driveFolderButtonHtml(`worker:${w.id}`, 'คนงาน', jurl)}
                 </div>
             </div>
             <div class="fv-doc">${jviewer}</div>`;
@@ -12228,7 +12139,7 @@ function renderWorkerFolderPreview() {
                 <a class="btn btn-sm btn-outline" href="${escapeHtml(url)}" target="_blank" rel="noopener">${icon('link')} เปิดแท็บใหม่</a> <button type="button" class="btn btn-sm btn-outline" onclick="printFolderPreview('worker-folder-preview')" title="พิมพ์ไฟล์นี้">${icon('print')} พิมพ์</button>
                 <button type="button" class="btn btn-sm btn-outline" onclick="workerFolderAction('download')">${icon('inbox')} ดาวน์โหลด</button>
                 <button type="button" class="btn btn-sm btn-outline" onclick="workerFolderAction('share')">${icon('link')} แชร์</button>
-                ${driveFileButtonHtml(url)}
+                ${driveFolderButtonHtml(`worker:${w.id}`, 'คนงาน', url)}
                 ${canEdit ? `<button type="button" class="btn btn-sm btn-outline btn-danger-outline drive-tile-action-btn danger" onclick="deleteFolderFileIndex('${activeFolderSel.key}', ${activeFolderSel.idx})" title="ลบไฟล์">${icon('trash')}</button>` : ''}
             </div>
         </div>
@@ -12387,9 +12298,16 @@ function driveFolderLink(key) {
     return id ? `https://drive.google.com/drive/folders/${encodeURIComponent(id)}` : '';
 }
 
-function driveFileButtonHtml(url) {
-    const link = can('admin') ? driveFileLink(url) : '';
-    return link ? `<a class="btn btn-sm btn-outline" href="${escapeHtml(link)}" target="_blank" rel="noopener" title="เปิดไฟล์นี้ใน Google Drive (ไฟล์สำรอง)">${icon('cloud')} Drive</a>` : '';
+
+// แฟ้มคนงาน/นายจ้าง: ปุ่ม Drive บนแถบพรีวิวเปิด "โฟลเดอร์ทั้งหมดของคนงาน/นายจ้างนี้" แทนไฟล์เดียว (owner, 2026-10-13)
+// folderKey = worker:<id> / customer:<id>; โฟลเดอร์ยังไม่ถูกสร้างใน Drive แต่ไฟล์มีแล้ว (ไม่น่าเกิด) → เปิดไฟล์แทน
+function driveFolderButtonHtml(folderKey, label, url) {
+    if (!can('admin')) return '';
+    const folder = driveFolderLink(folderKey);
+    const link = folder || driveFileLink(url);
+    if (!link) return '';
+    const tip = folder ? `เปิดโฟลเดอร์${label}นี้ใน Google Drive (ไฟล์สำรอง)` : 'เปิดไฟล์นี้ใน Google Drive (ไฟล์สำรอง)';
+    return `<a class="btn btn-sm btn-outline" href="${escapeHtml(link)}" target="_blank" rel="noopener" title="${tip}">${icon('cloud')} Drive</a>`;
 }
 
 // ปุ่มท้ายแฟ้ม: แสดงเมื่อมีโฟลเดอร์นั้นใน Drive แล้ว — โหลดดัชนีเสร็จทีหลังก็วาดพรีวิวใหม่ให้มีปุ่ม Drive ของไฟล์
@@ -16901,8 +16819,19 @@ function hideIosTooltip() {
     if (t.box) t.box.remove();
     t.el.removeAttribute('data-ios-tip');
     // คืน title ให้ (ถ้าระหว่างนั้นโค้ดอื่นไม่ได้ตั้ง title ใหม่)
-    if (t.el.isConnected && !t.el.hasAttribute('title')) t.el.setAttribute('title', t.title);
+    if (t.svgTitle) { if (t.el.isConnected) t.el.insertBefore(t.svgTitle, t.el.firstChild); }
+    else if (t.el.isConnected && !t.el.hasAttribute('title')) t.el.setAttribute('title', t.title);
+    (t.stripped || []).forEach(([p, v]) => { if (p.isConnected && !p.hasAttribute('title')) p.setAttribute('title', v); });
     _iosTip = null;
+}
+
+// ตัวใน SVG ที่ใกล้เมาส์ที่สุดซึ่งมีลูก <title> (คำอธิบายจุด/แท่งในกราฟ)
+function svgTitleHost(target) {
+    for (let el = target; el && el.namespaceURI === 'http://www.w3.org/2000/svg'; el = el.parentElement) {
+        if (Array.from(el.children).some(c => c.tagName.toLowerCase() === 'title')) return el;
+        if (el.tagName.toLowerCase() === 'svg') break;
+    }
+    return null;
 }
 
 function showIosTooltip(el, text) {
@@ -16927,15 +16856,25 @@ function setupIosTooltips() {
     document.addEventListener('mouseover', e => {
         // หาตัวที่มีคำอธิบาย "ใกล้เมาส์ที่สุด" เสมอ — ตัวที่กำลังแสดงอยู่ถูกถอด title ไว้ จึงหาด้วย data-ios-tip แทน
         // (เดิมถ้าชี้แถวตารางที่มี title ก่อน ปุ่มข้างในแถว เช่น ปิดงาน/แก้ไข/ลบ จะถูกข้าม แล้วขึ้นกรอบของเบราว์เซอร์แทน)
-        const el = e.target.closest && e.target.closest('[title], [data-ios-tip]');
+        if (!e.target.closest) return;
+        if (_iosTip && _iosTip.svgTitle && _iosTip.el.contains(e.target)) return; // ยังอยู่ในจุดกราฟเดิม (ถอด <title> ไปแล้ว)
+        // กราฟ SVG ใช้ลูก <title> (เบราว์เซอร์ขึ้นกรอบดำของตัวเอง) → ถอด <title> ออกชั่วคราวแล้วแสดงแบบ iOS แทน (owner, 2026-10-13)
+        const svgEl = e.target.closest('svg') ? svgTitleHost(e.target) : null;
+        const el = svgEl || e.target.closest('[title], [data-ios-tip]');
         if (!el || (_iosTip && _iosTip.el === el)) return;
-        if (el.closest('svg') && el.tagName.toLowerCase() !== 'svg') return;
-        const title = el.getAttribute('title');
+        if (!svgEl && el.closest('svg') && el.tagName.toLowerCase() !== 'svg') return;
+        const svgTitle = svgEl ? Array.from(svgEl.children).find(c => c.tagName.toLowerCase() === 'title') : null;
+        const title = svgTitle ? svgTitle.textContent : el.getAttribute('title');
         hideIosTooltip();
         if (!title || !title.trim()) return;
-        el.removeAttribute('title');
+        if (svgTitle) svgTitle.remove(); else el.removeAttribute('title');
         el.setAttribute('data-ios-tip', '');
-        _iosTip = { el, title, box: null, timer: null };
+        // ตัวที่ครอบอยู่ (เช่น แถวตารางที่มี title) ก็ต้องถอด title ด้วย ไม่งั้นเบราว์เซอร์ขึ้นกรอบดำของแถวคู่กับกรอบขาวของปุ่ม
+        const stripped = [];
+        for (let p = el.parentElement; p; p = p.parentElement) {
+            if (p.hasAttribute('title')) { stripped.push([p, p.getAttribute('title')]); p.removeAttribute('title'); }
+        }
+        _iosTip = { el, title, box: null, timer: null, stripped, svgTitle };
         _iosTip.timer = setTimeout(() => {
             if (_iosTip && _iosTip.el === el && el.isConnected) _iosTip.box = showIosTooltip(el, title);
         }, 450);
@@ -16955,7 +16894,178 @@ function setupIosTooltips() {
 
 document.addEventListener('DOMContentLoaded', () => {
     try { setupIosTooltips(); } catch (err) { console.error('Tooltip setup failed:', err); }
+    try { setupFloatingHScroll(); } catch (err) { console.error('Floating scrollbar setup failed:', err); }
+    try { setupRowActionsOverlay(); } catch (err) { console.error('Row actions setup failed:', err); }
+    try { setupCollapsibleSections(); } catch (err) { console.error('Collapsible sections setup failed:', err); }
 });
+
+// ==================== ยุบ/กางหัวข้อ (owner, 2026-10-13) ====================
+// กดที่หัวการ์ด (.panel-header) หรือหัวข้อในฟอร์ม (ส่วนที่ 1.1/1.2/1.3, ที่อยู่, เอกสารแนบ) → เนื้อหาข้างใต้พับเก็บ เหลือแค่หัวข้อ
+// เนื้อหา = พี่น้องถัดจากหัวข้อ จนถึงหัวข้อถัดไปแบบเดียวกัน (ฟอร์มวางหัวข้อกับช่องกรอกเรียงกันแบนๆ ไม่ได้ห่อเป็นกล่อง)
+// กดโดนปุ่ม/ช่องกรอก/ลิงก์ในหัวข้อ = ไม่พับ; หัวที่มีตัวเลือกช่วงเวลา (.fin-period-bar) ไม่พับ
+// การ์ดในหน้า: จำสถานะต่อเครื่อง (localStorage); หัวข้อในหน้าต่างฟอร์ม: กางหมดทุกครั้งที่เปิดหน้าต่างใหม่
+// และช่องที่บังคับกรอกอยู่ในหัวข้อที่พับไว้ → กางให้เองตอนกดบันทึก
+const COLLAPSE_HEADER_SEL = '.panel-header:not(.fin-period-bar), .form-section-header, .section-title-bar, .documents-section > h4';
+
+function setupCollapsibleSections() {
+    const STORE_KEY = 'mw_collapsed_panels';
+    let saved = [];
+    try { saved = JSON.parse(localStorage.getItem(STORE_KEY) || '[]') || []; } catch (e) { saved = []; }
+    const headerKey = h => {
+        const t = h.querySelector('h3, h4') || h;
+        return (t.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+    };
+    const remembers = h => h.matches('.panel-header') && !h.closest('.modal-backdrop');
+    const persist = () => { try { localStorage.setItem(STORE_KEY, JSON.stringify(saved)); } catch (e) {} };
+
+    const sectionBody = h => {
+        const out = [];
+        for (let el = h.nextElementSibling; el; el = el.nextElementSibling) {
+            if (el.matches(COLLAPSE_HEADER_SEL)) break;
+            out.push(el);
+        }
+        return out;
+    };
+    const setCollapsed = (h, on) => {
+        h.classList.toggle('is-collapsed', on);
+        h.setAttribute('aria-expanded', on ? 'false' : 'true');
+        sectionBody(h).forEach(el => el.classList.toggle('sec-collapsed-away', on));
+        const card = h.parentElement;
+        if (h.matches('.panel-header') && card) card.classList.toggle('has-collapsed-header', on);
+        if (remembers(h)) {
+            const k = headerKey(h);
+            saved = saved.filter(x => x !== k);
+            if (on) saved.push(k);
+            persist();
+        }
+    };
+
+    document.addEventListener('click', e => {
+        const h = e.target.closest && e.target.closest(COLLAPSE_HEADER_SEL);
+        if (!h) return;
+        const control = e.target.closest('button, a, input, select, textarea, label, [onclick], [contenteditable]');
+        if (control && control !== h && h.contains(control)) return;
+        setCollapsed(h, !h.classList.contains('is-collapsed'));
+    });
+
+    // ช่องบังคับกรอกที่ถูกพับซ่อน → กางหัวข้อนั้นก่อน เบราว์เซอร์จะได้ชี้ช่องที่ยังไม่กรอกได้
+    document.addEventListener('invalid', e => {
+        const away = e.target.closest && e.target.closest('.sec-collapsed-away');
+        if (!away) return;
+        for (let el = away.previousElementSibling; el; el = el.previousElementSibling) {
+            if (el.matches(COLLAPSE_HEADER_SEL)) { setCollapsed(el, false); break; }
+        }
+    }, true);
+
+    // เปิดหน้าต่างใหม่ → กางทุกหัวข้อในหน้าต่างนั้น (ไม่ให้ช่องที่ AI เติมให้ซ่อนอยู่โดยไม่รู้ตัว)
+    const mo = new MutationObserver(records => records.forEach(r => {
+        const bd = r.target;
+        if (String(r.oldValue || '').split(/\s+/).includes('hidden') && !bd.classList.contains('hidden')) {
+            bd.querySelectorAll('.is-collapsed').forEach(h => setCollapsed(h, false));
+        }
+    }));
+    document.querySelectorAll('.modal-backdrop').forEach(bd =>
+        mo.observe(bd, { attributes: true, attributeFilter: ['class'], attributeOldValue: true }));
+
+    // การ์ดในหน้าที่เคยพับไว้ → พับกลับเหมือนเดิม
+    if (saved.length) {
+        document.querySelectorAll('.panel-header:not(.fin-period-bar)').forEach(h => {
+            if (remembers(h) && saved.includes(headerKey(h))) setCollapsed(h, true);
+        });
+    }
+}
+
+// ปุ่มจัดการลอยบนแถว (CSS: td.actions-col ใน styles.css) — ให้ปุ่มชิดขอบขวาที่ "มองเห็น" ของกล่องตาราง
+// ไม่ใช่ขอบขวาของตาราง (ตารางกว้างที่เลื่อนแนวนอนอยู่ ขอบขวาจริงอาจอยู่นอกจอ)
+function setupRowActionsOverlay() {
+    if (!window.matchMedia || !window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+    const sync = box => {
+        const hidden = Math.max(0, box.scrollWidth - box.scrollLeft - box.clientWidth);
+        box.style.setProperty('--row-actions-right', hidden + 'px');
+    };
+    // ชี้ปุ่ม/ลิงก์อื่นในแถว (เช่น เปิดแฟ้ม) → ใส่ .actions-dodge ให้แถบปุ่มลอยจางหลบ
+    // (เดิมใช้ CSS tr:has(... :hover) ซึ่งทำให้เบราว์เซอร์คำนวณสไตล์ทุกแถวใหม่ทุกครั้งที่ขยับเมาส์ → ภาพกระตุก)
+    let dodged = null;
+    document.addEventListener('mouseover', e => {
+        if (!e.target.closest) return;
+        const box = e.target.closest('.table-container');
+        if (box) sync(box);
+        // td/tr ที่มี onclick (เช่น onclick="event.stopPropagation()" ทั้งช่อง) ไม่นับเป็นปุ่ม — ไม่งั้นชี้ตรงไหนในช่องนั้นแถบปุ่มก็หลบหมด
+        const control = e.target.closest('button, a, input, select, textarea, [onclick]:not(td):not(tr)');
+        const tr = control && !control.closest('td.actions-col') && control.closest('.data-table tr');
+        const row = tr && tr !== control && tr.querySelector(':scope > td.actions-col') ? tr : null;
+        if (row === dodged) return;
+        if (dodged) dodged.classList.remove('actions-dodge');
+        if (row) row.classList.add('actions-dodge');
+        dodged = row;
+    }, { passive: true });
+    document.addEventListener('scroll', e => {
+        if (e.target.classList && e.target.classList.contains('table-container')) sync(e.target);
+    }, true);
+}
+
+// ==================== แถบเลื่อนแนวนอนลอยท้ายจอ (ตารางกว้าง) ====================
+// ตารางที่กว้างเกินจอ แถบเลื่อนแนวนอนอยู่ใต้ตาราง ต้องเลื่อนลงสุดก่อนถึงจะเลื่อนขวาได้ (owner, 2026-10-13)
+// → ถ้าขอบล่างของ .table-container อยู่ต่ำกว่าจอ จะมีแถบเลื่อนลอยที่ท้ายจอ ซิงก์ scrollLeft กับตารางนั้น
+// เฉพาะเมาส์ (มือถือ/iPad ปัดนิ้วเลื่อนได้อยู่แล้ว); Shift + ลูกกลิ้งเมาส์ ก็เลื่อนแนวนอนได้เช่นกัน
+function setupFloatingHScroll() {
+    if (!window.matchMedia || !window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+
+    const bar = document.createElement('div');
+    bar.className = 'floating-hscroll hidden';
+    const inner = document.createElement('div');
+    inner.className = 'floating-hscroll-inner';
+    bar.appendChild(inner);
+    document.body.appendChild(bar);
+
+    let target = null, queued = false;
+
+    // ขอบล่างที่มองเห็นได้จริง: จอ หรือกล่องที่เลื่อนได้ซึ่งครอบตารางอยู่ (เช่น modal)
+    const visibleBottom = el => {
+        let bottom = window.innerHeight;
+        for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+            const oy = getComputedStyle(p).overflowY;
+            if (oy === 'auto' || oy === 'scroll') bottom = Math.min(bottom, p.getBoundingClientRect().bottom);
+        }
+        return bottom;
+    };
+
+    const update = () => {
+        queued = false;
+        let found = null, foundBottom = 0;
+        const list = Array.from(document.querySelectorAll('.table-container')).reverse(); // modal อยู่ท้าย DOM → มาก่อน
+        for (const el of list) {
+            if (!el.offsetParent || el.scrollWidth <= el.clientWidth + 1) continue;
+            const r = el.getBoundingClientRect();
+            const vb = visibleBottom(el);
+            if (r.bottom > vb && r.top < vb - 60) { found = el; foundBottom = vb; break; }
+        }
+        if (!found) { if (!bar.classList.contains('hidden')) bar.classList.add('hidden'); target = null; return; }
+        const r = found.getBoundingClientRect();
+        const left = Math.max(r.left, 0), right = Math.min(r.right, window.innerWidth);
+        bar.style.left = left + 'px';
+        bar.style.width = (right - left) + 'px';
+        bar.style.top = (foundBottom - bar.offsetHeight) + 'px';
+        inner.style.width = found.scrollWidth + 'px';
+        if (bar.classList.contains('hidden')) bar.classList.remove('hidden');
+        if (bar.scrollLeft !== found.scrollLeft) bar.scrollLeft = found.scrollLeft;
+        target = found;
+    };
+    const schedule = () => { if (!queued) { queued = true; requestAnimationFrame(update); } };
+
+    bar.addEventListener('scroll', () => {
+        if (target && target.scrollLeft !== bar.scrollLeft) target.scrollLeft = bar.scrollLeft;
+    });
+    document.addEventListener('scroll', e => {
+        if (e.target === bar) return;
+        if (target && e.target === target && bar.scrollLeft !== target.scrollLeft) bar.scrollLeft = target.scrollLeft;
+        schedule();
+    }, true);
+    window.addEventListener('resize', schedule);
+    // ตารางถูกวาดใหม่ด้วย innerHTML / เปลี่ยนหน้า → คำนวณใหม่
+    new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+    schedule();
+}
 
 // ==================== คนงานแยกรายจังหวัด (แดชบอร์ด) ====================
 // จังหวัดของคนงาน = จังหวัดสำนักงานใหญ่ของนายจ้าง (ระบบล็อกสถานที่ทำงานของคนงานไว้ตามนี้ — ดู getCustomerHQAddress)

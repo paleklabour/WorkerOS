@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261012c">
+    <link rel="stylesheet" href="styles.css?v=20261013a">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -616,9 +616,9 @@
                                         <th>หนังสือรับรอง (วันหมดอายุ)</th>
                                         <th>ที่อยู่ (สาขาหลัก)</th>
                                         <th>ผู้ประสานงาน / เบอร์โทร</th>
-                                        <th>แนะนำโดย (Agent)</th>
                                         <th>จำนวนคนงาน</th>
                                         <th>เอกสารแนบ</th>
+                                        <th>แนะนำโดย (Agent)</th>
                                         <th class="actions-col">จัดการ</th>
                                     </tr>
                                 </thead>
@@ -705,8 +705,8 @@
                                         <th class="sortable-th" data-sort="passport" onclick="sortWorkersBy('passport')">ข้อมูลพาสปอร์ต</th>
                                         <th class="sortable-th" data-sort="expiry" onclick="sortWorkersBy('expiry')">วันหมดอายุ</th>
                                         <th class="sortable-th" data-sort="employer" onclick="sortWorkersBy('employer')">นายจ้าง/ผู้ว่าจ้าง</th>
-                                        <th class="sortable-th" data-sort="docStatus" onclick="sortWorkersBy('docStatus')">สถานะเอกสาร</th>
                                         <th class="sortable-th" data-sort="docs" onclick="sortWorkersBy('docs')">เอกสารแนบ</th>
+                                        <th class="sortable-th" data-sort="docStatus" onclick="sortWorkersBy('docStatus')">สถานะเอกสาร</th>
                                         <th class="actions-col">จัดการ</th>
                                     </tr>
                                 </thead>
@@ -1360,7 +1360,7 @@
                                     <th>บทบาท (Role)</th>
                                     <th>นายจ้าง (สำหรับ role client)</th>
                                     <th>สถานะ</th>
-                                    <th style="text-align:center;">จัดการ</th>
+                                    <th class="actions-col" style="text-align:center;">จัดการ</th>
                                 </tr>
                             </thead>
                             <tbody id="users-tbody"></tbody>
@@ -3387,7 +3387,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261012c"></script>
+    <script src="supabase-client.js?v=20261013a"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3398,6 +3398,6 @@
     </script>
 
     <!-- Application Script -->
-    <script src="app.js?v=20261012c"></script>
+    <script src="app.js?v=20261013a"></script>
 </body>
 </html>
