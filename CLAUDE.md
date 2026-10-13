@@ -126,6 +126,16 @@ Owner's rules (2026-10-09):
   "Already Informed"/"แจ้งเข้าแล้ว"), an Admin clicks "ผ่าน", or the worker has a job
   with status "ปิดงานแล้ว" (rule from 2026-10-08, the owner confirmed keeping it). Don't
   auto-clear it anywhere else (the pending_register→active transition used to).
+- No-AI reading of government PDFs (owner, 2026-10-13 — Gemini prepaid credits ran out; owner
+  declined the free-AI option): `callOcr` in `supabase-client.js` first runs `parseGovPdf` —
+  pdf.js text + regex, no AI, no cost. Learned formats: DOE receipt (ใบเสร็จรับเงิน
+  กรมการจัดหางาน → name, RA/uid, receipt/bill no, amount, email, paid date) and
+  "ทะเบียนใบอนุญาตทำงานของคนต่างด้าว" in 3 layouts — label:value (มติ 2565 `WP-RN-65`/`ET-67`,
+  มติ 2568 `bt_*.pdf`) and the e-WorkPermit printout whose labels and values are separated
+  (`parseWpRegisterValueBlock`, fixed ":"-separated value order, odd Thai glyph encoding).
+  A hit skips Gemini entirely; the e-WorkPermit QR lookup (`ewp-qrcheck`) still merges on top.
+  Scans/photos still need AI or manual entry. When AI can't read, fill the worker from the
+  non-expired WP (owner rule).
 - Upload wait UI (owner chose iOS style #1, 2026-10-13): `uploadDocumentFile` overlays the
   attach box/tile/button the user used (`beginUploadUi`, host found from the last
   change/drop/paste/click) with an iOS spinner + stage text ("AI กำลังอ่านเอกสาร…" →

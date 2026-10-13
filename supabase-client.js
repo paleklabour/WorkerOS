@@ -282,7 +282,174 @@
     // คืน { parsedData, ocrError } — ocrError: null (สำเร็จ) / "busy" (Gemini ไม่ว่าง/โควตาหมด) / "failed"
     // เอกสารคนงาน: อ่าน QR ของกรมการจัดหางานคู่ไปกับ AI — ถ้าเจอ ข้อมูลจากกรมทับค่าที่ AI อ่าน (แม่นกว่า)
     // และถ้า AI อ่านไม่สำเร็จแต่ QR ได้ข้อมูล ก็ถือว่าอ่านสำเร็จ ไม่ต้องให้ผู้ใช้แนบใหม่
+    // -------------------- อ่าน PDF ราชการโดยไม่ใช้ AI (owner 2026-10-13, ไม่ใช้ AI ฟรี) --------------------
+    // PDF ที่ระบบกรมการจัดหางานสร้าง มีตัวหนังสือจริงในไฟล์ (ไม่ใช่ภาพสแกน) → ดึงข้อความด้วย pdf.js แล้วจับด้วย regex
+    // แม่นกว่า AI และไม่มีค่าใช้จ่าย — ถ้าจับได้ จะไม่เรียก AI เลย; ภาพสแกน/รูปถ่ายยังต้องใช้ AI (หรือกรอกเอง)
+    // รูปแบบที่เรียนรู้แล้ว (ตัวอย่างจากแฟ้ม ศรีทร / ชายแดนใต้คอนกรีต):
+    //   1) ใบเสร็จรับเงิน กรมการจัดหางาน (Receipt) — ชื่อคนต่างด้าว, RA/เลข 13 หลัก, เลขใบเสร็จ, เลขใบแจ้งชำระ, ยอดรวม, อีเมล
+    //   2) ทะเบียนใบอนุญาตทำงานของคนต่างด้าว (ใช้แทนใบอนุญาต) — มติ 2568 (bt_*.pdf), มติ 2565 (ET-67-*), สำเนา (WP-RN-65-*)
+    const TH_MONTH_NAMES = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+    const GOV_DATE_RE = "(\\d{1,2}[\\/\\-.]\\d{1,2}[\\/\\-.]\\d{4}|\\d{1,2}\\s+[ก-๙]+\\.?\\s+\\d{4})";
+
+    // "29/01/2024", "25/03/2524", "29-06-2569", "13 กุมภาพันธ์ 2570", "25 มีนาคม. 2524" → "DD/MM/YYYY" (ค.ศ.)
+    function govDateToDmy(s) {
+        const t = String(s || "").trim().replace(/กรกฏาคม/g, "กรกฎาคม");
+        let d, m, y;
+        let mm = t.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);
+        if (mm) { d = +mm[1]; m = +mm[2]; y = +mm[3]; }
+        else if ((mm = t.match(/^(\d{1,2})\s+([ก-๙]+)\.?\s+(\d{4})$/))) {
+            d = +mm[1]; m = TH_MONTH_NAMES.indexOf(mm[2]) + 1; y = +mm[3];
+            if (!m) m = TH_MONTH_NAMES.findIndex(n => n.startsWith(mm[2])) + 1;
+        } else return undefined;
+        if (y > 2400) y -= 543;
+        if (!(d >= 1 && d <= 31 && m >= 1 && m <= 12 && y > 1900)) return undefined;
+        return `${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}/${y}`;
+    }
+
+    async function extractPdfText(bytes, maxPages = 2) {
+        if (!window.pdfjsLib) return "";
+        const task = window.pdfjsLib.getDocument({ data: bytes.slice() });
+        try {
+            const pdf = await task.promise;
+            let text = "";
+            for (let p = 1; p <= Math.min(pdf.numPages, maxPages); p++) {
+                const content = await (await pdf.getPage(p)).getTextContent();
+                text += content.items.map(it => (it.str || "") + (it.hasEOL ? "\n" : " ")).join("") + "\n";
+            }
+            return text.replace(/[ \t ]+/g, " ");
+        } catch (e) {
+            return "";
+        } finally {
+            try { task.destroy && task.destroy(); } catch (e) { /* ignore */ }
+        }
+    }
+
+    const govPick = (text, re) => { const m = text.match(re); return m ? m[m.length - 1].trim() : undefined; };
+    const GOV_TITLES = { MR: ["นาย", "ชาย"], MRS: ["นาง", "หญิง"], MISS: ["นางสาว", "หญิง"], MS: ["นางสาว", "หญิง"] };
+    function govNationality(text) {
+        if (/เมียนมา|MYANMAR|พม่า/i.test(text)) return "Myanmar";
+        if (/กัมพูชา|CAMBODIA/i.test(text)) return "Cambodia";
+        if (/ลาว|LAOS?\b/i.test(text)) return "Laos";
+        return undefined;
+    }
+    function govName(raw) {
+        const m = String(raw || "").trim().match(/^(MRS|MR|MISS|MS)\.?\s+(.+)$/i);
+        const name = (m ? m[2] : String(raw || "")).replace(/\s+/g, " ").trim().toUpperCase();
+        const t = m ? GOV_TITLES[m[1].toUpperCase()] : null;
+        return { firstName: /^[A-Z][A-Z .'-]*$/.test(name) ? name : undefined, title: t ? t[0] : undefined, gender: t ? t[1] : undefined };
+    }
+
+    function parseDoeReceiptText(text) {
+        const nm = govName(govPick(text, /Foreigner Name\)?\s*((?:MRS|MR|MISS|MS)\.?\s+[A-Z][A-Za-z .'-]*?)(?=\s+(?:สัญชาติ|\(Nationality|เลข|ชื่อ|วันที่|\n))/i)
+            || govPick(text, /ชื่อคนต่างด้าว\s*((?:MRS|MR|MISS|MS)\.?\s+[A-Z][A-Za-z .'-]*?)(?=\s+(?:\(|สัญชาติ|\n))/i));
+        const idv = govPick(text, /Foreigner ID\)?\s*(RA\d{17}|\d{13})/i) || govPick(text, /\b(RA\d{17})\b/);
+        const paid = govPick(text, /(\d{2}-\d{2}-\d{4})\s+\d{2}:\d{2}/);
+        const d = {
+            documentType: "worker-receipt",
+            ...nm,
+            refNo: idv && /^RA/.test(idv) ? idv : undefined,
+            uid: idv && /^\d{13}$/.test(idv) ? idv : undefined,
+            receiptNo: govPick(text, /Receipt No\.\)?\s*(\d{10,20})/i),
+            billPaymentNo: govPick(text, /Bill Payment No\.\)?\s*(\d{10,20})/i),
+            receiptAmount: govPick(text, /รวมเป็นเงินทั้งสิ้น[\s\S]{0,80}?([\d,]+\.\d{2})/),
+            paidAt: paid ? govDateToDmy(paid) : undefined,
+            email: govPick(text, /([\w.+-]+@[\w-]+(?:\.[\w-]+)+)/),
+            nationality: govNationality(govPick(text, /Nationality\)?\s*(\S+)/i) || ""),
+            scriptLanguage: "thai"
+        };
+        if (d.receiptAmount) d.receiptAmount = d.receiptAmount.replace(/,/g, "");
+        return d;
+    }
+
+    function parseWpRegisterText(text) {
+        const D = GOV_DATE_RE;
+        const en = govPick(text, /ชื่อภาษาอังกฤษ\s*:?\s*((?:MRS|MR|MISS|MS)?\.?\s*[A-Z][A-Za-z .'-]*?)(?=\s+(?:วัน|อายุ|สัญชาติ|ข้อมูล|ชื่อ|ที่อยู่)|\s*\n)/)
+            || govPick(text, /Name of Applicant\)\s*:?\s*_*\s*((?:MRS|MR|MISS|MS)\.?\s+[A-Z][A-Za-z .'-]*?)(?=\s+(?:เจ้าหน้าที่|นายทะเบียน|\()|\s*\n)/);
+        // หัวข้อ "ข้อมูลหนังสือเดินทาง" ตัวจริงคือตัวสุดท้าย (บรรทัดสถานะ "รอข้อมูลหนังสือเดินทาง และ VISA" มาก่อน)
+        const passSection = text.slice(text.lastIndexOf("ข้อมูลหนังสือเดินทาง"));
+        const d = {
+            documentType: "worker-wp-doc",
+            ...govName(en),
+            uid: govPick(text, /(?:เลขประจำตัวคนต่างด้าว|รหัสคนต่างด้าว)\s*:?\s*(\d{13})/),
+            permitNo: govPick(text, /(?:ใบอนุญาตทำงานเลขที่|ใบอนุญาตเลขที่)\s*:?\s*(\d{8,16})/),
+            permitExpiry: govDateToDmy(govPick(text, new RegExp(`อนุญาตให้ทำงาน(?:ถึงวันที่|ตั้งแต่วันที่[\\s\\S]{0,160}?ถึงวันที่)\\s*:?\\s*${D}`))),
+            dob: govDateToDmy(govPick(text, new RegExp(`เกิด\\s*:?\\s*${D}`))),
+            nationality: govNationality(govPick(text, /สัญชาติ\s*:?\s*(\S+)/) || ""),
+            passportNo: govPick(text, /เลขที่หนังสือเดินทาง\s*:?\s*([A-Z]{1,3}\d{5,9})/),
+            passportType: govPick(text, /ประเภทหนังสือเดินทาง\s*:?\s*(Passport|CI)\b/i),
+            passportAuth: govPick(text, /สถานที่ออกหนังสือ(?:เดินทาง)?\s*:?\s*([A-Z][A-Z ,.-]*?)(?=\s+(?:ประเทศ|ประเภท|วันที่)|\s*\n)/),
+            passportIssue: govDateToDmy(govPick(text, new RegExp(`วันที่ออกหนังสือเดินทาง\\s*:?\\s*${D}`))),
+            passportExpiry: govDateToDmy(govPick(passSection, new RegExp(`วันหมดอายุ\\s*:?\\s*${D}`))),
+            position: govPick(text, /ทำงานในตำแหน่ง\s*:?\s*([ก-๙A-Za-z]+)/),
+            scriptLanguage: "thai"
+        };
+        return d;
+    }
+
+    // รุ่นที่พิมพ์จากระบบ e-WorkPermit (มติ 2567/2568, "เอกสารฉบับนี้ถูกสรางจาก e-WorkPermit") — ตัวอักษรไทยฝังฟอนต์แปลก
+    // (ไม้เอกหาย, ำ เป็น ํา) และวางหัวข้อทั้งหมดก่อน แล้วค่าทั้งหมดต่อกันคั่นด้วย ":" ตามลำดับตายตัว:
+    // … : <ประเภทเอกสาร> : <สัญชาติ> : <วันหมดอายุพาสปอร์ต> : <วันออก> : <สถานที่ออก> : <เลขพาสปอร์ต> : <เลขคนต่างด้าว 13 หลัก>
+    //   : <ชื่อไทย> : <MR. ชื่ออังกฤษ> : <อายุ> ( ปี ) : <วันเกิด> : <เลขใบอนุญาต> : <ออกให้ ณ> : <ที่อยู่> : <ตำแหน่ง> : <ทำงานถึงวันที่> …
+    function parseWpRegisterValueBlock(text) {
+        const DMY = "(\\d{1,2}\\/\\d{1,2}\\/\\d{4})";
+        const m = text.match(new RegExp(
+            `:\\s*([^:]{1,40}?)\\s*:\\s*([^:\\s]{2,20})\\s*:\\s*${DMY}\\s*:\\s*${DMY}\\s*:\\s*([A-Z][A-Z ,.-]*?)\\s*:\\s*([A-Z]{1,3}\\d{5,9})\\s*:\\s*(\\d{13})` +
+            `\\s*:\\s*([^:]*?)\\s*:\\s*((?:MRS|MR|MISS|MS)\\.?\\s+[A-Z][A-Z .'-]*?)\\s*:\\s*\\d+\\s*\\(\\s*ปี\\s*\\)\\s*:\\s*${DMY}\\s*:\\s*(\\d{8,16})`));
+        if (!m) return null;
+        const after = text.slice(m.index + m[0].length);
+        const work = after.match(/^\s*:[^:]*:[^:]*:\s*([ก-๙A-Za-z]+)\s*:\s*(\d{1,2}\s+[ก-๙]+\.?\s+\d{4}|\d{1,2}\/\d{1,2}\/\d{4})/);
+        const isCi = /\bCI\b|เอกสารรับรอง/i.test(m[1]);
+        return {
+            ...govName(m[9]),
+            nationality: govNationality(m[2]),
+            passportExpiry: govDateToDmy(m[3]),
+            passportIssue: govDateToDmy(m[4]),
+            passportAuth: m[5].trim(),
+            passportNo: m[6],
+            passportType: isCi ? "CI" : "Passport",
+            uid: m[7],
+            dob: govDateToDmy(m[10]),
+            permitNo: m[11],
+            position: work ? work[1] : undefined,
+            permitExpiry: work ? govDateToDmy(work[2]) : undefined,
+            refNo: govPick(text, /\b(RA\d{17})\b/)
+        };
+    }
+
+    // คืน parsedData (รูปแบบเดียวกับผล AI) ถ้าเป็น PDF ราชการที่รู้จัก ไม่งั้น null
+    async function parseGovPdf(base64Data, mimeType) {
+        if (mimeType !== "application/pdf") return null;
+        let text = "";
+        try { text = await extractPdfText(Uint8Array.from(atob(base64Data), c => c.charCodeAt(0))); } catch (e) { return null; }
+        if (text.replace(/\s/g, "").length < 80) return null; // ภาพสแกน — ไม่มีตัวหนังสือ
+        let d = null;
+        if (/ใบเสร็จรับเงิน/.test(text) && /กรมการจัดหางาน/.test(text) && /Bill Payment No|เลขที่ใบแจ้งชำระเงิน/i.test(text)) d = parseDoeReceiptText(text);
+        else if (/ทะเบียนใบอนุญาตท[ำํ]+า?งาน/.test(text) && /(เลขประจำตัวคนต่างด้าว|รหัสคนต่างด้าว|รหัสอ[้]?างอิงคนต[่]?างด[้]?าว)/.test(text)) {
+            d = parseWpRegisterText(text);
+            if (!d.uid || !d.permitNo) { // รุ่นพิมพ์จาก e-WorkPermit — หัวข้อไม่ติดกับค่า
+                // หัวข้อในรุ่นนี้ไม่ติดกับค่า ตัวอ่านแบบหัวข้ออาจจับหัวข้อถัดไปมาเป็นค่า → ใช้ค่าจากบล็อกทับทั้งหมด
+                const v = parseWpRegisterValueBlock(text);
+                if (v) Object.keys(v).forEach(k => { if (v[k]) d[k] = v[k]; });
+            }
+        }
+        if (!d) return null;
+        Object.keys(d).forEach(k => { if (d[k] === undefined || d[k] === null || d[k] === "") delete d[k]; });
+        if (d.uid && !/^\d{13}$/.test(d.uid)) delete d.uid; // owner's rule: เลขคนต่างด้าวต้อง 13 หลักเท่านั้น
+        const useful = d.documentType === "worker-receipt" ? (d.receiptNo || d.billPaymentNo) : (d.uid || d.permitNo);
+        if (!useful) return null;
+        d.source = "pdf-text";
+        return d;
+    }
+
     async function callOcr(base64Data, mimeType, docType) {
+        // PDF ราชการที่อ่านตัวหนังสือได้ → ใช้เลย ไม่เรียก AI (QR ของกรม ถ้ามี ยังมาเติมทับ)
+        const local = await parseGovPdf(base64Data, mimeType).catch(() => null);
+        if (local && (docType === "worker-auto" || docType === local.documentType)) {
+            const ewpLocal = EWP_QR_DOC_TYPES.includes(docType) ? await lookupEwpFromFile(base64Data, mimeType) : null;
+            const parsedData = ewpLocal ? { ...local, ...ewpCardToParsedData(ewpLocal.card, ewpLocal.ref) } : local;
+            if (docType !== "worker-auto") delete parsedData.documentType;
+            return { parsedData, ocrError: null };
+        }
         const [ocr, ewp] = await Promise.all([
             callGeminiOcr(base64Data, mimeType, docType),
             EWP_QR_DOC_TYPES.includes(docType) ? lookupEwpFromFile(base64Data, mimeType) : null
