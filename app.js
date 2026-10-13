@@ -263,7 +263,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         } else {
             // Check if user is logged in
             const cachedUser = localStorage.getItem("mw_current_user");
-            if (cachedUser && cachedUser !== "undefined") {
+            // จำผู้ใช้ไว้แต่เซสชัน Supabase หลุดแล้ว = ต้อง login ใหม่ (ไม่งั้นทุกการบันทึกโดนปฏิเสธ)
+            const sessionOk = !window.supabaseAdapter || !window.supabaseAdapter.hasSession || await window.supabaseAdapter.hasSession();
+            if (cachedUser && cachedUser !== "undefined" && !sessionOk) {
+                localStorage.removeItem("mw_current_user");
+                showLoginView();
+            } else if (cachedUser && cachedUser !== "undefined") {
                 currentUser = JSON.parse(cachedUser);
                 await initApp();
             } else {
@@ -1258,6 +1263,11 @@ async function claimSingleSession() {
 
 async function checkSingleSession() {
     if (!currentUser || !window.supabaseAdapter) return;
+    if (window.supabaseAdapter.hasSession && !(await window.supabaseAdapter.hasSession())) {
+        logout();
+        uiAlert("เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่");
+        return;
+    }
     const mine = localStorage.getItem("mw_session_id");
     const res = await window.supabaseAdapter.callCloudAPI("getActiveSession", {}, currentUser).catch(() => null);
     if (!res || res.status !== "success" || !res.sessionId || !currentUser) return; // เน็ตหลุด/ยังไม่เคยจอง = ไม่ไล่ออก

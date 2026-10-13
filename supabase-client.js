@@ -175,6 +175,11 @@
         await sb.auth.signOut();
     }
 
+    // มีเซสชัน Supabase จริงไหม (ผู้ใช้ที่จำไว้ใน localStorage อาจค้างอยู่ทั้งที่เซสชันหลุดแล้ว — บันทึกจะโดนปฏิเสธเงียบๆ)
+    async function hasSession() {
+        try { const { data } = await sb.auth.getSession(); return !!(data && data.session); } catch (e) { return true; }
+    }
+
     async function getAuthHeaders() {
         const { data } = await sb.auth.getSession();
         const token = data && data.session ? data.session.access_token : window.SUPABASE_ANON_KEY;
@@ -979,6 +984,6 @@
 
     window.supabaseAdapter = {
         login, callCloudAPI, uploadFile, ocrDocument, client: sb,
-        isPasswordRecovery, updatePassword, signOut
+        isPasswordRecovery, updatePassword, signOut, hasSession
     };
 })();
