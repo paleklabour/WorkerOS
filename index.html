@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261013a">
+    <link rel="stylesheet" href="styles.css?v=20261013n">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -105,14 +105,6 @@
                     </div>
                 </div>
 
-                <div class="sidebar-user">
-                    <div class="user-avatar" id="user-avatar-initial">A</div>
-                    <div class="user-info">
-                        <h4 id="user-display-name">Admin User</h4>
-                        <span class="badge badge-gold" id="user-role-display">Administrator</span>
-                    </div>
-                </div>
-
                 <nav class="sidebar-menu">
                     <!-- พอร์ทัลนายจ้าง: แสดงเฉพาะบัญชี Client (แทนเมนูอื่นทั้งหมด) ดู renderClientPortal() -->
                     <a href="#" class="menu-item hidden" id="menu-client-portal" onclick="switchView('client-portal')">
@@ -175,6 +167,14 @@
                 </nav>
 
                 <div class="sidebar-footer">
+                    <div class="sidebar-user">
+                        <!-- กดรูปเพื่อเปลี่ยนรูปโปรไฟล์ของตัวเอง (ทุกบทบาท — changeMyAvatar ใน app.js) -->
+                        <label class="user-avatar" id="user-avatar-initial" title="เปลี่ยนรูปโปรไฟล์ของฉัน"><span id="user-avatar-face">A</span><input type="file" accept="image/*" hidden onchange="changeMyAvatar(event)"></label>
+                        <div class="user-info">
+                            <h4 id="user-display-name">Admin User</h4>
+                            <span class="badge badge-gold" id="user-role-display">Administrator</span>
+                        </div>
+                    </div>
                     <button class="btn btn-outline btn-block btn-logout" id="btn-logout" onclick="logout()">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -209,6 +209,10 @@
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="22">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
                             </svg>
+                        </button>
+                        <!-- ปฏิทินของฉัน: โน้ตส่วนตัว (ซ่อนสำหรับบัญชีนายจ้าง — setupFormPermissions) ดู openCalendarView() -->
+                        <button type="button" class="topbar-refresh-btn" id="topbar-calendar-btn" onclick="switchView('calendar')" title="ปฏิทินของฉัน (โน้ตส่วนตัว)" aria-label="ปฏิทินของฉัน">
+                            <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M8 3v4M16 3v4M3.5 10h17"/></svg>
                         </button>
                         <!-- กระดิ่งแจ้งเตือนแยกตามตำแหน่ง — กดเปิดรายการ ดู buildNotificationGroups() / toggleNotificationPanel() -->
                         <div class="bell-wrap" id="bell-wrap">
@@ -324,8 +328,8 @@
                                     <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
                                         <h3>สัดส่วนสัญชาติคนงานต่างด้าว</h3>
                                         <div style="display: flex; gap: 4px;">
-                                            <button type="button" class="btn btn-sm btn-gold btn-chart-toggle" id="btn-nationality-view-table" onclick="toggleChartView('nationality', 'table')"><span class="ico" data-icon="chart"></span> แถบ</button>
                                             <button type="button" class="btn btn-sm btn-outline btn-chart-toggle" id="btn-nationality-view-chart" onclick="toggleChartView('nationality', 'chart')"><span class="ico" data-icon="pie"></span> กราฟวงกลม</button>
+                                            <button type="button" class="btn btn-sm btn-gold btn-chart-toggle" id="btn-nationality-view-table" onclick="toggleChartView('nationality', 'table')"><span class="ico" data-icon="chart"></span> แถบ</button>
                                         </div>
                                     </div>
                                     <div class="panel-content">
@@ -338,12 +342,14 @@
                                             <div id="db-nationality-chart" class="dash-pie"></div>
                                         </div>
                                         <hr>
-                                        <div class="panel-header" style="padding: 10px 0 0 0">
+                                        <div class="panel-header" style="padding: 10px 0 0 0; display: flex; justify-content: space-between; align-items: center; gap: 10px;">
                                             <h3>พื้นที่จังหวัดของกลุ่มลูกค้า</h3>
+                                            <div style="display: flex; gap: 4px;"><button type="button" class="btn btn-sm btn-gold btn-chart-toggle" id="btn-custprov-view-chart" onclick="toggleChartView('custprov', 'chart')"><span class="ico" data-icon="pie"></span> กราฟวงกลม</button><button type="button" class="btn btn-sm btn-outline btn-chart-toggle" id="btn-custprov-view-table" onclick="toggleChartView('custprov', 'table')"><span class="ico" data-icon="pin"></span> รายการ</button></div>
                                         </div>
-                                        <div class="customer-locations-list" id="customer-locations">
+                                        <div class="hidden" id="db-custprov-chart-wrap"><div id="db-custprov-chart" class="dash-pie"></div></div>
+                                        <div id="db-custprov-table-wrap"><div class="customer-locations-list" id="customer-locations">
                                             <!-- Dynamic locations list -->
-                                        </div>
+                                        </div></div>
                                     </div>
                                 </div>
                                 <!-- คนงานแยกรายจังหวัด (ตามที่ตั้งสำนักงานใหญ่ของนายจ้าง = สถานที่ทำงาน) — ดู renderWorkerProvinces() -->
@@ -351,8 +357,8 @@
                                     <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
                                         <h3>คนงานต่างด้าวแยกรายจังหวัด <small class="text-muted">ตามที่ตั้งนายจ้าง</small></h3>
                                         <div style="display: flex; gap: 4px;">
-                                            <button type="button" class="btn btn-sm btn-gold btn-chart-toggle" id="btn-provinces-view-table" onclick="toggleChartView('provinces', 'table')"><span class="ico" data-icon="chart"></span> แถบ</button>
                                             <button type="button" class="btn btn-sm btn-outline btn-chart-toggle" id="btn-provinces-view-chart" onclick="toggleChartView('provinces', 'chart')"><span class="ico" data-icon="pie"></span> กราฟวงกลม</button>
+                                            <button type="button" class="btn btn-sm btn-gold btn-chart-toggle" id="btn-provinces-view-table" onclick="toggleChartView('provinces', 'table')"><span class="ico" data-icon="chart"></span> แถบ</button>
                                         </div>
                                     </div>
                                     <div class="panel-content">
@@ -542,10 +548,12 @@
 
                                 <!-- Right panel: Completed Jobs by Job Type -->
                                 <div class="dashboard-panel">
-                                    <div class="panel-header">
+                                    <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
                                         <h3><span class="ico" data-icon="folder"></span> สรุปงานที่แจ้งสำเร็จแยกประเภทงาน</h3>
+                                        <div style="display: flex; gap: 4px;"><button type="button" class="btn btn-sm btn-gold btn-chart-toggle" id="btn-donetypes-view-chart" onclick="toggleChartView('donetypes', 'chart')"><span class="ico" data-icon="pie"></span> กราฟวงกลม</button><button type="button" class="btn btn-sm btn-outline btn-chart-toggle" id="btn-donetypes-view-table" onclick="toggleChartView('donetypes', 'table')"><span class="ico" data-icon="clipboard"></span> ตาราง</button></div>
                                     </div>
-                                    <div class="panel-content" style="padding: 0; overflow-x: auto; max-height: 400px;">
+                                    <div class="panel-content hidden" id="db-donetypes-chart-wrap" style="padding: 12px; max-height: 400px; overflow-y: auto;"><div id="db-donetypes-chart" class="dash-pie"></div></div>
+                                    <div class="panel-content" id="db-donetypes-table-wrap" style="padding: 0; overflow-x: auto; max-height: 400px;">
                                         <table class="data-table" style="box-shadow: none; border: none; border-radius: 0;">
                                             <thead>
                                                 <tr>
@@ -916,6 +924,34 @@
                     </div>
 
                     <!-- ==================== AGENTS VIEW ==================== -->
+                    <!-- ปฏิทินของฉัน: โน้ตส่วนตัววันละ 1 รายการ ไม่เกิน 200 ตัวอักษร (renderCalendarNotes ใน app.js) -->
+                    <div id="view-calendar" class="content-section hidden">
+                        <div class="cal-layout">
+                            <div class="panel cal-panel">
+                                <div class="cal-head">
+                                    <button type="button" class="btn btn-sm btn-outline" onclick="shiftCalendarMonth(-1)" title="ไปเดือนก่อนหน้า">‹</button>
+                                    <h3 id="cal-month-title"></h3>
+                                    <button type="button" class="btn btn-sm btn-outline" onclick="shiftCalendarMonth(1)" title="ไปเดือนถัดไป">›</button>
+                                    <button type="button" class="btn btn-sm btn-outline cal-today-btn" onclick="goCalendarToday()" title="กลับไปเดือนนี้และเลือกวันนี้">วันนี้</button>
+                                </div>
+                                <div class="cal-weekdays"><span>อา</span><span>จ</span><span>อ</span><span>พ</span><span>พฤ</span><span>ศ</span><span>ส</span></div>
+                                <div class="cal-grid" id="cal-grid"></div>
+                            </div>
+                            <div class="panel cal-editor">
+                                <h3 id="cal-editor-date"></h3>
+                                <p class="text-muted cal-editor-hint">โน้ตส่วนตัว — เห็นเฉพาะคุณ</p>
+                                <textarea id="cal-note-input" maxlength="200" rows="5" placeholder="จดโน้ตของวันนี้ (ไม่เกิน 200 ตัวอักษร)" oninput="updateCalendarNoteCounter()"></textarea>
+                                <div class="cal-editor-foot">
+                                    <span class="text-muted" id="cal-note-counter">0/200</span>
+                                    <button type="button" class="btn btn-sm btn-outline hidden" id="btn-cal-note-delete" onclick="deleteCalendarNote()" title="ลบโน้ตของวันนี้">ลบโน้ต</button>
+                                    <button type="button" class="btn btn-sm btn-gold" onclick="saveCalendarNote()" title="บันทึกโน้ตของวันที่เลือก">บันทึก</button>
+                                </div>
+                                <h4 class="cal-upcoming-title">โน้ตที่กำลังจะถึง</h4>
+                                <div id="cal-upcoming"></div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div id="view-agents" class="content-section hidden">
                         <div class="table-actions">
                             <div class="search-box">
@@ -1025,18 +1061,22 @@
 
                             <!-- ภายใน: แยกเงินเก็บแทนรัฐออกจากรายได้ค่าบริการ (ลูกค้าไม่เห็น) — ดู renderFinanceInternalSplit() -->
                             <div class="dashboard-panel finance-internal-panel" style="margin-bottom: 25px;">
-                                <div class="panel-header">
+                                <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
                                     <h3><span class="ico" data-icon="lock"></span> รายได้จริง vs เงินเก็บแทนรัฐ <small class="text-muted">(ภายใน — ช่วงเวลาที่เลือก)</small></h3>
+                                    <div style="display: flex; gap: 4px; flex-shrink: 0;"><button type="button" class="btn btn-sm btn-gold btn-chart-toggle" id="btn-govsplit-view-chart" onclick="toggleChartView('govsplit', 'chart')"><span class="ico" data-icon="pie"></span> กราฟวงกลม</button><button type="button" class="btn btn-sm btn-outline btn-chart-toggle" id="btn-govsplit-view-table" onclick="toggleChartView('govsplit', 'table')"><span class="ico" data-icon="cash"></span> ตัวเลข</button></div>
                                 </div>
-                                <div class="panel-content finance-internal-grid" id="finance-internal-split"></div>
+                                <div class="panel-content hidden" id="db-govsplit-chart-wrap" style="padding: 12px;"><div id="db-govsplit-chart" class="dash-pie"></div></div>
+                                <div class="panel-content finance-internal-grid" id="db-govsplit-table-wrap"><div id="finance-internal-split" style="display: contents;"></div></div>
                             </div>
 
                             <!-- ลูกหนี้ค้างชำระตามอายุหนี้ — ดู renderReceivablesAging() -->
                             <div class="dashboard-panel" style="margin-bottom: 25px;">
-                                <div class="panel-header">
+                                <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
                                     <h3><span class="ico" data-icon="clock"></span> ลูกหนี้ค้างชำระตามอายุหนี้ <small class="text-muted">(ณ วันนี้ นับจากวันออกบิล)</small></h3>
+                                    <div style="display: flex; gap: 4px; flex-shrink: 0;"><button type="button" class="btn btn-sm btn-gold btn-chart-toggle" id="btn-aging-view-chart" onclick="toggleChartView('aging', 'chart')"><span class="ico" data-icon="pie"></span> กราฟวงกลม</button><button type="button" class="btn btn-sm btn-outline btn-chart-toggle" id="btn-aging-view-table" onclick="toggleChartView('aging', 'table')"><span class="ico" data-icon="clipboard"></span> ตาราง</button></div>
                                 </div>
-                                <div class="panel-content" style="padding: 0; overflow-x: auto;">
+                                <div class="panel-content hidden" id="db-aging-chart-wrap" style="padding: 12px;"><div id="db-aging-chart" class="dash-pie"></div></div>
+                                <div class="panel-content" id="db-aging-table-wrap" style="padding: 0; overflow-x: auto;">
                                     <table class="data-table aging-table">
                                         <thead>
                                             <tr>
@@ -1058,8 +1098,8 @@
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px; margin-bottom: 12px;">
                                 <h4 style="font-size: 14.5px; font-weight: 700; color: var(--navy-dark); margin: 0;"><span class="ico" data-icon="bank"></span> ยอดรายรับแยกตามบัญชีธนาคารและเงินสด (Received by Accounts)</h4>
                                 <div style="display: flex; gap: 4px;">
-                                    <button type="button" class="btn btn-sm btn-gold btn-chart-toggle" id="btn-accounts-view-table" onclick="toggleChartView('accounts', 'table')"><span class="ico" data-icon="clipboard"></span> การ์ด</button>
                                     <button type="button" class="btn btn-sm btn-outline btn-chart-toggle" id="btn-accounts-view-chart" onclick="toggleChartView('accounts', 'chart')"><span class="ico" data-icon="pie"></span> กราฟวงกลม</button>
+                                    <button type="button" class="btn btn-sm btn-gold btn-chart-toggle" id="btn-accounts-view-table" onclick="toggleChartView('accounts', 'table')"><span class="ico" data-icon="clipboard"></span> การ์ด</button>
                                 </div>
                             </div>
                             <div id="db-finance-accounts-table-wrap" style="margin-bottom: 25px;">
@@ -1081,8 +1121,8 @@
                                     <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
                                         <h3><span class="ico" data-icon="chart"></span> สรุปรายรับแยกตามประเภทงานที่แจ้ง (Revenue by Job Type)</h3>
                                         <div style="display: flex; gap: 4px;">
-                                            <button type="button" class="btn btn-sm btn-gold btn-chart-toggle" id="btn-jobtypes-view-table" onclick="toggleChartView('jobtypes', 'table')"><span class="ico" data-icon="clipboard"></span> ตาราง</button>
                                             <button type="button" class="btn btn-sm btn-outline btn-chart-toggle" id="btn-jobtypes-view-chart" onclick="toggleChartView('jobtypes', 'chart')"><span class="ico" data-icon="pie"></span> กราฟวงกลม</button>
+                                            <button type="button" class="btn btn-sm btn-gold btn-chart-toggle" id="btn-jobtypes-view-table" onclick="toggleChartView('jobtypes', 'table')"><span class="ico" data-icon="clipboard"></span> ตาราง</button>
                                         </div>
                                     </div>
                                     <div class="panel-content" id="db-finance-jobtypes-table-wrap" style="padding: 0; overflow-x: auto; max-height: 320px;">
@@ -1111,16 +1151,16 @@
                                     <div class="panel-header">
                                         <h3><span class="ico" data-icon="trendup"></span> สัดส่วนความคืบหน้าและการชำระเงิน</h3>
                                     </div>
-                                    <div class="panel-content" style="padding: 20px; display: flex; flex-direction: column; gap: 15px;">
-                                        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); padding: 16px;">
-                                            <h5 style="font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--navy-dark);">สัดส่วนการชำระเงินงาน (Payment Status):</h5>
-                                            <div id="db-finance-payment-breakdown-container" style="display: flex; flex-direction: column; gap: 8px;">
+                                    <div class="panel-content fin-pies-row">
+                                        <div class="fin-pie-card">
+                                            <h5>สัดส่วนการชำระเงินงาน (Payment Status):</h5>
+                                            <div id="db-finance-payment-breakdown-container" class="fin-pie-box">
                                                 <!-- Dynamic breakdown bars -->
                                             </div>
                                         </div>
-                                        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); padding: 16px;">
-                                            <h5 style="font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--navy-dark);">ความคืบหน้างานบริการ (Service Progress):</h5>
-                                            <div id="db-finance-progress-breakdown-container" style="display: flex; flex-direction: column; gap: 8px;">
+                                        <div class="fin-pie-card">
+                                            <h5>ความคืบหน้างานบริการ (Service Progress):</h5>
+                                            <div id="db-finance-progress-breakdown-container" class="fin-pie-box">
                                                 <!-- Dynamic progress bars -->
                                             </div>
                                         </div>
@@ -1133,8 +1173,8 @@
                                 <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
                                     <h3><span class="ico" data-icon="building"></span> สรุปรายรับและยอดเงินค้างชำระแยกตามลูกค้า/นายจ้าง (Revenue by Customer)</h3>
                                     <div style="display: flex; gap: 4px;">
-                                        <button type="button" class="btn btn-sm btn-gold btn-chart-toggle" id="btn-customers-view-table" onclick="toggleChartView('customers', 'table')"><span class="ico" data-icon="clipboard"></span> ตาราง</button>
                                         <button type="button" class="btn btn-sm btn-outline btn-chart-toggle" id="btn-customers-view-chart" onclick="toggleChartView('customers', 'chart')"><span class="ico" data-icon="pie"></span> กราฟวงกลม</button>
+                                        <button type="button" class="btn btn-sm btn-gold btn-chart-toggle" id="btn-customers-view-table" onclick="toggleChartView('customers', 'table')"><span class="ico" data-icon="clipboard"></span> ตาราง</button>
                                     </div>
                                 </div>
                                 <div class="panel-content" id="db-finance-customers-table-wrap" style="padding: 0; overflow-x: auto;">
@@ -1165,8 +1205,8 @@
                                 <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
                                     <h3><span class="ico" data-icon="trenddown"></span> สรุปรายจ่ายแยกตามหมวดหมู่ (Expenses by Category)</h3>
                                     <div style="display: flex; gap: 4px;">
-                                        <button type="button" class="btn btn-sm btn-gold btn-chart-toggle" id="btn-expensecat-view-table" onclick="toggleChartView('expensecat', 'table')"><span class="ico" data-icon="clipboard"></span> ตาราง</button>
                                         <button type="button" class="btn btn-sm btn-outline btn-chart-toggle" id="btn-expensecat-view-chart" onclick="toggleChartView('expensecat', 'chart')"><span class="ico" data-icon="pie"></span> กราฟวงกลม</button>
+                                        <button type="button" class="btn btn-sm btn-gold btn-chart-toggle" id="btn-expensecat-view-table" onclick="toggleChartView('expensecat', 'table')"><span class="ico" data-icon="clipboard"></span> ตาราง</button>
                                     </div>
                                 </div>
                                 <div class="panel-content" id="db-finance-expensecat-table-wrap" style="padding: 0; overflow-x: auto;">
@@ -1377,6 +1417,18 @@
                             <div class="modal-body">
                                 <form id="user-form" onsubmit="saveUser(event)">
                                     <input type="hidden" id="user-edit-id">
+                                    <!-- รูปโปรไฟล์ (2026-10-13): อัปโหลดทันทีที่เลือก (ย่อเป็น 256px ก่อน) แล้วบันทึกพร้อมฟอร์ม -->
+                                    <input type="hidden" id="user-avatar-url">
+                                    <div class="user-avatar-field">
+                                        <div class="user-avatar-preview" id="user-avatar-preview"></div>
+                                        <div class="user-avatar-actions">
+                                            <label class="btn btn-sm btn-outline" title="เลือกรูปโปรไฟล์ของผู้ใช้นี้">
+                                                <span class="ico" data-icon="photo"></span> เลือกรูป
+                                                <input type="file" accept="image/*" hidden onchange="pickUserAvatar(event)">
+                                            </label>
+                                            <button type="button" class="btn btn-sm btn-outline hidden" id="btn-user-avatar-remove" onclick="setUserAvatarField('')" title="ลบรูปโปรไฟล์ของผู้ใช้นี้">ลบรูป</button>
+                                        </div>
+                                    </div>
                                     <div class="form-group">
                                         <label for="user-name">ชื่อ-นามสกุล <span class="required">*</span></label>
                                         <input type="text" id="user-name" required>
@@ -1917,7 +1969,7 @@
                                     </div>
                                     <div class="form-group col-4">
                                         <label for="cust-delivery-subdistrict">ตำบล / แขวง</label>
-                                        <input type="text" id="cust-delivery-subdistrict" placeholder="พิมพ์หรือเลือกตำบล" autocomplete="off">
+                                        <input type="text" id="cust-delivery-subdistrict" placeholder="พิมพ์หรือเลือกตำบล" autocomplete="off" oninput="updateDeliveryAddressLists(true)">
                                     </div>
                                     <div class="form-group col-4">
                                         <label for="cust-delivery-postal">รหัสไปรษณีย์</label>
@@ -3387,7 +3439,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261013a"></script>
+    <script src="supabase-client.js?v=20261013n"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3398,6 +3450,6 @@
     </script>
 
     <!-- Application Script -->
-    <script src="app.js?v=20261013a"></script>
+    <script src="app.js?v=20261013n"></script>
 </body>
 </html>

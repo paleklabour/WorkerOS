@@ -126,6 +126,13 @@ Owner's rules (2026-10-09):
   "Already Informed"/"แจ้งเข้าแล้ว"), an Admin clicks "ผ่าน", or the worker has a job
   with status "ปิดงานแล้ว" (rule from 2026-10-08, the owner confirmed keeping it). Don't
   auto-clear it anywhere else (the pending_register→active transition used to).
+- Upload wait UI (owner chose iOS style #1, 2026-10-13): `uploadDocumentFile` overlays the
+  attach box/tile/button the user used (`beginUploadUi`, host found from the last
+  change/drop/paste/click) with an iOS spinner + stage text ("AI กำลังอ่านเอกสาร…" →
+  "กำลังอัปโหลด…", from `options.onStage` in `uploadFile`), then a green tick "แนบแล้ว".
+  Upload messages (progress when no host, results, AI-rejected, failures, avatar
+  uploads) use a centered frosted capsule `showUploadPill(kind, title, sub)` (owner chose
+  style #3, placed mid-screen) instead of `showToast`.
 - Document folders have an image editor (`openImageEditor`: crop / rotate 90° + fine angle / brightness /
   contrast), images only, saving replaces the original (no copy kept).
 
@@ -185,6 +192,34 @@ change permissions only in `PERMS` in `app.js` and check with `can('…')` /
 The bell is per role (`buildNotificationGroups`); missing worker documents
 must not alert anyone.
 
+User photos (2026-10-13): `profiles.avatar_url`. Admin sets anyone's photo in the user
+form (saved via `updateUserProfile`); every user changes their own by clicking their
+avatar in the sidebar (`changeMyAvatar` → `set_my_avatar()` RPC, own row only). Images
+are center-cropped to 256px JPEG before upload to Storage `avatars/<userId>/`.
+Render with `userAvatarHtml(u)` (falls back to the name's first letter). The profile
+card sits at the bottom of the sidebar, above the logout button.
+
+Single session per account (owner, 2026-10-13): logging in calls `claimSingleSession()`
+(random id in localStorage `mw_session_id` → `claim_session()` RPC +
+`signOut({scope:'others'})`); open pages poll `my_active_session()` every 20 s and on
+tab focus (`startSessionGuard` / `checkSingleSession`) and log out if another device
+claimed it later. Tabs in the same browser share the id.
+
+Collapsible headers fold with an animation (height + opacity, `setCollapsed(h, on, true)` on click;
+restored/auto-expanded states skip it). Pie toggles also on: completed jobs by type
+(`donetypes`), employer provinces (`custprov`), receivables aging (`aging`), revenue vs
+gov fees (`govsplit`).
+
+"ปฏิทินของฉัน" (2026-10-13): calendar icon in the top bar (`topbar-calendar-btn`, hidden for clients) opens view `calendar`, personal day notes for internal users
+only (one per day, ≤ 200 chars), table `calendar_notes` with own-row + `is_internal()`
+RLS, loaded on opening the page (`openCalendarView`), not part of `loadData`.
+
+"View as user" (Admin, 2026-10-13): eye button in the users table → `startViewAs(id)`
+swaps `currentUser` id/role/customer_id in memory so menus, buttons, home page and
+bell follow that user; data stays admin-loaded (not exact) and `callCloudAPI` /
+uploads refuse writes while `isViewingAs()`. Not persisted (`currentUser.toJSON`
+returns the real account), amber bar "กลับเป็น Admin" → `stopViewAs()`.
+
 ## Themes: light / pink / dark (standing rule)
 
 The moon button in the top bar opens a theme menu (`setTheme()`): light (default),
@@ -202,7 +237,7 @@ The UI follows iOS (owner's request): SF Pro/Sukhumvit fonts, light theme
 "Layered" (grouped gray bg, two-layer shadows), floating sidebar, tab groups
 with a sliding thumb (`attachTabSlider`), every `<select>` opens an iOS menu on
 mouse devices (`openIosSelect` — the native `<select>` still holds the value),
-charts animate via `setupChartMagicMove`. Keep new UI consistent with that.
+charts animate via `setupChartMagicMove` ("magic move": every pie/bar regrows from 0 each time it comes into view — tab/page switch or scroll — and flows old→new on re-render; owner 2026-10-13). Keep new UI consistent with that.
 Smallest UI font is 11.5px; don't add smaller sizes (printed sheets excepted).
 
 Table action columns (owner, 2026-10-13): on mouse devices the "จัดการ" column
@@ -221,6 +256,11 @@ button (it also strips ancestor `title`s and SVG `<title>`s while showing, so th
 black tooltip never appears alongside it). Icon-only buttons (✕, edit, delete, download …) must have a `title`.
 Wording pattern: verb + what it acts on, short — "ลบคนงาน", "แก้ไขใบงาน",
 "ดาวน์โหลดไฟล์", "ปิดหน้าต่าง" — not a bare "ลบ" / "แก้ไข".
+
+Table/pie toggles (`toggleChartView`) remember the last choice per section (localStorage
+`mw_chart_view_<prefix>`, default pie), and the pie button
+comes first (owner, 2026-10-13) — add new prefixes to `CHART_FIRST_PREFIXES`. The
+finance "สัดส่วนความคืบหน้าและการชำระเงิน" panel is two pies (`renderPieChartInto`).
 
 Dashboard overview, finance overview, completed-jobs and jobs-summary cards sit
 in a 12-column widget grid with a fixed order/size from `WIDGET_BOARDS` in

@@ -89,59 +89,59 @@ const MONTH_NAMES_TH = {
 
 const SOUTHERN_ADDRESS_DB = {
     "สงขลา": {
-        "เมืองสงขลา": { "zip": "90000", "subs": ["บ่อยาง", "เขารูปช้าง", "เกาะแต้ว", "พะวง", "เกาะยอ", "ทุ่งหวัง"] },
-        "หาดใหญ่": { "zip": "90110", "subs": ["หาดใหญ่", "คลองอู่ตะเภา", "ควนลัง", "ทุ่งใหญ่", "น้ำน้อย", "คลองแห", "ท่าข้าม", "บ้านพรุ", "คอหงส์", "พะตง", "ฉลุง", "ทุ่งตำเสา"] },
-        "สะเดา": { "zip": "90120", "subs": ["สะเดา", "ปริก", "พังลา", "สำนักขาม", "สำนักแต้ว", "เขามีเกียรติ"] },
-        "จะนะ": { "zip": "90130", "subs": ["บ้านนา", "สะพานไม้แก่น", "สะคอม", "จะโหนง", "ป่าชิง", "คู", "ท่าหมอไทร", "ตลิ่งชัน"] },
-        "เทพา": { "zip": "90150", "subs": ["เทพา", "ปากบาง", "วังใหญ่", "ลำไพล", "ท่าม่วง"] },
-        "นาทวี": { "zip": "90160", "subs": ["นาทวี", "ฉลอง", "คลองทราย", "คลองกวาง", "ท่าประดู่"] },
-        "รัตภูมิ": { "zip": "90180", "subs": ["กำแพงเพชร", "ท่าชะมวง", "ควนรู", "เขาพระ"] },
-        "ระโนด": { "zip": "90140", "subs": ["ระโนด", "คลองแดน", "ท่าบอน", "บ้านขาว", "บ่อตรุ"] },
-        "สทิงพระ": { "zip": "90190", "subs": ["จะทิ้งพระ", "กระดังงา", "คลองรี", "คูขุด", "ท่าหิน"] },
-        "สะบ้าย้อย": { "zip": "90210", "subs": ["สะบ้าย้อย", "ทุ่งพอ", "บาโหย", "เขาแดง", "คูหา"] },
-        "ควนเนียง": { "zip": "90220", "subs": ["รัตภูมิ", "ควนโส", "ห้วยลึก", "บางเหรียง"] },
-        "คลองหอยโข่ง": { "zip": "90230", "subs": ["คลองหอยโข่ง", "ทุ่งลาน", "โคกม่วง", "คลองหลา"] },
-        "บางกล่ำ": { "zip": "90110", "subs": ["บางกล่ำ", "ท่าช้าง", "แม่ทอม", "บ้านหาร"] },
-        "กระแสสินธุ์": { "zip": "90270", "subs": ["กระแสสินธุ์", "เกาะใหญ่", "โรง", "เชิงแส"] },
+        "เมืองสงขลา": { "zip": "90000", "subs": ["บ่อยาง", "เขารูปช้าง", "เกาะแต้ว", "พะวง", "ทุ่งหวัง", "เกาะยอ"], "subZip": { "พะวง": "90100", "เกาะยอ": "90100" } },
+        "สทิงพระ": { "zip": "90190", "subs": ["จะทิ้งพระ", "กระดังงา", "สนามชัย", "ดีหลวง", "ชุมพล", "คลองรี", "คูขุด", "ท่าหิน", "วัดจันทร์", "บ่อแดง", "บ่อดาน"] },
+        "จะนะ": { "zip": "90130", "subs": ["บ้านนา", "ป่าชิง", "สะพานไม้แก่น", "สะกอม", "นาหว้า", "นาทับ", "น้ำขาว", "ขุนตัดหวาย", "ท่าหมอไทร", "จะโหนง", "คู", "แค", "คลองเปียะ", "ตลิ่งชัน"] },
+        "นาทวี": { "zip": "90160", "subs": ["นาทวี", "ฉาง", "นาหมอศรี", "คลองทราย", "ปลักหนู", "ท่าประดู่", "สะท้อน", "ทับช้าง", "ประกอบ", "คลองกวาง"] },
+        "เทพา": { "zip": "90150", "subs": ["เทพา", "ปากบาง", "เกาะสะบ้า", "ลำไพล", "ท่าม่วง", "วังใหญ่", "สะกอม"], "subZip": { "ลำไพล": "90260", "ท่าม่วง": "90260", "วังใหญ่": "90260" } },
+        "สะบ้าย้อย": { "zip": "90210", "subs": ["สะบ้าย้อย", "ทุ่งพอ", "เปียน", "บ้านโหนด", "จะแหน", "คูหา", "เขาแดง", "บาโหย", "ธารคีรี"] },
+        "ระโนด": { "zip": "90140", "subs": ["ระโนด", "คลองแดน", "ตะเครียะ", "ท่าบอน", "บ้านใหม่", "บ่อตรุ", "ปากแตระ", "พังยาง", "ระวะ", "วัดสน", "บ้านขาว", "แดนสงวน"] },
+        "กระแสสินธุ์": { "zip": "90270", "subs": ["เกาะใหญ่", "โรง", "เชิงแส", "กระแสสินธุ์"] },
+        "รัตภูมิ": { "zip": "90180", "subs": ["กำแพงเพชร", "ท่าชะมวง", "คูหาใต้", "ควนรู", "เขาพระ"] },
+        "สะเดา": { "zip": "90170", "subs": ["สะเดา", "ปริก", "พังลา", "สำนักแต้ว", "ทุ่งหมอ", "ท่าโพธิ์", "ปาดังเบซาร์", "สำนักขาม", "เขามีเกียรติ"], "subZip": { "สะเดา": "90120", "ปริก": "90120", "สำนักแต้ว": "90120", "ทุ่งหมอ": "90240", "ปาดังเบซาร์": "90240", "สำนักขาม": "90320" } },
+        "หาดใหญ่": { "zip": "90110", "subs": ["หาดใหญ่", "ควนลัง", "คูเต่า", "คอหงส์", "คลองแห", "คลองอู่ตะเภา", "ฉลุง", "ทุ่งใหญ่", "ทุ่งตำเสา", "ท่าข้าม", "น้ำน้อย", "บ้านพรุ", "พะตง"], "subZip": { "บ้านพรุ": "90250", "พะตง": "90230" } },
         "นาหม่อม": { "zip": "90310", "subs": ["นาหม่อม", "พิจิตร", "ทุ่งขมิ้น", "คลองหรัง"] },
-        "สิงหนคร": { "zip": "90330", "subs": ["หัวเขา", "สทิงหม้อ", "ทำนบ", "ป่าขาด", "ชิงโค"] }
+        "ควนเนียง": { "zip": "90220", "subs": ["รัตภูมิ", "ควนโส", "ห้วยลึก", "บางเหรียง"] },
+        "บางกล่ำ": { "zip": "90110", "subs": ["บางกล่ำ", "ท่าช้าง", "แม่ทอม", "บ้านหาร"] },
+        "สิงหนคร": { "zip": "90330", "subs": ["ชิงโค", "สทิงหม้อ", "ทำนบ", "รำแดง", "วัดขนุน", "ชะแล้", "ปากรอ", "ป่าขาด", "หัวเขา", "บางเขียด", "ม่วงงาม"], "subZip": { "ชิงโค": "90280", "สทิงหม้อ": "90280", "ทำนบ": "90280", "หัวเขา": "90280" } },
+        "คลองหอยโข่ง": { "zip": "90230", "subs": ["คลองหอยโข่ง", "ทุ่งลาน", "โคกม่วง", "คลองหลา"], "subZip": { "คลองหลา": "90115" } }
     },
     "ปัตตานี": {
         "เมืองปัตตานี": { "zip": "94000", "subs": ["สะบารัง", "อาเนาะรู", "จะบังติกอ", "บานา", "ตันหยงลุโละ", "คลองมานิง", "กะมิยอ", "บาราโหม", "ปะกาฮะรัง", "รูสะมิแล", "ตะลุโบะ", "บาราเฮาะ", "ปุยุด"] },
-        "โคกโพธิ์": { "zip": "94120", "subs": ["โคกโพธิ์", "มะกรูด", "บางโกระ", "ป่าบอน", "ทรายขาว", "นาประดู่", "ปากล่อ", "ทุ่งพลา", "ท่าเรือ", "นาเกตุ", "ควนโนรี", "ช้างให้ตก"] },
+        "โคกโพธิ์": { "zip": "94120", "subs": ["โคกโพธิ์", "มะกรูด", "บางโกระ", "ป่าบอน", "ทรายขาว", "นาประดู่", "ปากล่อ", "ทุ่งพลา", "ท่าเรือ", "นาเกตุ", "ควนโนรี", "ช้างให้ตก"], "subZip": { "นาประดู่": "94180", "ปากล่อ": "94180", "ทุ่งพลา": "94180", "ควนโนรี": "94180" } },
         "หนองจิก": { "zip": "94170", "subs": ["เกาะเปาะ", "คอลอตันหยง", "ดอนรัก", "ดาโต๊ะ", "ตุยง", "ท่ากำชำ", "บ่อทอง", "บางเขา", "บางตาวา", "ปุโละปุโย", "ยาบี", "ลิปะสะโง"] },
-        "ปะนาเระ": { "zip": "94130", "subs": ["ปะนาเระ", "ท่าข้าม", "บ้านนอก", "ดอน", "ควน", "ท่าน้ำ", "คอกกระบือ", "พ่อมิ่ง", "บ้านกลาง", "บ้านน้ำบ่อ"] },
-        "มายอ": { "zip": "94140", "subs": ["มายอ", "ถนน", "ตรัง", "กระหวะ", "ลุโบะยิไร", "ลางา", "กระเสาะ", "เกาะจัน", "ปะโด", "สาคอบน", "สาคอใต้", "สะกำ", "ปานัน"] },
+        "ปะนาเระ": { "zip": "94130", "subs": ["ปะนาเระ", "ท่าข้าม", "บ้านนอก", "ดอน", "ควน", "ท่าน้ำ", "คอกกระบือ", "พ่อมิ่ง", "บ้านกลาง", "บ้านน้ำบ่อ"], "subZip": { "ควน": "94190" } },
+        "มายอ": { "zip": "94140", "subs": ["มายอ", "ถนน", "ตรัง", "กระหวะ", "ลุโบะยิไร", "ลางา", "กระเสาะ", "เกาะจัน", "ปะโด", "สาคอบน", "สาคอใต้", "สะกำ", "ปานัน"], "subZip": { "ลางา": "94190" } },
         "ทุ่งยางแดง": { "zip": "94140", "subs": ["ตะโละแมะนา", "พิเทน", "น้ำดำ", "ปากู"] },
-        "สายบุรี": { "zip": "94110", "subs": ["ตะลุบัน", "ตะบิ้ง", "ปะเสยะวอ", "บางเก่า", "บือเระ", "เตราะบอน", "กะดุนง", "ละหาร", "มะนังดาลำ", "แป้น", "ทุ่งคล้า"] },
+        "สายบุรี": { "zip": "94110", "subs": ["ตะลุบัน", "ตะบิ้ง", "ปะเสยะวอ", "บางเก่า", "บือเระ", "เตราะบอน", "กะดุนง", "ละหาร", "มะนังดาลำ", "แป้น", "ทุ่งคล้า"], "subZip": { "ทุ่งคล้า": "94190" } },
         "ไม้แก่น": { "zip": "94220", "subs": ["ไทรทอง", "ไม้แก่น", "ตะโละไกรทอง", "ดอนทราย"] },
-        "ยะหริ่ง": { "zip": "94150", "subs": ["ตะโละ", "ตะโละกาโปร์", "ตันหยงดาลอ", "ตันหยงจึงงา", "ตอหลัง", "ตาแกะ", "ตาลีอายร์", "ยามู", "บางปู", "หนองแรต", "ปิยามุมัง", "ปุลากง", "บาโลย", "สาบัน", "มะนังยง", "ราตาปันยัง", "จะรัง", "แหลมโพธิ์"] },
+        "ยะหริ่ง": { "zip": "94150", "subs": ["ตะโละ", "ตะโละกาโปร์", "ตันหยงดาลอ", "ตันหยงจึงงา", "ตอหลัง", "ตาแกะ", "ตาลีอายร์", "ยามู", "บางปู", "หนองแรต", "ปิยามุมัง", "ปุลากง", "บาโลย", "สาบัน", "มะนังยง", "ราตาปันยัง", "จะรัง", "แหลมโพธิ์"], "subZip": { "ตันหยงจึงงา": "94190", "บาโลย": "94190" } },
         "ยะรัง": { "zip": "94160", "subs": ["ยะรัง", "สะดาวา", "ประจัน", "สะนอ", "ระแว้ง", "ปิตูมุดี", "วัด", "กระโด", "คลองใหม่", "เมาะมาวี", "กอลำ", "เขาตูม"] },
-        "แม่ลาน": { "zip": "94180", "subs": ["ม่วงเตี้ย", "แม่ลาน", "ป่าไร่"] },
-        "กะพ้อ": { "zip": "94230", "subs": ["กะรุบี", "ตะโละดือรามัน", "ปล่องหอย"] }
+        "กะพ้อ": { "zip": "94230", "subs": ["กะรุบี", "ตะโละดือรามัน", "ปล่องหอย"] },
+        "แม่ลาน": { "zip": "94180", "subs": ["แม่ลาน", "ม่วงเตี้ย", "ป่าไร่"] }
     },
     "ยะลา": {
-        "เมืองยะลา": { "zip": "95000", "subs": ["สะเตง", "สะเตงนอก", "หน้าถ้ำ", "ลิดล", "ยะลา", "ท่าสาป", "ลำใหม่", "ลำพะยา", "โกตาบารู", "พร่อน", "บันนังสาเรง", "บุดี", "เปาะเส้ง"] },
-        "เบตง": { "zip": "95110", "subs": ["เบตง", "ยะรม", "ตาเนาะแมเราะ", "อัยเยอร์เวง", "แม่หวาด"] },
-        "บันนังสตา": { "zip": "95130", "subs": ["บันนังสตา", "บาเจาะ", "เขื่อนบางลาง", "ถ้ำทะลุ", "ตลิ่งชัน"] },
-        "ยะหา": { "zip": "95120", "subs": ["ยะหา", "ละแอ", "บาโร๊ะ", "ปะแต", "กาตอง"] },
-        "รามัน": { "zip": "95140", "subs": ["กายูบอเกาะ", "กะรุบี", "ตะโล๊ะหะลอ", "ท่าธง", "บาลอ", "บือมัง", "ยะต๊ะ", "รามัน", "วังพญา", "อาซ่อง", "เนินงาม"] },
-        "ธารโต": { "zip": "95150", "subs": ["ธารโต", "บ้านแหร", "แม่หวาด", "คีรีเขต"] },
-        "กรงปินัง": { "zip": "95000", "subs": ["กรงปินัง", "สะเอะ", "ห้วยกระทิง", "ปุโรง"] },
-        "กาบัง": { "zip": "95120", "subs": ["กาบัง", "บาละ"] }
+        "เมืองยะลา": { "zip": "95000", "subs": ["สะเตง", "บุดี", "ยุโป", "ลิดล", "ยะลา", "ท่าสาป", "ลำใหม่", "หน้าถ้ำ", "ลำพะยา", "เปาะเส้ง", "พร่อน", "บันนังสาเรง", "สะเตงนอก", "ตาเซะ"], "subZip": { "ลิดล": "95160", "ลำใหม่": "95160", "ลำพะยา": "95160", "พร่อน": "95160" } },
+        "เบตง": { "zip": "95110", "subs": ["เบตง", "ยะรม", "ตาเนาะแมเราะ", "อัยเยอร์เวง", "ธารน้ำทิพย์"] },
+        "บันนังสตา": { "zip": "95130", "subs": ["บันนังสตา", "บาเจาะ", "ตาเนาะปูเต๊ะ", "ถ้ำทะลุ", "ตลิ่งชัน", "เขื่อนบางลาง"] },
+        "ธารโต": { "zip": "95150", "subs": ["ธารโต", "บ้านแหร", "แม่หวาด", "คีรีเขต"], "subZip": { "แม่หวาด": "95170" } },
+        "ยะหา": { "zip": "95120", "subs": ["ยะหา", "ละแอ", "ปะแต", "บาโร๊ะ", "ตาชี", "บาโงยซิแน", "กาตอง"] },
+        "รามัน": { "zip": "95140", "subs": ["กายูบอเกาะ", "กาลูปัง", "กาลอ", "กอตอตือร๊ะ", "โกตาบารู", "เกะรอ", "จะกว๊ะ", "ท่าธง", "เนินงาม", "บาลอ", "บาโงย", "บือมัง", "ยะต๊ะ", "วังพญา", "อาซ่อง", "ตะโล๊ะหะลอ"] },
+        "กาบัง": { "zip": "95120", "subs": ["กาบัง", "บาละ"] },
+        "กรงปินัง": { "zip": "95000", "subs": ["กรงปินัง", "สะเอะ", "ห้วยกระทิง", "ปุโรง"] }
     },
     "พัทลุง": {
-        "เมืองพัทลุง": { "zip": "93000", "subs": ["คูหาสวรรค์", "เขาเจียก", "ท่ามิหรำ", "โคกชะงาย", "นาหม่อม", "นาโหนด", "ปรางหมู่", "ท่าแค", "ควนมะพร้าว", "ลำปำ", "ตำนาน", "ชัยบุรี", "พญาขัน"] },
-        "ควนขนุน": { "zip": "93110", "subs": ["ควนขนุน", "โตนดด้วน", "ดอนทราย", "มะกอกเหนือ", "พนมวังก์", "แหลมโตนด", "ปันแต", "ทะเลน้อย", "นาขยาด", "ชะรัด", "แพรกหา"] },
-        "ปากพะยูน": { "zip": "93120", "subs": ["ปากพะยูน", "ดอนประดู่", "สำเภาชัย", "เกาะนางคำ", "เกาะหมาก", "หานโพธิ์", "ฝาละมี"] },
-        "เขาชัยสน": { "zip": "93130", "subs": ["เขาชัยสน", "โคกม่วง", "จองถนน", "หารโพธิ์"] },
-        "บางแก้ว": { "zip": "93140", "subs": ["ท่ามะเดื่อ", "นาปะขอ", "โคกสัก"] },
+        "เมืองพัทลุง": { "zip": "93000", "subs": ["คูหาสวรรค์", "เขาเจียก", "ท่ามิหรำ", "โคกชะงาย", "นาท่อม", "ปรางหมู่", "ท่าแค", "ลำปำ", "ตำนาน", "ควนมะพร้าว", "ร่มเมือง", "ชัยบุรี", "นาโหนด", "พญาขัน"] },
+        "กงหรา": { "zip": "93180", "subs": ["กงหรา", "ชะรัด", "คลองเฉลิม", "คลองทรายขาว", "สมหวัง"], "subZip": { "ชะรัด": "93000", "สมหวัง": "93000" } },
+        "เขาชัยสน": { "zip": "93130", "subs": ["เขาชัยสน", "ควนขนุน", "จองถนน", "หานโพธิ์", "โคกม่วง"] },
         "ตะโหมด": { "zip": "93160", "subs": ["แม่ขรี", "ตะโหมด", "คลองใหญ่"] },
-        "ป่าบอน": { "zip": "93170", "subs": ["ป่าบอน", "โคกทราย", "หนองธง", "ทุ่งนารี"] },
-        "กงหรา": { "zip": "93180", "subs": ["กงหรา", "ชะรัด", "คลองเฉลิม", "คลองทรายขาว", "สมหวัง"] },
-        "ศรีบรรพต": { "zip": "93190", "subs": ["เขาย่า", "เขามรกต", "ตะแพน"] },
-        "ป่าพะยอม": { "zip": "93110", "subs": ["ป่าพะยอม", "ลานข่อย", "เกาะเต่า", "บ้านพร้าว"] },
-        "ศรีนครินทร์": { "zip": "93000", "subs": ["ชุมพล", "บ้านนา", "ลำสินธุ์", "อ่างทอง"] }
+        "ควนขนุน": { "zip": "93110", "subs": ["ควนขนุน", "ทะเลน้อย", "นาขยาด", "พนมวังก์", "แหลมโตนด", "ปันแต", "โตนดด้วน", "ดอนทราย", "มะกอกเหนือ", "พนางตุง", "ชะมวง", "แพรกหา"], "subZip": { "ทะเลน้อย": "93150", "มะกอกเหนือ": "93150", "พนางตุง": "93150" } },
+        "ปากพะยูน": { "zip": "93120", "subs": ["ปากพะยูน", "ดอนประดู่", "เกาะนางคำ", "เกาะหมาก", "ฝาละมี", "หารเทา", "ดอนทราย"] },
+        "ศรีบรรพต": { "zip": "93190", "subs": ["เขาย่า", "เขาปู่", "ตะแพน"] },
+        "ป่าบอน": { "zip": "93170", "subs": ["ป่าบอน", "โคกทราย", "หนองธง", "ทุ่งนารี", "วังใหม่"] },
+        "บางแก้ว": { "zip": "93140", "subs": ["ท่ามะเดื่อ", "นาปะขอ", "โคกสัก"] },
+        "ป่าพะยอม": { "zip": "93210", "subs": ["ป่าพะยอม", "ลานข่อย", "เกาะเต่า", "บ้านพร้าว"] },
+        "ศรีนครินทร์": { "zip": "93000", "subs": ["ชุมพล", "บ้านนา", "อ่างทอง", "ลำสินธุ์"] }
     }
 };
 
@@ -227,6 +227,11 @@ async function callCloudAPI(action, payload = {}) {
     }
     // ทุกทางที่บันทึกคนงาน (ฟอร์ม, แนบไฟล์จากแฟ้ม, Bulk Import, ฯลฯ) ผ่านตรงนี้ — เพศว่างแต่มีคำนำหน้าให้เติมจากคำนำหน้าเสมอ
     if (action === "saveWorker" && payload.workerData) fillGenderFromTitle(payload.workerData);
+    // โหมดดูหน้าจอแบบผู้ใช้อื่น (startViewAs): อ่านได้อย่างเดียว ห้ามบันทึก
+    if (isViewingAs() && !/^(get|load|list|fetch)/i.test(action) && !(action === "manageUser" && payload.action === "list")) {
+        showToast("👁 กำลังดูหน้าจอแบบผู้ใช้อื่น — บันทึกไม่ได้ กด \"กลับเป็น Admin\" ก่อน", "warning");
+        return null;
+    }
     try {
         const result = await window.supabaseAdapter.callCloudAPI(action, payload, currentUser);
         if (result && result.status === "success") {
@@ -418,44 +423,14 @@ async function loadData() {
     }
 }
 
-// ==================== การ์ดสถานะการดึงข้อมูลกลางจอ (แทน toast "กำลังดึง..." + "ดึงเรียบร้อย" 2 อันแยกกัน) ====================
-// การ์ดเดียวเปลี่ยนสถานะในตัว: loading (วงหมุน) → success (ติ๊ก + จำนวนข้อมูล แล้วจางหายเอง) หรือ error (ค้างนานกว่า กดปิดได้)
-// ไม่บังการคลิกหน้าเว็บ (pointer-events: none ยกเว้นปุ่มปิด) — ใช้ทั้งตอนเปิดระบบ (loadData) และปุ่มรีเฟรช 🔄
-let _syncStatusTimer = null;
+// owner 2026-10-13: ไม่ต้องแจ้ง "กำลังดึงข้อมูล…" / "ข้อมูลเป็นปัจจุบันแล้ว" ทุกครั้งที่ F5/รีเฟรช (ปุ่มรีเฟรชมุมขวาบนหมุนให้เห็นอยู่แล้ว)
+// เหลือแค่ตอนดึงข้อมูลไม่สำเร็จ → แคปซูลกลางจอแบบเดียวกับแจ้งเตือนอื่น (showUploadPill)
 function showSyncStatus(state, detail = '') {
-    let el = document.getElementById('sync-status');
-    if (!el) {
-        el = document.createElement('div');
-        el.id = 'sync-status';
-        el.setAttribute('role', 'status');
-        el.setAttribute('aria-live', 'polite');
-        el.innerHTML = `
-            <div class="sync-card">
-                <div class="sync-visual"><span class="sync-spinner"></span><span class="sync-icon"></span></div>
-                <div class="sync-text"><strong class="sync-title"></strong><small class="sync-detail"></small></div>
-                <button type="button" class="sync-close" aria-label="ปิด">×</button>
-            </div>`;
-        el.querySelector('.sync-close').addEventListener('click', () => hideSyncStatus());
-        document.body.appendChild(el);
-    }
-    clearTimeout(_syncStatusTimer);
-    const copy = {
-        loading: ['กำลังดึงข้อมูลล่าสุด', 'กำลังเชื่อมต่อฐานข้อมูลออนไลน์...'],
-        success: ['ข้อมูลเป็นปัจจุบันแล้ว', detail],
-        error: ['ดึงข้อมูลออนไลน์ไม่สำเร็จ', `ใช้ข้อมูลที่บันทึกไว้ในเครื่องแทน${detail ? ` — ${detail}` : ''}`],
-    }[state];
-    el.className = `is-visible is-${state}`;
-    el.querySelector('.sync-title').textContent = copy[0];
-    el.querySelector('.sync-detail').textContent = copy[1] || '';
-    el.querySelector('.sync-icon').innerHTML = state === 'success' ? icon('ok', 'green') : state === 'error' ? icon('warn', 'amber') : '';
-    if (state === 'success') _syncStatusTimer = setTimeout(hideSyncStatus, 1600);
-    if (state === 'error') _syncStatusTimer = setTimeout(hideSyncStatus, 6000);
+    if (state !== 'error') return;
+    showUploadPill('warn', 'ดึงข้อมูลออนไลน์ไม่สำเร็จ', `ใช้ข้อมูลที่บันทึกไว้ในเครื่องแทน${detail ? ` (${detail})` : ''}`, 6000);
 }
 
-function hideSyncStatus() {
-    const el = document.getElementById('sync-status');
-    if (el) el.classList.remove('is-visible');
-}
+function hideSyncStatus() {}
 
 // ปุ่มรีเฟรชข้างกระดิ่ง (มุมขวาบน) — ดึงข้อมูลล่าสุดจาก Supabase แล้ววาดหน้าที่เปิดอยู่ใหม่ (ช่องค้นหา/ตัวกรองคงค่าเดิม)
 let _refreshingAppData = false;
@@ -821,6 +796,7 @@ function seedMockData() {
 async function initApp() {
     try {
         await loadData();
+        startSessionGuard();
         applyAllWidgetLayouts(); // จัดวิดเจ็ตตามค่าเริ่มต้นใน WIDGET_BOARDS
         hideLoginView();
         showMainLayout();
@@ -828,7 +804,9 @@ async function initApp() {
         // Set user UI info
         document.getElementById("user-display-name").innerText = currentUser ? currentUser.name : "User";
         document.getElementById("user-role-display").innerText = currentUser ? getRoleLabel(currentUser.role) : "";
-        document.getElementById("user-avatar-initial").innerText = currentUser && currentUser.name ? currentUser.name.charAt(0) : "U";
+        const me = currentUser && users.find(u => u.id === currentUser.id);
+        if (me && me.avatarUrl !== undefined) currentUser.avatarUrl = me.avatarUrl; // ล็อกอินค้างไว้ → เอารูปล่าสุดจาก profiles
+        renderMyAvatar();
 
         // Initial View
         // บัญชีนายจ้าง (Client) เข้าหน้าพอร์ทัลของตัวเองเลย ไม่ใช่แดชบอร์ดภายใน
@@ -1197,6 +1175,8 @@ function setupFormPermissions() {
     // (ตั้งทุกเมนูใหม่ทุกครั้ง เผื่อเครื่องเดียวกันสลับบัญชี client ↔ พนักงาน)
     const isClient = !!currentUser && currentUser.role === 'client';
     document.body.classList.toggle('is-client-portal', isClient);
+    const calBtn = document.getElementById('topbar-calendar-btn'); // ปฏิทินของฉัน: เฉพาะผู้ใช้ภายใน
+    if (calBtn) calBtn.classList.toggle('hidden', isClient);
     document.querySelectorAll('.sidebar-menu .menu-item').forEach(item => {
         item.classList.toggle('hidden', item.id === 'menu-client-portal' ? !isClient : isClient);
     });
@@ -1234,11 +1214,12 @@ async function handleLogin(e) {
                     name: result.user.name,
                     role: result.user.role,
                     customer_id: result.user.customer_id,
-                    theme: result.user.theme || null
+                    theme: result.user.theme || null,
+                    avatarUrl: result.user.avatarUrl || null
                 };
                 localStorage.setItem("mw_current_user", JSON.stringify(currentUser));
                 syncThemeFromAccount(result.user.theme);
-                showToast(`เข้าสู่ระบบสำเร็จในสิทธิ์ ${getRoleLabel(currentUser.role)}`, 'success');
+                await claimSingleSession(); // ห้ามล็อกอินซ้อน: เครื่องอื่นที่ล็อกอินบัญชีนี้อยู่จะถูกออกจากระบบ
                 await initApp();
             } else {
                 errorEl.style.display = 'block';
@@ -1262,7 +1243,47 @@ async function handleLogin(e) {
     errorEl.innerText = "ไม่สามารถเชื่อมต่อ Supabase ได้ กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองใหม่";
 }
 
+// ==================== ห้ามล็อกอินซ้อน (owner, 2026-10-13) ====================
+// บัญชีหนึ่งใช้ได้ทีละเครื่อง/เบราว์เซอร์: ล็อกอินที่ไหนทีหลัง ที่เก่าถูกออกจากระบบ
+// ล็อกอิน → สุ่มรหัสเซสชัน (localStorage mw_session_id) แล้ว claimSession; หน้าที่เปิดอยู่เช็คทุก 20 วินาที + ตอนกลับมาที่แท็บ
+// (แท็บหลายแท็บในเบราว์เซอร์เดียวกันใช้รหัสเดียวกัน — ไม่นับว่าซ้อน)
+let sessionGuardTimer = null;
+
+async function claimSingleSession() {
+    const id = (crypto.randomUUID && crypto.randomUUID()) || String(Date.now()) + Math.random();
+    localStorage.setItem("mw_session_id", id);
+    const res = await callCloudAPI("claimSession", { sessionId: id });
+    return !!res;
+}
+
+async function checkSingleSession() {
+    if (!currentUser || !window.supabaseAdapter) return;
+    const mine = localStorage.getItem("mw_session_id");
+    const res = await window.supabaseAdapter.callCloudAPI("getActiveSession", {}, currentUser).catch(() => null);
+    if (!res || res.status !== "success" || !res.sessionId || !currentUser) return; // เน็ตหลุด/ยังไม่เคยจอง = ไม่ไล่ออก
+    if (mine && res.sessionId === mine) return;
+    logout();
+    uiAlert("บัญชีนี้ถูกเข้าสู่ระบบจากเครื่องหรือเบราว์เซอร์อื่น จึงออกจากระบบที่นี่ให้อัตโนมัติ\n(ใช้ได้ทีละเครื่อง ถ้าไม่ใช่คุณ ให้เปลี่ยนรหัสผ่าน)");
+}
+
+async function startSessionGuard() {
+    stopSessionGuard();
+    if (!window.supabaseAdapter || !currentUser) return;
+    if (!localStorage.getItem("mw_session_id")) await claimSingleSession(); // ล็อกอินค้างไว้จากก่อนมีระบบนี้
+    sessionGuardTimer = setInterval(checkSingleSession, 20000);
+}
+
+function stopSessionGuard() {
+    if (sessionGuardTimer) clearInterval(sessionGuardTimer);
+    sessionGuardTimer = null;
+}
+
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && sessionGuardTimer) checkSingleSession(); });
+
 function logout() {
+    stopSessionGuard();
+    localStorage.removeItem("mw_session_id");
+    if (viewAsReal) { viewAsReal = null; document.body.classList.remove('is-viewing-as'); const vb = document.getElementById('view-as-bar'); if (vb) vb.remove(); }
     localStorage.removeItem("mw_current_user");
     currentUser = null;
     closeNotificationPanel();
@@ -1705,6 +1726,9 @@ function switchView(viewName) {
     if (viewName === 'agents') titleEl.innerText = "จัดการ Agent (ผู้ส่งงาน / ผู้แนะนำลูกค้า)";
     if (viewName === 'expenses') titleEl.innerText = "การเงิน, รายจ่าย และบัญชีธนาคาร";
     if (viewName === 'users') titleEl.innerText = "จัดการบัญชีผู้ใช้งานระบบ";
+    if (viewName === 'calendar') titleEl.innerText = "ปฏิทินของฉัน (โน้ตส่วนตัว)";
+    const calBtn = document.getElementById('topbar-calendar-btn');
+    if (calBtn) calBtn.classList.toggle('is-active', viewName === 'calendar');
     if (viewName === 'client-portal') titleEl.innerText = "ข้อมูลของบริษัทฉัน";
     if (viewName === 'backup') {
         titleEl.innerText = "สำรองและกู้คืนข้อมูลระบบ";
@@ -1735,6 +1759,8 @@ function switchView(viewName) {
         renderClientPortal();
     } else if (viewName === 'users') {
         renderUsers();
+    } else if (viewName === 'calendar') {
+        openCalendarView();
     }
     // ตัวเลขบนกระดิ่งต้องตรงกับผู้ใช้/ข้อมูลปัจจุบันทุกหน้า (เดิมอัปเดตแค่ตอนวาดแดชบอร์ด — บัญชี client ไม่เคยเข้าแดชบอร์ด เลยเห็นเลขค้างของบัญชีก่อนหน้า)
     if (viewName !== 'dashboard') updateNotificationBell();
@@ -1776,6 +1802,7 @@ const ICON_GLYPHS = {
     shield:   { c: 'teal',   d: '<path class="fl" d="M12 3 5 6v5.5c0 4.2 2.9 7.8 7 9.5 4.1-1.7 7-5.3 7-9.5V6z"/><path d="m9 12 2.2 2.2L15.5 10"/>' },
     calendar: { c: 'blue',   d: '<rect class="fl" x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M8 3v4M16 3v4M3.5 10h17M8 14h2M12 14h2M8 17h2"/>' },
     photo:    { c: 'violet', d: '<path class="fl" d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2l1.6-2.2h5.8L16.5 7h2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z"/><circle cx="12" cy="12.8" r="3.3"/>' },
+    eye:      { c: 'blue',   d: '<path class="fl" d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/>' },
     clip:     { c: 'slate',  d: '<path d="M20 11.4 12.3 19a4.8 4.8 0 0 1-6.8-6.8l7.9-7.9a3.2 3.2 0 0 1 4.5 4.5l-7.9 7.9a1.6 1.6 0 0 1-2.3-2.3l7.2-7.2"/>' },
     ok:       { c: 'green',  d: '<circle class="fl" cx="12" cy="12" r="9"/><path d="m8 12.3 2.7 2.7L16 9.4"/>' },
     bad:      { c: 'red',    d: '<circle class="fl" cx="12" cy="12" r="9"/><path d="m9.2 9.2 5.6 5.6M14.8 9.2l-5.6 5.6"/>' },
@@ -2546,7 +2573,7 @@ function renderPieChartInto(containerId, entries, opts = {}) {
     }).join('');
 
     container.innerHTML = `
-        <svg class="pie-chart" viewBox="0 0 200 200" width="220" height="220" style="transform: rotate(-90deg); flex-shrink: 0;">
+        <svg class="pie-chart" viewBox="0 0 200 200" width="${opts.size || 220}" height="${opts.size || 220}" style="transform: rotate(-90deg); flex-shrink: 0;">
             ${circles}
         </svg>
         <div>${legend}</div>
@@ -2555,7 +2582,21 @@ function renderPieChartInto(containerId, entries, opts = {}) {
 
 // สลับมุมมองแดชบอร์ดระหว่างตาราง/การ์ดเดิมกับกราฟวงกลม — ใช้ร่วมกันได้ทุกแผงในแท็บการเงิน
 // โดยยึด id ตามรูปแบบ db-finance-{prefix}-table-wrap / -chart-wrap และ btn-{prefix}-view-table / -chart
-function toggleChartView(prefix, mode) {
+// ทุกส่วนที่สลับ ตาราง/กราฟวงกลม ได้ → ล็อกไว้ตามที่เลือกล่าสุด (จำต่อส่วน ต่อเครื่อง: localStorage mw_chart_view_<prefix>)
+// ยังไม่เคยเลือก = กราฟวงกลม (owner, 2026-10-13) — ตาราง/กราฟใหม่ที่ใช้ toggleChartView ให้เพิ่ม prefix ในรายการนี้
+const CHART_FIRST_PREFIXES = ['nationality', 'provinces', 'accounts', 'jobtypes', 'customers', 'expensecat', 'donetypes', 'custprov', 'aging', 'govsplit'];
+document.addEventListener('DOMContentLoaded', () => {
+    try {
+        CHART_FIRST_PREFIXES.forEach(p => {
+            let saved = null;
+            try { saved = localStorage.getItem(`mw_chart_view_${p}`); } catch (e) {}
+            toggleChartView(p, saved === 'table' ? 'table' : 'chart', { remember: false });
+        });
+    } catch (err) { console.error('Chart view setup failed:', err); }
+});
+
+function toggleChartView(prefix, mode, opts = {}) {
+    if (opts.remember !== false) { try { localStorage.setItem(`mw_chart_view_${prefix}`, mode === 'chart' ? 'chart' : 'table'); } catch (e) {} }
     // หน้าการเงินใช้ db-finance-{prefix}-… ส่วนแดชบอร์ดใช้ db-{prefix}-… (สัญชาติ/จังหวัด)
     const tableWrap = document.getElementById(`db-finance-${prefix}-table-wrap`) || document.getElementById(`db-${prefix}-table-wrap`);
     const chartWrap = document.getElementById(`db-finance-${prefix}-chart-wrap`) || document.getElementById(`db-${prefix}-chart-wrap`);
@@ -3089,6 +3130,7 @@ function renderDashboardOverview() {
         `;
     }).join('');
     customerLocsEl.innerHTML = provincesList;
+    renderPieChartInto("db-custprov-chart", Object.entries(locationCounts).map(([p, n]) => ({ name: `จ.${p}`, value: n })), { unit: 'สาขา', size: 180, emptyText: 'ยังไม่มีข้อมูลที่ตั้งนายจ้าง' });
     renderWorkerProvinces();
     renderDashboardPies(nationalityCounts);
     
@@ -3999,9 +4041,8 @@ function updateBranchSubdistrict(idx, subdistrict) {
         customerBranches[idx].subdistrict = subdistrict;
         const prov = customerBranches[idx].province;
         const dist = customerBranches[idx].district;
-        if (prov && dist && SOUTHERN_ADDRESS_DB[prov] && SOUTHERN_ADDRESS_DB[prov][dist]) {
-            customerBranches[idx].postalCode = SOUTHERN_ADDRESS_DB[prov][dist].zip;
-        }
+        const zip = addressZip(prov, dist, subdistrict);
+        if (zip) customerBranches[idx].postalCode = zip;
         renderBranchesInputs();
         refreshDeliverySamePreview();
     }
@@ -5822,35 +5863,17 @@ const TOAST_EMOJI_ICONS = {
     '🖨': 'print', '🔍': 'search', '📄': 'file', '🧹': 'sparkles', '🗜': 'box', '📦': 'box',
 };
 
+// ข้อความแจ้งเตือน (Toast) ทั้งระบบ → แคปซูลกระจกฝ้ากลางจอแบบ iOS ชิ้นเดียวกับตอนอัปไฟล์ (showUploadPill, owner 2026-10-13)
+// success = ติ๊กเขียว, danger = กากบาทแดง, warning = ตกใจส้ม — ถ้าข้อความขึ้นต้น "กำลัง…" = ตัวหมุน (รอข้อความผลลัพธ์ถัดไปมาแทน)
+// ข้อความยาวที่มี " — " หรือ ": " แยกเป็นหัวข้อ + รายละเอียด; อีโมจินำหน้าตัดทิ้ง (ใช้ไอคอนตามประเภทแทน)
 function showToast(message, type = 'success') {
-    const container = document.getElementById("toast-container");
-    if (!container) return;
-
-    const toast = document.createElement("div");
-    toast.className = `toast ${type}`;
-
-    // อีโมจิตัวแรกของข้อความ (เช่น "📎 กำลังแนบไฟล์...") → แปลงเป็นไอคอนสองโทนที่ความหมายตรงกัน แล้วตัดอีโมจิออกจากข้อความ
-    // ไม่มีอีโมจินำหน้า → ใช้ไอคอนตามประเภท (สำเร็จ/ผิดพลาด/คำเตือน)
-    const text = String(message ?? '');
-    const lead = text.match(/^\s*(\p{Extended_Pictographic})️?\s*/u);
-    const typeIcon = { success: ['ok', 'green'], danger: ['bad', 'red'], warning: ['warn', 'amber'] }[type] || ['sparkles', 'blue'];
-    const leadName = lead ? TOAST_EMOJI_ICONS[lead[1]] : null;
-    const [iconName, iconColor] = leadName ? [leadName, typeIcon[1]] : typeIcon;
-
-    toast.innerHTML = `
-        <span class="toast-icon toast-icon-${iconColor}">${icon(iconName, iconColor)}</span>
-        <span class="toast-text">${lead ? text.slice(lead[0].length) : text}</span>
-    `;
-
-    container.appendChild(toast);
-
-    // Auto remove
-    setTimeout(() => {
-        toast.style.animation = 'toastPop 0.25s reverse forwards';
-        setTimeout(() => {
-            toast.remove();
-        }, 300);
-    }, 4000);
+    let text = String(message ?? '').replace(/^\s*(\p{Extended_Pictographic})️?\s*/u, '').trim();
+    if (!text) return;
+    const loading = /^กำลัง/.test(text) || /(\.\.\.|…)$/.test(text) && type !== 'danger' && type !== 'success';
+    const kind = loading ? 'load' : ({ success: 'ok', danger: 'bad', warning: 'warn' }[type] || 'info');
+    text = text.replace(/(\.\.\.|…)$/, '…');
+    const m = text.match(/^(.{2,80}?)(?:\s+—\s+|:\s+)([\s\S]+)$/);
+    showUploadPill(kind, m ? m[1] : text, m ? m[2] : '', loading ? 8000 : null);
 }
 
 // ==================== JOBS MODULE LOGIC ====================
@@ -8479,6 +8502,260 @@ async function loadUserAuthInfo(force = false) {
     renderUsers();
 }
 
+// ==================== ปฏิทินของฉัน: โน้ตส่วนตัว (owner, 2026-10-13) ====================
+// ผู้ใช้ภายในทุกบทบาท (ไม่ใช่บัญชีนายจ้าง) จดโน้ตวันละ 1 รายการ ไม่เกิน 200 ตัวอักษร — เห็นเฉพาะเจ้าของ (RLS calendar_notes)
+// โหลดตอนเปิดหน้า (ไม่รวมใน loadData) เก็บไว้ใน calendarNotes: { 'YYYY-MM-DD': { note, updatedAt } }
+let calendarNotes = null;
+let calendarMonth = null;     // Date วันที่ 1 ของเดือนที่แสดง
+let calendarSelected = null;  // 'YYYY-MM-DD'
+
+const calKey = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const calParse = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
+
+async function openCalendarView() {
+    const today = new Date();
+    if (!calendarMonth) calendarMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    if (!calendarSelected) calendarSelected = calKey(today);
+    renderCalendarNotes();
+    const res = await callCloudAPI("getMyCalendarNotes", {});
+    if (res && res.status === "success") {
+        calendarNotes = {};
+        res.notes.forEach(n => { calendarNotes[n.note_date] = { note: n.note, updatedAt: n.updated_at }; });
+        renderCalendarNotes();
+    }
+}
+
+function shiftCalendarMonth(step) {
+    calendarMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + step, 1);
+    renderCalendarNotes();
+}
+
+function goCalendarToday() {
+    const t = new Date();
+    calendarMonth = new Date(t.getFullYear(), t.getMonth(), 1);
+    selectCalendarDay(calKey(t));
+}
+
+function selectCalendarDay(key) {
+    calendarSelected = key;
+    const d = calParse(key);
+    if (d.getMonth() !== calendarMonth.getMonth() || d.getFullYear() !== calendarMonth.getFullYear()) {
+        calendarMonth = new Date(d.getFullYear(), d.getMonth(), 1);
+    }
+    renderCalendarNotes();
+    const input = document.getElementById('cal-note-input');
+    if (input) input.focus();
+}
+
+function renderCalendarNotes() {
+    const grid = document.getElementById('cal-grid');
+    if (!grid || !calendarMonth) return;
+    const notes = calendarNotes || {};
+    const y = calendarMonth.getFullYear(), m = calendarMonth.getMonth();
+    document.getElementById('cal-month-title').innerText = `${MONTH_NAMES_TH[String(m + 1).padStart(2, '0')]} ${y + 543}`;
+    const todayKey = calKey(new Date());
+    const start = new Date(y, m, 1 - new Date(y, m, 1).getDay()); // เริ่มวันอาทิตย์
+    let html = '';
+    for (let i = 0; i < 42; i++) {
+        const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+        const k = calKey(d);
+        const n = notes[k];
+        const cls = ['cal-day', d.getMonth() !== m ? 'is-out' : '', k === todayKey ? 'is-today' : '', k === calendarSelected ? 'is-selected' : '', n ? 'has-note' : ''].filter(Boolean).join(' ');
+        html += `<button type="button" class="${cls}" onclick="selectCalendarDay('${k}')" ${n ? `title="${escapeHtml(n.note)}"` : ''}>
+            <span class="cal-num">${d.getDate()}</span>${n ? `<span class="cal-note">${escapeHtml(n.note)}</span>` : ''}</button>`;
+    }
+    grid.innerHTML = html;
+
+    // แผงแก้ไขของวันที่เลือก
+    const sel = calParse(calendarSelected);
+    document.getElementById('cal-editor-date').innerText = formatThaiDate(sel);
+    const input = document.getElementById('cal-note-input');
+    const cur = notes[calendarSelected];
+    if (input && input.dataset.key !== calendarSelected) { input.value = cur ? cur.note : ''; input.dataset.key = calendarSelected; }
+    document.getElementById('btn-cal-note-delete').classList.toggle('hidden', !cur);
+    updateCalendarNoteCounter();
+
+    // โน้ตที่กำลังจะถึง (วันนี้เป็นต้นไป 8 รายการ)
+    const upcoming = Object.keys(notes).filter(k => k >= todayKey).sort().slice(0, 8);
+    document.getElementById('cal-upcoming').innerHTML = calendarNotes === null
+        ? '<p class="text-muted">กำลังโหลด…</p>'
+        : upcoming.length
+            ? upcoming.map(k => `<button type="button" class="cal-up-item" onclick="selectCalendarDay('${k}')"><b>${formatThaiDate(calParse(k))}</b><span>${escapeHtml(notes[k].note)}</span></button>`).join('')
+            : '<p class="text-muted">ยังไม่มีโน้ตที่กำลังจะถึง</p>';
+}
+
+function updateCalendarNoteCounter() {
+    const input = document.getElementById('cal-note-input');
+    const counter = document.getElementById('cal-note-counter');
+    if (input && counter) counter.innerText = `${input.value.length}/200`;
+}
+
+async function saveCalendarNote() {
+    const input = document.getElementById('cal-note-input');
+    const key = calendarSelected;
+    const note = input.value.trim().slice(0, 200);
+    const res = await callCloudAPI("saveCalendarNote", { date: key, note });
+    if (!res || res.status === "error") {
+        showToast("❌ บันทึกโน้ตไม่สำเร็จ: " + ((res && res.message) || 'unknown error'), "danger");
+        return;
+    }
+    calendarNotes = calendarNotes || {};
+    if (note) calendarNotes[key] = { note, updatedAt: new Date().toISOString() }; else delete calendarNotes[key];
+    input.dataset.key = '';
+    renderCalendarNotes();
+    showToast(note ? "บันทึกโน้ตแล้ว" : "ลบโน้ตแล้ว", "success");
+}
+
+async function deleteCalendarNote() {
+    if (!(await uiConfirm(`ลบโน้ตของวันที่ ${formatThaiDate(calParse(calendarSelected))}?`, { okText: "ลบโน้ต" }))) return;
+    document.getElementById('cal-note-input').value = '';
+    await saveCalendarNote();
+}
+
+// ==================== ดูหน้าจอแบบผู้ใช้อื่น (Admin, owner 2026-10-13) ====================
+// Admin กดรูปตาในตารางผู้ใช้ → เมนู/ปุ่ม/หน้าแรก/กระดิ่ง เป็นแบบของผู้ใช้นั้น (สลับ role/id/customer_id ใน currentUser)
+// ข้อมูลที่โหลดมายังเป็นสิทธิ์ Admin (ฐานข้อมูลไม่ได้สลับ) จึงไม่ตรง 100% — และระหว่างนี้บันทึก/อัปโหลดอะไรไม่ได้ (callCloudAPI กันไว้)
+// ไม่จำลงเครื่อง: currentUser.toJSON คืนค่าบัญชีจริง → รีเฟรชแล้วกลับเป็น Admin เอง
+let viewAsReal = null;
+function isViewingAs() { return !!viewAsReal; }
+
+function startViewAs(userId) {
+    if (isViewingAs() || !can('admin')) return;
+    const u = users.find(x => x.id === userId);
+    if (!u || u.id === currentUser.id) return;
+    if (u.role === 'client' && !customers.some(c => c.id === u.customer_id)) {
+        uiAlert("บัญชีนายจ้างนี้ยังไม่ได้ผูกกับนายจ้างในระบบ");
+        return;
+    }
+    viewAsReal = { id: currentUser.id, name: currentUser.name, role: currentUser.role, customer_id: currentUser.customer_id, avatarUrl: currentUser.avatarUrl };
+    const real = viewAsReal;
+    Object.defineProperty(currentUser, 'toJSON', {
+        configurable: true, enumerable: false,
+        value() { const o = Object.assign({}, this, real); return o; }
+    });
+    Object.assign(currentUser, { id: u.id, name: u.name, role: u.role, customer_id: u.customer_id || null, avatarUrl: u.avatarUrl || null });
+    applyViewAsUi(u);
+}
+
+function stopViewAs() {
+    if (!viewAsReal) return;
+    delete currentUser.toJSON;
+    Object.assign(currentUser, viewAsReal);
+    viewAsReal = null;
+    applyViewAsUi(null);
+}
+
+function applyViewAsUi(u) {
+    document.body.classList.toggle('is-viewing-as', !!u);
+    let bar = document.getElementById('view-as-bar');
+    if (u) {
+        if (!bar) {
+            bar = document.createElement('div');
+            bar.id = 'view-as-bar';
+            bar.className = 'view-as-bar';
+            document.body.appendChild(bar);
+        }
+        const cust = u.role === 'client' ? customers.find(c => c.id === u.customer_id) : null;
+        bar.innerHTML = `${icon('eye')}<span>กำลังดูหน้าจอแบบ <b>${escapeHtml(u.name || '-')}</b> (${escapeHtml(getRoleLabel(u.role))}${cust ? ` • ${escapeHtml(cust.companyName)}` : ''}) — ข้อมูลยังเป็นสิทธิ์ Admin และบันทึกอะไรไม่ได้</span>
+            <button type="button" class="btn btn-sm" onclick="stopViewAs()" title="กลับไปใช้บัญชี Admin ของตัวเอง">กลับเป็น Admin</button>`;
+    } else if (bar) {
+        bar.remove();
+    }
+    document.getElementById("user-display-name").innerText = currentUser.name || "User";
+    document.getElementById("user-role-display").innerText = getRoleLabel(currentUser.role);
+    renderMyAvatar();
+    setupFormPermissions();
+    try { updateNotificationBell(); } catch (e) {}
+    switchView(currentUser.role === 'client' ? 'client-portal' : (u ? 'dashboard' : 'users'));
+}
+
+// ==================== รูปโปรไฟล์ผู้ใช้ (owner, 2026-10-13) ====================
+// profiles.avatar_url — Admin ตั้งให้ใครก็ได้ในฟอร์มบัญชีผู้ใช้; ทุกคนกดรูปตัวเองที่แถบซ้ายเพื่อเปลี่ยนรูปตัวเอง (set_my_avatar)
+// รูปถูกตัดกลางเป็นสี่เหลี่ยม ย่อเป็น 256px JPEG ก่อนอัปโหลด (Storage: avatars/<userId>/...) ไม่มีรูป = ตัวอักษรแรกของชื่อ
+function userAvatarHtml(u) {
+    const name = (u && u.name) || '';
+    if (u && u.avatarUrl) return `<img class="user-avatar-img" src="${escapeHtml(u.avatarUrl)}" alt="${escapeHtml(name)}">`;
+    return `<span class="user-avatar-letter">${escapeHtml(name.charAt(0) || 'U')}</span>`;
+}
+
+function renderMyAvatar() {
+    const face = document.getElementById('user-avatar-face');
+    if (face) face.innerHTML = userAvatarHtml(currentUser);
+}
+
+function squareAvatarDataUrl(file, size = 256) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        const src = URL.createObjectURL(file);
+        img.onload = () => {
+            const side = Math.min(img.naturalWidth, img.naturalHeight);
+            const canvas = document.createElement('canvas');
+            canvas.width = canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, size, size);
+            ctx.drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, size, size);
+            URL.revokeObjectURL(src);
+            resolve(canvas.toDataURL('image/jpeg', 0.88));
+        };
+        img.onerror = () => { URL.revokeObjectURL(src); reject(new Error('อ่านรูปไม่ได้')); };
+        img.src = src;
+    });
+}
+
+async function uploadAvatarFile(file, ownerId) {
+    if (isViewingAs()) { showToast("👁 กำลังดูหน้าจอแบบผู้ใช้อื่น — บันทึกไม่ได้", "warning"); return null; }
+    if (!file || !/^image\//.test(file.type)) { showToast("⚠️ กรุณาเลือกไฟล์รูปภาพ", "warning"); return null; }
+    if (!window.supabaseAdapter) return null;
+    try {
+        showUploadPill('load', 'กำลังอัปโหลดรูปโปรไฟล์');
+        const dataUrl = await squareAvatarDataUrl(file);
+        const res = await window.supabaseAdapter.uploadFile(dataUrl, 'avatar.jpg', 'avatars', ownerId || 'new', 'user-avatar', currentUser, { skipOcr: true });
+        if (res && res.status === 'success') return res.fileUrl;
+        showUploadPill('bad', 'อัปโหลดรูปไม่สำเร็จ', (res && res.message) || 'unknown error');
+    } catch (err) {
+        showUploadPill('bad', 'อัปโหลดรูปไม่สำเร็จ', err.message);
+    }
+    return null;
+}
+
+// ช่องรูปในฟอร์มบัญชีผู้ใช้ (Admin)
+function setUserAvatarField(url) {
+    document.getElementById('user-avatar-url').value = url || '';
+    const name = (document.getElementById('user-name') || {}).value || '';
+    document.getElementById('user-avatar-preview').innerHTML = userAvatarHtml({ name, avatarUrl: url });
+    document.getElementById('btn-user-avatar-remove').classList.toggle('hidden', !url);
+}
+
+async function pickUserAvatar(e) {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    const url = await uploadAvatarFile(file, document.getElementById('user-edit-id').value);
+    if (url) { setUserAvatarField(url); showUploadPill('ok', 'อัปโหลดรูปแล้ว', 'กดบันทึกเพื่อใช้รูปนี้'); }
+}
+
+// กดรูปตัวเองที่แถบซ้าย → เปลี่ยนรูปตัวเองทันที (ทุกบทบาท)
+async function changeMyAvatar(e) {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file || !currentUser) return;
+    const url = await uploadAvatarFile(file, currentUser.id);
+    if (!url) return;
+    const res = await callCloudAPI("setMyAvatar", { url });
+    if (!res || res.status === "error") {
+        showUploadPill('bad', 'บันทึกรูปไม่สำเร็จ', (res && res.message) || 'unknown error');
+        return;
+    }
+    currentUser.avatarUrl = url;
+    localStorage.setItem("mw_current_user", JSON.stringify(currentUser));
+    const me = users.find(u => u.id === currentUser.id);
+    if (me) { me.avatarUrl = url; localStorage.setItem("mw_users", JSON.stringify(users)); }
+    renderMyAvatar();
+    renderUsers();
+    showUploadPill('ok', 'เปลี่ยนรูปโปรไฟล์แล้ว');
+}
+
 function renderUsers() {
     const tbody = document.getElementById("users-tbody");
     if (!tbody) return;
@@ -8508,7 +8785,7 @@ function renderUsers() {
             : `<span class="badge badge-success">ใช้งานได้</span><div class="text-muted" style="font-size:11.5px;">${a.lastSignInAt ? 'เข้าล่าสุด ' + formatThaiDate(a.lastSignInAt, true) : 'ยังไม่เคยเข้าระบบ'}</div>`;
         return `
         <tr>
-            <td>${escapeHtml(u.name || '-')}</td>
+            <td><div class="user-name-cell"><span class="user-avatar user-avatar-sm">${userAvatarHtml(u)}</span>${escapeHtml(u.name || '-')}</div></td>
             <td>${escapeHtml(emailOf(u) || '-')}</td>
             <td><span class="badge">${getRoleLabel(u.role)}</span></td>
             <td>${u.role === 'client' ? (() => {
@@ -8521,6 +8798,7 @@ function renderUsers() {
             })() : '-'}</td>
             <td>${status}</td>
             <td class="actions-col" style="text-align:center; white-space:nowrap;">
+                ${isSelf ? '' : `<button class="action-icon-btn" onclick="startViewAs('${u.id}')" title="ดูหน้าจอแบบผู้ใช้นี้ (เมนู/ปุ่มตามบทบาทของเขา บันทึกไม่ได้)">${icon("eye")}</button>`}
                 <button class="action-icon-btn" onclick="openUserModal('${u.id}')" title="แก้ไขชื่อ/บทบาท">${icon("edit")}</button>
                 <button class="action-icon-btn" onclick="adminSetUserPassword('${u.id}', '${safeName}')" title="ตั้งรหัสผ่านใหม่">${icon("lock")}</button>
                 <button class="action-icon-btn" onclick="adminChangeUserEmail('${u.id}', '${safeName}')" title="เปลี่ยนอีเมลเข้าระบบ">${icon("outbox")}</button>
@@ -8657,6 +8935,7 @@ function openUserModal(id = null) {
         pinInput.required = false;
 
         document.getElementById("user-name").value = u.name || "";
+        setUserAvatarField(u.avatarUrl || "");
         document.getElementById("user-role").value = u.role || "staff";
         toggleUserCustomerField();
         if (u.role === 'client') {
@@ -8675,6 +8954,7 @@ function openUserModal(id = null) {
         passwordInput.required = true;
         pinInput.required = true;
 
+        setUserAvatarField("");
         toggleUserCustomerField();
     }
 
@@ -8692,6 +8972,7 @@ async function saveUser(e) {
     const name = document.getElementById("user-name").value.trim();
     const role = document.getElementById("user-role").value;
     const customerId = document.getElementById("user-customer-id") ? document.getElementById("user-customer-id").value : "";
+    const avatarUrl = document.getElementById("user-avatar-url").value || null;
 
     if (!name || !role) {
         uiAlert("กรุณากรอกข้อมูลที่จำเป็น (*) ให้ครบถ้วน");
@@ -8708,7 +8989,7 @@ async function saveUser(e) {
         showToast("💾 กำลังบันทึกการแก้ไขเข้าคลาวด์...", "warning");
         const res = await callCloudAPI("updateUserProfile", {
             userId: editId,
-            profileData: { name, role, customer_id: role === 'client' ? customerId : null }
+            profileData: { name, role, customer_id: role === 'client' ? customerId : null, avatarUrl }
         });
         if (!res || res.status === "error") {
             showToast("❌ บันทึกไม่สำเร็จ: " + (res && res.message ? res.message : "unknown error"), "danger");
@@ -8717,7 +8998,12 @@ async function saveUser(e) {
 
         const idx = users.findIndex(u => u.id === editId);
         if (idx !== -1) {
-            users[idx] = Object.assign({}, users[idx], { name, role, customer_id: role === 'client' ? customerId : null });
+            users[idx] = Object.assign({}, users[idx], { name, role, customer_id: role === 'client' ? customerId : null, avatarUrl });
+        }
+        if (currentUser && editId === currentUser.id) {
+            currentUser.avatarUrl = avatarUrl;
+            localStorage.setItem("mw_current_user", JSON.stringify(currentUser));
+            renderMyAvatar();
         }
         localStorage.setItem("mw_users", JSON.stringify(users));
         showToast("แก้ไขบัญชีผู้ใช้งานสำเร็จ", "success");
@@ -8750,7 +9036,16 @@ async function saveUser(e) {
         return;
     }
 
-    users.push({ id: res.data && res.data.id, email, name, role, customer_id: userData.customer_id });
+    const newId = res.data && res.data.id;
+    // create-user ไม่รับรูป → บัญชีสร้างเสร็จแล้วค่อยตั้งรูปให้ (profiles_admin_update)
+    if (newId && avatarUrl) {
+        const r2 = await callCloudAPI("updateUserProfile", {
+            userId: newId,
+            profileData: { name, role, customer_id: role === 'client' ? customerId : null, avatarUrl }
+        });
+        if (!r2 || r2.status === "error") showToast("⚠️ สร้างบัญชีแล้ว แต่บันทึกรูปไม่สำเร็จ — แก้ไขบัญชีเพื่อใส่รูปอีกครั้ง", "warning");
+    }
+    users.push({ id: newId, email, name, role, customer_id: userData.customer_id, avatarUrl });
     localStorage.setItem("mw_users", JSON.stringify(users));
     showToast("เพิ่มบัญชีผู้ใช้งานใหม่สำเร็จ", "success");
     closeUserModal();
@@ -10571,15 +10866,110 @@ function getAiRejectedMessage(ocrError) {
 
 // อัปโหลดไฟล์ขึ้น Supabase Storage (bucket worker-documents) แล้วเรียก Edge Function
 // "ocr-document" (Gemini) ให้อ่านข้อมูลจากเอกสารกลับมาด้วยถ้าเป็นประเภทเอกสารที่รองรับ
+// ==================== รอแนบไฟล์แบบ iOS (แบบที่ 1 — owner เลือก 2026-10-13) ====================
+// ช่องที่ผู้ใช้แนบไฟล์ (กล่องแนบ / ไทล์ในแฟ้ม / ปุ่มที่กด) กลายเป็นตัวหมุนแบบ iOS + ข้อความขั้นตอน
+// ("AI กำลังอ่านเอกสาร…" → "กำลังอัปโหลด…") แล้วขึ้นติ๊กเขียว "แนบแล้ว" ครู่หนึ่ง
+// หาช่องจากเหตุการณ์ล่าสุดของผู้ใช้: เลือกไฟล์ (change) / ลากวาง (drop) / วาง Ctrl+V (paste) / คลิกปุ่มที่เปิดช่องเลือกไฟล์ที่ซ่อนอยู่
+const UPLOAD_HOST_SEL = '.upload-box, .drive-tile, [data-paste-target], .fv-add, .fv-item, .slip-upload, .btn, label';
+let uploadUiHost = null, uploadUiHostAt = 0, lastClickHost = null, lastClickAt = 0;
+
+function setUploadUiHost(el) {
+    const host = el && el.closest && el.closest(UPLOAD_HOST_SEL);
+    if (host && host.offsetParent) { uploadUiHost = host; uploadUiHostAt = Date.now(); }
+}
+document.addEventListener('click', e => {
+    const h = e.target.closest && e.target.closest(UPLOAD_HOST_SEL);
+    if (h) { lastClickHost = h; lastClickAt = Date.now(); }
+}, true);
+document.addEventListener('change', e => {
+    const input = e.target;
+    if (!input || input.type !== 'file') return;
+    const own = input.closest(UPLOAD_HOST_SEL);
+    if (own && own.offsetParent) setUploadUiHost(own);
+    else if (lastClickHost && Date.now() - lastClickAt < 120000) setUploadUiHost(lastClickHost); // ช่องเลือกไฟล์ซ่อน → ปุ่มที่กดเปิด
+}, true);
+document.addEventListener('drop', e => setUploadUiHost(e.target), true);
+document.addEventListener('paste', () => {
+    const hovered = document.querySelectorAll(':hover');
+    setUploadUiHost(hovered[hovered.length - 1] || null);
+}, true);
+
+const IOS_SPINNER_HTML = '<span class="ios-spin">' + Array.from({ length: 12 }, (_, i) =>
+    `<i style="transform:rotate(${i * 30}deg);animation-delay:${((i - 12) / 12).toFixed(3)}s"></i>`).join('') + '</span>';
+
+// แคปซูลแจ้งเตือนตอนอัปไฟล์ (แบบที่ 3 กลางจอ — owner เลือก 2026-10-13): กระจกฝ้า ลอยขึ้นกลางจอ ใช้ชิ้นเดียวสลับข้อความ
+// kind: load (ตัวหมุน ค้างไว้จนมีข้อความถัดไป) / ok / warn / bad (หายเอง)
+let uploadPillTimer = null;
+function showUploadPill(kind, title, sub = '', duration = null) {
+    let pill = document.getElementById('upload-pill');
+    if (!pill) {
+        pill = document.createElement('div');
+        pill.id = 'upload-pill';
+        pill.className = 'upload-pill';
+        pill.setAttribute('role', 'status');
+        pill.setAttribute('aria-live', 'polite');
+        document.body.appendChild(pill);
+    }
+    const mark = {
+        ok: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+        warn: '<path d="M12 7v6M12 17h.01"/>',
+        bad: '<path d="M7 7l10 10M17 7 7 17"/>',
+        info: '<path d="M12 11v6M12 7.5h.01"/>'
+    }[kind];
+    pill.className = `upload-pill is-${kind}`;
+    pill.innerHTML = `${mark ? `<span class="upill-ic"><svg viewBox="0 0 24 24">${mark}</svg></span>` : IOS_SPINNER_HTML}
+        <span class="upill-tx"><b></b><small></small></span>`;
+    pill.querySelector('b').textContent = title || '';
+    pill.querySelector('small').textContent = sub || '';
+    void pill.offsetWidth; // เริ่มแอนิเมชันใหม่ทุกครั้ง
+    pill.classList.add('show');
+    clearTimeout(uploadPillTimer);
+    uploadPillTimer = setTimeout(hideUploadPill, duration || (kind === 'load' ? 120000 : kind === 'ok' || kind === 'info' ? 2200 : 4000));
+}
+function hideUploadPill() {
+    clearTimeout(uploadPillTimer);
+    const pill = document.getElementById('upload-pill');
+    if (pill) pill.classList.remove('show');
+}
+
+function beginUploadUi(fileName) {
+    const host = uploadUiHost && uploadUiHost.isConnected && Date.now() - uploadUiHostAt < 10 * 60 * 1000 ? uploadUiHost : null;
+    if (!host) return null;
+    host.querySelectorAll(':scope > .upl-overlay').forEach(o => o.remove());
+    const ov = document.createElement('div');
+    ov.className = 'upl-overlay';
+    ov.innerHTML = `${IOS_SPINNER_HTML}<div class="upl-label">กำลังเตรียมไฟล์…</div><div class="upl-sub"></div>`;
+    ov.querySelector('.upl-sub').textContent = fileName || '';
+    host.classList.add('upl-host');
+    host.appendChild(ov);
+    const label = ov.querySelector('.upl-label');
+    const end = () => { ov.remove(); if (!host.querySelector(':scope > .upl-overlay')) host.classList.remove('upl-host'); };
+    return {
+        stage(s) { label.textContent = s === 'ocr' ? 'AI กำลังอ่านเอกสาร…' : 'กำลังอัปโหลด…'; },
+        done(ai) {
+            if (!ov.isConnected) return;
+            ov.classList.add('is-done');
+            ov.innerHTML = `<span class="upl-check"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><div class="upl-label">แนบแล้ว</div><div class="upl-sub">${ai ? 'AI อ่านและกรอกข้อมูลให้แล้ว' : ''}</div>`;
+            setTimeout(end, 1400);
+        },
+        fail: end
+    };
+}
+
 async function uploadDocumentFile(fileDataUrl, fileName, customerId = "", workerId = "", docType = "", options = {}) {
     if (!window.supabaseAdapter) return null; // ยังไม่ได้ตั้งค่า Supabase
+    if (isViewingAs()) { showToast("👁 กำลังดูหน้าจอแบบผู้ใช้อื่น — อัปโหลดไม่ได้", "warning"); return null; }
 
+    let ui = beginUploadUi(fileName);
+    const userOnStage = options.onStage;
+    options = { ...options, onStage: s => { if (ui) ui.stage(s); else showUploadPill('load', s === 'ocr' ? 'AI กำลังอ่านเอกสาร' : 'กำลังอัปโหลด', fileName); if (typeof userOnStage === 'function') userOnStage(s); } };
     try {
-        showToast("☁️ กำลังอัปโหลดไฟล์ขึ้น Supabase Storage...", "warning");
+        if (!ui) showUploadPill('load', 'กำลังเตรียมไฟล์', fileName);
         const resData = await window.supabaseAdapter.uploadFile(fileDataUrl, fileName, customerId, workerId, docType, currentUser, options);
+        if (ui && !(resData && resData.status === 'success')) { ui.fail(); ui = null; }
 
         if (resData && resData.status === 'success') {
-            showToast("✅ บันทึกไฟล์สำเร็จ!", "success");
+            if (ui) ui.done(!!resData.parsedData); else showUploadPill('ok', 'แนบไฟล์แล้ว', resData.parsedData ? 'AI อ่านและกรอกข้อมูลให้แล้ว' : '');
             notifyEwpStatus(resData.parsedData);
             return {
                 fileUrl: resData.fileUrl,
@@ -10591,33 +10981,37 @@ async function uploadDocumentFile(fileDataUrl, fileName, customerId = "", worker
             };
         } else if (resData && resData.status === 'cancelled') {
             // ผู้ใช้กดไม่อัปโหลดหลัง AI อ่าน (options.confirmParsed) — ไม่มีไฟล์ถูกเก็บ
-            showToast("ไม่ได้อัปโหลดไฟล์ — คงข้อมูลเดิมไว้", "warning");
+            showUploadPill('warn', 'ไม่ได้อัปโหลดไฟล์', 'คงข้อมูลเดิมไว้');
             return { cancelled: true };
         } else if (resData && resData.aiRejected) {
             // เอกสารประเภทที่ใช้ AI แต่ AI อ่านไม่สำเร็จ — ไฟล์ยังไม่ถูกเก็บ ให้ผู้ใช้เลือก:
             //   manual = อัปโหลดไฟล์เดิมอีกรอบแบบไม่ผ่าน AI แล้วกรอกข้อมูลเอง
             //   retry  = ไม่เก็บไฟล์ (กันไฟล์ซ้ำซ้อนตอนแนบใหม่) ผู้เรียกต้องเช็ก aiRejected แล้วหยุด
             //            ห้าม fallback ไปเก็บไฟล์ทางอื่น (uploadFileToServer)
+            hideUploadPill();
             const choice = await askAiRejectedChoice(fileName, resData.ocrError);
             if (choice === 'manual') {
+                ui = beginUploadUi(fileName);
                 const manualRes = await window.supabaseAdapter.uploadFile(fileDataUrl, fileName, customerId, workerId, docType, currentUser, { ...options, skipOcr: true });
+                if (ui) { if (manualRes && manualRes.status === "success") ui.done(false); else ui.fail(); ui = null; }
                 if (manualRes && manualRes.status === 'success') {
-                    showToast("✅ บันทึกไฟล์แล้ว (ไม่ผ่าน AI) — กรุณากรอกข้อมูลเอง", "success");
+                    showUploadPill('ok', 'แนบไฟล์แล้ว (ไม่ผ่าน AI)', 'กรุณากรอกข้อมูลเอง');
                     // manualEntry: ผู้เรียกเปิด/เลื่อนไปที่ช่องที่ต้องกรอกให้อัตโนมัติ (ดู focusManualEntryFields)
                     return { fileUrl: manualRes.fileUrl, viewUrl: manualRes.viewUrl, fileId: manualRes.fileId, fileName: manualRes.fileName || fileName, parsedData: null, ocrAttempted: false, manualEntry: true };
                 }
-                showToast("❌ อัปโหลดไฟล์ล้มเหลว: " + ((manualRes && manualRes.message) || "ข้อผิดพลาดระบบ"), "danger");
+                showUploadPill('bad', 'อัปโหลดไม่สำเร็จ', (manualRes && manualRes.message) || 'ข้อผิดพลาดระบบ');
                 return null;
             }
-            showToast(getAiRejectedMessage(resData.ocrError), "warning");
+            showUploadPill('warn', 'AI อ่านไม่ได้', getAiRejectedMessage(resData.ocrError));
             return { aiRejected: true, ocrError: resData.ocrError };
         } else {
             console.warn("Storage upload failed:", resData && resData.message);
-            showToast("❌ อัปโหลดไฟล์ล้มเหลว: " + ((resData && resData.message) || "ข้อผิดพลาดระบบ"), "danger");
+            showUploadPill('bad', 'อัปโหลดไม่สำเร็จ', (resData && resData.message) || 'ข้อผิดพลาดระบบ');
         }
     } catch (error) {
+        if (ui) ui.fail();
         console.error("Failed to upload file to Supabase Storage:", error);
-        showToast("⚠️ ไม่สามารถอัปโหลดไฟล์ได้", "danger");
+        showUploadPill('bad', 'อัปโหลดไม่สำเร็จ', 'ลองใหม่อีกครั้ง');
     }
     return null;
 }
@@ -11553,75 +11947,19 @@ function renderFinanceStats() {
         topCustomerEl.innerText = top && top.paid > 0 ? `${top.customer.companyName} (${top.paid.toLocaleString('th-TH')} บ.)` : "-";
     }
 
-    // 5. Render payment status breakdown bars
-    const payStatusEl = document.getElementById("db-finance-payment-breakdown-container");
-    if (payStatusEl) {
-        const totalJobs = periodJobs.length;
-        if (totalJobs === 0) {
-            payStatusEl.innerHTML = '<p class="text-muted">ไม่มีข้อมูลงานจ้าง</p>';
-        } else {
-            const paidJobs = periodJobs.filter(isJobPaid).length;
-            const unpaidJobs = totalJobs - paidJobs;
-            const paidPct = Math.round((paidJobs / totalJobs) * 100);
-            const unpaidPct = 100 - paidPct;
+    // 5–6. สัดส่วนการชำระเงิน + ความคืบหน้างาน → กราฟวงกลม (owner, 2026-10-13 — เดิมเป็นแถบ)
+    const paidJobs = periodJobs.filter(isJobPaid).length;
+    renderPieChartInto("db-finance-payment-breakdown-container", [
+        { name: 'ชำระเงินแล้ว', value: paidJobs, color: '#16a34a' },
+        { name: 'ค้างชำระ', value: periodJobs.length - paidJobs, color: '#dc2626' }
+    ], { unit: 'งาน', size: 140, emptyText: 'ไม่มีข้อมูลงานจ้าง' });
 
-            payStatusEl.innerHTML = `
-                <div class="chart-bar-item">
-                    <div class="bar-info">
-                        <span>ชำระเงินแล้ว (Paid)</span>
-                        <span>${paidJobs} งาน (${paidPct}%)</span>
-                    </div>
-                    <div class="bar-track">
-                        <div class="bar-fill" style="width: ${paidPct}%; background-color: var(--success);"></div>
-                    </div>
-                </div>
-                <div class="chart-bar-item" style="margin-top: 10px;">
-                    <div class="bar-info">
-                        <span>ค้างชำระ (Pending/Unpaid)</span>
-                        <span>${unpaidJobs} งาน (${unpaidPct}%)</span>
-                    </div>
-                    <div class="bar-track">
-                        <div class="bar-fill" style="width: ${unpaidPct}%; background-color: var(--danger);"></div>
-                    </div>
-                </div>
-            `;
-        }
-    }
-
-    // 6. Render progress breakdown bars
-    const progressEl = document.getElementById("db-finance-progress-breakdown-container");
-    if (progressEl) {
-        const totalJobs = periodJobs.length;
-        if (totalJobs === 0) {
-            progressEl.innerHTML = '<p class="text-muted">ไม่มีข้อมูลงานจ้าง</p>';
-        } else {
-            const statusCounts = {};
-            periodJobs.forEach(j => {
-                statusCounts[j.status] = (statusCounts[j.status] || 0) + 1;
-            });
-
-            progressEl.innerHTML = Object.entries(statusCounts).map(([status, count]) => {
-                const pct = Math.round((count / totalJobs) * 100);
-                let color = "var(--navy-medium)";
-                if (status === "ปิดงานแล้ว") color = "var(--success)";
-                if (status === "รอดำเนินการ") color = "var(--text-muted)";
-                if (status === "กำลังดำเนินการ") color = "var(--navy-light)";
-                
-                return `
-                    <div class="chart-bar-item" style="margin-bottom: 8px;">
-                        <div class="bar-info" style="font-size: 12px;">
-                            <span>${status}</span>
-                            <span>${count} งาน (${pct}%)</span>
-                        </div>
-                        <div class="bar-track" style="height: 6px;">
-                            <div class="bar-fill" style="width: ${pct}%; background-color: ${color};"></div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-    }
-
+    const statusCounts = {};
+    periodJobs.forEach(j => { statusCounts[j.status] = (statusCounts[j.status] || 0) + 1; });
+    const STATUS_PIE_COLORS = { 'ปิดงานแล้ว': '#16a34a', 'กำลังดำเนินการ': '#2d4fa3', 'รอดำเนินการ': '#94a3b8', 'รอเอกสารเพิ่มเติม': '#f59e0b' };
+    renderPieChartInto("db-finance-progress-breakdown-container",
+        Object.entries(statusCounts).map(([status, count]) => ({ name: status, value: count, color: STATUS_PIE_COLORS[status] })),
+        { unit: 'งาน', size: 140, emptyText: 'ไม่มีข้อมูลงานจ้าง' });
     // 7. Expenses by Category
     const expenseCatStats = {};
     periodExpenses.forEach(x => {
@@ -11741,6 +12079,7 @@ function renderCompletedJobsStats() {
     });
     const sortedTypes = Object.entries(typeCounts).sort((a, b) => b[1] - a[1]);
 
+    renderPieChartInto("db-donetypes-chart", sortedTypes.map(([name, count]) => ({ name, value: count })), { unit: 'งาน', size: 180, emptyText: noDataMsg });
     const typeTbody = document.getElementById("db-completed-jobtype-tbody");
     if (typeTbody) {
         typeTbody.innerHTML = sortedTypes.length === 0
@@ -15717,6 +16056,11 @@ function renderFinanceInternalSplit(periodPayments, periodExpenses) {
     const govPaid = periodExpenses.filter(x => x.category === GOV_FEE_EXPENSE_CATEGORY).reduce((s, x) => s + (Number(x.amount) || 0), 0);
     const govPending = govCollected - govPaid;
     const depositHeld = round2(receipts.reduce((s, r) => s + receiptUnapplied(r), 0));
+    renderPieChartInto("db-govsplit-chart", [
+        { name: 'รายได้ค่าบริการจริง', value: round2(Math.max(0, serviceIncome)), color: '#2d4fa3' },
+        { name: 'เงินเก็บแทนรัฐ (จ่ายแล้ว)', value: round2(Math.min(govPaid, govCollected)), color: '#16a34a' },
+        { name: 'เงินเก็บแทนรัฐ (ยังไม่จ่าย)', value: round2(Math.max(0, govPending)), color: '#d4af37' }
+    ], { size: 180, emptyText: 'ยังไม่มีเงินรับในช่วงนี้' });
     el.innerHTML = `
         <div class="fin-tile tile-service"><span>รายได้ค่าบริการจริง</span><strong>${fmtMoney(serviceIncome)}</strong><small>เงินที่รับมา − ส่วนที่เป็นค่าธรรมเนียมรัฐ</small></div>
         <div class="fin-tile tile-gov"><span>เงินเก็บแทนรัฐที่รับมา</span><strong>${fmtMoney(govCollected)}</strong><small>ตามสัดส่วนค่าธรรมเนียมรัฐในบิลที่รับเงิน</small></div>
@@ -15751,6 +16095,14 @@ function renderReceivablesAging() {
     const list = Object.values(rows).map(r => ({ ...r, total: r.b0 + r.b31 + r.b61 + r.b91 }))
         .filter(r => r.total > 0 || r.unbilledCount > 0)
         .sort((a, b) => b.b91 - a.b91 || b.total - a.total);
+    const bucketSum = k => round2(list.reduce((s, r) => s + r[k], 0));
+    renderPieChartInto("db-aging-chart", [
+        { name: '0–30 วัน', value: bucketSum('b0'), color: '#16a34a' },
+        { name: '31–60 วัน', value: bucketSum('b31'), color: '#f59e0b' },
+        { name: '61–90 วัน', value: bucketSum('b61'), color: '#ea580c' },
+        { name: 'เกิน 90 วัน', value: bucketSum('b91'), color: '#dc2626' },
+        { name: 'ยังไม่ออกบิล (ประมาณ)', value: bucketSum('unbilled'), color: '#94a3b8' }
+    ], { size: 180, emptyText: 'ไม่มีลูกหนี้ค้างชำระ' });
     if (list.length === 0) {
         tbody.innerHTML = `<tr><td colspan="7" class="text-muted" style="text-align:center; padding:25px;">${icon("ok")} ไม่มีลูกหนี้ค้างชำระ และไม่มีงานค้างออกบิล</td></tr>`;
         return;
@@ -16570,16 +16922,24 @@ function setupIosSelects() {
 }
 
 // ---------- กราฟ magic move ----------
-// แท่งกราฟ (.bar-fill) และกราฟวงกลม (svg.pie-chart) ที่ render ใหม่ จะไหลจากค่าเดิมไปค่าใหม่
-// (ครั้งแรกงอกจาก 0) — เริ่มเล่นตอนกราฟโผล่บนจอจริง ๆ เพราะหลายกราฟ render ไว้ตอนยังซ่อนอยู่
+// แท่งกราฟ (.bar-fill) และกราฟวงกลม (svg.pie-chart) ทั้งระบบ: ทุกครั้งที่กราฟโผล่บนจอ — เปลี่ยนแท็บ/หน้า, เลื่อนกลับมาเห็น,
+// หรือ render ใหม่ — จะงอก/วาดวนจาก 0 ไปค่าจริง (owner 2026-10-13: "ทุกครั้งที่เลื่อนหรือเปลี่ยนแท็บ")
+// ข้อมูลเปลี่ยนขณะกราฟอยู่บนจอ (render ใหม่) = ไหลจากค่าเดิมไปค่าใหม่
+// พ้นจอ/ถูกซ่อน → รีเซ็ตกลับ 0 เงียบๆ (ไม่มีใครเห็น) รอเล่นใหม่รอบหน้า
 const _chartPrev = new Map();
 const _chartIO = window.IntersectionObserver ? new IntersectionObserver(entries => {
     entries.forEach(en => {
-        if (!en.isIntersecting) return;
-        _chartIO.unobserve(en.target);
-        playChartMove(en.target);
+        const t = en.target;
+        if (en.isIntersecting) {
+            if (t._chartShown) return;
+            t._chartShown = true;
+            playChartMove(t);
+        } else if (t._chartShown) {
+            t._chartShown = false;
+            resetChartMove(t);
+        }
     });
-}) : null;
+}, { threshold: 0.15 }) : null;
 
 function chartKey(el, selector) {
     const owner = el.closest('[id]');
@@ -16588,48 +16948,63 @@ function chartKey(el, selector) {
     return `${owner.id}|${selector}|${idx}`;
 }
 
-function prepareChartMove(el) {
-    if (el._chartPrepared) return;
-    el._chartPrepared = true;
-    if (el.classList.contains('bar-fill')) {
-        const key = chartKey(el, '.bar-fill');
-        const prev = key && _chartPrev.get(key);
-        el._chartMove = { key, target: { width: el.style.width } };
-        el.style.transition = 'none';
-        el.style.width = prev ? prev.width : '0%';
-    } else if (el.tagName.toLowerCase() === 'circle') {
-        const key = chartKey(el, 'svg.pie-chart circle');
-        const prev = key && _chartPrev.get(key);
+const chartParts = target => target.tagName.toLowerCase() === 'svg' ? Array.from(target.querySelectorAll('circle')) : [target];
+
+function setChartStart(el, prev) {
+    el.style.transition = 'none';
+    if (el.tagName.toLowerCase() === 'circle') {
         const circumference = 2 * Math.PI * Number(el.getAttribute('r') || 0);
-        el._chartMove = { key, target: { dash: el.getAttribute('stroke-dasharray'), off: el.getAttribute('stroke-dashoffset') || '0' } };
-        el.style.transition = 'none';
         el.style.strokeDasharray = prev ? prev.dash : `0 ${circumference}`;
         el.style.strokeDashoffset = prev ? prev.off : '0';
+    } else {
+        el.style.width = prev ? prev.width : '0%';
     }
-    const watchEl = el.tagName.toLowerCase() === 'circle' ? el.ownerSVGElement : el;
-    if (_chartIO && watchEl) _chartIO.observe(watchEl);
-    else playChartMove(el);
+}
+
+function prepareChartMove(el) {
+    if (el._chartTarget) return;
+    const isCircle = el.tagName.toLowerCase() === 'circle';
+    const key = chartKey(el, isCircle ? 'svg.pie-chart circle' : '.bar-fill');
+    el._chartKey = key;
+    el._chartTarget = isCircle
+        ? { dash: el.getAttribute('stroke-dasharray'), off: el.getAttribute('stroke-dashoffset') || '0' }
+        : { width: el.style.width };
+    // กราฟเดิมอยู่บนจอแล้วถูก render ใหม่ → ไหลจากค่าเดิม; นอกนั้นเริ่มจาก 0
+    const prev = key && _chartPrev.get(key);
+    setChartStart(el, prev && prev.visible ? prev : null);
+    const watchEl = isCircle ? el.ownerSVGElement : el;
+    if (_chartIO && watchEl) {
+        if (!watchEl._chartWatched) { watchEl._chartWatched = true; _chartIO.observe(watchEl); }
+        else if (watchEl._chartShown) playChartMove(watchEl);
+    } else {
+        playChartMove(watchEl || el);
+    }
 }
 
 function playChartMove(target) {
-    const els = target.tagName.toLowerCase() === 'svg' ? Array.from(target.querySelectorAll('circle')) : [target];
-    els.forEach(el => {
-        const m = el._chartMove;
+    chartParts(target).forEach(el => {
+        const m = el._chartTarget;
         if (!m) return;
-        el._chartMove = null;
         el.getBoundingClientRect(); // บังคับให้ค่าเริ่มต้นถูกวาดก่อน แล้วค่อยเปลี่ยนเป็นค่าจริง
         if (el.tagName.toLowerCase() === 'circle') {
             el.style.transition = `stroke-dasharray 0.9s ${IOS_EASE}, stroke-dashoffset 0.9s ${IOS_EASE}`;
-            el.style.strokeDasharray = m.target.dash;
-            el.style.strokeDashoffset = m.target.off;
+            el.style.strokeDasharray = m.dash;
+            el.style.strokeDashoffset = m.off;
         } else {
             el.style.transition = `width 0.8s ${IOS_EASE}`;
-            el.style.width = m.target.width;
+            el.style.width = m.width;
         }
-        if (m.key) _chartPrev.set(m.key, m.target);
+        if (el._chartKey) _chartPrev.set(el._chartKey, Object.assign({}, m, { visible: true }));
     });
 }
 
+function resetChartMove(target) {
+    chartParts(target).forEach(el => {
+        if (!el._chartTarget) return;
+        setChartStart(el, null);
+        if (el._chartKey) _chartPrev.set(el._chartKey, Object.assign({}, el._chartTarget, { visible: false }));
+    });
+}
 function setupChartMagicMove() {
     if (iosReducedMotion()) return;
     const scan = root => {
@@ -16926,12 +17301,45 @@ function setupCollapsibleSections() {
         }
         return out;
     };
-    const setCollapsed = (h, on) => {
+    // ยุบ/กางแบบมีเอฟเฟกต์ (owner, 2026-10-13): เนื้อหาหดความสูงลง + จางหาย / ยืดออก + จางเข้า (สปริงแบบ iOS)
+    // animate=false ตอนพับคืนสถานะที่จำไว้ / กางให้อัตโนมัติ (ไม่ต้องเล่น)
+    const FOLD_MS = 280, FOLD_EASE = 'cubic-bezier(0.32, 0.72, 0, 1)';
+    const foldAnim = (el, from, to, done) => {
+        if (!el.animate || iosReducedMotion()) { done && done(); return; }
+        const prevOverflow = el.style.overflow;
+        el.style.overflow = 'hidden';
+        const anim = el.animate([from, to], { duration: FOLD_MS, easing: FOLD_EASE });
+        anim.onfinish = anim.oncancel = () => { el.style.overflow = prevOverflow; done && done(); };
+    };
+    const setCollapsed = (h, on, animate = false) => {
         h.classList.toggle('is-collapsed', on);
         h.setAttribute('aria-expanded', on ? 'false' : 'true');
-        sectionBody(h).forEach(el => el.classList.toggle('sec-collapsed-away', on));
         const card = h.parentElement;
-        if (h.matches('.panel-header') && card) card.classList.toggle('has-collapsed-header', on);
+        const body = sectionBody(h);
+        if (!animate) {
+            body.forEach(el => el.classList.toggle('sec-collapsed-away', on));
+            if (h.matches('.panel-header') && card) card.classList.toggle('has-collapsed-header', on);
+        } else if (on) {
+            body.forEach(el => {
+                if (el.classList.contains('hidden') || el.classList.contains('sec-collapsed-away')) { el.classList.add('sec-collapsed-away'); return; }
+                const cs = getComputedStyle(el);
+                foldAnim(el,
+                    { height: el.offsetHeight + 'px', opacity: 1, marginTop: cs.marginTop, marginBottom: cs.marginBottom, paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom },
+                    { height: '0px', opacity: 0, marginTop: '0px', marginBottom: '0px', paddingTop: '0px', paddingBottom: '0px' },
+                    () => { if (h.classList.contains('is-collapsed')) el.classList.add('sec-collapsed-away'); });
+            });
+            setTimeout(() => { if (h.classList.contains('is-collapsed') && h.matches('.panel-header') && card) card.classList.add('has-collapsed-header'); }, FOLD_MS);
+        } else {
+            if (h.matches('.panel-header') && card) card.classList.remove('has-collapsed-header');
+            body.forEach(el => {
+                el.classList.remove('sec-collapsed-away');
+                if (el.classList.contains('hidden')) return;
+                const cs = getComputedStyle(el);
+                foldAnim(el,
+                    { height: '0px', opacity: 0, marginTop: '0px', marginBottom: '0px', paddingTop: '0px', paddingBottom: '0px' },
+                    { height: el.offsetHeight + 'px', opacity: 1, marginTop: cs.marginTop, marginBottom: cs.marginBottom, paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom });
+            });
+        }
         if (remembers(h)) {
             const k = headerKey(h);
             saved = saved.filter(x => x !== k);
@@ -16945,7 +17353,7 @@ function setupCollapsibleSections() {
         if (!h) return;
         const control = e.target.closest('button, a, input, select, textarea, label, [onclick], [contenteditable]');
         if (control && control !== h && h.contains(control)) return;
-        setCollapsed(h, !h.classList.contains('is-collapsed'));
+        setCollapsed(h, !h.classList.contains('is-collapsed'), true);
     });
 
     // ช่องบังคับกรอกที่ถูกพับซ่อน → กางหัวข้อนั้นก่อน เบราว์เซอร์จะได้ชี้ช่องที่ยังไม่กรอกได้
@@ -16979,29 +17387,39 @@ function setupCollapsibleSections() {
 // ไม่ใช่ขอบขวาของตาราง (ตารางกว้างที่เลื่อนแนวนอนอยู่ ขอบขวาจริงอาจอยู่นอกจอ)
 function setupRowActionsOverlay() {
     if (!window.matchMedia || !window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
-    const sync = box => {
-        const hidden = Math.max(0, box.scrollWidth - box.scrollLeft - box.clientWidth);
-        box.style.setProperty('--row-actions-right', hidden + 'px');
+    // ตั้งตำแหน่งให้ "แถวที่ชี้อยู่แถวเดียว" (ตั้งที่กล่องตารางทั้งกล่อง = ทุกแถวคำนวณใหม่ทุกครั้งที่เลื่อน → กระตุกตอนเลื่อนซ้าย-ขวา)
+    let hoverRow = null, queued = false;
+    const place = () => {
+        queued = false;
+        const tr = hoverRow;
+        if (!tr || !tr.isConnected) return;
+        const box = tr.closest('.table-container');
+        const hidden = box ? Math.max(0, Math.round(box.scrollWidth - box.scrollLeft - box.clientWidth)) : 0;
+        const v = hidden + 'px';
+        if (tr.style.getPropertyValue('--row-actions-right') !== v) tr.style.setProperty('--row-actions-right', v);
     };
-    // ชี้ปุ่ม/ลิงก์อื่นในแถว (เช่น เปิดแฟ้ม) → ใส่ .actions-dodge ให้แถบปุ่มลอยจางหลบ
+    const schedule = () => { if (!queued) { queued = true; requestAnimationFrame(place); } };
+
+    // ชี้ปุ่ม/ลิงก์อื่นในแถว (เช่น เปิดแฟ้ม) → ใส่ .actions-dodge ให้แถบปุ่มลอยสไลด์หลบ
     // (เดิมใช้ CSS tr:has(... :hover) ซึ่งทำให้เบราว์เซอร์คำนวณสไตล์ทุกแถวใหม่ทุกครั้งที่ขยับเมาส์ → ภาพกระตุก)
     let dodged = null;
     document.addEventListener('mouseover', e => {
         if (!e.target.closest) return;
-        const box = e.target.closest('.table-container');
-        if (box) sync(box);
+        const rowEl = e.target.closest('.data-table tr');
+        const tr = rowEl && rowEl.querySelector(':scope > td.actions-col') ? rowEl : null;
+        if (tr !== hoverRow) { hoverRow = tr; if (tr) schedule(); }
         // td/tr ที่มี onclick (เช่น onclick="event.stopPropagation()" ทั้งช่อง) ไม่นับเป็นปุ่ม — ไม่งั้นชี้ตรงไหนในช่องนั้นแถบปุ่มก็หลบหมด
-        const control = e.target.closest('button, a, input, select, textarea, [onclick]:not(td):not(tr)');
-        const tr = control && !control.closest('td.actions-col') && control.closest('.data-table tr');
-        const row = tr && tr !== control && tr.querySelector(':scope > td.actions-col') ? tr : null;
+        const control = tr && e.target.closest('button, a, input, select, textarea, [onclick]:not(td):not(tr)');
+        const row = control && !control.closest('td.actions-col') && tr.contains(control) ? tr : null;
         if (row === dodged) return;
         if (dodged) dodged.classList.remove('actions-dodge');
         if (row) row.classList.add('actions-dodge');
         dodged = row;
     }, { passive: true });
+    // เลื่อนตารางแนวนอนขณะชี้แถวอยู่ → ขยับแถวนั้นแถวเดียว ครั้งเดียวต่อเฟรม
     document.addEventListener('scroll', e => {
-        if (e.target.classList && e.target.classList.contains('table-container')) sync(e.target);
-    }, true);
+        if (hoverRow && e.target.classList && e.target.classList.contains('table-container')) schedule();
+    }, { capture: true, passive: true });
 }
 
 // ==================== แถบเลื่อนแนวนอนลอยท้ายจอ (ตารางกว้าง) ====================
@@ -17019,6 +17437,9 @@ function setupFloatingHScroll() {
     document.body.appendChild(bar);
 
     let target = null, queued = false;
+    // ใครเป็นคนเลื่อนอยู่ (ตาราง/แถบลอย) — อีกฝั่งแค่ตาม ไม่ส่งค่ากลับ (เดิมส่งกลับไปมา ค่าทศนิยมปัดไม่ตรงกัน → กระตุก)
+    let driver = null, driverTimer = 0;
+    const claim = who => { driver = who; clearTimeout(driverTimer); driverTimer = setTimeout(() => { driver = null; }, 150); };
 
     // ขอบล่างที่มองเห็นได้จริง: จอ หรือกล่องที่เลื่อนได้ซึ่งครอบตารางอยู่ (เช่น modal)
     const visibleBottom = el => {
@@ -17037,33 +17458,43 @@ function setupFloatingHScroll() {
         for (const el of list) {
             if (!el.offsetParent || el.scrollWidth <= el.clientWidth + 1) continue;
             const r = el.getBoundingClientRect();
+            if (r.bottom <= window.innerHeight - 60 && r.bottom > 0 && !el.closest('.modal-backdrop')) continue; // ขอบล่างเห็นอยู่แล้ว ไม่ต้องคำนวณต่อ
             const vb = visibleBottom(el);
             if (r.bottom > vb && r.top < vb - 60) { found = el; foundBottom = vb; break; }
         }
         if (!found) { if (!bar.classList.contains('hidden')) bar.classList.add('hidden'); target = null; return; }
         const r = found.getBoundingClientRect();
         const left = Math.max(r.left, 0), right = Math.min(r.right, window.innerWidth);
-        bar.style.left = left + 'px';
-        bar.style.width = (right - left) + 'px';
-        bar.style.top = (foundBottom - bar.offsetHeight) + 'px';
-        inner.style.width = found.scrollWidth + 'px';
+        const css = { left: left + 'px', width: (right - left) + 'px', top: (foundBottom - 18) + 'px' };
+        for (const k in css) if (bar.style[k] !== css[k]) bar.style[k] = css[k];
+        const w = found.scrollWidth + 'px';
+        if (inner.style.width !== w) inner.style.width = w;
         if (bar.classList.contains('hidden')) bar.classList.remove('hidden');
-        if (bar.scrollLeft !== found.scrollLeft) bar.scrollLeft = found.scrollLeft;
+        if (driver !== 'bar' && Math.abs(bar.scrollLeft - found.scrollLeft) > 1) bar.scrollLeft = found.scrollLeft;
         target = found;
     };
     const schedule = () => { if (!queued) { queued = true; requestAnimationFrame(update); } };
 
     bar.addEventListener('scroll', () => {
-        if (target && target.scrollLeft !== bar.scrollLeft) target.scrollLeft = bar.scrollLeft;
-    });
+        if (driver === 'table' || !target) return;
+        claim('bar');
+        if (Math.abs(target.scrollLeft - bar.scrollLeft) > 1) target.scrollLeft = bar.scrollLeft;
+    }, { passive: true });
     document.addEventListener('scroll', e => {
         if (e.target === bar) return;
-        if (target && e.target === target && bar.scrollLeft !== target.scrollLeft) bar.scrollLeft = target.scrollLeft;
+        if (target && e.target === target) {
+            // ตารางเลื่อนแนวนอนเอง: ตำแหน่งแถบไม่เปลี่ยน แค่ตามค่า scrollLeft
+            if (driver === 'bar') return;
+            claim('table');
+            if (Math.abs(bar.scrollLeft - target.scrollLeft) > 1) bar.scrollLeft = target.scrollLeft;
+            return;
+        }
         schedule();
-    }, true);
-    window.addEventListener('resize', schedule);
-    // ตารางถูกวาดใหม่ด้วย innerHTML / เปลี่ยนหน้า → คำนวณใหม่
-    new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+    }, { capture: true, passive: true });
+    window.addEventListener('resize', schedule, { passive: true });
+    // ตารางถูกวาดใหม่ / เปลี่ยนหน้า (สลับ .hidden) → คำนวณใหม่ — ไม่ฟังการเปลี่ยน class ของทุกตัว (แถวตอนชี้เมาส์ ฯลฯ)
+    new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true });
+    document.addEventListener('click', () => setTimeout(schedule, 50), { capture: true, passive: true });
     schedule();
 }
 
@@ -17526,15 +17957,21 @@ async function confirmBeforeSave(root, title, extra = []) {
 
 // ==================== ที่อยู่จัดส่งเอกสาร: รายการแนะนำ จังหวัด → อำเภอ → ตำบล (พิมพ์เองได้) ====================
 // ช่องยังเป็นช่องพิมพ์ (เก็บค่าที่พิมพ์ตามจริง แม้ไม่อยู่ในรายการ) และมีเมนูแนะนำแบบ iOS จาก SOUTHERN_ADDRESS_DB (attachSuggestMenu)
-// เลือก/พิมพ์อำเภอที่ตรงกับในรายการ → เติมรหัสไปรษณีย์ของอำเภอนั้นให้ (แก้เองต่อได้)
+// เลือก/พิมพ์อำเภอ/ตำบลที่ตรงกับในรายการ → เติมรหัสไปรษณีย์ให้ (ตามตำบล ถ้าเลือกตำบลแล้ว) แก้เองต่อได้
 function updateDeliveryAddressLists(districtChanged = false) {
-    const prov = (document.getElementById('cust-delivery-province') || {}).value || '';
-    const distEl = document.getElementById('cust-delivery-district');
+    const val = id => ((document.getElementById(id) || {}).value || '').trim();
     const postalEl = document.getElementById('cust-delivery-postal');
-    // รายการแนะนำอ่านสดจาก SOUTHERN_ADDRESS_DB ตอนเปิดเมนู (attachSuggestMenu) — ที่นี่แค่เติมรหัสไปรษณีย์ตามอำเภอ
-    const districts = SOUTHERN_ADDRESS_DB[prov.trim()] || null;
-    const d = districts && distEl ? districts[distEl.value.trim()] : null;
-    if (districtChanged && d && postalEl) postalEl.value = d.zip; // แก้เองต่อได้
+    // รายการแนะนำอ่านสดจาก SOUTHERN_ADDRESS_DB ตอนเปิดเมนู (attachSuggestMenu) — ที่นี่แค่เติมรหัสไปรษณีย์
+    const zip = addressZip(val('cust-delivery-province'), val('cust-delivery-district'), val('cust-delivery-subdistrict'));
+    if (districtChanged && zip && postalEl) postalEl.value = zip;
+}
+
+// รหัสไปรษณีย์จาก SOUTHERN_ADDRESS_DB: ตำบลที่รหัสต่างจากอำเภอ (subZip) ก่อน แล้วค่อยรหัสหลักของอำเภอ
+// (ข้อมูลจาก kongvut/thai-province-data, ตรวจ 2026-10-13 — เดิมมีรหัสเดียวต่ออำเภอ ทำให้บางตำบลผิด เช่น สิงหนคร/สะเดา/หาดใหญ่)
+function addressZip(prov, dist, sub) {
+    const d = SOUTHERN_ADDRESS_DB[prov] && SOUTHERN_ADDRESS_DB[prov][dist];
+    if (!d) return '';
+    return (sub && d.subZip && d.subZip[sub]) || d.zip || '';
 }
 
 document.addEventListener('DOMContentLoaded', () => {

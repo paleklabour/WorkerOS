@@ -144,7 +144,7 @@
         }
         const { data: profile, error: profErr } = await sb
             .from("profiles")
-            .select("name, role, customer_id, theme")
+            .select("name, role, customer_id, theme, avatar_url")
             .eq("id", data.user.id)
             .single();
         if (profErr || !profile) {
@@ -153,7 +153,7 @@
         }
         return {
             status: "success",
-            user: { id: data.user.id, email: data.user.email, name: profile.name, role: profile.role, customer_id: profile.customer_id, theme: profile.theme || null }
+            user: { id: data.user.id, email: data.user.email, name: profile.name, role: profile.role, customer_id: profile.customer_id, theme: profile.theme || null, avatarUrl: profile.avatar_url || null }
         };
     }
 
@@ -190,7 +190,7 @@
             sb.from("workers").select("*").order("created_at", { ascending: true }).order("id", { ascending: true }),
             sb.from("jobs").select("*").order("created_at", { ascending: true }).order("id", { ascending: true }),
             sb.from("banks").select("*"),
-            sb.from("profiles").select("name, role, customer_id, id, theme"),
+            sb.from("profiles").select("name, role, customer_id, id, theme, avatar_url"),
             sb.from("agents").select("*"),
             sb.from("expenses").select("*"),
             sb.from("free_invoices").select("*"),
@@ -235,7 +235,7 @@
             servicePrices: servicePricesRes.error ? [] : normalizeNumbers(toCamelList(servicePricesRes.data, SERVICE_PRICE_MAP), ["govFee", "serviceFee"]),
             freeInvoices: freeInvoicesRes.error ? [] : toCamelList(freeInvoicesRes.data, FREE_INVOICE_MAP),
             users: profilesRes.error ? [] : (profilesRes.data || []).map((p) => ({
-                id: p.id, email: p.id, name: p.name, role: p.role, customer_id: p.customer_id, theme: p.theme || null
+                id: p.id, email: p.id, name: p.name, role: p.role, customer_id: p.customer_id, theme: p.theme || null, avatarUrl: p.avatar_url || null
             }))
         };
     }
@@ -530,7 +530,10 @@
         // ให้ผู้ใช้แนบใหม่ทีหลัง แทนที่จะมีไฟล์ค้างในระบบแล้วแนบซ้ำจนไฟล์ซ้ำซ้อน
         let parsedData = null;
         const ocrAttempted = !options.skipOcr && OCR_DOC_TYPES.includes(docType);
+        // options.onStage('ocr' | 'upload') = บอกหน้าเว็บว่าถึงขั้นไหน (ตัวหมุนในช่องแนบ — beginUploadUi ใน app.js)
+        const stage = s => { try { if (typeof options.onStage === "function") options.onStage(s); } catch (e) {} };
         if (ocrAttempted) {
+            stage("ocr");
             const ocr = await callOcr(base64Data, mimeType, docType);
             if (!ocr.parsedData) {
                 return { status: "error", aiRejected: true, ocrError: ocr.ocrError, message: "AI อ่านเอกสารไม่สำเร็จ ยังไม่ได้บันทึกไฟล์" };
@@ -551,6 +554,7 @@
             if (renamed) fileName = realMime ? fixFileExtension(renamed, realMime) : renamed;
         }
 
+        stage("upload");
         const path =`${customerId || "misc"}/${workerId || "employer"}/${Date.now()}_${sanitizeStorageFileName(fileName)}`;
         const { error: upErr } = await sb.storage.from("worker-documents").upload(path, bytes, { contentType: mimeType, upsert: true });
         if (upErr) return { status: "error", message: upErr.message };
@@ -596,11 +600,13 @@
 
     // -------------------- updateUserProfile (name/role/customer_id เท่านั้น — RLS อนุญาต admin แก้ profiles ได้ตรงๆ ไม่ต้องใช้ service role) --------------------
     async function updateUserProfile(userId, profileData) {
-        const { error } = await sb.from("profiles").update({
+        const row = {
             name: profileData.name,
             role: profileData.role,
             customer_id: profileData.customer_id || null
-        }).eq("id", userId);
+        };
+        if (profileData.avatarUrl !== undefined) row.avatar_url = profileData.avatarUrl || null; // รูปโปรไฟล์ (2026-10-13)
+        const { error } = await sb.from("profiles").update(row).eq("id", userId);
         if (error) return { status: "error", message: error.message };
         return { status: "success" };
     }
@@ -676,6 +682,43 @@
             case "setMyWorkerNote": {
                 // บัญชีนายจ้างเขียนโน้ตให้คนงานของตัวเอง — ดู 20261002102002_worker_client_note.sql
                 const { error } = await sb.rpc("set_my_worker_note", { p_worker_id: payload.workerId, p_note: payload.note || "" });
+                if (error) return { status: "error", message: error.message };
+                return { status: "success" };
+            }
+            case "getMyCalendarNotes": {
+                // โน้ตปฏิทินส่วนตัว (RLS: เฉพาะของตัวเอง + ผู้ใช้ภายใน) ดู 20261013050105_calendar_notes.sql
+                const { data, error } = await sb.from("calendar_notes").select("note_date, note, updated_at").order("note_date");
+                if (error) return { status: "error", message: error.message };
+                return { status: "success", notes: data || [] };
+            }
+            case "saveCalendarNote": {
+                const note = String(payload.note || "").trim().slice(0, 200);
+                if (!note) {
+                    const { error } = await sb.from("calendar_notes").delete().eq("note_date", payload.date);
+                    if (error) return { status: "error", message: error.message };
+                    return { status: "success", deleted: true };
+                }
+                const { error } = await sb.from("calendar_notes")
+                    .upsert({ note_date: payload.date, note, updated_at: new Date().toISOString() }, { onConflict: "user_id,note_date" });
+                if (error) return { status: "error", message: error.message };
+                return { status: "success" };
+            }
+            case "claimSession": {
+                // ห้ามล็อกอินซ้อน: จองเซสชันนี้เป็นเซสชันเดียวของบัญชี + ยกเลิก refresh token ของเครื่องอื่น
+                // ดู 20261013043530_profile_single_session.sql
+                const { error } = await sb.rpc("claim_session", { p_session: payload.sessionId });
+                if (error) return { status: "error", message: error.message };
+                try { await sb.auth.signOut({ scope: "others" }); } catch (e) { /* ไม่เป็นไร — เช็คด้วย active_session อยู่แล้ว */ }
+                return { status: "success" };
+            }
+            case "getActiveSession": {
+                const { data, error } = await sb.rpc("my_active_session");
+                if (error) return { status: "error", message: error.message };
+                return { status: "success", sessionId: data || null };
+            }
+            case "setMyAvatar": {
+                // รูปโปรไฟล์ของตัวเอง (ทุกบทบาท) — แก้ได้เฉพาะ avatar_url ของแถวตัวเอง ดู 20261013042307_profile_avatar.sql
+                const { error } = await sb.rpc("set_my_avatar", { p_url: payload.url || "" });
                 if (error) return { status: "error", message: error.message };
                 return { status: "success" };
             }
