@@ -260,6 +260,9 @@ Dark theme = iOS "Liquid Glass" (owner, 2026-10-14): the block at the very end o
 (`rgba(34,38,52,.62)`) with `backdrop-filter` on sidebar/cards/tables/modals over a fixed glow background, blue accent
 `#3d7bff`, glass pills for selected items. `--dk-card` stays solid (`#1b1f2c`) for things that must hide what is behind them
 (row-action overlay, popups). Light and pink themes are unchanged.
+Then "calm mode" on top (owner, 2026-10-14, data-heavy screens felt busy): glass only on chrome (sidebar, modals, popups);
+data cards/tables are solid `#171b26`, glow dimmed; only alerts keep color (red/orange) — dashboard info pills and
+`.badge-success`/`.badge-gold` are neutral grey; secondary text (ID lines, small) muted. Keep new dark-mode UI to that rule.
 
 ## iOS look & widget boards (standing rule, 2026-10)
 
