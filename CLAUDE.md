@@ -264,6 +264,9 @@ Then "calm mode" on top (owner, 2026-10-14, data-heavy screens felt busy): glass
 data cards/tables are solid `#171b26`, glow dimmed; only alerts keep color (red/orange) — dashboard info pills and
 `.badge-success`/`.badge-gold` are neutral grey; secondary text (ID lines, small) muted. Keep new dark-mode UI to that rule.
 Dark radii: buttons, single-line fields, selects, menu items, segmented tabs = capsules (999px); cards 22px, modals 26px, sidebar 26px.
+Light theme got the same treatment (owner, 2026-10-14): block `:root:not([data-theme])` at the end of `styles.css` (light = no
+`data-theme` attribute) — glass sidebar/modals over a faint glow, accent `#2d6cf6`, calm colors, capsule radii. Printed
+sheets in light pin the old navy `#2d4fa3`. Pink theme is still the original look.
 
 ## iOS look & widget boards (standing rule, 2026-10)
 
