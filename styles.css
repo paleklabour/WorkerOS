@@ -7701,3 +7701,34 @@ body::before {
     border: none;
 }
 .login-card .btn { border-radius: 999px; }
+
+/* ======================================================================================================
+   เลื่อนในหน้าต่าง/กล่องรายการแล้วไม่ไปเลื่อนฉากหลัง (owner 2026-10-15)
+   - เฉพาะกล่องที่เลื่อนขึ้นลงเองได้ (หน้าต่าง เมนู รายการ dropdown แถบเมนูซ้าย) — ไม่ใส่กับตาราง/แผงในหน้า
+     (.table-container / .panel-content เลื่อนแนวนอน ถ้าใส่ไว้ ลูกกลิ้งบนตารางจะเลื่อนหน้าไม่ได้)
+   - เปิดหน้าต่างอยู่ → หน้าข้างหลังล็อก ไม่เลื่อนเลย; scrollbar-gutter กันหน้าขยับซ้ายขวาตอนแถบเลื่อนหาย
+   ====================================================================================================== */
+.modal-content,
+.modal-body,
+.fv-list,
+.fv-menu,
+.ui-dialog-message,
+.ui-dialog-summary,
+.ui-dialog.ui-dialog-wide,
+.sidebar,
+.sidebar-menu,
+.bell-panel,
+.ios-select-menu,
+.ios-calendar,
+.search-suggest-dropdown,
+.multi-filter-panel,
+.job-worker-checklist,
+.combine-jobs-list,
+.commission-job-list,
+.bt-checklist,
+.ewp-paste-body,
+.large-files-list,
+.panel-alerts .panel-content { overscroll-behavior-y: contain; }
+html { scrollbar-gutter: stable; }
+html:has(.modal-backdrop:not(.hidden)),
+html:has(.ui-dialog-backdrop) { overflow: hidden; }

@@ -283,8 +283,10 @@ All of that lives in ONE section at the end of `styles.css` ("ระบบธี
 (`--glass-*`, `--pill-on`, `--calm-*`, `--glow-*` …) + shared rules written once, plus every per-component
 `[data-theme]` rule (logos, scrollbars, inline-style overrides, print sheets…) — no `data-theme` selector anywhere else (2026-10-15). Glow is a single fixed
 `body::before` layer (never `background-attachment: fixed` — it repaints on scroll); blur only on things that float over
-content (modals/popups), not the sidebar. Scrolling is the browser default again
-(the 2026-10-14 overscroll containment / modal scroll lock was reverted at the owner's request 2026-10-15).
+content (modals/popups), not the sidebar. Wheel scrolling inside a popup/list never
+scrolls the page behind (owner 2026-10-15): `overscroll-behavior-y: contain` only on vertically scrolling popups/lists
+(last block of `styles.css`) — never on `.table-container` / `.panel-content` (that blocked page scrolling over tables) —
+and the page is locked while a `.modal-backdrop` / `.ui-dialog-backdrop` is open (`html:has(...)`, `scrollbar-gutter: stable`).
 
 ## iOS look & widget boards (standing rule, 2026-10)
 
