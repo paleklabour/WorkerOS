@@ -2282,12 +2282,9 @@ label.user-avatar:hover { box-shadow: 0 0 0 3px rgba(45, 79, 163, 0.18); }
 }
 
 /* หน้าต่างข้อมูลเยอะ (ฟอร์มนายจ้าง/คนงาน/ใบงาน, นำเข้าเอกสาร, วางรายชื่อ e-WorkPermit) ขยายเต็มจอได้มากขึ้น (owner 2026-10-15)
-   ใบแจ้งหนี้/ใบเสร็จ (.modal-sheet) คงขนาดกระดาษเดิม */
-.modal-content.large {
+   ใบแจ้งหนี้/ใบเสร็จ (.modal-sheet) ใช้ขนาดของตัวเองด้านล่าง (กว้างเกือบเต็มจอ ≤ 1640px — อย่าทับ, owner ชอบแบบนั้น) */
+.modal-content.large:not(.modal-sheet) {
     max-width: min(1180px, 95vw);
-}
-.modal-content.large.modal-sheet {
-    max-width: 900px;
 }
 
 .modal-header {

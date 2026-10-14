@@ -304,10 +304,12 @@ with a sliding thumb (`attachTabSlider`), every `<select>` opens an iOS menu on
 mouse devices (`openIosSelect` — the native `<select>` still holds the value),
 charts animate via `setupChartMagicMove` ("magic move": every pie/bar regrows from 0 each time it comes into view — tab/page switch or scroll — and flows old→new on re-render; owner 2026-10-13). Keep new UI consistent with that.
 Every search box gets a ✕ clear button (`attachSearchClear`, `SEARCH_CLEAR_SEL` — `.search-box` inputs or
-placeholder containing "ค้นหา"; clicking it empties the field and fires input/change). Smallest UI font is 12.5px (raised from 11.5px on 2026-10-15, owner: many spots were too small — all 11–12.5px
+placeholder containing "ค้นหา"; clicking it empties the field and fires input/change). Search fields with an inline
+`oninput="render…()"` run it 0.2 s after typing stops (`SEARCH_DEBOUNCE_MS`, wrapped in `attachSearchClear`). Smallest UI font is 12.5px (raised from 11.5px on 2026-10-15, owner: many spots were too small — all 11–12.5px
 screen sizes went up ~1px); don't add smaller sizes (printed sheets excepted). Document folder text/icons are larger
 (names 14.5–18px, 20px icons) and file actions are labelled buttons (`fvActButton`), not hidden in •••.
-Data-heavy windows use `.modal-content.large` (up to 1180px / 95vw; `.modal-sheet` invoices/receipts stay 900px), the
+Data-heavy windows use `.modal-content.large` (up to 1180px / 95vw) — but never cap `.modal-sheet` (invoice / receipt
+preview stays near full screen, up to 1640px with on-screen zoom; owner 2026-10-15 wanted it back after it was squeezed to 900px), the
 document folder fills 1440px / 94vh (owner 2026-10-15: windows that can be bigger should be). The date picker
 (`.ios-calendar`) is a glass popup like the others. Every `<input type="date">` is shown and typed as ว/ด/ป: `proxyDate` (in
 `setupIosDatePickers`) hides the native field — it still holds YYYY-MM-DD, so ids/onchange/`.value` code is unchanged —

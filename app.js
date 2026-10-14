@@ -18735,7 +18735,18 @@ function attachSearchClear(input) {
     Object.defineProperty(input, 'value', { configurable: true, get() { return desc.get.call(this); }, set(v) { desc.set.call(this, v); update(); } });
     host.appendChild(btn);
     update();
+    // ค้นหาเมื่อหยุดพิมพ์ 0.2 วินาที (owner 2026-10-15) — เฉพาะช่องที่วาดตาราง/รายการใหม่ผ่าน oninput="render…()"
+    // (ช่องเลือกจากรายการ registerSearchSuggest/Select ใช้ addEventListener เอง ไม่หน่วง)
+    const orig = input.oninput;
+    if (typeof orig === 'function') {
+        let timer = null;
+        input.oninput = function (e) {
+            clearTimeout(timer);
+            timer = setTimeout(() => orig.call(this, e), SEARCH_DEBOUNCE_MS);
+        };
+    }
 }
+const SEARCH_DEBOUNCE_MS = 200;
 document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll(SEARCH_CLEAR_SEL).forEach(attachSearchClear);
     new MutationObserver(records => records.forEach(r => r.addedNodes.forEach(n => {
