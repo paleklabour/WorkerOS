@@ -268,8 +268,10 @@ Smallest UI font is 11.5px; don't add smaller sizes (printed sheets excepted).
 
 Table action columns (owner, 2026-10-13): on mouse devices the "จัดการ" column
 (`th`/`td.actions-col` in a `.data-table`) is removed from the layout and the row's
-buttons float over the row's right edge on hover, Gmail-style (pinned to the visible
-edge of a horizontally scrolled table via `setupRowActionsOverlay`). Not applied in the
+buttons float over the row's right edge, Gmail-style (pinned to the visible
+edge of a horizontally scrolled table via `setupRowActionsOverlay`) — only when the mouse is
+moved to the far right of the row where the buttons sit (`.actions-edge-hover`), not on hovering
+anywhere in the row (owner, 2026-10-14). Not applied in the
 client portal or `.prices-table`; touch devices keep the normal column. A new table's
 action column just needs `class="actions-col"` on both the `th` and the `td`. Wide
 tables get a floating bottom scrollbar (`setupFloatingHScroll`).

@@ -18066,19 +18066,18 @@ function setupRowActionsOverlay() {
         dodged = row;
     }, { passive: true });
 
-    // ตารางที่ติด .actions-on-edge (ตารางใบงาน — owner 2026-10-14): แถบปุ่ม (ปิดงาน/แก้ไข/ลบ) โผล่เฉพาะตอนเมาส์อยู่ที่
-    // คอลัมน์สุดท้ายทางขวาของแถว (หรืออยู่บนแถบปุ่มเอง) ไม่ใช่ทุกที่ในแถว → ใส่ .actions-edge-hover ให้แถวนั้น
+    // ทุกตาราง (owner 2026-10-14): แถบปุ่ม (ปิดงาน/แก้ไข/ลบ ฯลฯ) โผล่เฉพาะตอนเมาส์เลื่อนไปขวาสุดของแถว = แถบที่ปุ่มจะลอยมาวาง
+    // (ขอบขวาที่มองเห็นของกล่องตาราง แม้ตารางกว้างเกินจอ/เปิดครึ่งจอ) — ชี้กลางแถวไม่โผล่ → ใส่ .actions-edge-hover ให้แถวนั้น
     let edgeRow = null, edgeQueued = false, lastX = 0, lastTarget = null;
     const updateEdge = () => {
         edgeQueued = false;
-        const tr = lastTarget && lastTarget.closest && lastTarget.closest('.data-table.actions-on-edge tr');
+        const tr = lastTarget && lastTarget.closest && lastTarget.closest('.data-table tr');
         let show = null;
-        const td = tr && tr.querySelector(':scope > td.actions-col');
+        const td = tr && !tr.closest('.prices-table') && tr.querySelector(':scope > td.actions-col');
         if (td) {
-            const lastCell = td.previousElementSibling;
+            // ตัวช่องลอยกว้างกว่าปุ่ม (ส่วนจางทางซ้าย = padding-left) → นับเฉพาะจากขอบซ้ายของปุ่มไปทางขวา
             const btnLeft = td.getBoundingClientRect().left + (parseFloat(getComputedStyle(td).paddingLeft) || 0);
-            const edgeLeft = Math.min(lastCell ? lastCell.getBoundingClientRect().left : btnLeft, btnLeft);
-            if (lastX >= edgeLeft) show = tr;
+            if (lastX >= btnLeft) show = tr;
         }
         if (show === edgeRow) return;
         if (edgeRow) edgeRow.classList.remove('actions-edge-hover');
