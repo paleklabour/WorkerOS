@@ -227,7 +227,9 @@ gov fees (`govsplit`).
 
 "ปฏิทินทีม" (2026-10-13, made shared 2026-10-14): calendar icon in the top bar (`topbar-calendar-btn`, hidden for clients) opens view `calendar`. Notes are
 shared by all internal users (everyone sees/edits/deletes; owner's request), several per day, ≤ 200 chars,
-optional time (`note_time`, empty = all day), table `calendar_notes` with `is_internal()` RLS
+optional time (`note_time`, empty = all day), optional multi-day range (`note_end_date`, e.g. someone on leave;
+max 93 days, `calendarNoteList` = real rows, `calendarNotes` = per-day index built by `rebuildCalendarIndex`),
+table `calendar_notes` with `is_internal()` RLS
 (`user_id` = who wrote it, `updated_by` set by trigger — migration `20261014030000_team_calendar_notes.sql`),
 loaded in the background right after `loadData` succeeds, on opening the page and on tab refocus (`loadCalendarNotes`).
 The bell warns every internal user 2 days ahead (owner, 2026-10-14): group `calnote` = notes dated today / tomorrow /

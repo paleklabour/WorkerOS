@@ -879,7 +879,7 @@
             case "getCalendarNotes": {
                 // ปฏิทินทีม: ผู้ใช้ภายในทุกคนเห็น/แก้ร่วมกัน หลายรายการต่อวัน + เวลา ดู 20261014030000_team_calendar_notes.sql
                 const { data, error } = await sb.from("calendar_notes")
-                    .select("id, note_date, note_time, note, user_id, updated_by, updated_at")
+                    .select("id, note_date, note_end_date, note_time, note, user_id, updated_by, updated_at")
                     .order("note_date").order("note_time", { nullsFirst: true });
                 if (error) return { status: "error", message: error.message };
                 return { status: "success", notes: data || [] };
@@ -887,11 +887,11 @@
             case "saveCalendarNote": {
                 const note = String(payload.note || "").trim().slice(0, 200);
                 if (!note) return { status: "error", message: "ยังไม่ได้พิมพ์โน้ต" };
-                const row = { note_date: payload.date, note_time: payload.time || null, note };
+                const row = { note_date: payload.date, note_end_date: payload.endDate || null, note_time: payload.time || null, note };
                 const q = payload.id
                     ? sb.from("calendar_notes").update(row).eq("id", payload.id)
                     : sb.from("calendar_notes").insert(row);
-                const { data, error } = await q.select("id, note_date, note_time, note, user_id, updated_by, updated_at").single();
+                const { data, error } = await q.select("id, note_date, note_end_date, note_time, note, user_id, updated_by, updated_at").single();
                 if (error) return { status: "error", message: error.message };
                 return { status: "success", note: data };
             }

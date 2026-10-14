@@ -7425,6 +7425,12 @@ th.sortable-th:hover::after { opacity: 0.8; }
     color: var(--text-dark);
 }
 .cal-up-item.is-holiday b { color: var(--dk-bad, #d92d20); }
+/* โน้ตหลายวัน (เช่น คนลา) — แถบสีซ้าย ให้เห็นว่าเป็นช่วงต่อเนื่อง */
+.cal-range-row { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.cal-note.is-range { padding-left: 5px; border-left: 3px solid var(--dk-warn, #f59e0b); }
+.cal-day.has-note .cal-note.is-range::before { display: none; }
+.cal-day-note.is-range { border-left: 3px solid var(--dk-warn, #f59e0b); }
+.cal-day-note-body small.cal-range { display: block; color: var(--dk-warn, #b45309); font-weight: 600; }
 @media (max-width: 1024px) {
     .cal-layout { grid-template-columns: 1fr; }
     .cal-day { min-height: 64px; padding: 5px; }

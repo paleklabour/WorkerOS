@@ -4,6 +4,11 @@
 
 alter table calendar_notes drop constraint if exists calendar_notes_user_id_note_date_key;
 alter table calendar_notes add column if not exists note_time time;
+-- หลายวันต่อเนื่อง (เช่น คนลา 15–17 ต.ค.): note_date = วันแรก, note_end_date = วันสุดท้าย (ว่าง = วันเดียว)
+alter table calendar_notes add column if not exists note_end_date date;
+alter table calendar_notes drop constraint if exists calendar_notes_end_after_start;
+alter table calendar_notes add constraint calendar_notes_end_after_start
+  check (note_end_date is null or (note_end_date >= note_date and note_end_date <= note_date + 92));
 alter table calendar_notes add column if not exists updated_by uuid default auth.uid() references auth.users(id) on delete set null;
 
 -- ลบบัญชีผู้จดแล้วโน้ตของทีมต้องยังอยู่

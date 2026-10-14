@@ -1288,7 +1288,7 @@ function logout() {
     if (viewAsReal) { viewAsReal = null; document.body.classList.remove('is-viewing-as'); const vb = document.getElementById('view-as-bar'); if (vb) vb.remove(); }
     localStorage.removeItem("mw_current_user");
     currentUser = null;
-    calendarNotes = null; // โน้ตทีมไม่ค้างไปถึงบัญชีถัดไป (เช่น บัญชีนายจ้าง)
+    calendarNotes = null; calendarNoteList = []; // โน้ตทีมไม่ค้างไปถึงบัญชีถัดไป (เช่น บัญชีนายจ้าง)
     closeNotificationPanel();
     updateNotificationBell(); // ไม่มีผู้ใช้ = 0 → ซ่อนตัวเลข ไม่ให้ค้างไปถึงบัญชีที่ login ถัดไป
     hideMainLayout();
@@ -2778,11 +2778,12 @@ function buildNotificationGroups() {
         const ahead = [0, 1, 2].map(n => { const d = new Date(); d.setDate(d.getDate() + n); return calKey(d); });
         const when = k => ['วันนี้', 'พรุ่งนี้', 'มะรืนนี้'][ahead.indexOf(k)];
         const notes = calendarNotes || {};
+        const seen = new Set(); // โน้ตหลายวันขึ้นครั้งเดียว (ตามวันแรกที่อยู่ในช่วงเตือน)
         add({ key: 'calnote', icon: 'calendar', title: 'โน้ตปฏิทินทีม (วันนี้ – อีก 2 วัน)', view: 'calendar',
-            items: ahead.flatMap(k => (notes[k] || []).map(n => ({
+            items: ahead.flatMap(k => (notes[k] || []).filter(n => !seen.has(n.id) && seen.add(n.id)).map(n => ({
                 text: n.note,
-                sub: `${when(k)} • ${calDayLabel(k)}${n.time ? ` • ${n.time}` : ''} • จดโดย ${n.userId ? getUserNameById(n.userId) : '-'}`,
-                action: `switchView('calendar'); selectCalendarDay('${k}')` }))) });
+                sub: `${n.date < k ? 'อยู่ในช่วง' : when(k)} • ${n.endDate ? calRangeLabel(n) : calDayLabel(k)}${n.time ? ` • ${n.time}` : ''} • จดโดย ${n.userId ? getUserNameById(n.userId) : '-'}`,
+                action: `switchView('calendar'); selectCalendarDay('${n.date}')` }))) });
         add({ key: 'holiday', icon: 'calendar', title: 'วันหยุดราชการใน 2 วันนี้', view: 'calendar', info: true,
             items: ahead.filter(k => THAI_HOLIDAYS[k]).map(k => ({
                 text: THAI_HOLIDAYS[k], sub: `${when(k)} • ${calDayLabel(k)}`,
@@ -8824,18 +8825,49 @@ const THAI_HOLIDAYS = {
 const CAL_WEEKDAYS = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
 const calDayLabel = k => `วัน${CAL_WEEKDAYS[calParse(k).getDay()]} ${formatThaiDate(calParse(k))}`;
 const calTime = t => (t ? String(t).slice(0, 5) : '');
-const calSortNotes = list => list.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+const calSortNotes = list => list.sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''));
+const CAL_MAX_SPAN_DAYS = 92; // ตรงกับ check ใน calendar_notes (โน้ตหลายวันยาวสุด ~3 เดือน)
+
+// โน้ตหลายวัน (owner 2026-10-14 เช่น คนลา): date = วันแรก, endDate = วันสุดท้าย (null = วันเดียว)
+// calendarNoteList = รายการจริง, calendarNotes = ดัชนีรายวัน (โน้ตหลายวันอยู่ในทุกวันของช่วง) ใช้วาดปฏิทินและกระดิ่ง
+let calendarNoteList = [];
 
 function calNoteFromRow(n) {
-    return { id: n.id, time: calTime(n.note_time), note: n.note, userId: n.user_id, updatedBy: n.updated_by, updatedAt: n.updated_at };
+    const end = n.note_end_date && n.note_end_date > n.note_date ? n.note_end_date : null;
+    return { id: n.id, date: n.note_date, endDate: end, time: calTime(n.note_time), note: n.note, userId: n.user_id, updatedBy: n.updated_by, updatedAt: n.updated_at };
+}
+
+function calNoteDays(n) {
+    const days = [n.date];
+    if (!n.endDate) return days;
+    const d = calParse(n.date);
+    for (let i = 0; i < CAL_MAX_SPAN_DAYS; i++) {
+        d.setDate(d.getDate() + 1);
+        const k = calKey(d);
+        if (k > n.endDate) break;
+        days.push(k);
+    }
+    return days;
+}
+
+function rebuildCalendarIndex() {
+    calSortNotes(calendarNoteList);
+    calendarNotes = {};
+    calendarNoteList.forEach(n => calNoteDays(n).forEach(k => { (calendarNotes[k] = calendarNotes[k] || []).push(n); }));
+    Object.values(calendarNotes).forEach(list => list.sort((a, b) => (a.time || '').localeCompare(b.time || '')));
+}
+
+// "15 ต.ค. 2569" หรือ "15 ต.ค. 2569 – 17 ต.ค. 2569 (3 วัน)"
+function calRangeLabel(n) {
+    if (!n.endDate) return calDayLabel(n.date);
+    return `${calDayLabel(n.date)} – ${calDayLabel(n.endDate)} (${calNoteDays(n).length} วัน)`;
 }
 
 async function loadCalendarNotes(silent = false) {
     const res = await callCloudAPI("getCalendarNotes", {}, { silent });
     if (!res || res.status !== "success") return;
-    calendarNotes = {};
-    res.notes.forEach(n => { (calendarNotes[n.note_date] = calendarNotes[n.note_date] || []).push(calNoteFromRow(n)); });
-    Object.values(calendarNotes).forEach(calSortNotes);
+    calendarNoteList = res.notes.map(calNoteFromRow);
+    rebuildCalendarIndex();
     updateNotificationBell();
     renderCalendarNotes();
 }
@@ -8843,13 +8875,13 @@ async function loadCalendarNotes(silent = false) {
 async function openCalendarView() {
     const today = new Date();
     if (!calendarMonth) calendarMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    if (!calendarSelected) calendarSelected = calKey(today);
+    if (!calendarSelected) { calendarSelected = calKey(today); resetCalendarForm(); }
     renderCalendarNotes();
     await loadCalendarNotes();
 }
 
 // เพื่อนร่วมทีมอาจเพิ่มโน้ตระหว่างนี้ — กลับมาที่แท็บนี้แล้วโหลดใหม่ (ปฏิทิน + กระดิ่งเตือนล่วงหน้า 2 วัน)
-// โหลดใหม่ไม่แตะช่องที่กำลังพิมพ์ค้างอยู่ (renderCalendarNotes ไม่เขียนทับ cal-note-input)
+// โหลดใหม่ไม่แตะช่องที่กำลังพิมพ์ค้างอยู่ (renderCalendarNotes ไม่เขียนทับฟอร์ม)
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState !== 'visible' || !currentUser || currentUser.role === 'client' || calendarNotes === null) return;
     loadCalendarNotes(true);
@@ -8867,8 +8899,9 @@ function goCalendarToday() {
 }
 
 function selectCalendarDay(key) {
-    if (key !== calendarSelected) resetCalendarForm();
+    const changed = key !== calendarSelected;
     calendarSelected = key;
+    if (changed) resetCalendarForm();
     const d = calParse(key);
     if (d.getMonth() !== calendarMonth.getMonth() || d.getFullYear() !== calendarMonth.getFullYear()) {
         calendarMonth = new Date(d.getFullYear(), d.getMonth(), 1);
@@ -8878,12 +8911,21 @@ function selectCalendarDay(key) {
     if (input) input.focus();
 }
 
+// ฟอร์มว่าง: "ตั้งแต่" = วันที่เลือกในปฏิทิน, "ถึง" ว่าง (= วันเดียว)
 function resetCalendarForm() {
     calendarEditingId = null;
-    const input = document.getElementById('cal-note-input');
-    const time = document.getElementById('cal-note-time');
-    if (input) input.value = '';
-    if (time) time.value = '';
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+    set('cal-note-input', '');
+    set('cal-note-time', '');
+    set('cal-note-start', calendarSelected || '');
+    set('cal-note-end', '');
+    syncCalendarEndMin();
+}
+
+function syncCalendarEndMin() {
+    const s = document.getElementById('cal-note-start');
+    const e = document.getElementById('cal-note-end');
+    if (s && e) e.min = s.value || '';
 }
 
 function renderCalendarNotes() {
@@ -8902,14 +8944,14 @@ function renderCalendarNotes() {
         const hol = THAI_HOLIDAYS[k];
         const cls = ['cal-day', d.getMonth() !== m ? 'is-out' : '', k === todayKey ? 'is-today' : '', k === calendarSelected ? 'is-selected' : '',
             list.length ? 'has-note' : '', hol ? 'is-holiday' : '', (d.getDay() === 0 || d.getDay() === 6) ? 'is-weekend' : ''].filter(Boolean).join(' ');
-        const tip = [hol, ...list.map(n => `${n.time ? n.time + ' ' : ''}${n.note}`)].filter(Boolean).join('\n');
-        const shown = list.slice(0, 2).map(n => `<span class="cal-note">${n.time ? `<b>${n.time}</b> ` : ''}${escapeHtml(n.note)}</span>`).join('');
+        const tip = [hol, ...list.map(n => `${n.time ? n.time + ' ' : ''}${n.note}${n.endDate ? ` (${calRangeLabel(n)})` : ''}`)].filter(Boolean).join('\n');
+        const shown = list.slice(0, 2).map(n => `<span class="cal-note${n.endDate ? ' is-range' : ''}">${n.time ? `<b>${n.time}</b> ` : ''}${escapeHtml(n.note)}</span>`).join('');
         html += `<button type="button" class="${cls}" onclick="selectCalendarDay('${k}')" ${tip ? `title="${escapeHtml(tip)}"` : ''}>
             <span class="cal-num">${d.getDate()}</span>${hol ? `<span class="cal-holiday">${escapeHtml(hol)}</span>` : ''}${shown}${list.length > 2 ? `<span class="cal-more">+${list.length - 2} รายการ</span>` : ''}</button>`;
     }
     grid.innerHTML = html;
 
-    // แผงของวันที่เลือก: วันหยุด + โน้ตทั้งหมดของวันนั้น + ฟอร์มเพิ่ม/แก้
+    // แผงของวันที่เลือก: วันหยุด + โน้ตทั้งหมดของวันนั้น (รวมโน้ตหลายวันที่คาบวันนี้) + ฟอร์มเพิ่ม/แก้
     document.getElementById('cal-editor-date').innerText = calDayLabel(calendarSelected);
     const holEl = document.getElementById('cal-editor-holiday');
     const hol = THAI_HOLIDAYS[calendarSelected];
@@ -8919,9 +8961,9 @@ function renderCalendarNotes() {
     document.getElementById('cal-day-notes').innerHTML = calendarNotes === null
         ? '<p class="text-muted">กำลังโหลด…</p>'
         : dayList.length
-            ? dayList.map(n => `<div class="cal-day-note${n.id === calendarEditingId ? ' is-editing' : ''}">
-                <span class="cal-day-note-time">${n.time || 'ทั้งวัน'}</span>
-                <div class="cal-day-note-body"><p>${escapeHtml(n.note)}</p><small>${escapeHtml(calNoteByline(n))}</small></div>
+            ? dayList.map(n => `<div class="cal-day-note${n.id === calendarEditingId ? ' is-editing' : ''}${n.endDate ? ' is-range' : ''}">
+                <span class="cal-day-note-time">${n.time || (n.endDate ? 'หลายวัน' : 'ทั้งวัน')}</span>
+                <div class="cal-day-note-body"><p>${escapeHtml(n.note)}</p>${n.endDate ? `<small class="cal-range">${escapeHtml(calRangeLabel(n))}</small>` : ''}<small>${escapeHtml(calNoteByline(n))}</small></div>
                 <button type="button" class="action-icon-btn" onclick="editCalendarNote('${n.id}')" title="แก้ไขโน้ต">${icon('edit')}</button>
                 <button type="button" class="action-icon-btn" onclick="deleteCalendarNote('${n.id}')" title="ลบโน้ต">${icon('trash')}</button>
             </div>`).join('')
@@ -8930,13 +8972,15 @@ function renderCalendarNotes() {
     document.getElementById('btn-cal-note-cancel').classList.toggle('hidden', !calendarEditingId);
     updateCalendarNoteCounter();
 
-    // ที่กำลังจะถึง: โน้ต 8 รายการ (วันนี้เป็นต้นไป) + วันหยุด 3 วันถัดไป
-    const upcoming = [];
-    Object.keys(notes).filter(k => k >= todayKey).sort().forEach(k => notes[k].forEach(n => upcoming.push({ k, n })));
+    // ที่กำลังจะถึง: โน้ตที่ยังไม่จบ (วันสุดท้าย >= วันนี้) 8 รายการ + วันหยุด 3 วันถัดไป
+    const upcoming = calendarNoteList.filter(n => (n.endDate || n.date) >= todayKey).slice(0, 8);
     document.getElementById('cal-upcoming').innerHTML = calendarNotes === null
         ? '<p class="text-muted">กำลังโหลด…</p>'
         : upcoming.length
-            ? upcoming.slice(0, 8).map(({ k, n }) => `<button type="button" class="cal-up-item" onclick="selectCalendarDay('${k}')"><b>${calDayLabel(k)}${n.time ? ' • ' + n.time : ''}</b><span>${escapeHtml(n.note)}</span></button>`).join('')
+            ? upcoming.map(n => {
+                const k = n.date < todayKey ? todayKey : n.date;
+                return `<button type="button" class="cal-up-item" onclick="selectCalendarDay('${k}')"><b>${escapeHtml(calRangeLabel(n))}${n.time ? ' • ' + n.time : ''}</b><span>${escapeHtml(n.note)}</span></button>`;
+            }).join('')
             : '<p class="text-muted">ยังไม่มีโน้ตที่กำลังจะถึง</p>';
     const hols = Object.keys(THAI_HOLIDAYS).filter(k => k >= todayKey).sort().slice(0, 3);
     document.getElementById('cal-upcoming-holidays').innerHTML = hols.length
@@ -8957,11 +9001,14 @@ function updateCalendarNoteCounter() {
 }
 
 function editCalendarNote(id) {
-    const n = (calendarNotes[calendarSelected] || []).find(x => x.id === id);
+    const n = calendarNoteList.find(x => x.id === id);
     if (!n) return;
     calendarEditingId = id;
     document.getElementById('cal-note-input').value = n.note;
     document.getElementById('cal-note-time').value = n.time || '';
+    document.getElementById('cal-note-start').value = n.date;
+    document.getElementById('cal-note-end').value = n.endDate || '';
+    syncCalendarEndMin();
     renderCalendarNotes();
     document.getElementById('cal-note-input').focus();
 }
@@ -8975,16 +9022,22 @@ async function saveCalendarNote() {
     const input = document.getElementById('cal-note-input');
     const note = input.value.trim().slice(0, 200);
     if (!note) { showToast("พิมพ์โน้ตก่อนบันทึก", "warning"); input.focus(); return; }
-    const key = calendarSelected;
-    const res = await callCloudAPI("saveCalendarNote", { id: calendarEditingId, date: key, time: document.getElementById('cal-note-time').value, note });
+    const date = document.getElementById('cal-note-start').value || calendarSelected;
+    let endDate = document.getElementById('cal-note-end').value || null;
+    if (endDate && endDate < date) { showToast("วันสุดท้ายต้องไม่ก่อนวันแรก", "warning"); return; }
+    if (endDate === date) endDate = null;
+    if (endDate && calNoteDays({ date, endDate }).slice(-1)[0] !== endDate) {
+        showToast(`โน้ตหลายวันยาวได้ไม่เกิน ${CAL_MAX_SPAN_DAYS + 1} วัน`, "warning");
+        return;
+    }
+    const res = await callCloudAPI("saveCalendarNote", { id: calendarEditingId, date, endDate, time: document.getElementById('cal-note-time').value, note });
     if (!res || res.status === "error") {
         showToast("❌ บันทึกโน้ตไม่สำเร็จ: " + ((res && res.message) || 'unknown error'), "danger");
         return;
     }
-    calendarNotes = calendarNotes || {};
-    const list = (calendarNotes[key] = (calendarNotes[key] || []).filter(x => x.id !== res.note.id));
-    list.push(calNoteFromRow(res.note));
-    calSortNotes(list);
+    calendarNoteList = calendarNoteList.filter(x => x.id !== res.note.id);
+    calendarNoteList.push(calNoteFromRow(res.note));
+    rebuildCalendarIndex();
     const wasEdit = !!calendarEditingId;
     resetCalendarForm();
     renderCalendarNotes();
@@ -8993,16 +9046,16 @@ async function saveCalendarNote() {
 }
 
 async function deleteCalendarNote(id) {
-    const n = (calendarNotes[calendarSelected] || []).find(x => x.id === id);
+    const n = calendarNoteList.find(x => x.id === id);
     if (!n) return;
-    if (!(await uiConfirm(`ลบโน้ต "${n.note.slice(0, 40)}" ของ${calDayLabel(calendarSelected)}?\nทุกคนในทีมจะไม่เห็นโน้ตนี้อีก`, { okText: "ลบโน้ต" }))) return;
+    if (!(await uiConfirm(`ลบโน้ต "${n.note.slice(0, 40)}" (${calRangeLabel(n)})?\nทุกคนในทีมจะไม่เห็นโน้ตนี้อีก`, { okText: "ลบโน้ต" }))) return;
     const res = await callCloudAPI("deleteCalendarNote", { id });
     if (!res || res.status === "error") {
         showToast("❌ ลบโน้ตไม่สำเร็จ: " + ((res && res.message) || 'unknown error'), "danger");
         return;
     }
-    calendarNotes[calendarSelected] = calendarNotes[calendarSelected].filter(x => x.id !== id);
-    if (!calendarNotes[calendarSelected].length) delete calendarNotes[calendarSelected];
+    calendarNoteList = calendarNoteList.filter(x => x.id !== id);
+    rebuildCalendarIndex();
     if (calendarEditingId === id) resetCalendarForm();
     renderCalendarNotes();
     updateNotificationBell();
