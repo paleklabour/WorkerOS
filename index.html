@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261013w">
+    <link rel="stylesheet" href="styles.css?v=20261014d">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -210,8 +210,8 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
                             </svg>
                         </button>
-                        <!-- ปฏิทินของฉัน: โน้ตส่วนตัว (ซ่อนสำหรับบัญชีนายจ้าง — setupFormPermissions) ดู openCalendarView() -->
-                        <button type="button" class="topbar-refresh-btn" id="topbar-calendar-btn" onclick="switchView('calendar')" title="ปฏิทินของฉัน (โน้ตส่วนตัว)" aria-label="ปฏิทินของฉัน">
+                        <!-- ปฏิทินทีม: โน้ตร่วมกันของผู้ใช้ภายใน + วันหยุดราชการ (ซ่อนสำหรับบัญชีนายจ้าง — setupFormPermissions) ดู openCalendarView() -->
+                        <button type="button" class="topbar-refresh-btn" id="topbar-calendar-btn" onclick="switchView('calendar')" title="ปฏิทินทีม (โน้ตร่วมกัน + วันหยุดราชการ)" aria-label="ปฏิทินทีม">
                             <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M8 3v4M16 3v4M3.5 10h17"/></svg>
                         </button>
                         <!-- กระดิ่งแจ้งเตือนแยกตามตำแหน่ง — กดเปิดรายการ ดู buildNotificationGroups() / toggleNotificationPanel() -->
@@ -924,7 +924,7 @@
                     </div>
 
                     <!-- ==================== AGENTS VIEW ==================== -->
-                    <!-- ปฏิทินของฉัน: โน้ตส่วนตัววันละ 1 รายการ ไม่เกิน 200 ตัวอักษร (renderCalendarNotes ใน app.js) -->
+                    <!-- ปฏิทินทีม: โน้ตร่วมกันหลายรายการต่อวัน + เวลา + วันหยุดราชการ (renderCalendarNotes ใน app.js) -->
                     <div id="view-calendar" class="content-section hidden">
                         <div class="cal-layout">
                             <div class="panel cal-panel">
@@ -939,15 +939,22 @@
                             </div>
                             <div class="panel cal-editor">
                                 <h3 id="cal-editor-date"></h3>
-                                <p class="text-muted cal-editor-hint">โน้ตส่วนตัว — เห็นเฉพาะคุณ</p>
-                                <textarea id="cal-note-input" maxlength="200" rows="5" placeholder="จดโน้ตของวันนี้ (ไม่เกิน 200 ตัวอักษร)" oninput="updateCalendarNoteCounter()"></textarea>
-                                <div class="cal-editor-foot">
-                                    <span class="text-muted" id="cal-note-counter">0/200</span>
-                                    <button type="button" class="btn btn-sm btn-outline hidden" id="btn-cal-note-delete" onclick="deleteCalendarNote()" title="ลบโน้ตของวันนี้">ลบโน้ต</button>
-                                    <button type="button" class="btn btn-sm btn-gold" onclick="saveCalendarNote()" title="บันทึกโน้ตของวันที่เลือก">บันทึก</button>
+                                <p class="cal-editor-holiday hidden" id="cal-editor-holiday"></p>
+                                <p class="text-muted cal-editor-hint">โน้ตของทีม — ผู้ใช้ภายในทุกคนเห็นและแก้ไขร่วมกัน</p>
+                                <div id="cal-day-notes" class="cal-day-notes"></div>
+                                <div class="cal-form">
+                                    <label class="cal-time-label">เวลา <input type="time" id="cal-note-time" title="เวลาของโน้ต (เว้นว่าง = ทั้งวัน)"></label>
+                                    <textarea id="cal-note-input" maxlength="200" rows="3" placeholder="จดโน้ตของวันนี้ (ไม่เกิน 200 ตัวอักษร)" oninput="updateCalendarNoteCounter()"></textarea>
+                                    <div class="cal-editor-foot">
+                                        <span class="text-muted" id="cal-note-counter">0/200</span>
+                                        <button type="button" class="btn btn-sm btn-outline hidden" id="btn-cal-note-cancel" onclick="cancelCalendarEdit()" title="ยกเลิกการแก้ไขโน้ต">ยกเลิก</button>
+                                        <button type="button" class="btn btn-sm btn-gold" id="btn-cal-note-save" onclick="saveCalendarNote()" title="บันทึกโน้ตของวันที่เลือก">เพิ่มโน้ต</button>
+                                    </div>
                                 </div>
                                 <h4 class="cal-upcoming-title">โน้ตที่กำลังจะถึง</h4>
                                 <div id="cal-upcoming"></div>
+                                <h4 class="cal-upcoming-title">วันหยุดราชการถัดไป</h4>
+                                <div id="cal-upcoming-holidays"></div>
                             </div>
                         </div>
                     </div>
@@ -3459,7 +3466,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261013w"></script>
+    <script src="supabase-client.js?v=20261014d"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3470,6 +3477,6 @@
     </script>
 
     <!-- Application Script -->
-    <script src="app.js?v=20261013w"></script>
+    <script src="app.js?v=20261014d"></script>
 </body>
 </html>

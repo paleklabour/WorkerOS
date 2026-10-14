@@ -876,21 +876,27 @@
                 if (error) return { status: "error", message: error.message };
                 return { status: "success" };
             }
-            case "getMyCalendarNotes": {
-                // โน้ตปฏิทินส่วนตัว (RLS: เฉพาะของตัวเอง + ผู้ใช้ภายใน) ดู 20261013050105_calendar_notes.sql
-                const { data, error } = await sb.from("calendar_notes").select("note_date, note, updated_at").order("note_date");
+            case "getCalendarNotes": {
+                // ปฏิทินทีม: ผู้ใช้ภายในทุกคนเห็น/แก้ร่วมกัน หลายรายการต่อวัน + เวลา ดู 20261014030000_team_calendar_notes.sql
+                const { data, error } = await sb.from("calendar_notes")
+                    .select("id, note_date, note_time, note, user_id, updated_by, updated_at")
+                    .order("note_date").order("note_time", { nullsFirst: true });
                 if (error) return { status: "error", message: error.message };
                 return { status: "success", notes: data || [] };
             }
             case "saveCalendarNote": {
                 const note = String(payload.note || "").trim().slice(0, 200);
-                if (!note) {
-                    const { error } = await sb.from("calendar_notes").delete().eq("note_date", payload.date);
-                    if (error) return { status: "error", message: error.message };
-                    return { status: "success", deleted: true };
-                }
-                const { error } = await sb.from("calendar_notes")
-                    .upsert({ note_date: payload.date, note, updated_at: new Date().toISOString() }, { onConflict: "user_id,note_date" });
+                if (!note) return { status: "error", message: "ยังไม่ได้พิมพ์โน้ต" };
+                const row = { note_date: payload.date, note_time: payload.time || null, note };
+                const q = payload.id
+                    ? sb.from("calendar_notes").update(row).eq("id", payload.id)
+                    : sb.from("calendar_notes").insert(row);
+                const { data, error } = await q.select("id, note_date, note_time, note, user_id, updated_by, updated_at").single();
+                if (error) return { status: "error", message: error.message };
+                return { status: "success", note: data };
+            }
+            case "deleteCalendarNote": {
+                const { error } = await sb.from("calendar_notes").delete().eq("id", payload.id);
                 if (error) return { status: "error", message: error.message };
                 return { status: "success" };
             }

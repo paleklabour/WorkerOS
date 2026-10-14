@@ -225,9 +225,15 @@ restored/auto-expanded states skip it). Pie toggles also on: completed jobs by t
 (`donetypes`), employer provinces (`custprov`), receivables aging (`aging`), revenue vs
 gov fees (`govsplit`).
 
-"ปฏิทินของฉัน" (2026-10-13): calendar icon in the top bar (`topbar-calendar-btn`, hidden for clients) opens view `calendar`, personal day notes for internal users
-only (one per day, ≤ 200 chars), table `calendar_notes` with own-row + `is_internal()`
-RLS, loaded on opening the page (`openCalendarView`), not part of `loadData`.
+"ปฏิทินทีม" (2026-10-13, made shared 2026-10-14): calendar icon in the top bar (`topbar-calendar-btn`, hidden for clients) opens view `calendar`. Notes are
+shared by all internal users (everyone sees/edits/deletes; owner's request), several per day, ≤ 200 chars,
+optional time (`note_time`, empty = all day), table `calendar_notes` with `is_internal()` RLS
+(`user_id` = who wrote it, `updated_by` set by trigger — migration `20261014030000_team_calendar_notes.sql`),
+loaded in the background right after `loadData` succeeds, on opening the page and on tab refocus (`loadCalendarNotes`).
+The bell warns every internal user 2 days ahead (owner, 2026-10-14): group `calnote` = notes dated today / tomorrow /
+the day after (counted), group `holiday` = government holidays in that window (info only).
+Thai government holidays are hard-coded in `THAI_HOLIDAYS` in `app.js` (from Google's Thai holiday calendar);
+2027 Buddhist holidays + Royal Ploughing Day weren't announced yet on 2026-10-14 — add them when announced.
 
 "View as user" (Admin, 2026-10-13): eye button in the users table → `startViewAs(id)`
 swaps `currentUser` id/role/customer_id in memory so menus, buttons, home page and

@@ -24,7 +24,11 @@
        เครื่องอื่นใช้ฟอนต์ฟรีที่หน้าตาใกล้เคียงที่สุด: Inter (อังกฤษ ~SF Pro) + Noto Sans Thai (ไทยไม่มีหัว ~Sukhumvit) */
     --font-head: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', 'Sukhumvit Set', 'Noto Sans Thai', 'Segoe UI', Tahoma, sans-serif;
     --font-body: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', 'Sukhumvit Set', 'Noto Sans Thai', 'Segoe UI', Tahoma, sans-serif;
-    --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    /* ไม่ใช้ "all": ตอนย่อ/ขยายหน้าต่าง ความกว้าง/padding ของปุ่ม แถวตาราง การ์ด ฯลฯ จะค่อย ๆ เลื่อนตามทุกเฟรม = กระตุก (2026-10-14) */
+    --transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+        border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+        transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+        filter 0.2s cubic-bezier(0.4, 0, 0.2, 1), fill 0.2s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* ==================== BASE STYLES & RESET ==================== */
@@ -7336,6 +7340,52 @@ th.sortable-th:hover::after { opacity: 0.8; }
 .cal-up-item:hover { background: var(--dk-head, #e9eef9); }
 .cal-up-item b { font-size: 12.5px; color: var(--gold-primary); }
 .cal-up-item span { font-size: 12.5px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* ปฏิทินทีม (2026-10-14): วันหยุดราชการ (แดง), หลายโน้ตต่อวัน + เวลา */
+.cal-day.is-weekend .cal-num, .cal-day.is-holiday .cal-num { color: var(--dk-bad, #d92d20); }
+.cal-day.is-today .cal-num { color: #fff; }
+.cal-day.is-holiday { background: var(--dk-bad-bg, #fff4f3); }
+.cal-holiday {
+    width: 100%;
+    font-size: 11.5px;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--dk-bad, #d92d20);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.cal-note { -webkit-line-clamp: 2; }
+.cal-note b { color: var(--gold-primary); font-weight: 600; }
+.cal-more { font-size: 11.5px; color: var(--gold-primary); font-weight: 600; }
+.cal-editor-holiday { margin: 4px 0 0; font-size: 13px; font-weight: 600; color: var(--dk-bad, #d92d20); }
+.cal-day-notes { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.cal-empty { font-size: 12.5px; margin: 0; }
+.cal-day-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px 6px 8px 10px;
+    border-radius: 10px;
+    background: var(--dk-subtle, #f4f6fa);
+    border: 1px solid transparent;
+}
+.cal-day-note.is-editing { border-color: var(--gold-primary); }
+.cal-day-note-time { flex-shrink: 0; min-width: 40px; font-size: 12.5px; font-weight: 600; color: var(--gold-primary); padding-top: 1px; }
+.cal-day-note-body { flex: 1; min-width: 0; }
+.cal-day-note-body p { margin: 0; font-size: 13px; color: var(--text-dark); word-break: break-word; white-space: pre-wrap; }
+.cal-day-note-body small { font-size: 11.5px; color: var(--text-muted); }
+.cal-form { border-top: 1px solid var(--dk-line, #e5e7eb); padding-top: 12px; }
+.cal-time-label { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 13px; color: var(--text-muted); }
+.cal-time-label input {
+    padding: 6px 10px;
+    border: 1px solid var(--dk-line, #e2e8f0);
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 13.5px;
+    background: var(--dk-card, #ffffff);
+    color: var(--text-dark);
+}
+.cal-up-item.is-holiday b { color: var(--dk-bad, #d92d20); }
 @media (max-width: 1024px) {
     .cal-layout { grid-template-columns: 1fr; }
     .cal-day { min-height: 64px; padding: 5px; }
@@ -7344,7 +7394,7 @@ th.sortable-th:hover::after { opacity: 0.8; }
 @media (max-width: 640px) {
     .cal-weekdays, .cal-grid { gap: 3px; }
     .cal-day { min-height: 46px; align-items: center; }
-    .cal-note { display: none; }
+    .cal-note, .cal-holiday, .cal-more { display: none; }
     .cal-day.has-note::after { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--gold-primary); }
 }
 
@@ -7435,3 +7485,6 @@ th.sortable-th:hover::after { opacity: 0.8; }
     overflow: visible !important;
 }
 .inv-snapshot-value { white-space: pre-wrap; }
+
+/* กำลังย่อ/ขยายหน้าต่าง (app.js ใส่ class นี้ระหว่างลาก) → ปิด transition ทั้งหน้า ไม่ให้แถบเมนู/ตัวเลื่อนแท็บ/กราฟวิ่งไล่ตามขนาดใหม่ */
+html.is-resizing *, html.is-resizing *::before, html.is-resizing *::after { transition: none !important; }
