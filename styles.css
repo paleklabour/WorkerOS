@@ -7677,3 +7677,54 @@ html.is-resizing *, html.is-resizing *::before, html.is-resizing *::after { tran
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
     :root[data-theme="dark"] { --gray-card: #1d2130; }
 }
+
+/* ==================== ธีมมืด: โหมดสบายตา (owner 2026-10-14 — ข้อมูลเยอะแล้วลายตา, เฉพาะธีมมืด) ====================
+   1) สีเหลือเฉพาะสิ่งที่ต้องจัดการ (แดง/ส้ม) — ข้อมูลทั่วไปเป็นสีกลาง
+   2) กระจกเฉพาะกรอบ (เมนูซ้าย, หน้าต่าง, ป๊อปอัป) — การ์ด/ตารางเป็นพื้นทึบเรียบ และหรี่แสงพื้นหลัง
+   3) ข้อมูลรอง (เลขประจำตัว/วันที่/คำอธิบาย) สีจางลง ตัวเลขเรียงตรงหลัก */
+:root[data-theme="dark"] {
+    --gray-card: #171b26;
+    --dk-card: #171b26;
+    --text-dark: #d9dde7;
+    --text-muted: #8b93a7;
+    --dk-muted: #8b93a7;
+    --navy-light: #8b93a7;
+    --dk-line: rgba(255, 255, 255, 0.07);
+    /* แถบตัวเลขแดชบอร์ด: ข้อมูลทั่วไป (น้ำเงิน/เขียวอมฟ้า/ม่วง) เป็นกลาง — แดง/ส้ม (ต้องจัดการ) คงสีไว้ */
+    --pill-navy-bg: rgba(255, 255, 255, 0.05);   --pill-navy-fg: #e4e8f1;   --pill-navy-sub: #a3abbf;
+    --pill-teal-bg: rgba(255, 255, 255, 0.05);   --pill-teal-fg: #e4e8f1;   --pill-teal-sub: #a3abbf;
+    --pill-purple-bg: rgba(255, 255, 255, 0.05); --pill-purple-fg: #e4e8f1; --pill-purple-sub: #a3abbf;
+}
+/* หรี่แสงพื้นหลัง (ครึ่งหนึ่งของเดิม) */
+:root[data-theme="dark"] body {
+    background:
+        radial-gradient(42vw 42vw at 8% 18%, rgba(47, 95, 214, 0.14), transparent 70%),
+        radial-gradient(34vw 34vw at 92% 6%, rgba(176, 67, 143, 0.10), transparent 70%),
+        radial-gradient(38vw 38vw at 62% 100%, rgba(31, 143, 122, 0.09), transparent 70%),
+        var(--gray-bg);
+    background-attachment: fixed;
+}
+/* การ์ดข้อมูล/ตาราง: พื้นทึบ ไม่เบลอ (ตัวหนังสือไม่ถูกแสงด้านหลังกวน) */
+:root[data-theme="dark"] .dashboard-panel,
+:root[data-theme="dark"] .table-container,
+:root[data-theme="dark"] .stats-card,
+:root[data-theme="dark"] .cp-card,
+:root[data-theme="dark"] .billing-credit-panel {
+    background-color: var(--gray-card);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+}
+/* ป้ายข้อมูลทั่วไปเป็นสีกลาง: ปกติ/ชำระแล้ว (เขียว), สัญชาติ/ประเภทงาน (ทอง→ฟ้า) */
+:root[data-theme="dark"] .badge-success,
+:root[data-theme="dark"] .badge-gold {
+    background-color: rgba(255, 255, 255, 0.06);
+    color: #c3c9d6;
+    border-color: rgba(255, 255, 255, 0.08);
+}
+/* ข้อมูลรองในตาราง: สีจาง น้ำหนักปกติ ตัวเลขกว้างเท่ากัน */
+:root[data-theme="dark"] .data-table td { font-variant-numeric: tabular-nums; }
+:root[data-theme="dark"] .data-table td small,
+:root[data-theme="dark"] .worker-id-line,
+:root[data-theme="dark"] .worker-id-line span,
+:root[data-theme="dark"] .worker-id-line b { color: var(--text-muted); font-weight: 500; }
+:root[data-theme="dark"] .data-table tbody tr:nth-child(even) { background-color: rgba(255, 255, 255, 0.018); }
