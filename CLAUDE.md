@@ -272,7 +272,7 @@ Pink got the same treatment too (pink glass, accent `#d6457a`). In every theme t
 Pink then softened to dusty rose (accent `#b8607f`, bg `#f3eef0`). Pie charts: colors are theme CSS vars — `PIE_CHART_PALETTE` =
 `var(--chart-1..8)` (one-hue ramp per theme) and `chartColor()` maps the old semantic hexes (green/red/amber/grey/navy) to
 `--chart-ok/bad/warn/warn2/muted/1..4`; draw slices with `style="stroke: …"` (SVG attributes don't take `var()`). Login /
-reset-password: glass `.login-card` over the theme glow in every theme, logo with no tile/frame (owner, 2026-10-14).
+reset-password: no card box at all (form floats on the theme glow), 150px logo with no tile/frame (owner, 2026-10-14).
 
 ## iOS look & widget boards (standing rule, 2026-10)
 

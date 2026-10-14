@@ -8064,3 +8064,20 @@ body:has(#login-view:not(.hidden)), body:has(#reset-password-view:not(.hidden)) 
     border: none !important;
     padding: 0;
 }
+
+/* หน้า Login / ตั้งรหัสผ่านใหม่ (owner 2026-10-14): ไม่มีการ์ดสี่เหลี่ยมพื้นหลัง — ฟอร์มลอยบนแสงสีของธีม, โลโก้ใหญ่ขึ้น */
+#login-view .login-card,
+#reset-password-view .login-card,
+:root[data-theme="dark"] #login-view .login-card,
+:root[data-theme="dark"] #reset-password-view .login-card {
+    background: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+}
+#login-view .login-logo,
+#reset-password-view .login-logo {
+    width: 150px;
+    height: 150px;
+}
