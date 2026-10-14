@@ -8055,3 +8055,12 @@ body:has(#login-view:not(.hidden)), body:has(#reset-password-view:not(.hidden)) 
     --logo-tile-ring: rgba(184, 96, 127, 0.18);
     --logo-tile-shadow: 0 10px 24px rgba(120, 70, 90, 0.10);
 }
+
+/* โลโก้หน้า Login / ตั้งรหัสผ่านใหม่: ไม่มีกรอบ (owner 2026-10-14) — ไม่มีพื้นไอคอน ขอบ หรือเงา ทุกธีม */
+#login-view .login-logo,
+#reset-password-view .login-logo {
+    background: none !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0;
+}
