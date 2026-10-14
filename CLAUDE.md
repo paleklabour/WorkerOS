@@ -256,6 +256,10 @@ Use existing variables (`--gray-card`, `--text-dark`, …), or write
 so it uses the fallback; pink and dark define them at the end of `styles.css`.
 Printed sheets (`.invoice-sheet`, `.delivery-label-sheet`) always stay
 white-paper.
+Dark theme = iOS "Liquid Glass" (owner, 2026-10-14): the block at the very end of `styles.css` makes `--gray-card` translucent
+(`rgba(34,38,52,.62)`) with `backdrop-filter` on sidebar/cards/tables/modals over a fixed glow background, blue accent
+`#3d7bff`, glass pills for selected items. `--dk-card` stays solid (`#1b1f2c`) for things that must hide what is behind them
+(row-action overlay, popups). Light and pink themes are unchanged.
 
 ## iOS look & widget boards (standing rule, 2026-10)
 
