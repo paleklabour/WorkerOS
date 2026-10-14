@@ -211,7 +211,11 @@ change permissions only in `PERMS` in `app.js` and check with `can('…')` /
 `body.perm-no-<perm>`. The database enforces the same rules with RLS helpers
 `is_internal()` / `can_finance()` / `can_ops()` (migration
 `20261002042034_roles_gm_am_om_staff.sql`) — update both sides together.
-The bell is per role (`buildNotificationGroups`); missing worker documents
+The bell is per role (`buildNotificationGroups`); clicking a job item opens a read-only job summary pop-up
+(`openJobQuickView`: details + buttons by permission — open worker folder / bill / close job / edit), other items open the
+thing to act on (bill, receipt, commission payout, calendar day); clicking a group header opens that page filtered to just
+that group's items (`openBellGroup` → `bellFilter`, bar "แสดงทั้งหมด" clears it; leaving the page clears it too). Dismissed
+ids use `legacyAction` so earlier dismissals survive (owner 2026-10-15). missing worker documents
 must not alert anyone, and neither do expiring/expired worker documents — no bell item for any role (owner, 2026-10-14).
 
 User photos (2026-10-13): `profiles.avatar_url`. Admin sets anyone's photo in the user

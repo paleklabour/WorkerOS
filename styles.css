@@ -7377,7 +7377,7 @@ html.is-resizing *, html.is-resizing *::before, html.is-resizing *::after { tran
     --pill-navy-bg: #f1f3f7;   --pill-navy-fg: #0f172a;   --pill-navy-sub: #475569;
     --pill-teal-bg: #f1f3f7;   --pill-teal-fg: #0f172a;   --pill-teal-sub: #475569;
     --pill-purple-bg: #f1f3f7; --pill-purple-fg: #0f172a; --pill-purple-sub: #475569;
-    --glow-1: rgba(110, 160, 255, 0.22); --glow-2: rgba(255, 186, 140, 0.20); --glow-3: rgba(120, 220, 190, 0.16);
+    --glow-1: rgba(110, 160, 255, 0.22); --glow-2: rgba(150, 175, 255, 0.16); --glow-3: rgba(120, 220, 190, 0.16); /* มุมขวาบนเคยเป็นส้มพีช ดูเป็นชมพู → ฟ้าอ่อน (owner 2026-10-15) */
     --glass-side: rgba(250, 251, 253, 0.60);
     --glass-pop: rgba(248, 249, 251, 0.88);
     --glass-edge: rgba(255, 255, 255, 0.85);
@@ -7893,3 +7893,33 @@ html:has(.ui-dialog-backdrop) { overflow: hidden; }
 .search-clear-btn:hover { background-color: var(--gold-light); }
 .search-clear-btn .ico { width: 14px; height: 14px; }
 .search-box .search-clear-btn svg { position: static; transform: none; } /* .search-box svg (ไอคอนแว่นขยาย) ถูกจัดตำแหน่งไว้ซ้าย — ไม่ให้กระทบไอคอน ✕ */
+
+/* หน้าต่างสรุปใบงาน (openJobQuickView — กดรายการใบงานในกระดิ่ง, owner 2026-10-15) */
+.job-quick-content { max-width: 520px; }
+.job-quick-content .modal-header h3 small { margin-left: 6px; font-size: 14px; font-weight: 500; color: var(--text-muted); }
+.jq-status { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 12px; }
+.jq-remark { font-size: 13px; color: var(--text-muted); }
+.jq-list { display: grid; gap: 0; margin: 0; }
+.jq-row { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--dk-line, #eef1f5); }
+.jq-row:last-child { border-bottom: none; }
+.jq-row dt { font-size: 13px; color: var(--text-muted); }
+.jq-row dd { margin: 0; font-size: 14px; color: var(--navy-dark); font-weight: 500; }
+.jq-row dd small { display: block; font-size: 12.5px; font-weight: 400; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.jq-warn { color: var(--dk-warn, #b45309); font-weight: 600; }
+.jq-notes { white-space: pre-wrap; font-weight: 400; }
+.job-quick-foot { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+
+/* แถบ "แสดงเฉพาะจากการแจ้งเตือน" บนหน้าแจ้งงาน/ออกบิล (openBellGroup / renderBellFilterBar) */
+.bell-filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+    padding: 8px 10px 8px 14px;
+    border-radius: 14px;
+    background-color: var(--gold-light);
+    color: var(--navy-dark);
+    font-size: 14px;
+}
+.bell-filter-bar > span:not(.ico) { flex: 1; min-width: 200px; }

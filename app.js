@@ -1784,6 +1784,8 @@ function writeSessionValue(key, value) {
 
 function switchView(viewName) {
     writeSessionValue('mw_last_view', viewName);
+    // ออกจากหน้าที่กำลังกรองจากกระดิ่ง → ล้างตัวกรองนั้น (กลับมาหน้าเดิมทีหลังเห็นรายการครบตามปกติ)
+    if (bellFilter && viewName !== (bellFilter.view === 'billing' ? 'expenses' : bellFilter.view)) bellFilter = null;
     // Toggles sections
     const sections = document.querySelectorAll(".content-section");
     sections.forEach(sec => sec.classList.add("hidden"));
@@ -2797,18 +2799,116 @@ function overdueInvoices() {
     return invoices.filter(i => (i.status === 'issued' || i.status === 'partial') && invoiceBalance(i) > 0 && daysSince(i.issueDate) > BELL_OVERDUE_DAYS);
 }
 
+// รายการใบงานในกระดิ่ง: กดแล้วเปิดหน้าต่างสรุปใบงาน (openJobQuickView) แทนฟอร์มแก้ไขเต็ม (owner 2026-10-15)
+// legacyAction = action เดิม ใช้ทำ id ของรายการที่ผู้ใช้กดปิดไว้ (รายการที่ปิดไว้แล้วจะไม่เด้งกลับมา)
 function bellJobItem(j, sub) {
     const cust = customers.find(c => c.id === j.customerId);
     const w = workers.find(x => x.id === j.workerId);
     return {
         text: `${getJobDisplayNo(j)} • ${getCleanJobTypeName(j.jobType)}`,
         sub: sub || `${cust ? cust.companyName : '-'} • ${w ? workerFullName(w) : '-'}`,
-        action: `openJobModal('${j.id}')`
+        action: `openJobQuickView('${j.id}')`,
+        legacyAction: `openJobModal('${j.id}')`,
+        jobId: j.id
     };
 }
 
 function bellInvoiceItem(inv, sub) {
-    return { text: `${inv.invoiceNo} • ${inv.customerName || '-'}`, sub, action: `openStoredInvoice('${inv.id}')` };
+    return { text: `${inv.invoiceNo} • ${inv.customerName || '-'}`, sub, action: `openStoredInvoice('${inv.id}')`, invoiceId: inv.id };
+}
+
+// ==================== หน้าต่างสรุปใบงาน (กดรายการใบงานในกระดิ่ง) ====================
+// อ่านอย่างเดียว + ปุ่มทำต่อตามสิทธิ์: แก้ไขใบงาน / ปิดงาน / เปิดแฟ้มคนงาน / ออกบิล-ดูบิล
+function openJobQuickView(jobId) {
+    const j = jobs.find(x => x.id === jobId);
+    if (!j) { showToast("ไม่พบใบงานนี้ (อาจถูกลบไปแล้ว)", "warning"); return; }
+    const cust = customers.find(c => c.id === j.customerId);
+    const w = allWorkers().find(x => x.id === j.workerId);
+    const inv = getJobInvoice(j);
+    const row = (label, value) => value ? `<div class="jq-row"><dt>${label}</dt><dd>${value}</dd></div>` : '';
+    const appt = j.appointmentDate
+        ? [formatThaiDate(j.appointmentDate), j.appointmentTime, j.appointmentLocation, j.appointmentNo ? `เลขที่นัด ${escapeHtml(j.appointmentNo)}` : ''].filter(Boolean).map(s => escapeHtml(String(s))).join(' • ')
+        : '';
+    const pay = isJobNoCharge(j) ? 'ไม่เรียกเก็บเงิน' : (j.paymentStatus || 'ยังไม่ออกบิล');
+    const statusCls = j.status === 'รอเอกสารเพิ่มเติม' ? 'badge-danger' : j.status === 'ปิดงานแล้ว' ? 'badge-success' : j.status === 'รอดำเนินการ' ? 'badge-warning' : 'badge-gold';
+
+    document.getElementById('job-quick-title').innerHTML = `${icon('clipboard')} ${escapeHtml(getJobDisplayNo(j))} <small>${escapeHtml(getCleanJobTypeName(j.jobType))}</small>`;
+    document.getElementById('job-quick-body').innerHTML = `
+        <div class="jq-status"><span class="badge ${statusCls}">${escapeHtml(j.status || '-')}</span>${j.tag ? `<span class="badge">${escapeHtml(j.tag)}</span>` : ''}${j.remark ? `<span class="jq-remark">${escapeHtml(j.remark)}</span>` : ''}</div>
+        <dl class="jq-list">
+            ${row('นายจ้าง', escapeHtml(cust ? cust.companyName : '-'))}
+            ${row('คนงาน', w ? `${escapeHtml(workerFullName(w))}${w.nationality ? ` (${escapeHtml(w.nationality)})` : ''}${w.workerUid ? `<small>${escapeHtml(w.workerUid)}</small>` : ''}` : '-')}
+            ${row('ผู้รับผิดชอบ', j.assignedTo ? escapeHtml(getUserNameById(j.assignedTo)) : '<span class="jq-warn">ยังไม่มอบหมาย</span>')}
+            ${row('เปิดงาน', `${escapeHtml(getUserNameById(j.openedBy))}${j.openedAt || j.createdAt ? ` • ${formatThaiDate(j.openedAt || j.createdAt)}` : ''}`)}
+            ${row('นัดหมาย', appt)}
+            ${row('ปิดงาน', jobClosedInfoText(j) ? escapeHtml(jobClosedInfoText(j)) : '')}
+            ${row('ค่าบริการ', `${fmtMoney(j.fee || 0)} บาท`)}
+            ${row('บิล / ชำระเงิน', `${escapeHtml(pay)}${inv ? ` • ${escapeHtml(inv.invoiceNo)}` : ''}`)}
+            ${row('หมายเหตุ', j.notes ? `<span class="jq-notes">${escapeHtml(j.notes)}</span>` : '')}
+        </dl>`;
+
+    const btn = (iconName, label, onclick, cls = 'btn-outline') => `<button type="button" class="btn ${cls}" onclick="closeJobQuickView(); ${onclick}">${icon(iconName)} ${label}</button>`;
+    const acts = [];
+    if (w) acts.push(btn('folder', 'เปิดแฟ้มคนงาน', `openWorkerFolderModal('${w.id}')`));
+    if (can('finance')) {
+        if (inv) acts.push(btn('receipt', 'ดูบิล', `openStoredInvoice('${inv.id}')`));
+        else if (jobAwaitingBill(j)) acts.push(btn('receipt', 'ออกบิล', `openInvoiceModal('${j.id}')`));
+    }
+    if (canEditJob(j) && isJobStatusOpen(j.status)) acts.push(btn('clip', 'ปิดงาน', `openJobCloseModal('${j.id}')`));
+    if (canEditJob(j)) acts.push(btn('edit', 'แก้ไขใบงาน', `openJobModal('${j.id}')`, 'btn-gold'));
+    document.getElementById('job-quick-foot').innerHTML = acts.join('') || '<span class="text-muted">ดูได้อย่างเดียว</span>';
+    document.getElementById('job-quick-modal').classList.remove('hidden');
+}
+
+function closeJobQuickView() {
+    document.getElementById('job-quick-modal').classList.add('hidden');
+}
+
+// ==================== กดหัวหมวดในกระดิ่ง → หน้าปลายทางแสดงเฉพาะรายการของหมวดนั้น ====================
+// bellFilter = { view: 'jobs' | 'billing', title, jobIds: Set, invoiceIds: Set } — แถบ "แสดงทั้งหมด" ล้างตัวกรอง
+let bellFilter = null;
+
+function openBellGroup(gi) {
+    const g = bellRenderedGroups[gi];
+    if (!g) return;
+    closeNotificationPanel();
+    const jobIds = new Set(g.items.map(it => it.jobId).filter(Boolean));
+    const invoiceIds = new Set(g.items.map(it => it.invoiceId).filter(Boolean));
+    bellFilter = (g.view === 'jobs' || g.view === 'billing') && (jobIds.size || invoiceIds.size)
+        ? { view: g.view, title: g.title, jobIds, invoiceIds } : null;
+    if (g.view === 'billing') {
+        const sel = document.getElementById('filter-billing-payment-status');
+        if (sel && bellFilter) sel.value = 'pending'; // ทุกรายการในหมวดบิลอยู่ในกลุ่ม "รอออกบิล/รอรับเงิน"
+        switchView('expenses');
+        switchFinancePageTab('billing');
+        renderBillingTab();
+    } else {
+        switchView(g.view);
+        if (g.view === 'jobs') renderJobs();
+    }
+}
+
+function clearBellFilter() {
+    const view = bellFilter && bellFilter.view;
+    bellFilter = null;
+    if (view === 'jobs') renderJobs();
+    if (view === 'billing') renderBillingTab();
+}
+
+// แถบบอกว่ากำลังกรองจากการแจ้งเตือน (สร้างครั้งแรกบนสุดของหน้านั้น)
+function renderBellFilterBar(view, hostId, count) {
+    const host = document.getElementById(hostId);
+    if (!host) return;
+    let bar = host.querySelector(':scope > .bell-filter-bar');
+    const on = bellFilter && bellFilter.view === view;
+    if (!on) { if (bar) bar.remove(); return; }
+    if (!bar) {
+        bar = document.createElement('div');
+        bar.className = 'bell-filter-bar';
+        host.prepend(bar);
+    }
+    bar.innerHTML = `${icon('clipboard')}<span>แสดงเฉพาะจากการแจ้งเตือน: <b>${escapeHtml(bellFilter.title)}</b> (${count} รายการ)</span>
+        <button type="button" class="btn btn-sm btn-outline" onclick="clearBellFilter()" title="ล้างตัวกรองจากการแจ้งเตือน แสดงรายการทั้งหมด">แสดงทั้งหมด</button>`;
 }
 
 function daysSince(dateStr) {
@@ -2825,7 +2925,7 @@ function buildNotificationGroups() {
     const dismissed = loadBellDismissed();
     let hiddenCount = 0;
     const add = (g) => {
-        const all = g.items.map(it => ({ ...it, id: `${g.key}|${it.action}|${it.text}` }));
+        const all = g.items.map(it => ({ ...it, id: `${g.key}|${it.legacyAction || it.action}|${it.text}` }));
         g.items = all.filter(it => !dismissed[it.id]);
         hiddenCount += all.length - g.items.length;
         if (g.items.length) groups.push(g);
@@ -2869,11 +2969,12 @@ function buildNotificationGroups() {
     if (can('finance')) {
         const unbilledClosed = jobs.filter(j => j.status === 'ปิดงานแล้ว' && jobAwaitingBill(j));
         add({ key: 'unbilled', icon: 'receipt', title: 'ปิดงานแล้ว ยังไม่ออกบิล', view: 'billing',
-            items: unbilledClosed.map(j => ({ ...bellJobItem(j), action: `openInvoiceModal('${j.id}')` })) });
+            items: unbilledClosed.map(j => { const a = `openInvoiceModal('${j.id}')`; return { ...bellJobItem(j), action: a, legacyAction: a }; }) });
         const prepay = jobs.filter(j => isJobStatusOpen(j.status) && !isJobPaid(j) && !isJobNoCharge(j) && (customers.find(c => c.id === j.customerId) || {}).requirePrepayment);
         add({ key: 'prepay', icon: 'lock', title: 'ลูกค้าต้องชำระก่อนเริ่มงาน (ยังไม่ได้รับเงิน)', view: 'billing',
             items: prepay.map(j => ({ ...bellJobItem(j, `${j.paymentStatus || 'ยังไม่ออกบิล'} • ${(customers.find(c => c.id === j.customerId) || {}).companyName || '-'}`),
-                action: getJobInvoice(j) ? `openStoredInvoice('${getJobInvoice(j).id}')` : `openInvoiceModal('${j.id}')` })) });
+                action: getJobInvoice(j) ? `openStoredInvoice('${getJobInvoice(j).id}')` : `openInvoiceModal('${j.id}')`,
+                legacyAction: getJobInvoice(j) ? `openStoredInvoice('${getJobInvoice(j).id}')` : `openInvoiceModal('${j.id}')` })) });
         const open = invoices.filter(i => (i.status === 'issued' || i.status === 'partial') && invoiceBalance(i) > 0);
         add({ key: 'overdue', icon: 'hourglass', title: `บิลค้างชำระเกิน ${BELL_OVERDUE_DAYS} วัน`, view: 'billing',
             items: open.filter(i => daysSince(i.issueDate) > BELL_OVERDUE_DAYS).sort((a, b) => daysSince(b.issueDate) - daysSince(a.issueDate))
@@ -2934,7 +3035,7 @@ function renderNotificationPanel(groups = buildNotificationGroups()) {
         ${groups.length === 0 ? `<div class="bell-empty">${icon('ok')} ไม่มีเรื่องที่ต้องติดตาม</div>` : groups.map((g, gi) => `
             <div class="bell-group${g.info ? ' is-info' : ''}">
                 <div class="bell-row">
-                    <button type="button" class="bell-group-head" onclick="closeNotificationPanel(); ${g.view === 'billing' ? "switchView('expenses'); switchFinancePageTab('billing')" : `switchView('${g.view}')`}">
+                    <button type="button" class="bell-group-head" onclick="openBellGroup(${gi})" title="เปิดหน้ารายการ แสดงเฉพาะเรื่องในหมวดนี้">
                         ${icon(g.icon)} <span>${escapeHtml(g.title)}</span><b>${g.items.length}</b>
                     </button>
                     <button type="button" class="bell-dismiss" onclick="dismissBellGroup(${gi})" title="ปิดการแจ้งเตือนทั้งหมวดนี้">${icon('xmark')}</button>
@@ -3103,12 +3204,12 @@ function renderBillingTab() {
             .filter(Boolean).join(' | '));
         return hay.includes(query);
     };
-    const unbilledJobs = !showUnbilled ? [] : jobs.filter(jobAwaitingBill).filter(matchesJobQuery);
-    const noChargeJobs = !['nocharge', 'all'].includes(statusFilter) ? [] : jobs.filter(isJobNoCharge).filter(matchesJobQuery)
+    let unbilledJobs = !showUnbilled ? [] : jobs.filter(jobAwaitingBill).filter(matchesJobQuery);
+    let noChargeJobs = !['nocharge', 'all'].includes(statusFilter) ? [] : jobs.filter(isJobNoCharge).filter(matchesJobQuery)
         .sort((a, b) => String(b.noChargeAt || '').localeCompare(String(a.noChargeAt || '')));
 
     const overdueIds = statusFilter === 'overdue' ? new Set(overdueInvoices().map(i => i.id)) : null; // ค้างเกินกำหนด (นิยามเดียวกับกระดิ่ง)
-    const shownInvoices = invoices.filter(inv => invoiceStatuses.includes(inv.status) && (!overdueIds || overdueIds.has(inv.id))).filter(inv => {
+    let shownInvoices = invoices.filter(inv => invoiceStatuses.includes(inv.status) && (!overdueIds || overdueIds.has(inv.id))).filter(inv => {
         if (!query) return true;
         const jobWorkers = (inv.jobIds || []).map(id => jobs.find(j => j.id === id)).filter(Boolean)
             .map(j => workers.find(w => w.id === j.workerId)).filter(Boolean).map(w => `${w.firstName} ${w.lastName}`);
@@ -3116,6 +3217,15 @@ function renderBillingTab() {
             .filter(Boolean).join(' | '));
         return hay.includes(query);
     }).sort((a, b) => (b.issueDate || '').localeCompare(a.issueDate || '') || (b.invoiceNo || '').localeCompare(a.invoiceNo || ''));
+
+    // มาจากหัวหมวดในกระดิ่ง → เฉพาะงาน/บิลในหมวดนั้น (บิลของงานในหมวดก็นับ) จนกด "แสดงทั้งหมด"
+    if (bellFilter && bellFilter.view === 'billing') {
+        const bf = bellFilter;
+        unbilledJobs = unbilledJobs.filter(j => bf.jobIds.has(j.id));
+        noChargeJobs = [];
+        shownInvoices = shownInvoices.filter(inv => bf.invoiceIds.has(inv.id) || (inv.jobIds || []).some(id => bf.jobIds.has(id)));
+    }
+    renderBellFilterBar('billing', 'finpage-tab-billing', unbilledJobs.length + shownInvoices.length);
 
     if (unbilledJobs.length === 0 && shownInvoices.length === 0 && noChargeJobs.length === 0) {
         const emptyMsg = statusFilter === 'pending' ? `${icon("ok")} ไม่มีงานที่ค้างออกบิลหรือค้างรับเงิน` : `${icon("search")} ไม่พบรายการ`;
@@ -6461,6 +6571,9 @@ function renderJobs() {
     // พิมพ์ค้นหาอยู่ → ค้นในงานที่จบครบแล้วด้วย (เดิมค้นชื่อคนงานที่งานจบไปแล้วไม่เจอ)
     const showArchived = statusFilters.includes('ปิดงานแล้ว') || statusFilters.includes('__archived') || !!monthFilter || !!query;
     if (!showArchived) filtered = filtered.filter(j => !isJobArchived(j));
+    // มาจากหัวหมวดในกระดิ่ง → แสดงเฉพาะใบงานในหมวดนั้น (ไม่สนตัวกรองอื่น) จนกด "แสดงทั้งหมด"
+    if (bellFilter && bellFilter.view === 'jobs') filtered = jobs.filter(j => bellFilter.jobIds.has(j.id));
+    renderBellFilterBar('jobs', 'view-jobs', filtered.length);
 
     if (currentJobView === 'summary') {
         renderJobsSummary(baseFiltered, monthFilter);
