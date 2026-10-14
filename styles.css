@@ -7963,3 +7963,95 @@ html.is-resizing *, html.is-resizing *::before, html.is-resizing *::after { tran
 @media (min-width: 1025px) { :root[data-theme="pink"] .sidebar { border-radius: 26px; } }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { :root[data-theme="pink"] .sidebar { background-color: #fdf6f9; } }
 @media print { :root[data-theme="pink"] body { background: #ffffff; } }
+
+/* ==================== สีกราฟวงกลมตามธีม (โหมดสบายตา owner 2026-10-14) ====================
+   --chart-1..8 = ไล่โทนเดียวของธีม (สลับเข้ม/อ่อนให้ชิ้นที่ติดกันแยกออก) ใช้กับกราฟแยกประเภท/ลูกค้า/จังหวัด
+   --chart-ok/warn/warn2/bad/muted = สีความหมาย (ปิดงาน/ชำระแล้ว, รอ, ค้าง...) แบบหม่นลง — renderPieChartInto + chartColor() ใน app.js */
+:root {
+    --chart-1: #3f5fa8; --chart-2: #9fb3dc; --chart-3: #2a3f72; --chart-4: #c9d4ea;
+    --chart-5: #6c84bd; --chart-6: #56627a; --chart-7: #8c97ad; --chart-8: #b9c1d0;
+    --chart-ok: #4f9a74; --chart-warn: #d9a548; --chart-warn2: #d0834f; --chart-bad: #c96a6a; --chart-muted: #a8b0bf;
+}
+:root[data-theme="dark"] {
+    --chart-1: #6f93ff; --chart-2: #2f4687; --chart-3: #a9bdf5; --chart-4: #4a64b8;
+    --chart-5: #7e8aa8; --chart-6: #3b4560; --chart-7: #c3cbe0; --chart-8: #5a6788;
+    --chart-ok: #5fbf8a; --chart-warn: #e0b45e; --chart-warn2: #d99068; --chart-bad: #e07f7f; --chart-muted: #6b7489;
+}
+:root[data-theme="pink"] {
+    --chart-1: #b8607f; --chart-2: #e3b9c8; --chart-3: #8a4660; --chart-4: #f0d5df;
+    --chart-5: #cf8aa3; --chart-6: #7a6470; --chart-7: #a8949d; --chart-8: #d6c5cc;
+    --chart-ok: #5f9e80; --chart-warn: #d9a548; --chart-warn2: #d0834f; --chart-bad: #c96a6a; --chart-muted: #bfaeb5;
+}
+
+/* ==================== ธีมชมพู: สบายตาขึ้น (owner 2026-10-14) — ชมพูหม่น (dusty rose) แทนชมพูสด, พื้น/แสงอมชมพูน้อยลง ==================== */
+:root[data-theme="pink"] {
+    --gray-bg: #f3eef0;
+    --gray-card: #fcfafb;
+    --dk-card: #fcfafb;
+    --gold-primary: #b8607f;
+    --gold-hover: #a5536f;
+    --gold-light: rgba(184, 96, 127, 0.08);
+    --gold-border: rgba(184, 96, 127, 0.18);
+    --text-muted: #85707a;
+    --pill-navy-bg: #f3ecef;   --pill-teal-bg: #f3ecef;   --pill-purple-bg: #f3ecef;
+}
+:root[data-theme="pink"] body {
+    background:
+        radial-gradient(42vw 42vw at 6% 20%, rgba(220, 150, 175, 0.14), transparent 70%),
+        radial-gradient(34vw 34vw at 94% 4%, rgba(235, 200, 180, 0.14), transparent 70%),
+        radial-gradient(38vw 38vw at 62% 100%, rgba(200, 180, 225, 0.12), transparent 70%),
+        var(--gray-bg);
+    background-attachment: fixed;
+}
+:root[data-theme="pink"] .sidebar { background-color: rgba(252, 249, 250, 0.55); }
+:root[data-theme="pink"] .menu-item.active,
+:root[data-theme="pink"] .menu-item.active svg { color: #a5536f; }
+:root[data-theme="pink"] .btn-gold { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 4px 12px rgba(184, 96, 127, 0.22); }
+:root[data-theme="pink"] .data-table tbody tr:nth-child(even) { background-color: rgba(120, 80, 95, 0.02); }
+:root[data-theme="pink"] .dashboard-panel,
+:root[data-theme="pink"] .table-container,
+:root[data-theme="pink"] .stats-card { border-color: #ece3e7; }
+.theme-swatch-pink { background: linear-gradient(135deg, #f3eef0 50%, #b8607f 50%); }
+
+/* ==================== หน้า Login / ตั้งรหัสผ่านใหม่: กระจกทุกธีม (owner 2026-10-14) ====================
+   พื้นหลังใช้แสงสีของธีม (body) — การ์ดเป็นกระจก ขอบสะท้อนแสง มุมโค้งแบบเดียวกับข้างใน */
+#login-view, #reset-password-view { background-color: transparent; }
+body:has(#login-view:not(.hidden)), body:has(#reset-password-view:not(.hidden)) { background-attachment: fixed; }
+.login-card {
+    background-color: var(--login-glass, rgba(255, 255, 255, 0.66));
+    -webkit-backdrop-filter: blur(22px) saturate(170%);
+    backdrop-filter: blur(22px) saturate(170%);
+    border: 1px solid var(--login-edge, rgba(255, 255, 255, 0.85));
+    border-radius: 28px;
+    box-shadow: inset 0 1px 0 var(--login-hi, rgba(255, 255, 255, 0.95)), 0 2px 6px rgba(15, 23, 42, 0.06), 0 24px 60px rgba(15, 23, 42, 0.14);
+}
+:root[data-theme="pink"] { --login-glass: rgba(252, 249, 250, 0.68); }
+:root[data-theme="dark"] {
+    --login-glass: rgba(30, 34, 47, 0.62);
+    --login-edge: rgba(255, 255, 255, 0.09);
+    --login-hi: rgba(255, 255, 255, 0.14);
+}
+:root[data-theme="dark"] .login-card { box-shadow: inset 0 1px 0 var(--login-hi), 0 4px 10px rgba(0, 0, 0, 0.4), 0 24px 60px rgba(0, 0, 0, 0.5); }
+.login-card input:not([type="checkbox"]):not([type="radio"]) { border-radius: 999px; }
+.login-card .btn { border-radius: 999px; }
+/* หน้า login มีแสงสีเข้มกว่าข้างในนิดหนึ่ง (ไม่มีข้อมูลให้อ่าน จึงให้กระจกเด่นได้) */
+#login-view::before, #reset-password-view::before {
+    content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+    background:
+        radial-gradient(38vw 38vw at 22% 30%, var(--login-glow1, rgba(110, 160, 255, 0.22)), transparent 70%),
+        radial-gradient(32vw 32vw at 78% 70%, var(--login-glow2, rgba(255, 186, 140, 0.20)), transparent 70%);
+}
+#login-view, #reset-password-view { position: relative; isolation: isolate; }
+:root[data-theme="pink"] { --login-glow1: rgba(220, 150, 175, 0.20); --login-glow2: rgba(200, 180, 225, 0.18); }
+:root[data-theme="dark"] { --login-glow1: rgba(47, 95, 214, 0.28); --login-glow2: rgba(176, 67, 143, 0.20); }
+:root[data-theme="dark"] .login-card {
+    background-color: var(--login-glass);
+    -webkit-backdrop-filter: blur(22px) saturate(170%);
+    backdrop-filter: blur(22px) saturate(170%);
+    border: 1px solid var(--login-edge);
+}
+:root[data-theme="pink"] {
+    --logo-tile-bg: linear-gradient(160deg, #fdfafb 0%, #f2e6eb 100%);
+    --logo-tile-ring: rgba(184, 96, 127, 0.18);
+    --logo-tile-shadow: 0 10px 24px rgba(120, 70, 90, 0.10);
+}

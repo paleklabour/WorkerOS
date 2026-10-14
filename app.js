@@ -2625,7 +2625,20 @@ function calculateDeadlines() {
     return alerts;
 }
 
-const PIE_CHART_PALETTE = ['#d4af37', '#1e3a5f', '#16a34a', '#dc2626', '#7c3aed', '#0891b2', '#ea580c', '#64748b', '#db2777', '#65a30d'];
+// สีกราฟตามธีม (โหมดสบายตา owner 2026-10-14): สีไล่โทนเดียวของแต่ละธีม --chart-1..8 + สีความหมาย (ok/warn/bad/muted)
+// กำหนดใน styles.css ต่อธีม — โค้ดที่ส่งสีมาเป็น hex เดิม (เขียว/แดง/ส้ม/เทา/กรมท่า) ถูกแปลงเป็นตัวแปรความหมายด้วย chartColor()
+const PIE_CHART_PALETTE = [1, 2, 3, 4, 5, 6, 7, 8].map(n => `var(--chart-${n})`);
+const CHART_SEMANTIC = {
+    '#16a34a': 'ok', '#1f9254': 'ok', '#22c55e': 'ok', '#65a30d': 'ok',
+    '#dc2626': 'bad', '#e0565b': 'bad', '#ef4444': 'bad',
+    '#f59e0b': 'warn', '#ea580c': 'warn2',
+    '#94a3b8': 'muted', '#64748b': 'muted',
+    '#2d4fa3': '1', '#d4af37': '2', '#38bdf8': '3', '#a855f7': '4'
+};
+function chartColor(c) {
+    const k = CHART_SEMANTIC[String(c || '').toLowerCase()];
+    return k ? `var(--chart-${k})` : c;
+}
 
 // วาดกราฟวงกลม (SVG โดนัท) ทั่วไป — รับ entries = [{name, value, color?}] ไม่ใช้ไลบรารีภายนอก
 // ใช้ร่วมกันทั้งกราฟรายรับแยกประเภทงาน, แยกลูกค้า, และแยกบัญชีธนาคาร
@@ -2647,17 +2660,17 @@ function renderPieChartInto(containerId, entries, opts = {}) {
     let offsetAcc = 0;
 
     const circles = sorted.map((e, idx) => {
-        const color = e.color || PIE_CHART_PALETTE[idx % PIE_CHART_PALETTE.length];
+        const color = chartColor(e.color) || PIE_CHART_PALETTE[idx % PIE_CHART_PALETTE.length];
         const fraction = e.value / total;
         const dash = fraction * circumference;
         const gap = circumference - dash;
-        const circle = `<circle r="${radius}" cx="100" cy="100" fill="transparent" stroke="${color}" stroke-width="36" stroke-dasharray="${dash} ${gap}" stroke-dashoffset="${-offsetAcc}"></circle>`;
+        const circle = `<circle r="${radius}" cx="100" cy="100" fill="transparent" style="stroke: ${color}" stroke-width="36" stroke-dasharray="${dash} ${gap}" stroke-dashoffset="${-offsetAcc}"></circle>`;
         offsetAcc += dash;
         return circle;
     }).join('');
 
     const legend = sorted.map((e, idx) => {
-        const color = e.color || PIE_CHART_PALETTE[idx % PIE_CHART_PALETTE.length];
+        const color = chartColor(e.color) || PIE_CHART_PALETTE[idx % PIE_CHART_PALETTE.length];
         const pct = ((e.value / total) * 100).toFixed(1);
         return `
             <div style="display:flex; align-items:center; gap:6px; font-size:12.5px; margin-bottom:6px;">
