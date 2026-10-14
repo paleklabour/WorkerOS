@@ -265,6 +265,8 @@ with a sliding thumb (`attachTabSlider`), every `<select>` opens an iOS menu on
 mouse devices (`openIosSelect` — the native `<select>` still holds the value),
 charts animate via `setupChartMagicMove` ("magic move": every pie/bar regrows from 0 each time it comes into view — tab/page switch or scroll — and flows old→new on re-render; owner 2026-10-13). Keep new UI consistent with that.
 Smallest UI font is 11.5px; don't add smaller sizes (printed sheets excepted).
+Document expiry (work permit / passport / folder files): show the date and a status color/label only —
+never a day count like "อีก N วัน" / "หมดอายุแล้ว N วัน" (owner, 2026-10-14).
 
 Table action columns (owner, 2026-10-13): on mouse devices the "จัดการ" column
 (`th`/`td.actions-col` in a `.data-table`) is removed from the layout and the row's

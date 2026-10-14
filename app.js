@@ -1590,7 +1590,8 @@ function renderClientWorkersTab(list) {
     const groupHint = (g) => {
         if (!g.date || g.key === 'z-archived') return '';
         const d = daysTo(g.date);
-        return d < 0 ? `<span class="text-danger">หมดอายุแล้ว ${-d} วัน</span>` : d <= 60 ? `<span class="text-warning">อีก ${d} วัน</span>` : `<span class="text-muted">อีก ${d} วัน</span>`;
+        // ไม่นับจำนวนวันที่เหลือ/เกินมา — บอกแค่สถานะ (owner, 2026-10-14)
+        return d < 0 ? `<span class="text-danger">หมดอายุแล้ว</span>` : d <= 60 ? `<span class="text-warning">ใกล้หมดอายุ</span>` : '';
     };
 
     const panels = ordered.map(g => `
@@ -12991,7 +12992,8 @@ function renderWorkerFolderItem(file, fItem, idx, isExpired) {
     const days = exp ? Math.ceil((exp - new Date()) / 86400000) : null;
     const expTag = isExpired ? '<span class="tag-mini is-bad">หมดอายุ</span>'
         : days === null ? '' : days < 0 ? '<span class="tag-mini is-bad">หมดอายุ</span>'
-        : days <= 60 ? `<span class="tag-mini is-warn">อีก ${days} วัน</span>` : `<span class="tag-mini is-ok">ถึง ${formatThaiDate(fItem.expiryDate)}</span>`;
+        // ไม่นับจำนวนวันที่เหลือ — แสดงวันหมดอายุเสมอ ใกล้หมด (≤ 60 วัน) เป็นสีส้ม (owner, 2026-10-14)
+        : `<span class="tag-mini ${days <= 60 ? 'is-warn' : 'is-ok'}">ถึง ${formatThaiDate(fItem.expiryDate)}</span>`;
     return `
         <div class="fv-item${isExpired ? ' is-expired' : ''}" data-key="${file.key}" data-idx="${idx}" draggable="${can('ops') ? 'true' : 'false'}"
              ondragstart="onWorkerFileDragStart(event, '${file.key}', ${idx})" onclick="selectWorkerFolderFile('${file.key}', ${idx})" title="${escapeHtml(fItem.name || '')}">
