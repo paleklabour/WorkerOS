@@ -7050,7 +7050,6 @@ th.sortable-th:hover::after { opacity: 0.8; }
 .cal-day.has-note .cal-note::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--gold-primary); margin-right: 5px; vertical-align: 1px; }
 .cal-editor h3 { font-size: 16px; font-weight: 600; color: var(--navy-dark); }
 .cal-editor-hint { font-size: 13px; margin: 2px 0 10px; }
-.cal-editor textarea,
 .cal-form textarea {
     width: 100%;
     resize: vertical;
@@ -7062,9 +7061,7 @@ th.sortable-th:hover::after { opacity: 0.8; }
     background: var(--dk-card, #ffffff);
     color: var(--text-dark);
 }
-.cal-editor textarea:focus, .cal-form textarea:focus { outline: none; border-color: var(--gold-primary); box-shadow: 0 0 0 3px rgba(45, 79, 163, 0.12); }
-.cal-editor-foot { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
-.cal-editor-foot > span { flex: 1; font-size: 13px; }
+.cal-form textarea:focus { outline: none; border-color: var(--gold-primary); box-shadow: 0 0 0 3px rgba(45, 79, 163, 0.12); }
 .cal-upcoming-title { margin: 20px 0 8px; font-size: 13.5px; font-weight: 600; color: var(--navy-dark); }
 .cal-up-item {
     width: 100%;
