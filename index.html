@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261014n">
+    <link rel="stylesheet" href="styles.css?v=20261014o">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -2439,7 +2439,15 @@
                         </div>
 
                         <div class="form-group">
-                            <label for="job-worker-search">คนงานต่างด้าวที่เกี่ยวข้อง <span class="required">*</span></label>
+                            <!-- แท็บรายชื่อคนงาน: รอแจ้งเข้า / ทุกคนของนายจ้างนี้ — ดู setJobWorkerTab() ใน app.js (owner, 2026-10-14) -->
+                            <div class="view-toggle-bar job-worker-tabs">
+                                <button type="button" class="btn btn-outline btn-sm" id="btn-job-worker-tab-notify" onclick="setJobWorkerTab('notify')" title="เฉพาะคนงานที่ยังแจ้งเข้าไม่เสร็จ">
+                                    <span class="ico" data-icon="hourglass"></span> คนงานรอแจ้งเข้า <span class="job-worker-tab-count" id="job-worker-tab-notify-count"></span>
+                                </button>
+                                <button type="button" class="btn btn-gold btn-sm" id="btn-job-worker-tab-all" onclick="setJobWorkerTab('all')" title="คนงานทุกคนของนายจ้างที่เลือก">
+                                    คนงานต่างด้าวที่เกี่ยวข้อง <span class="required">*</span> <span class="job-worker-tab-count" id="job-worker-tab-all-count"></span>
+                                </button>
+                            </div>
                             <select id="job-worker-id" class="hidden" multiple>
                                 <!-- Dynamic — ซ่อนไว้ ใช้เก็บค่าที่เลือกจริงเท่านั้น (ต้องมี multiple ไว้ให้เลือกได้มากกว่า 1 ค่า) ควบคุมผ่านช่องค้นหา/รายชื่อด้านล่าง -->
                             </select>
@@ -3475,7 +3483,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261014n"></script>
+    <script src="supabase-client.js?v=20261014o"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3486,6 +3494,6 @@
     </script>
 
     <!-- Application Script -->
-    <script src="app.js?v=20261014n"></script>
+    <script src="app.js?v=20261014o"></script>
 </body>
 </html>

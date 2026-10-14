@@ -1413,6 +1413,7 @@ function renderClientPortal() {
             <span class="text-muted">${cust && cust.taxId ? `เลขผู้เสียภาษี ${escapeHtml(cust.taxId)}` : ''}</span></div>
         <div class="cp-stats">
             <div><span>คนงานปัจจุบัน</span><strong>${myWorkers.filter(w => w.status !== 'archived').length}</strong></div>
+            ${myWorkers.some(workerNeedsNotifyEntry) ? `<div class="is-due"><span>รอแจ้งเข้า</span><strong>${myWorkers.filter(workerNeedsNotifyEntry).length}</strong></div>` : ''}
             <div><span>งานที่ยังไม่ปิด</span><strong>${myJobs.filter(j => isJobStatusOpen(j.status)).length}</strong></div>
             <div class="${outstanding > 0 ? 'is-due' : ''}"><span>ยอดค้างชำระ</span><strong>${fmtMoney(outstanding)}</strong></div>
         </div>`;
@@ -1527,7 +1528,7 @@ function renderClientWorkersTab(list) {
     if (cpFilters.workerNat && !nats.includes(cpFilters.workerNat)) cpFilters.workerNat = '';
     const shown = list.filter(w => !query || [w.firstName, w.lastName, w.thaiName, w.refNo, w.workerUid, w.passportNo, w.permitNo, w.pinkCardNo, w.nationality]
         .filter(Boolean).join(' ').toLowerCase().includes(query))
-        .filter(w => !cpFilters.workerStatus || clientWorkerDocState(w) === cpFilters.workerStatus)
+        .filter(w => !cpFilters.workerStatus || (cpFilters.workerStatus === 'notify' ? workerNeedsNotifyEntry(w) : clientWorkerDocState(w) === cpFilters.workerStatus))
         .filter(w => !cpFilters.workerNat || w.nationality === cpFilters.workerNat);
 
     // จัดกลุ่ม: วันหมดอายุใบอนุญาต (yyyy-mm-dd) → คนงาน
@@ -1541,7 +1542,10 @@ function renderClientWorkersTab(list) {
 
     const statusBadgeOf = (w) => {
         const s = CP_WORKER_STATES[clientWorkerDocState(w)];
-        return `<span class="badge badge-lg ${s.cls}">${s.label}</span>`;
+        // ยังแจ้งเข้าไม่เสร็จ → ป้ายเพิ่มใต้สถานะเอกสาร (ลูกค้าเห็นว่าคนนี้ยังรอเจ้าหน้าที่แจ้งเข้า, owner 2026-10-14)
+        const notify = workerNeedsNotifyEntry(w)
+            ? `<div class="cp-notify-badge"><span class="badge badge-warning" title="เจ้าหน้าที่ยังแจ้งเข้าคนงานคนนี้กับกรมการจัดหางานไม่เสร็จ">${icon('hourglass')} รอแจ้งเข้า</span></div>` : '';
+        return `<span class="badge badge-lg ${s.cls}">${s.label}</span>${notify}`;
     };
 
     const row = (w) => {
@@ -1609,6 +1613,7 @@ function renderClientWorkersTab(list) {
             <div class="cp-toolbar"><div class="search-box"><input type="text" id="cp-worker-search" placeholder="ค้นหาชื่อ-นามสกุล, เลขคนงาน, พาสปอร์ต..." value="${escapeHtml(q)}" oninput="renderClientPortalKeepFocus('cp-worker-search')"></div>
                 <select class="select-filter" onchange="setClientPortalFilter('workerStatus', this.value)" title="กรองตามสถานะเอกสาร">
                     <option value="">ทุกสถานะ</option>${Object.entries(CP_WORKER_STATES).map(([k, s]) => `<option value="${k}" ${cpFilters.workerStatus === k ? 'selected' : ''}>${s.label} (${list.filter(w => clientWorkerDocState(w) === k).length})</option>`).join('')}
+                    <option value="notify" ${cpFilters.workerStatus === 'notify' ? 'selected' : ''}>รอแจ้งเข้า (${list.filter(workerNeedsNotifyEntry).length})</option>
                 </select>
                 ${nats.length > 1 ? `<select class="select-filter" onchange="setClientPortalFilter('workerNat', this.value)" title="กรองตามสัญชาติ">
                     <option value="">ทุกสัญชาติ</option>${nats.map(n => `<option value="${escapeHtml(n)}" ${cpFilters.workerNat === n ? 'selected' : ''}>${escapeHtml(n)}</option>`).join('')}
@@ -3753,6 +3758,14 @@ async function bulkActivateSelectedWorkers() {
     showToast(`✅ เปลี่ยนเป็นปกติแล้ว ${updated.size} คน${missed > 0 ? ` (ไม่สำเร็จ ${missed} คน)` : ''}`, missed > 0 ? "warning" : "success");
 }
 
+// คนงานที่ยัง "รอแจ้งเข้า": ไม่ใช่คนรอขึ้นทะเบียน, ไม่ได้ติ๊ก "ไม่ต้องแจ้งเข้า" (ตรวจผ่าน e-WorkPermit / Admin กดผ่าน)
+// และยังไม่มีใบงานที่ปิดงานแล้ว (เจ้าของระบบกำหนด 2026-10-08) — ใช้ร่วม: ตารางคนงาน, ฟอร์มแจ้งงาน, พอร์ทัลนายจ้าง
+// คนงานพ้นสภาพ/แจ้งออกไม่นับ (ไม่ต้องแจ้งเข้าแล้ว)
+function workerNeedsNotifyEntry(w) {
+    return !!w && w.status !== 'pending_register' && w.status !== 'archived' && !w.skipNotifyEntry
+        && !jobs.some(j => j.workerId === w.id && j.status === 'ปิดงานแล้ว');
+}
+
 // admin กดป้าย "รอแจ้งเข้า" ทีเดียว → ตั้ง skipNotifyEntry = true (เหมือนติ๊ก worker-skip-notify ในฟอร์ม) แล้วบันทึกขึ้นคลาวด์
 async function markWorkerNotifySkipped(workerId, btn) {
     if (currentUser.role !== 'admin') return;
@@ -3979,7 +3992,7 @@ function renderWorkers() {
         // admin กดที่ป้ายได้เลย = ติ๊ก "ไม่ต้องแจ้งเข้า" ให้ทันที (ดู markWorkerNotifySkipped) — คนอื่นเห็นเป็นป้ายเฉย ๆ
         // ป้าย "รอแจ้งเข้า" หายเมื่อมีใบงานของคนงานคนนี้ที่ "ปิดงานแล้ว" อย่างน้อย 1 ใบ (เจ้าของระบบกำหนด 2026-10-08 —
         // เดิมหายทันทีที่เปิดงาน ทั้งที่ยังแจ้งเข้าไม่เสร็จ)
-        const needsNotify = w.status !== 'pending_register' && !w.skipNotifyEntry && !jobs.some(j => j.workerId === w.id && j.status === 'ปิดงานแล้ว');
+        const needsNotify = workerNeedsNotifyEntry(w);
         const pendingNotifyBadge = !needsNotify ? '' : currentUser.role === 'admin'
             ? `<div class="worker-notify-badge"><button type="button" class="badge badge-warning notify-skip-btn" onclick="event.stopPropagation(); markWorkerNotifySkipped('${w.id}', this)" title="ยังแจ้งเข้าไม่เสร็จ (ยังไม่มีใบงานที่ปิดงานแล้ว) — กดเพื่อทำเครื่องหมายว่าไม่ต้องแจ้งเข้า (ยกเลิกได้ในฟอร์มแก้ไขคนงาน)">${icon("hourglass")} รอแจ้งเข้า <span class="notify-skip-action">${icon("ok", "green")} ผ่าน</span></button></div>`
             : `<div class="worker-notify-badge"><span class="badge badge-warning" title="ยังแจ้งเข้าไม่เสร็จ (ยังไม่มีใบงานที่ปิดงานแล้ว)">${icon("hourglass")} รอแจ้งเข้า</span></div>`;
@@ -7129,6 +7142,7 @@ function openJobModal(id = null) {
     }
 
     document.getElementById("job-form").reset();
+    setJobWorkerTab('all'); // เปิดฟอร์มทุกครั้ง (ใหม่/แก้ไข) เริ่มที่แท็บคนงานทั้งหมด
 
     // Fill customer dropdown selection
     const custSelect = document.getElementById("job-customer-id");
@@ -7325,8 +7339,18 @@ function renderJobWorkerChecklist() {
         return;
     }
 
+    const notifyList = jobModalWorkers.filter(workerNeedsNotifyEntry);
+    const countEl = (id, n) => { const el = document.getElementById(id); if (el) el.textContent = `(${n})`; };
+    countEl("job-worker-tab-notify-count", notifyList.length);
+    countEl("job-worker-tab-all-count", jobModalWorkers.length);
+    const base = jobWorkerTab === 'notify' ? notifyList : jobModalWorkers;
+    if (base.length === 0) {
+        listEl.innerHTML = '<div class="job-worker-empty">--- ไม่มีคนงานที่รอแจ้งเข้าของนายจ้างนี้ ---</div>';
+        return;
+    }
+
     const q = (document.getElementById("job-worker-search").value || '').trim().toLowerCase();
-    const filtered = jobModalWorkers.filter(w => {
+    const filtered = base.filter(w => {
         if (!q) return true;
         const name = `${w.firstName} ${w.lastName}`.toLowerCase();
         const uid = (w.workerUid || '').toLowerCase();
@@ -7341,11 +7365,25 @@ function renderJobWorkerChecklist() {
     listEl.innerHTML = filtered.map(w => `
         <label class="job-worker-row">
             <input type="checkbox" ${jobWorkerSelectedIds.has(w.id) ? 'checked' : ''} onchange="toggleJobWorkerSelection('${w.id}', this.checked)">
-            <span class="job-worker-row-name">${workerFullName(w)}</span>
+            <span class="job-worker-row-name">${workerFullName(w)}${jobWorkerTab === 'all' && workerNeedsNotifyEntry(w) ? ` <span class="badge badge-warning job-worker-notify-tag">รอแจ้งเข้า</span>` : ''}</span>
             <span class="job-worker-row-uid">${w.workerUid ? `เลขประจำตัว ${w.workerUid}` : 'ไม่มีเลขประจำตัว'}</span>
             <span class="job-worker-row-nat">${w.nationality || ''}</span>
         </label>
     `).join('');
+}
+
+// แท็บรายชื่อคนงานในฟอร์มแจ้งงาน: 'notify' = เฉพาะคนที่ยังรอแจ้งเข้า, 'all' = ทุกคนของนายจ้าง (owner, 2026-10-14)
+// สลับแท็บแค่กรองรายชื่อ — คนที่ติ๊กไว้แล้วยังอยู่ (เห็นเป็น chip ด้านบน)
+let jobWorkerTab = 'all';
+function setJobWorkerTab(tab) {
+    jobWorkerTab = tab === 'notify' ? 'notify' : 'all';
+    [['btn-job-worker-tab-notify', 'notify'], ['btn-job-worker-tab-all', 'all']].forEach(([id, t]) => {
+        const b = document.getElementById(id);
+        if (!b) return;
+        b.classList.toggle('btn-gold', jobWorkerTab === t);
+        b.classList.toggle('btn-outline', jobWorkerTab !== t);
+    });
+    renderJobWorkerChecklist();
 }
 
 // เรียกจากช่องค้นหา (oninput) — กรอง checklist โดยไม่แตะสถานะที่เลือกไว้
