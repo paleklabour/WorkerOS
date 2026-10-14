@@ -1423,6 +1423,42 @@ function renderClientPortal() {
     else if (clientPortalTab === 'jobs') body.innerHTML = renderClientJobsTab(myJobs);
     else if (clientPortalTab === 'balance') body.innerHTML = renderClientBalanceTab(myInvoices, custId);
     else body.innerHTML = renderClientReceiptsTab(myInvoices, custId);
+    applySavedCollapse(body); // กลุ่มที่เคยยุบไว้ ยุบกลับหลังวาดใหม่ (พิมพ์ค้นหา/เปลี่ยนตัวกรอง)
+}
+
+// ตัวกรองในพอร์ทัลนายจ้าง (owner, 2026-10-14) — เก็บค่าไว้ในตัวแปร ไม่หายตอนวาดแท็บใหม่
+const cpFilters = { workerStatus: '', workerNat: '', jobStatus: '', jobType: '' };
+function setClientPortalFilter(key, value) {
+    cpFilters[key] = value;
+    renderClientPortal();
+}
+
+// สถานะเอกสารคนงานในพอร์ทัล (ใช้ทั้งป้ายในตารางและตัวกรอง)
+function clientWorkerDocState(w) {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const daysTo = (d) => d ? Math.ceil((d - today) / 86400000) : null;
+    const pd = daysTo(safeParseDate(w.passportExpiry)), wd = daysTo(safeParseDate(w.permitExpiry));
+    if (w.status === 'archived') return 'archived';
+    if (w.status === 'pending_register') return 'pending';
+    if ((pd !== null && pd < 0) || (wd !== null && wd < 0)) return 'expired';
+    if ((pd !== null && pd <= 180) || (wd !== null && wd <= 60)) return 'soon';
+    return 'ok';
+}
+const CP_WORKER_STATES = {
+    ok: { label: 'ปกติ', cls: 'badge-success' },
+    soon: { label: 'ใกล้หมดอายุ', cls: 'badge-warning' },
+    expired: { label: 'หมดอายุ', cls: 'badge-danger' },
+    pending: { label: 'รอขึ้นทะเบียน', cls: 'badge-gold' },
+    archived: { label: 'พ้นสภาพ/แจ้งออก', cls: 'cp-badge-archived' }
+};
+
+// ปุ่มยุบ/กางทุกกลุ่มในแท็บพอร์ทัล
+function cpCollapseButtons() {
+    const body = "document.getElementById('client-portal-body')";
+    return `<div class="cp-collapse-btns">
+        <button type="button" class="btn btn-sm btn-outline" onclick="setPanelsCollapsed(${body}, true)" title="ยุบทุกกลุ่มให้เหลือแค่หัวข้อ">${icon('chevronUp')} ยุบทั้งหมด</button>
+        <button type="button" class="btn btn-sm btn-outline" onclick="setPanelsCollapsed(${body}, false)" title="กางทุกกลุ่ม">${icon('chevronDown')} กางทั้งหมด</button>
+    </div>`;
 }
 
 // พอร์ทัลนายจ้าง: ดับเบิลคลิกแถวคนงาน → ป๊อปอัปข้อมูลคนงานทั้งหมด (ดูอย่างเดียว แก้ไม่ได้)
@@ -1487,8 +1523,12 @@ function renderClientWorkersTab(list) {
     const query = q.trim().toLowerCase();
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const daysTo = (d) => d ? Math.ceil((d - today) / 86400000) : null;
+    const nats = [...new Set(list.map(w => w.nationality).filter(Boolean))].sort();
+    if (cpFilters.workerNat && !nats.includes(cpFilters.workerNat)) cpFilters.workerNat = '';
     const shown = list.filter(w => !query || [w.firstName, w.lastName, w.thaiName, w.refNo, w.workerUid, w.passportNo, w.permitNo, w.pinkCardNo, w.nationality]
-        .filter(Boolean).join(' ').toLowerCase().includes(query));
+        .filter(Boolean).join(' ').toLowerCase().includes(query))
+        .filter(w => !cpFilters.workerStatus || clientWorkerDocState(w) === cpFilters.workerStatus)
+        .filter(w => !cpFilters.workerNat || w.nationality === cpFilters.workerNat);
 
     // จัดกลุ่ม: วันหมดอายุใบอนุญาต (yyyy-mm-dd) → คนงาน
     const groups = {};
@@ -1500,12 +1540,8 @@ function renderClientWorkersTab(list) {
     const ordered = Object.values(groups).sort((a, b) => a.key.localeCompare(b.key));
 
     const statusBadgeOf = (w) => {
-        const pd = daysTo(safeParseDate(w.passportExpiry)), wd = daysTo(safeParseDate(w.permitExpiry));
-        if (w.status === 'archived') return '<span class="badge badge-lg cp-badge-archived">พ้นสภาพ/แจ้งออก</span>';
-        if (w.status === 'pending_register') return '<span class="badge badge-lg badge-gold">รอขึ้นทะเบียน</span>';
-        if ((pd !== null && pd < 0) || (wd !== null && wd < 0)) return '<span class="badge badge-lg badge-danger">หมดอายุ</span>';
-        if ((pd !== null && pd <= 180) || (wd !== null && wd <= 60)) return '<span class="badge badge-lg badge-warning">ใกล้หมดอายุ</span>';
-        return '<span class="badge badge-lg badge-success">ปกติ</span>';
+        const s = CP_WORKER_STATES[clientWorkerDocState(w)];
+        return `<span class="badge badge-lg ${s.cls}">${s.label}</span>`;
     };
 
     const row = (w) => {
@@ -1571,7 +1607,14 @@ function renderClientWorkersTab(list) {
     return `
         <div class="cp-card">
             <div class="cp-toolbar"><div class="search-box"><input type="text" id="cp-worker-search" placeholder="ค้นหาชื่อ-นามสกุล, เลขคนงาน, พาสปอร์ต..." value="${escapeHtml(q)}" oninput="renderClientPortalKeepFocus('cp-worker-search')"></div>
-                <span class="text-muted">${shown.length} คน • แบ่งกลุ่มตามวันที่ใบอนุญาตทำงานหมดอายุ • กด "เปิดแฟ้มเอกสาร" เพื่อดู/ดาวน์โหลดเอกสาร</span></div>
+                <select class="select-filter" onchange="setClientPortalFilter('workerStatus', this.value)" title="กรองตามสถานะเอกสาร">
+                    <option value="">ทุกสถานะ</option>${Object.entries(CP_WORKER_STATES).map(([k, s]) => `<option value="${k}" ${cpFilters.workerStatus === k ? 'selected' : ''}>${s.label} (${list.filter(w => clientWorkerDocState(w) === k).length})</option>`).join('')}
+                </select>
+                ${nats.length > 1 ? `<select class="select-filter" onchange="setClientPortalFilter('workerNat', this.value)" title="กรองตามสัญชาติ">
+                    <option value="">ทุกสัญชาติ</option>${nats.map(n => `<option value="${escapeHtml(n)}" ${cpFilters.workerNat === n ? 'selected' : ''}>${escapeHtml(n)}</option>`).join('')}
+                </select>` : ''}
+                ${ordered.length > 1 ? cpCollapseButtons() : ''}
+                <span class="text-muted">${shown.length} คน • แบ่งกลุ่มตามวันที่ใบอนุญาตทำงานหมดอายุ • กดหัวกลุ่มเพื่อยุบ/กาง • กด "เปิดแฟ้มเอกสาร" เพื่อดู/ดาวน์โหลดเอกสาร</span></div>
             ${panels || '<p class="text-muted" style="text-align:center; padding:24px;">ไม่พบคนงาน</p>'}
         </div>`;
 }
@@ -1593,31 +1636,66 @@ function renderClientJobsTab(list) {
     const thisMonth = localDateISO(new Date()).slice(0, 7);
     if (!months.includes(thisMonth)) months.push(thisMonth);
     months.sort().reverse();
-    const shown = list.filter(j => !month || jobMonthKey(j) === month).sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+    const inMonth = list.filter(j => !month || jobMonthKey(j) === month);
+    const types = [...new Set(inMonth.map(j => getCleanJobTypeName(j.jobType)).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'th'));
+    if (cpFilters.jobType && !types.includes(cpFilters.jobType)) cpFilters.jobType = '';
+    const shown = inMonth
+        .filter(j => !cpFilters.jobStatus || j.status === cpFilters.jobStatus)
+        .filter(j => !cpFilters.jobType || getCleanJobTypeName(j.jobType) === cpFilters.jobType)
+        .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
     const statusCls = { 'รอดำเนินการ': 'badge-warning', 'กำลังดำเนินการ': 'badge-gold', 'รอเอกสารเพิ่มเติม': 'badge-danger', 'ปิดงานแล้ว': 'badge-success' };
+    const STATUS_ORDER = ['รอเอกสารเพิ่มเติม', 'รอดำเนินการ', 'กำลังดำเนินการ', 'ปิดงานแล้ว'];
+
+    const row = (j) => {
+        const w = workers.find(x => x.id === j.workerId);
+        const docs = Array.isArray(j.attachments) ? j.attachments : [];
+        return `<tr>
+            <td><strong>${getJobDisplayNo(j)}</strong></td>
+            <td>${escapeHtml(getCleanJobTypeName(j.jobType))}</td>
+            <td>${escapeHtml(w ? workerFullName(w) : '-')}</td>
+            <td>${formatThaiDate(String(j.createdAt || j.updatedAt || '').slice(0, 10))}</td>
+            <td><span class="badge ${statusCls[j.status] || ''}">${escapeHtml(j.status || '-')}</span>${j.status === 'ปิดงานแล้ว' && j.closedAt ? `<br><small class="text-muted">ปิดเมื่อ ${formatThaiDate(j.closedAt)}</small>` : ''}${j.appointmentDate && isJobStatusOpen(j.status) ? `<br><small class="text-muted">นัด ${formatThaiDate(j.appointmentDate)}${j.appointmentTime ? ` ${escapeHtml(j.appointmentTime)}` : ''}</small>` : ''}</td>
+            <td>${docs.length && !clientJobDocsUnlocked(j) ? `<span class="text-muted" title="เอกสาร ${docs.length} ไฟล์">${icon('lock')} ชำระเงินแล้วจึงดาวน์โหลดได้</span>` : docs.length ? docs.map((f, k) => `<a href="${escapeHtml(f.url)}" target="_blank" rel="noopener" title="${escapeHtml(f.note || f.name || '')}">${icon('clip')} ${escapeHtml(f.name || `ไฟล์ ${k + 1}`)}</a>`).join('<br>') : '<span class="text-muted">-</span>'}</td>
+        </tr>`;
+    };
+
+    // แบ่งกลุ่มตามสถานะงาน — กดหัวกลุ่มเพื่อยุบ/กาง (จำไว้ต่อเครื่อง)
+    const groups = {};
+    shown.forEach(j => { const s = j.status || 'อื่น ๆ'; (groups[s] = groups[s] || []).push(j); });
+    const ordered = Object.keys(groups).sort((a, b) => {
+        const ia = STATUS_ORDER.indexOf(a), ib = STATUS_ORDER.indexOf(b);
+        return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+    });
+    const panels = ordered.map(s => `
+        <div class="dashboard-panel cp-worker-group">
+            <div class="panel-header">
+                <h3>${icon('clipboard')} งาน${escapeHtml(s)}</h3>
+                <span class="cp-worker-group-meta">${groups[s].length} งาน</span>
+            </div>
+            <div class="panel-content" style="padding: 0; overflow-x: auto;">
+                <table class="data-table" style="box-shadow: none; border: none; border-radius: 0;">
+                    <thead><tr><th>เลขที่แจ้งงาน</th><th>ประเภทงาน</th><th>คนงาน</th><th>วันที่แจ้ง</th><th>สถานะ</th><th>เอกสารปิดงาน</th></tr></thead>
+                    <tbody>${groups[s].map(row).join('')}</tbody>
+                </table>
+            </div>
+        </div>`).join('');
+
     return `
         <div class="cp-card">
             <div class="cp-toolbar">
-                <select id="cp-job-month" class="select-filter" onchange="renderClientPortal()">
+                <select id="cp-job-month" class="select-filter" onchange="renderClientPortal()" title="กรองตามเดือนที่แจ้งงาน">
                     <option value="">ทุกเดือน</option>${months.map(k => `<option value="${k}" ${k === month ? 'selected' : ''}>${monthLabelTh(k)}</option>`).join('')}
                 </select>
+                <select class="select-filter" onchange="setClientPortalFilter('jobStatus', this.value)" title="กรองตามสถานะงาน">
+                    <option value="">ทุกสถานะ</option>${STATUS_ORDER.map(s => `<option value="${s}" ${cpFilters.jobStatus === s ? 'selected' : ''}>${s} (${inMonth.filter(j => j.status === s).length})</option>`).join('')}
+                </select>
+                ${types.length > 1 ? `<select class="select-filter" onchange="setClientPortalFilter('jobType', this.value)" title="กรองตามประเภทงาน">
+                    <option value="">ทุกประเภทงาน</option>${types.map(t => `<option value="${escapeHtml(t)}" ${cpFilters.jobType === t ? 'selected' : ''}>${escapeHtml(t)}</option>`).join('')}
+                </select>` : ''}
+                ${ordered.length > 1 ? cpCollapseButtons() : ''}
                 <span class="text-muted">${shown.length} งาน • ปิดแล้ว ${shown.filter(j => j.status === 'ปิดงานแล้ว').length} • ยังไม่ปิด ${shown.filter(j => isJobStatusOpen(j.status)).length}</span>
             </div>
-            <div class="table-container"><table class="data-table">
-                <thead><tr><th>เลขที่แจ้งงาน</th><th>ประเภทงาน</th><th>คนงาน</th><th>วันที่แจ้ง</th><th>สถานะ</th><th>เอกสารปิดงาน</th></tr></thead>
-                <tbody>${shown.length ? shown.map(j => {
-                    const w = workers.find(x => x.id === j.workerId);
-                    const docs = Array.isArray(j.attachments) ? j.attachments : [];
-                    return `<tr>
-                        <td><strong>${getJobDisplayNo(j)}</strong></td>
-                        <td>${escapeHtml(getCleanJobTypeName(j.jobType))}</td>
-                        <td>${escapeHtml(w ? workerFullName(w) : '-')}</td>
-                        <td>${formatThaiDate(String(j.createdAt || j.updatedAt || '').slice(0, 10))}</td>
-                        <td><span class="badge ${statusCls[j.status] || ''}">${escapeHtml(j.status || '-')}</span>${j.status === 'ปิดงานแล้ว' && j.closedAt ? `<br><small class="text-muted">ปิดเมื่อ ${formatThaiDate(j.closedAt)}</small>` : ''}${j.appointmentDate && isJobStatusOpen(j.status) ? `<br><small class="text-muted">นัด ${formatThaiDate(j.appointmentDate)}${j.appointmentTime ? ` ${escapeHtml(j.appointmentTime)}` : ''}</small>` : ''}</td>
-                        <td>${docs.length && !clientJobDocsUnlocked(j) ? `<span class="text-muted" title="เอกสาร ${docs.length} ไฟล์">${icon('lock')} ชำระเงินแล้วจึงดาวน์โหลดได้</span>` : docs.length ? docs.map((f, k) => `<a href="${escapeHtml(f.url)}" target="_blank" rel="noopener" title="${escapeHtml(f.note || f.name || '')}">${icon('clip')} ${escapeHtml(f.name || `ไฟล์ ${k + 1}`)}</a>`).join('<br>') : '<span class="text-muted">-</span>'}</td>
-                    </tr>`;
-                }).join('') : `<tr><td colspan="6" class="text-muted" style="text-align:center; padding:24px;">ไม่มีงานที่แจ้งในเดือนนี้</td></tr>`}</tbody>
-            </table></div>
+            ${panels || `<p class="text-muted" style="text-align:center; padding:24px;">ไม่มีงานที่ตรงกับตัวกรอง</p>`}
         </div>`;
 }
 
@@ -1858,6 +1936,7 @@ const ICON_GLYPHS = {
     outbox:   { c: 'blue',   d: '<path class="fl" d="M4 13.5h4.5l1.5 2.5h4l1.5-2.5H20V18a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M12 12.5v-9M8.5 7 12 3.5 15.5 7"/>' },
     grip:     { c: 'slate',  d: '<circle cx="9" cy="6" r="1.3"/><circle cx="15" cy="6" r="1.3"/><circle cx="9" cy="12" r="1.3"/><circle cx="15" cy="12" r="1.3"/><circle cx="9" cy="18" r="1.3"/><circle cx="15" cy="18" r="1.3"/>' },
     chevronDown: { c: 'slate', d: '<path d="m6.5 9.5 5.5 5.5 5.5-5.5"/>' }, // ลูกศรลงแบบ iOS (ตัวกรองหลายค่า)
+    chevronUp: { c: 'slate', d: '<path d="m6.5 14.5 5.5-5.5 5.5 5.5"/>' }, // ยุบทั้งหมด (พอร์ทัลนายจ้าง)
     xmark:    { c: 'slate',  d: '<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>' },
 };
 
@@ -17827,6 +17906,10 @@ document.addEventListener('DOMContentLoaded', () => {
 // การ์ดในหน้า: จำสถานะต่อเครื่อง (localStorage); หัวข้อในหน้าต่างฟอร์ม: กางหมดทุกครั้งที่เปิดหน้าต่างใหม่
 // และช่องที่บังคับกรอกอยู่ในหัวข้อที่พับไว้ → กางให้เองตอนกดบันทึก
 const COLLAPSE_HEADER_SEL = '.panel-header:not(.fin-period-bar), .form-section-header, .section-title-bar, .documents-section > h4';
+// เนื้อหาที่วาดใหม่ด้วย innerHTML (เช่น พอร์ทัลนายจ้าง) เรียก applySavedCollapse(root) หลังวาด เพื่อพับการ์ดที่เคยพับไว้กลับ
+// setPanelsCollapsed(root, on) = ปุ่ม "ยุบทั้งหมด / กางทั้งหมด" — ตั้งค่าจริงใน setupCollapsibleSections()
+let applySavedCollapse = () => {};
+let setPanelsCollapsed = () => {};
 
 function setupCollapsibleSections() {
     const STORE_KEY = 'mw_collapsed_panels';
@@ -17922,11 +18005,19 @@ function setupCollapsibleSections() {
         mo.observe(bd, { attributes: true, attributeFilter: ['class'], attributeOldValue: true }));
 
     // การ์ดในหน้าที่เคยพับไว้ → พับกลับเหมือนเดิม
-    if (saved.length) {
-        document.querySelectorAll('.panel-header:not(.fin-period-bar)').forEach(h => {
+    applySavedCollapse = (root = document) => {
+        if (!saved.length) return;
+        root.querySelectorAll('.panel-header:not(.fin-period-bar)').forEach(h => {
             if (remembers(h) && saved.includes(headerKey(h))) setCollapsed(h, true);
         });
-    }
+    };
+    setPanelsCollapsed = (root, on) => {
+        if (!root) return;
+        root.querySelectorAll('.panel-header:not(.fin-period-bar)').forEach(h => {
+            if (h.classList.contains('is-collapsed') !== on) setCollapsed(h, on, true);
+        });
+    };
+    applySavedCollapse();
 }
 
 // ปุ่มจัดการลอยบนแถว (CSS: td.actions-col ใน styles.css) — ให้ปุ่มชิดขอบขวาที่ "มองเห็น" ของกล่องตาราง

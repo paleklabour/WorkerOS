@@ -5144,6 +5144,9 @@ tr.is-voided-row td {
 
 .cp-toolbar .search-box { flex: 1; min-width: 220px; max-width: 420px; }
 .cp-toolbar .btn { margin-left: auto; }
+/* ปุ่มยุบ/กางทั้งหมด (พอร์ทัลนายจ้าง) — อยู่คู่กัน ไม่ถูก margin-left:auto ของ .cp-toolbar .btn ดันแยก */
+.cp-toolbar .cp-collapse-btns { display: flex; gap: 6px; }
+.cp-toolbar .cp-collapse-btns .btn { margin-left: 0; }
 
 .cp-card .table-container { box-shadow: none; border: 1px solid var(--dk-line, #edf1f7); }
 
