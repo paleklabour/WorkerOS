@@ -2818,10 +2818,10 @@ function bellInvoiceItem(inv, sub) {
 }
 
 // ==================== หน้าต่างสรุปใบงาน (กดรายการใบงานในกระดิ่ง) ====================
-// อ่านอย่างเดียว + ปุ่มทำต่อตามสิทธิ์: แก้ไขใบงาน / ปิดงาน / เปิดแฟ้มคนงาน / ออกบิล-ดูบิล
+// อ่านอย่างเดียว + ปุ่มทำต่อตามสิทธิ์: แก้ไขใบงาน / ปิดงาน / เปิดแฟ้มคนงาน / ออกบิล-ดูบิล — หน้าต่างนี้เปิดค้างไว้ข้างหลังหน้าต่างที่กดเปิดต่อ
 function openJobQuickView(jobId) {
     const j = jobs.find(x => x.id === jobId);
-    if (!j) { showToast("ไม่พบใบงานนี้ (อาจถูกลบไปแล้ว)", "warning"); return; }
+    if (!j) { closeJobQuickView(); showToast("ไม่พบใบงานนี้ (อาจถูกลบไปแล้ว)", "warning"); return; }
     const cust = customers.find(c => c.id === j.customerId);
     const w = allWorkers().find(x => x.id === j.workerId);
     const inv = getJobInvoice(j);
@@ -2847,7 +2847,7 @@ function openJobQuickView(jobId) {
             ${row('หมายเหตุ', j.notes ? `<span class="jq-notes">${escapeHtml(j.notes)}</span>` : '')}
         </dl>`;
 
-    const btn = (iconName, label, onclick, cls = 'btn-outline') => `<button type="button" class="btn ${cls}" onclick="closeJobQuickView(); ${onclick}">${icon(iconName)} ${label}</button>`;
+    const btn = (iconName, label, onclick, cls = 'btn-outline') => `<button type="button" class="btn ${cls}" onclick="${onclick}">${icon(iconName)} ${label}</button>`;
     const acts = [];
     if (w) acts.push(btn('folder', 'เปิดแฟ้มคนงาน', `openWorkerFolderModal('${w.id}')`));
     if (can('finance')) {
@@ -2857,12 +2857,40 @@ function openJobQuickView(jobId) {
     if (canEditJob(j) && isJobStatusOpen(j.status)) acts.push(btn('clip', 'ปิดงาน', `openJobCloseModal('${j.id}')`));
     if (canEditJob(j)) acts.push(btn('edit', 'แก้ไขใบงาน', `openJobModal('${j.id}')`, 'btn-gold'));
     document.getElementById('job-quick-foot').innerHTML = acts.join('') || '<span class="text-muted">ดูได้อย่างเดียว</span>';
+    document.getElementById('job-quick-modal')._jobId = j.id;
     document.getElementById('job-quick-modal').classList.remove('hidden');
 }
 
 function closeJobQuickView() {
     document.getElementById('job-quick-modal').classList.add('hidden');
 }
+
+// ==================== หน้าต่างซ้อนกัน (owner 2026-10-15) ====================
+// เปิดหน้าต่างจากอีกหน้าต่าง (เช่น สรุปใบงาน → แฟ้มคนงาน / บิล / แก้ไข) หน้าต่างเดิมยังเปิดอยู่ข้างหลัง ปิดลูกแล้วกลับมาที่เดิม
+// หน้าต่างที่เพิ่งเปิดอยู่บนสุดเสมอ (ยก z-index เหนือหน้าต่างที่เปิดอยู่) — ปิดแล้วคืนค่าเดิม
+// ปิดหน้าต่างลูกแล้ว สรุปใบงานที่เปิดค้างอยู่วาดใหม่ (ข้อมูลอาจเปลี่ยนจากหน้าต่างลูก)
+document.addEventListener('DOMContentLoaded', () => {
+    const zOf = el => parseInt(getComputedStyle(el).zIndex, 10) || 0;
+    const raise = el => {
+        if (el._baseZ === undefined) el._baseZ = el.style.zIndex;
+        el.style.zIndex = el._baseZ;
+        const top = Math.max(0, ...[...document.querySelectorAll('.modal-backdrop:not(.hidden)')].filter(x => x !== el).map(zOf));
+        if (zOf(el) <= top) el.style.zIndex = String(top + 2);
+    };
+    const mo = new MutationObserver(records => records.forEach(r => {
+        const el = r.target;
+        const wasHidden = String(r.oldValue || '').split(/\s+/).includes('hidden');
+        const isHidden = el.classList.contains('hidden');
+        if (wasHidden && !isHidden) raise(el);
+        if (!wasHidden && isHidden) {
+            if (el._baseZ !== undefined) el.style.zIndex = el._baseZ;
+            const quick = document.getElementById('job-quick-modal');
+            if (el !== quick && quick && !quick.classList.contains('hidden') && quick._jobId) openJobQuickView(quick._jobId);
+        }
+    }));
+    document.querySelectorAll('.modal-backdrop').forEach(bd =>
+        mo.observe(bd, { attributes: true, attributeFilter: ['class'], attributeOldValue: true }));
+});
 
 // ==================== กดหัวหมวดในกระดิ่ง → หน้าปลายทางแสดงเฉพาะรายการของหมวดนั้น ====================
 // bellFilter = { view: 'jobs' | 'billing', title, jobIds: Set, invoiceIds: Set } — แถบ "แสดงทั้งหมด" ล้างตัวกรอง
@@ -11647,14 +11675,11 @@ function focusManualEntryFields(docType) {
     els[0].focus({ preventScroll: true });
 }
 
-// แนบผ่านแฟ้มเอกสาร/Bulk Import (ไม่มีฟอร์มเปิดอยู่) -> ปิดหน้าต่างเดิม เปิดฟอร์มแก้ไขของคนงาน/นายจ้างรายนั้น แล้วพาไปช่องที่ต้องกรอก
+// แนบผ่านแฟ้มเอกสาร/Bulk Import (ไม่มีฟอร์มเปิดอยู่) -> เปิดฟอร์มแก้ไขซ้อนบนหน้าต่างเดิม (หน้าต่างเดิมยังอยู่ข้างหลัง owner 2026-10-15)ของคนงาน/นายจ้างรายนั้น แล้วพาไปช่องที่ต้องกรอก
 function openManualEntryForm(kind, recordId, docType) {
     if (kind === 'customer') {
-        closeCustomerFolderModal();
         openCustomerModal(recordId);
     } else {
-        closeWorkerFolderModal();
-        closeBulkImportModal();
         openWorkerModal(recordId);
     }
     setTimeout(() => focusManualEntryFields(docType), 150); // รอฟอร์มเติมค่าและแสดงผลก่อน

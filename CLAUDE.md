@@ -215,7 +215,9 @@ The bell is per role (`buildNotificationGroups`); clicking a job item opens a re
 (`openJobQuickView`: details + buttons by permission — open worker folder / bill / close job / edit), other items open the
 thing to act on (bill, receipt, commission payout, calendar day); clicking a group header opens that page filtered to just
 that group's items (`openBellGroup` → `bellFilter`, bar "แสดงทั้งหมด" clears it; leaving the page clears it too). Dismissed
-ids use `legacyAction` so earlier dismissals survive (owner 2026-10-15). missing worker documents
+ids use `legacyAction` so earlier dismissals survive (owner 2026-10-15). Pop-ups stack: opening a window from another
+keeps the first one open behind it (the newest `.modal-backdrop` is raised above the open ones, z restored on close),
+and the job summary re-renders when a window opened from it closes. Don't close the parent before opening a child. missing worker documents
 must not alert anyone, and neither do expiring/expired worker documents — no bell item for any role (owner, 2026-10-14).
 
 User photos (2026-10-13): `profiles.avatar_url`. Admin sets anyone's photo in the user
