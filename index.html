@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261014l">
+    <link rel="stylesheet" href="styles.css?v=20261014m">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -2967,6 +2967,10 @@
                 </div>
                 <div class="modal-footer no-print">
                     <button class="btn btn-outline" onclick="closeReceiptModal()">ปิดหน้าต่าง</button>
+                    <!-- ส่งให้ลูกค้าทาง LINE โดยไม่ต้องโหลดไฟล์ — ดู copyReceiptImage() ใน app.js -->
+                    <button class="btn btn-outline" id="btn-copy-receipt-image" onclick="copyReceiptImage()" title="คัดลอกใบเสร็จเป็นรูปคมชัด แล้ว Ctrl+V วางในแชท LINE ได้เลย">
+                        <span class="ico" data-icon="photo"></span> คัดลอกเป็นรูป
+                    </button>
                     <button class="btn btn-gold" onclick="window.print()"><span class="ico" data-icon="print"></span> พิมพ์ใบเสร็จ</button>
                 </div>
             </div>
@@ -3471,7 +3475,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261014l"></script>
+    <script src="supabase-client.js?v=20261014m"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3482,6 +3486,6 @@
     </script>
 
     <!-- Application Script -->
-    <script src="app.js?v=20261014l"></script>
+    <script src="app.js?v=20261014m"></script>
 </body>
 </html>

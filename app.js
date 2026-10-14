@@ -15833,19 +15833,29 @@ async function snapshotInvoiceSheet(sheet) {
     }
 }
 async function copyInvoiceImage() {
-    const sheet = document.getElementById('invoice-sheet-container');
+    await copySheetImage(document.getElementById('invoice-sheet-container'), document.getElementById('btn-copy-invoice-image'),
+        (document.getElementById('inv-no') || {}).innerText || 'invoice', 'ใบวางบิล');
+}
+
+// ใบเสร็จ/ใบรับเงินมัดจำ (หน้าต่าง receipt-modal ใช้ร่วมทุกที่ — การเงิน, ประวัติรับเงินในบิล, พอร์ทัลนายจ้าง) owner 2026-10-14
+async function copyReceiptImage() {
+    await copySheetImage(document.getElementById('receipt-sheet'), document.getElementById('btn-copy-receipt-image'),
+        currentReceiptNo || 'receipt', 'ใบเสร็จ');
+}
+
+// คัดลอกเอกสาร (ใบวางบิล/ใบเสร็จ) เป็นรูปคมชัดลงคลิปบอร์ด → Ctrl+V ในแชท LINE; เบราว์เซอร์ที่คัดลอกรูปไม่ได้ → เมนูแชร์
+async function copySheetImage(sheet, btn, docNo, label) {
     if (!sheet) return;
-    const btn = document.getElementById('btn-copy-invoice-image');
     if (btn) btn.disabled = true;
     try {
-        showToast("📸 กำลังสร้างรูปใบวางบิล...", "warning");
+        showToast(`📸 กำลังสร้างรูป${label}...`, "warning");
         const blobPromise = snapshotInvoiceSheet(sheet);
-        const name = `${(document.getElementById('inv-no') || {}).innerText || 'invoice'}.png`.replace(/[\\/:*?"<>|\s]+/g, '_');
+        const name = `${docNo}.png`.replace(/[\\/:*?"<>|\s]+/g, '_');
         if (navigator.clipboard && window.ClipboardItem) {
             try {
                 // ส่ง Promise ให้ ClipboardItem ทันทีตอนกด — สร้างรูปนานหลายวินาทีแล้วสิทธิ์คัดลอกจากการคลิกไม่หมดอายุ
                 await navigator.clipboard.write([new ClipboardItem({ 'image/png': blobPromise })]);
-                showToast("✅ คัดลอกรูปใบวางบิลแล้ว — เปิดแชท LINE แล้วกด Ctrl+V", "success");
+                showToast(`✅ คัดลอกรูป${label}แล้ว — เปิดแชท LINE แล้วกด Ctrl+V`, "success");
                 return;
             } catch (e) { /* ไปใช้เมนูแชร์แทน */ }
         }
@@ -16593,7 +16603,9 @@ function openReceiptDoc(receiptId) {
     });
 }
 
+let currentReceiptNo = null; // เลขที่ใบเสร็จที่เปิดอยู่ — ใช้ตั้งชื่อไฟล์ตอนคัดลอกเป็นรูป (copyReceiptImage)
 function renderReceiptSheet({ receiptNo, paidDate, refText, title, name, addr, tax, itemRows, amount, method, methodLabel, note, recordedBy }) {
+    currentReceiptNo = receiptNo || null;
     const recorder = users.find(u => u.id === recordedBy);
     const issuer = document.querySelector('#invoice-sheet-container .invoice-brand');
     document.getElementById("receipt-sheet").innerHTML = `
