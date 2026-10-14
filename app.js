@@ -15827,6 +15827,8 @@ function renderInvoiceStatusUi() {
     const status = inv ? inv.status : 'draft';
     const canManage = can('finance');
     const editable = isCurrentInvoiceEditable();
+    // ลูกค้า (client) เห็นแค่ตัวบิล — ซ่อนแผงใต้บิล (แยกค่าธรรมเนียมรัฐ/การรับเงิน/สถานะ) ด้วย CSS (owner, 2026-10-14)
+    document.getElementById("invoice-modal").classList.toggle("is-client-view", currentUser && currentUser.role === 'client');
 
     const stamp = document.getElementById("inv-stamp");
     if (stamp) {

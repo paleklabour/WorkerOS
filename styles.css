@@ -7534,3 +7534,10 @@ th.sortable-th:hover::after { opacity: 0.8; }
 
 /* กำลังย่อ/ขยายหน้าต่าง (app.js ใส่ class นี้ระหว่างลาก) → ปิด transition ทั้งหน้า ไม่ให้แถบเมนู/ตัวเลื่อนแท็บ/กราฟวิ่งไล่ตามขนาดใหม่ */
 html.is-resizing *, html.is-resizing *::before, html.is-resizing *::after { transition: none !important; }
+
+/* บิลฝั่งลูกค้า (client): เห็นแค่ตัวบิล ไม่โชว์แผงใต้บิล — renderInvoiceStatusUi() ใส่ .is-client-view (owner, 2026-10-14) */
+#invoice-modal.is-client-view #invoice-internal-split,
+#invoice-modal.is-client-view #invoice-payments-panel,
+#invoice-modal.is-client-view #invoice-footer-status {
+    display: none !important;
+}
