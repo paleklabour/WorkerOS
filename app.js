@@ -208,7 +208,8 @@ function getApiUrl() {
     return window.SUPABASE_URL || null;
 }
 
-async function callCloudAPI(action, payload = {}) {
+// options.silent: ไม่ขึ้น toast เมื่อผิดพลาด (ใช้กับการโหลดเบื้องหลังที่ผู้ใช้ไม่ได้สั่ง เช่น โน้ตปฏิทินสำหรับกระดิ่ง)
+async function callCloudAPI(action, payload = {}, options = {}) {
     if (!window.supabaseAdapter) {
         showToast("⚠️ ยังไม่ได้โหลด supabase-client.js หรือยังไม่ได้ตั้งค่า Supabase", "danger");
         return null;
@@ -231,6 +232,7 @@ async function callCloudAPI(action, payload = {}) {
             logout();
             return null;
         }
+        if (options.silent) { console.warn(`Cloud API (${action}):`, errMsg); return null; }
         showToast("❌ ข้อผิดพลาดคลาวด์: " + errMsg, "danger");
         return null;
     } catch (e) {
@@ -383,7 +385,7 @@ async function loadData() {
 
             showSyncStatus('success', `นายจ้าง ${customers.length} • คนงาน ${workers.length} • ใบงาน ${jobs.length}`);
             // โน้ตปฏิทินทีม: โหลดแยกเบื้องหลัง (ไม่ให้หน่วงการเปิดระบบ) เพื่อเตือนล่วงหน้า 2 วันในกระดิ่ง
-            if (currentUser && currentUser.role !== 'client') loadCalendarNotes().then(updateNotificationBell).catch(() => {});
+            if (currentUser && currentUser.role !== 'client') loadCalendarNotes(true).then(updateNotificationBell).catch(() => {});
             return;
         }
         showSyncStatus('error', (res && res.message) ? res.message : 'เชื่อมต่อคลาวด์ไม่ได้');
@@ -2635,6 +2637,41 @@ const BELL_RECENT_CLOSE_DAYS = 3;
 const BELL_OVERDUE_DAYS = 15;   // ตรงกับกำหนดชำระมาตรฐานบนบิล
 const BELL_MAX_ITEMS = 6;
 
+// ปิดการแจ้งเตือนทีละรายการ / ทั้งหมวด (owner, 2026-10-14) — จำในเครื่องนี้ แยกตามบัญชี (localStorage mw_bell_dismissed_<userId>)
+// id = หมวด|action|ข้อความ → ถ้าเรื่องนั้นเปลี่ยน (เช่น แก้ข้อความโน้ต) จะแจ้งใหม่; ที่ปิดไว้เกิน 60 วันลบทิ้งเอง
+const BELL_DISMISS_KEEP_DAYS = 60;
+let bellRenderedGroups = [];
+const bellDismissKey = () => `mw_bell_dismissed_${currentUser ? currentUser.id : ''}`;
+function loadBellDismissed() {
+    try {
+        const all = JSON.parse(localStorage.getItem(bellDismissKey()) || '{}') || {};
+        const cutoff = Date.now() - BELL_DISMISS_KEEP_DAYS * 86400000;
+        Object.keys(all).forEach(k => { if (all[k] < cutoff) delete all[k]; });
+        return all;
+    } catch (e) { return {}; }
+}
+function saveBellDismissed(all) {
+    try { localStorage.setItem(bellDismissKey(), JSON.stringify(all)); } catch (e) { /* จำไม่ได้ก็แค่แจ้งซ้ำ */ }
+}
+function dismissBellItems(items) {
+    const all = loadBellDismissed();
+    items.forEach(it => { all[it.id] = Date.now(); });
+    saveBellDismissed(all);
+    updateNotificationBell();
+}
+function dismissBellItem(gi, ii) {
+    const g = bellRenderedGroups[gi];
+    if (g && g.items[ii]) dismissBellItems([g.items[ii]]);
+}
+function dismissBellGroup(gi) {
+    const g = bellRenderedGroups[gi];
+    if (g) dismissBellItems(g.items);
+}
+function restoreBellDismissed() {
+    try { localStorage.removeItem(bellDismissKey()); } catch (e) {}
+    updateNotificationBell();
+}
+
 // บิลที่ยังค้างชำระและออกมาเกินกำหนดชำระมาตรฐานแล้ว (นิยามเดียวกับหมวด "บิลค้างชำระเกิน 15 วัน" ในกระดิ่ง) — ใช้ในแคปซูลแดชบอร์ด/สรุปการเงิน
 function overdueInvoices() {
     return invoices.filter(i => (i.status === 'issued' || i.status === 'partial') && invoiceBalance(i) > 0 && daysSince(i.issueDate) > BELL_OVERDUE_DAYS);
@@ -2665,7 +2702,14 @@ function buildNotificationGroups() {
     if (!currentUser) return [];
     const role = currentUser.role;
     const groups = [];
-    const add = (g) => { if (g.items.length) groups.push(g); };
+    const dismissed = loadBellDismissed();
+    let hiddenCount = 0;
+    const add = (g) => {
+        const all = g.items.map(it => ({ ...it, id: `${g.key}|${it.action}|${it.text}` }));
+        g.items = all.filter(it => !dismissed[it.id]);
+        hiddenCount += all.length - g.items.length;
+        if (g.items.length) groups.push(g);
+    };
     const today = localDateISO(new Date());
     const tomorrow = localDateISO(new Date(Date.now() + 86400000));
     const jobDate = j => String(j.appointmentDate || '').slice(0, 10);
@@ -2749,6 +2793,7 @@ function buildNotificationGroups() {
             items: agents.map(a => ({ a, s: agentCommissionSummary(a.id) })).filter(x => x.s.due > 0)
                 .map(x => ({ text: x.a.name, sub: `${fmtMoney(x.s.due)} บาท • ${x.s.dueCount} งาน`, action: `openCommissionPayoutModal('${x.a.id}')` })) });
     }
+    groups.hiddenCount = hiddenCount; // จำนวนที่ผู้ใช้กดปิดไว้ (ปุ่ม "แสดงที่ปิดไว้" ท้ายแผง)
     return groups;
 }
 
@@ -2768,20 +2813,29 @@ function renderNotificationPanel(groups = buildNotificationGroups()) {
     const panel = document.getElementById("bell-panel");
     if (!panel || !currentUser) return;
     const roleName = (ROLE_LABELS[currentUser.role] || '').split(' (')[0];
+    bellRenderedGroups = groups;
+    const hidden = groups.hiddenCount || 0;
     panel.innerHTML = `
         <div class="bell-panel-head"><strong>การแจ้งเตือน</strong><span>${escapeHtml(roleName)}</span></div>
-        ${groups.length === 0 ? `<div class="bell-empty">${icon('ok')} ไม่มีเรื่องที่ต้องติดตาม</div>` : groups.map(g => `
+        ${groups.length === 0 ? `<div class="bell-empty">${icon('ok')} ไม่มีเรื่องที่ต้องติดตาม</div>` : groups.map((g, gi) => `
             <div class="bell-group${g.info ? ' is-info' : ''}">
-                <button type="button" class="bell-group-head" onclick="closeNotificationPanel(); ${g.view === 'billing' ? "switchView('expenses'); switchFinancePageTab('billing')" : `switchView('${g.view}')`}">
-                    ${icon(g.icon)} <span>${escapeHtml(g.title)}</span><b>${g.items.length}</b>
-                </button>
-                ${g.items.slice(0, BELL_MAX_ITEMS).map(it => `
-                    <button type="button" class="bell-item" onclick="closeNotificationPanel(); ${it.action}">
-                        <span class="bell-item-text">${escapeHtml(it.text)}</span>
-                        <small>${escapeHtml(it.sub || '')}</small>
-                    </button>`).join('')}
+                <div class="bell-row">
+                    <button type="button" class="bell-group-head" onclick="closeNotificationPanel(); ${g.view === 'billing' ? "switchView('expenses'); switchFinancePageTab('billing')" : `switchView('${g.view}')`}">
+                        ${icon(g.icon)} <span>${escapeHtml(g.title)}</span><b>${g.items.length}</b>
+                    </button>
+                    <button type="button" class="bell-dismiss" onclick="dismissBellGroup(${gi})" title="ปิดการแจ้งเตือนทั้งหมวดนี้">${icon('xmark')}</button>
+                </div>
+                ${g.items.slice(0, BELL_MAX_ITEMS).map((it, ii) => `
+                    <div class="bell-row">
+                        <button type="button" class="bell-item" onclick="closeNotificationPanel(); ${it.action}">
+                            <span class="bell-item-text">${escapeHtml(it.text)}</span>
+                            <small>${escapeHtml(it.sub || '')}</small>
+                        </button>
+                        <button type="button" class="bell-dismiss" onclick="dismissBellItem(${gi}, ${ii})" title="ปิดการแจ้งเตือนนี้">${icon('xmark')}</button>
+                    </div>`).join('')}
                 ${g.items.length > BELL_MAX_ITEMS ? `<div class="bell-more">และอีก ${g.items.length - BELL_MAX_ITEMS} รายการ — กดหัวข้อเพื่อดูทั้งหมด</div>` : ''}
-            </div>`).join('')}`;
+            </div>`).join('')}
+        ${hidden ? `<button type="button" class="bell-restore" onclick="restoreBellDismissed()" title="แสดงการแจ้งเตือนที่ปิดไว้ทั้งหมดอีกครั้ง">แสดงการแจ้งเตือนที่ปิดไว้ (${hidden})</button>` : ''}`;
 }
 
 function toggleNotificationPanel() {
@@ -8776,8 +8830,8 @@ function calNoteFromRow(n) {
     return { id: n.id, time: calTime(n.note_time), note: n.note, userId: n.user_id, updatedBy: n.updated_by, updatedAt: n.updated_at };
 }
 
-async function loadCalendarNotes() {
-    const res = await callCloudAPI("getCalendarNotes", {});
+async function loadCalendarNotes(silent = false) {
+    const res = await callCloudAPI("getCalendarNotes", {}, { silent });
     if (!res || res.status !== "success") return;
     calendarNotes = {};
     res.notes.forEach(n => { (calendarNotes[n.note_date] = calendarNotes[n.note_date] || []).push(calNoteFromRow(n)); });
@@ -8798,7 +8852,7 @@ async function openCalendarView() {
 // โหลดใหม่ไม่แตะช่องที่กำลังพิมพ์ค้างอยู่ (renderCalendarNotes ไม่เขียนทับ cal-note-input)
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState !== 'visible' || !currentUser || currentUser.role === 'client' || calendarNotes === null) return;
-    loadCalendarNotes();
+    loadCalendarNotes(true);
 });
 
 function shiftCalendarMonth(step) {

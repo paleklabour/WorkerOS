@@ -232,6 +232,9 @@ optional time (`note_time`, empty = all day), table `calendar_notes` with `is_in
 loaded in the background right after `loadData` succeeds, on opening the page and on tab refocus (`loadCalendarNotes`).
 The bell warns every internal user 2 days ahead (owner, 2026-10-14): group `calnote` = notes dated today / tomorrow /
 the day after (counted), group `holiday` = government holidays in that window (info only).
+Every bell item and group header has a ✕ to dismiss it (owner, 2026-10-14): stored per account in this browser
+(localStorage `mw_bell_dismissed_<userId>`, id = group|action|text, auto-forgotten after 60 days), removed from the
+badge count; "แสดงการแจ้งเตือนที่ปิดไว้ (N)" at the bottom of the panel brings them all back.
 Thai government holidays are hard-coded in `THAI_HOLIDAYS` in `app.js` (from Google's Thai holiday calendar);
 2027 Buddhist holidays + Royal Ploughing Day weren't announced yet on 2026-10-14 — add them when announced.
 

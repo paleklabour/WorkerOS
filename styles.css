@@ -4933,6 +4933,45 @@ tr.is-voided-row td {
     background-color: var(--gold-light);
 }
 
+/* ปุ่ม ✕ ปิดการแจ้งเตือนทีละรายการ / ทั้งหมวด (2026-10-14) — เมาส์: โผล่ตอนชี้แถว, จอสัมผัส: เห็นตลอด */
+.bell-row { display: flex; align-items: center; gap: 2px; }
+.bell-row > .bell-group-head, .bell-row > .bell-item { flex: 1; min-width: 0; }
+.bell-dismiss {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: opacity 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+.bell-dismiss .ico, .bell-dismiss svg { width: 14px; height: 14px; }
+.bell-dismiss:hover { background-color: var(--dk-bad-bg, #fef2f2); color: var(--danger); }
+@media (hover: hover) and (pointer: fine) {
+    .bell-dismiss { opacity: 0; }
+    .bell-row:hover .bell-dismiss, .bell-dismiss:focus-visible { opacity: 1; }
+}
+.bell-restore {
+    display: block;
+    width: 100%;
+    margin-top: 8px;
+    padding: 9px 10px;
+    border: none;
+    border-top: 1px solid var(--dk-line, #edf1f7);
+    background: transparent;
+    font-family: inherit;
+    font-size: 12.5px;
+    color: var(--gold-primary);
+    cursor: pointer;
+    border-radius: 0 0 10px 10px;
+}
+.bell-restore:hover { background-color: var(--gold-light); }
+
 .bell-more {
     padding: 4px 10px 6px 34px;
     font-size: 12px;
