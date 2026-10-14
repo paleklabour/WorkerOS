@@ -15,7 +15,8 @@ Vanilla HTML/CSS/JS SPA, no build step, no package manager.
   file uploads to a local `uploads/` folder to avoid localStorage quota limits
 - `supabase/migrations/` — versioned Postgres schema, apply with `supabase db push`
 - `supabase/functions/` — Deno Edge Functions (`create-user`, `ocr-document`). A third
-  function, `line-webhook`, is deployed and ACTIVE on the live Supabase project but its
+  function, `line-webhook` (LINE group bot — the LINE feature was removed from the app 2026-10-15 at the owner's
+  request; the function and the empty `line_groups` table still exist in Supabase until deleted there), is deployed and ACTIVE on the live Supabase project but its
   source is *not* in this folder/repo — it was deployed from somewhere else. Pull it
   down (`supabase functions download line-webhook`) before editing it, or its logic
   only exists in the cloud.
@@ -302,7 +303,8 @@ The UI follows iOS (owner's request): SF Pro/Sukhumvit fonts, light theme
 with a sliding thumb (`attachTabSlider`), every `<select>` opens an iOS menu on
 mouse devices (`openIosSelect` — the native `<select>` still holds the value),
 charts animate via `setupChartMagicMove` ("magic move": every pie/bar regrows from 0 each time it comes into view — tab/page switch or scroll — and flows old→new on re-render; owner 2026-10-13). Keep new UI consistent with that.
-Smallest UI font is 12.5px (raised from 11.5px on 2026-10-15, owner: many spots were too small — all 11–12.5px
+Every search box gets a ✕ clear button (`attachSearchClear`, `SEARCH_CLEAR_SEL` — `.search-box` inputs or
+placeholder containing "ค้นหา"; clicking it empties the field and fires input/change). Smallest UI font is 12.5px (raised from 11.5px on 2026-10-15, owner: many spots were too small — all 11–12.5px
 screen sizes went up ~1px); don't add smaller sizes (printed sheets excepted). Document folder text/icons are larger
 (names 14.5–18px, 20px icons) and file actions are labelled buttons (`fvActButton`), not hidden in •••.
 Data-heavy windows use `.modal-content.large` (up to 1180px / 95vw; `.modal-sheet` invoices/receipts stay 900px), the

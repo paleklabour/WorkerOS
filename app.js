@@ -10928,7 +10928,7 @@ function generateCombinedInvoice() {
 
 // ==================== SYSTEM DATA BACKUP & RESTORE ====================
 // ข้อมูลทุกตารางที่สำรอง — เรียงตามลำดับที่ต้องกู้คืน (ตารางที่ถูกอ้างถึงก่อน เช่น Agent/นายจ้าง ก่อนคนงาน ก่อนใบงาน)
-// เดิมสำรองแค่ นายจ้าง/คนงาน/งาน/บัญชีธนาคาร — Agent, รายจ่าย, บิลอิสระ, กลุ่ม LINE หายหมดถ้าต้องกู้คืน
+// เดิมสำรองแค่ นายจ้าง/คนงาน/งาน/บัญชีธนาคาร — Agent, รายจ่าย, บิลอิสระ หายหมดถ้าต้องกู้คืน
 const BACKUP_COLLECTIONS = [
     { key: 'agents', label: 'Agent', save: 'saveAgent', payloadKey: 'agentData', get: () => agents, set: v => { agents = v; } },
     { key: 'banks', label: 'บัญชีธนาคาร', save: 'saveBank', payloadKey: 'bankData', get: () => banks, set: v => { banks = v; } },
@@ -10967,9 +10967,6 @@ async function buildBackupData() {
     if (!res || res.status === "error") throw new Error('ดึงข้อมูลจากคลาวด์ไม่สำเร็จ: ' + ((res && res.message) || 'unknown error'));
     const data = { version: "2.0", exportDate: new Date().toISOString() };
     BACKUP_COLLECTIONS.forEach(c => { data[c.key] = res[c.key] || []; });
-    // กลุ่ม LINE ไม่ได้โหลดเข้าแอป (line-webhook ใช้) — อ่านตรงจากตาราง เก็บเป็นแถวดิบ
-    const lg = await window.supabaseAdapter.client.from('line_groups').select('*');
-    data.lineGroups = lg.error ? [] : (lg.data || []);
     return data;
 }
 
@@ -11013,9 +11010,7 @@ function downloadBlob(blob, fileName) {
 }
 
 function describeBackupCounts(data) {
-    const parts = BACKUP_COLLECTIONS.map(c => `${c.label} ${(data[c.key] || []).length}`);
-    parts.push(`กลุ่ม LINE ${(data.lineGroups || []).length}`);
-    return parts.join(', ');
+    return BACKUP_COLLECTIONS.map(c => `${c.label} ${(data[c.key] || []).length}`).join(', ');
 }
 
 // สำรองเฉพาะข้อมูล (ไฟล์ .json เล็ก เร็ว) — ไม่รวมไฟล์เอกสาร/รูป
@@ -11159,7 +11154,6 @@ async function importSystemData(event) {
         const present = BACKUP_COLLECTIONS.filter(c => Array.isArray(imported[c.key]));
         const fileEntries = zip ? Object.values(zip.files).filter(f => !f.dir && f.name.startsWith(BACKUP_FILES_PREFIX)) : [];
         const summary = present.map(c => `${c.label} ${imported[c.key].length}`).join(', ') +
-            (Array.isArray(imported.lineGroups) ? `, กลุ่ม LINE ${imported.lineGroups.length}` : '') +
             (zip ? `, ไฟล์เอกสาร/รูป ${fileEntries.length} ไฟล์` : '');
 
         if (!(await uiConfirm(`ยืนยันการกู้คืนข้อมูล? ข้อมูลในไฟล์จะเขียนทับรายการที่มี id เดียวกันในคลาวด์ (${summary})\nรายการที่มีอยู่ในระบบแต่ไม่มีในไฟล์จะไม่ถูกลบ`, { okText: "กู้คืนข้อมูล", card: { imageIcon: "inbox", imageIconColor: "blue", title: "ข้อมูลในไฟล์สำรอง", list: summary.split(", ") } }))) {
@@ -11187,11 +11181,6 @@ async function importSystemData(event) {
                 const res = await callCloudAPI(c.save, { [c.payloadKey]: rows[i] });
                 if (!res || res.status === "error") failCount++;
             }
-        }
-        if (Array.isArray(imported.lineGroups) && imported.lineGroups.length) {
-            setBackupProgress('☁️ กำลังกู้คืนกลุ่ม LINE...');
-            const { error } = await window.supabaseAdapter.client.from('line_groups').upsert(imported.lineGroups);
-            if (error) failCount += imported.lineGroups.length;
         }
 
         // โหลดข้อมูลจากคลาวด์ใหม่ทั้งหมด (ไม่ใช้ข้อมูลจากไฟล์ตรง ๆ — ให้หน้าจอตรงกับที่บันทึกขึ้นคลาวด์ได้จริง)
@@ -18710,6 +18699,50 @@ function setupIosDatePickers() {
 
 document.addEventListener('DOMContentLoaded', () => {
     try { setupIosDatePickers(); } catch (err) { console.error('Date picker setup failed:', err); }
+});
+
+// ==================== ปุ่ม ✕ ล้างข้อความในช่องค้นหาทุกช่อง (owner 2026-10-15) ====================
+// ช่องใน .search-box หรือ placeholder มีคำว่า "ค้นหา" — กด ✕ = ลบข้อความแล้วยิง input/change เหมือนลบเอง (ผลค้นหา/ตัวเลือกอัปเดตตาม)
+const SEARCH_CLEAR_SEL = '.search-box input[type="text"]:not(.price-cost-name), input[type="text"][placeholder*="ค้นหา"], input[type="search"]';
+function attachSearchClear(input) {
+    if (input._clearBtn) return;
+    let host = input.closest('.search-box');
+    if (!host) {
+        host = document.createElement('span');
+        host.className = 'search-clear-wrap';
+        input.parentNode.insertBefore(host, input);
+        host.appendChild(input);
+    }
+    host.classList.add('has-clear');
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'search-clear-btn';
+    btn.title = 'ล้างคำค้นหา';
+    btn.setAttribute('aria-label', 'ล้างคำค้นหา');
+    btn.innerHTML = icon('xmark', 'slate');
+    input._clearBtn = btn;
+    const update = () => btn.classList.toggle('is-shown', !!input.value && !input.disabled && !input.readOnly);
+    btn.addEventListener('mousedown', e => e.preventDefault()); // ไม่ให้ช่องหลุดโฟกัส (dropdown ค้นหายังเปิดอยู่)
+    btn.addEventListener('click', () => {
+        input.value = '';
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        input.focus();
+    });
+    input.addEventListener('input', update);
+    // โค้ดที่ตั้ง input.value ตรง ๆ (เปิดหน้าต่างใหม่/เลือกจากรายการ) → ซ่อน/แสดงปุ่มตาม
+    const desc = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+    Object.defineProperty(input, 'value', { configurable: true, get() { return desc.get.call(this); }, set(v) { desc.set.call(this, v); update(); } });
+    host.appendChild(btn);
+    update();
+}
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll(SEARCH_CLEAR_SEL).forEach(attachSearchClear);
+    new MutationObserver(records => records.forEach(r => r.addedNodes.forEach(n => {
+        if (n.nodeType !== 1) return;
+        if (n.matches && n.matches(SEARCH_CLEAR_SEL)) attachSearchClear(n);
+        if (n.querySelectorAll) n.querySelectorAll(SEARCH_CLEAR_SEL).forEach(attachSearchClear);
+    }))).observe(document.body, { childList: true, subtree: true });
 });
 
 // ==================== กราฟวงกลมในแดชบอร์ด: สัญชาติคนงาน + สถานะงาน ====================

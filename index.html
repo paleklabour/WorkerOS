@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261015e">
+    <link rel="stylesheet" href="styles.css?v=20261015f">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -1488,7 +1488,7 @@
                                 <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); padding: 20px;">
                                     <h4 style="font-size: 14.5px; font-weight: 600; margin-bottom: 8px; color: var(--navy-dark);">1. ส่งออกข้อมูลสำรอง (Export Backup File)</h4>
                                     <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px; line-height: 1.5;">
-                                        <strong>สำรองทั้งระบบ (แนะนำ)</strong> — ข้อมูลทุกอย่าง (นายจ้าง, คนงาน, งาน, บัญชีธนาคาร, Agent, รายจ่าย, บิลอิสระ, กลุ่ม LINE) พร้อมไฟล์เอกสารและรูปทุกไฟล์ รวมเป็นไฟล์ ZIP เดียว ใช้เวลานานขึ้นตามจำนวนไฟล์<br>
+                                        <strong>สำรองทั้งระบบ (แนะนำ)</strong> — ข้อมูลทุกอย่าง (นายจ้าง, คนงาน, งาน, บัญชีธนาคาร, Agent, รายจ่าย, บิลอิสระ) พร้อมไฟล์เอกสารและรูปทุกไฟล์ รวมเป็นไฟล์ ZIP เดียว ใช้เวลานานขึ้นตามจำนวนไฟล์<br>
                                         <strong>เฉพาะข้อมูล</strong> — ไฟล์ .json เล็กและเร็ว แต่เก็บแค่ลิงก์เอกสาร ไม่มีไฟล์จริง
                                     </p>
                                     <div class="backup-actions">
@@ -3495,7 +3495,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261015e"></script>
+    <script src="supabase-client.js?v=20261015f"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3506,6 +3506,6 @@
     </script>
 
     <!-- Application Script -->
-    <script src="app.js?v=20261015e"></script>
+    <script src="app.js?v=20261015f"></script>
 </body>
 </html>
