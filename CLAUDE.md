@@ -205,7 +205,7 @@ change permissions only in `PERMS` in `app.js` and check with `can('…')` /
 `is_internal()` / `can_finance()` / `can_ops()` (migration
 `20261002042034_roles_gm_am_om_staff.sql`) — update both sides together.
 The bell is per role (`buildNotificationGroups`); missing worker documents
-must not alert anyone.
+must not alert anyone, and neither do expiring/expired worker documents — no bell item for any role (owner, 2026-10-14).
 
 User photos (2026-10-13): `profiles.avatar_url`. Admin sets anyone's photo in the user
 form (saved via `updateUserProfile`); every user changes their own by clicking their

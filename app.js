@@ -2829,14 +2829,7 @@ function buildNotificationGroups() {
                 .map(j => bellJobItem(j, `ปิดเมื่อ ${formatThaiDate(j.closedAt, true)}${j.closedBy ? ` โดย ${getUserNameById(j.closedBy)}` : ''}`)) });
     }
 
-    // ---------- เอกสารคนงานใกล้หมดอายุ / หมดอายุ (Admin, Operation Manager) — ไม่รวม "ยังไม่ได้แนบเอกสาร" ----------
-    if (opsAll) {
-        add({ key: 'expiry', icon: 'warn', title: 'เอกสารคนงานใกล้หมดอายุ / หมดอายุแล้ว', view: 'renewals',
-            items: calculateDeadlines().sort((a, b) => a.daysLeft - b.daysLeft).map(a => ({
-                text: a.title, sub: `${a.message.replace(/^คนงาน: /, '')} • ${a.empName}`,
-                action: a.target && a.target.id ? `openWorkerModal('${a.target.id}')` : `switchView('renewals')`
-            })) });
-    }
+    // เอกสารคนงานใกล้หมดอายุ / หมดอายุ: ไม่ขึ้นที่กระดิ่งแล้ว ทุกตำแหน่ง (owner, 2026-10-14) — ดูได้ที่หน้าต่ออายุ/แจ้งเตือนในแดชบอร์ด
 
     // ---------- บิลและการเงิน (Admin, Account Manager) ----------
     if (can('finance')) {
