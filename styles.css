@@ -7061,7 +7061,8 @@ th.sortable-th:hover::after { opacity: 0.8; }
 .cal-day.has-note .cal-note::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--gold-primary); margin-right: 5px; vertical-align: 1px; }
 .cal-editor h3 { font-size: 16px; font-weight: 600; color: var(--navy-dark); }
 .cal-editor-hint { font-size: 13px; margin: 2px 0 10px; }
-.cal-editor textarea {
+.cal-editor textarea,
+.cal-form textarea {
     width: 100%;
     resize: vertical;
     padding: 10px 12px;
@@ -7072,7 +7073,7 @@ th.sortable-th:hover::after { opacity: 0.8; }
     background: var(--dk-card, #ffffff);
     color: var(--text-dark);
 }
-.cal-editor textarea:focus { outline: none; border-color: var(--gold-primary); box-shadow: 0 0 0 3px rgba(45, 79, 163, 0.12); }
+.cal-editor textarea:focus, .cal-form textarea:focus { outline: none; border-color: var(--gold-primary); box-shadow: 0 0 0 3px rgba(45, 79, 163, 0.12); }
 .cal-editor-foot { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
 .cal-editor-foot > span { flex: 1; font-size: 13px; }
 .cal-upcoming-title { margin: 20px 0 8px; font-size: 13.5px; font-weight: 600; color: var(--navy-dark); }
@@ -7128,7 +7129,16 @@ th.sortable-th:hover::after { opacity: 0.8; }
 .cal-day-note-body { flex: 1; min-width: 0; }
 .cal-day-note-body p { margin: 0; font-size: 13px; color: var(--text-dark); word-break: break-word; white-space: pre-wrap; }
 .cal-day-note-body small { font-size: 12.5px; color: var(--text-muted); }
-.cal-form { border-top: 1px solid var(--dk-line, #e5e7eb); padding-top: 12px; }
+/* หน้าต่างใส่โน้ต (#cal-note-modal) + กด/ลากวันในปฏิทิน (owner 2026-10-15) */
+.cal-note-modal-content { max-width: 460px; }
+.cal-note-modal-content .modal-header h3 small { margin-left: 6px; font-size: 13.5px; font-weight: 500; color: var(--text-muted); }
+.cal-form { display: flex; flex-direction: column; }
+.cal-note-counter { align-self: flex-end; margin-top: 4px; font-size: 13px; }
+.cal-note-modal-foot { display: flex; justify-content: flex-end; gap: 8px; }
+.cal-add-btn { width: 100%; justify-content: center; }
+.cal-grid { touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+.cal-grid-hint { margin: 10px 2px 0; font-size: 13px; }
+.cal-day.is-dragsel { background: var(--gold-light); border-color: var(--gold-primary); }
 .cal-time-label { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 13px; color: var(--text-muted); }
 .cal-time-label input {
     padding: 6px 10px;
@@ -7263,6 +7273,99 @@ html.is-resizing *, html.is-resizing *::before, html.is-resizing *::after { tran
 .job-worker-tabs { margin-bottom: 8px; }
 .job-worker-tab-count { color: var(--dk-muted, var(--text-muted)); font-weight: 500; }
 .job-worker-notify-tag { font-size: 12.5px; padding: 1px 6px; margin-left: 4px; vertical-align: middle; }
+
+/* ==================== คัมบังระบบแจ้งงาน (renderJobsKanban) — สีจากตัวแปรธีม ไม่เขียนสีตายตัวใน HTML/JS (2026-10-15) ==================== */
+.kanban-board {
+    display: flex;
+    gap: 16px;
+    overflow-x: auto;
+    padding-bottom: 16px;
+}
+.kanban-column {
+    flex: 1;
+    min-width: 250px;
+    display: flex;
+    flex-direction: column;
+    height: fit-content;
+    max-height: calc(100vh - 260px);
+    background-color: var(--dk-subtle, #f8fafc);
+    border: 1px solid var(--card-border, #e2e8f0);
+    border-radius: var(--radius-md);
+}
+.kanban-column-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--dk-line, #e2e8f0);
+}
+.kanban-column-header h4 { margin: 0; font-size: 14px; font-weight: 600; color: var(--navy-dark); }
+.kanban-column-header .badge { font-size: 12.5px; padding: 2px 9px; }
+.kanban-head-badges { display: flex; gap: 4px; align-items: center; }
+.kanban-cards-container {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 200px;
+    padding: 12px;
+    overflow-y: auto;
+}
+
+.kanban-card {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    padding: 12px 14px;
+    background-color: var(--dk-card, #ffffff);
+    border: 1px solid var(--dk-line, #e2e8f0);
+    border-radius: 14px;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+    cursor: grab;
+}
+.kanban-card.is-closed-unpaid {
+    background-color: var(--dk-bad-bg, #fef2f2);
+    border-color: var(--dk-bad, #fca5a5);
+}
+.kc-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.kc-no { font-size: 13px; font-weight: 700; color: var(--gold-primary); }
+.kc-badge { font-size: 12.5px; padding: 1px 8px; }
+.kc-billed { background-color: #3b82f6; color: #ffffff; }
+.kc-worker { font-size: 14px; font-weight: 600; line-height: 1.4; color: var(--navy-dark); }
+.kc-sub { font-size: 13px; color: var(--text-muted); }
+.kc-faint { font-size: 12.5px; color: var(--text-muted); opacity: 0.85; }
+.kc-uid { margin-top: -4px; }
+.kc-batch { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; font-size: 12.5px; color: var(--gold-primary); }
+.kc-batch span { display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px; border-radius: 8px; background-color: var(--gold-light); }
+.kc-batch i { width: 6px; height: 6px; border-radius: 50%; }
+.kc-batch i.is-open { background-color: #f59e0b; }
+.kc-batch i.is-done { background-color: #22c55e; }
+.kc-foot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+    padding-top: 8px;
+    border-top: 1px solid var(--dk-line, #f1f5f9);
+}
+.kc-fee { font-size: 14px; font-weight: 700; color: var(--navy-dark); white-space: nowrap; }
+.kc-foot-right { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.kc-actions { display: flex; gap: 2px; margin-left: 4px; }
+.kc-actions button {
+    width: 30px;
+    height: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    cursor: pointer;
+}
+.kc-actions button:hover { background-color: var(--dk-subtle, #f1f5f9); }
 
 /* ======================================================================================================
    ระบบธีม (รวมไว้ที่เดียว 2026-10-14) — Liquid Glass + โหมดสบายตา + มุมโค้งแคปซูล ใช้ร่วมทั้ง 3 ธีม
@@ -7646,6 +7749,33 @@ body::before {
     background-color: rgba(255, 255, 255, 0.06);
     border-color: rgba(255, 255, 255, 0.12);
 }
+
+/* ---------- คัมบังในธีมมืด: โทนสงบไม่แสบตา (owner 2026-10-15) ----------
+   คอลัมน์พื้นจางเกือบกลืนพื้นหลัง, การ์ดพื้นทึบเทาเข้ม, ตัวเลขนับในหัวคอลัมน์เป็นสีกลาง,
+   ป้ายสถานะ/ชำระเงินลดความสด, การ์ด "ปิดงานแล้วยังไม่ชำระ" ใช้แถบแดงซ้ายแทนพื้นแดงทั้งใบ */
+:root[data-theme="dark"] .kanban-column { background-color: rgba(255, 255, 255, 0.025); border-color: rgba(255, 255, 255, 0.05); }
+:root[data-theme="dark"] .kanban-column-header { border-bottom-color: rgba(255, 255, 255, 0.05); }
+:root[data-theme="dark"] .kanban-column-header h4 { color: #c3c9d6; }
+:root[data-theme="dark"] .kanban-column-header .badge:not(#count-kanban-completed-unbilled) { background-color: var(--calm-bg); color: var(--calm-ink); border-color: transparent; }
+:root[data-theme="dark"] .kanban-card {
+    background-color: #1c2130;
+    border-color: rgba(255, 255, 255, 0.05);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+:root[data-theme="dark"] .kanban-card.is-closed-unpaid {
+    background-color: #1c2130;
+    border-color: rgba(255, 255, 255, 0.05);
+    box-shadow: inset 3px 0 0 #c96a6a, 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+:root[data-theme="dark"] .kc-no { color: #8fa9e6; }
+:root[data-theme="dark"] .kc-worker,
+:root[data-theme="dark"] .kc-fee { color: #dfe3ec; }
+:root[data-theme="dark"] .kanban-board .kc-badge { background-color: rgba(255, 255, 255, 0.06); color: #b8bfcd; border-color: transparent; }
+:root[data-theme="dark"] .kanban-board .kc-badge.badge-danger { background-color: rgba(201, 106, 106, 0.14); color: #e3a3a3; }
+:root[data-theme="dark"] .kanban-board .kc-badge.badge-warning { background-color: rgba(224, 180, 94, 0.12); color: #d9bd85; }
+:root[data-theme="dark"] .kanban-board .kc-badge .ico { opacity: 0.8; }
+:root[data-theme="dark"] .kc-batch { color: #9fb2de; }
+:root[data-theme="dark"] .kc-batch span { background-color: rgba(255, 255, 255, 0.05); }
 
 /* ---------- โหมดสบายตา: ป้ายทั่วไปสีกลาง, ข้อมูลรองจาง, แถวสลับสีจางมาก ---------- */
 :root .badge-success,

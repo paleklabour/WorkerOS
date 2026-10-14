@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261015c">
+    <link rel="stylesheet" href="styles.css?v=20261015d">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -825,47 +825,47 @@
 
                         <!-- Kanban Board Container -->
                         <div id="jobs-kanban-container" class="kanban-board-wrapper hidden" style="margin-top: 10px; min-height: 500px;">
-                            <div class="kanban-board" style="display: flex; gap: 16px; overflow-x: auto; padding-bottom: 16px;">
+                            <div class="kanban-board">
                                 <!-- Column: Waiting for Docs -->
-                                <div class="kanban-column" style="flex: 1; min-width: 250px; background: #f8fafc; border-radius: var(--radius-md); border: 1px solid #e2e8f0; display: flex; flex-direction: column; height: fit-content; max-height: calc(100vh - 260px);">
-                                    <div class="kanban-column-header" style="padding: 12px; border-bottom: 2px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f1f5f9; border-top-left-radius: var(--radius-md); border-top-right-radius: var(--radius-md);">
-                                        <h4 style="font-weight: 600; font-size: 13.5px; color: #475569; margin: 0;"><span class="ico" data-icon="folder"></span> รอเอกสาร</h4>
-                                        <span class="badge badge-danger" id="count-kanban-docs" style="font-size: 12.5px; padding: 2px 8px;">0</span>
+                                <div class="kanban-column">
+                                    <div class="kanban-column-header">
+                                        <h4><span class="ico" data-icon="folder"></span> รอเอกสาร</h4>
+                                        <span class="badge badge-danger" id="count-kanban-docs">0</span>
                                     </div>
-                                    <div class="kanban-cards-container" id="kanban-docs" ondragover="onKanbanDragOver(event)" ondrop="onKanbanDrop(event, 'รอเอกสารเพิ่มเติม')" style="padding: 12px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-height: 200px; flex-grow: 1;">
+                                    <div class="kanban-cards-container" id="kanban-docs" ondragover="onKanbanDragOver(event)" ondrop="onKanbanDrop(event, 'รอเอกสารเพิ่มเติม')">
                                     </div>
                                 </div>
 
                                 <!-- Column: Pending -->
-                                <div class="kanban-column" style="flex: 1; min-width: 250px; background: #f8fafc; border-radius: var(--radius-md); border: 1px solid #e2e8f0; display: flex; flex-direction: column; height: fit-content; max-height: calc(100vh - 260px);">
-                                    <div class="kanban-column-header" style="padding: 12px; border-bottom: 2px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f1f5f9; border-top-left-radius: var(--radius-md); border-top-right-radius: var(--radius-md);">
-                                        <h4 style="font-weight: 600; font-size: 13.5px; color: #475569; margin: 0;"><span class="ico" data-icon="hourglass"></span> รอดำเนินการ</h4>
-                                        <span class="badge badge-warning" id="count-kanban-pending" style="font-size: 12.5px; padding: 2px 8px;">0</span>
+                                <div class="kanban-column">
+                                    <div class="kanban-column-header">
+                                        <h4><span class="ico" data-icon="hourglass"></span> รอดำเนินการ</h4>
+                                        <span class="badge badge-warning" id="count-kanban-pending">0</span>
                                     </div>
-                                    <div class="kanban-cards-container" id="kanban-pending" ondragover="onKanbanDragOver(event)" ondrop="onKanbanDrop(event, 'รอดำเนินการ')" style="padding: 12px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-height: 200px; flex-grow: 1;">
+                                    <div class="kanban-cards-container" id="kanban-pending" ondragover="onKanbanDragOver(event)" ondrop="onKanbanDrop(event, 'รอดำเนินการ')">
                                     </div>
                                 </div>
 
                                 <!-- Column: In Progress -->
-                                <div class="kanban-column" style="flex: 1; min-width: 250px; background: #f8fafc; border-radius: var(--radius-md); border: 1px solid #e2e8f0; display: flex; flex-direction: column; height: fit-content; max-height: calc(100vh - 260px);">
-                                    <div class="kanban-column-header" style="padding: 12px; border-bottom: 2px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f1f5f9; border-top-left-radius: var(--radius-md); border-top-right-radius: var(--radius-md);">
-                                        <h4 style="font-weight: 600; font-size: 13.5px; color: #475569; margin: 0;"><span class="ico" data-icon="settings"></span> กำลังดำเนินการ</h4>
-                                        <span class="badge badge-gold" id="count-kanban-progress" style="font-size: 12.5px; padding: 2px 8px;">0</span>
+                                <div class="kanban-column">
+                                    <div class="kanban-column-header">
+                                        <h4><span class="ico" data-icon="settings"></span> กำลังดำเนินการ</h4>
+                                        <span class="badge badge-gold" id="count-kanban-progress">0</span>
                                     </div>
-                                    <div class="kanban-cards-container" id="kanban-progress" ondragover="onKanbanDragOver(event)" ondrop="onKanbanDrop(event, 'กำลังดำเนินการ')" style="padding: 12px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-height: 200px; flex-grow: 1;">
+                                    <div class="kanban-cards-container" id="kanban-progress" ondragover="onKanbanDragOver(event)" ondrop="onKanbanDrop(event, 'กำลังดำเนินการ')">
                                     </div>
                                 </div>
 
                                 <!-- Column: Closed (ปิดงานแล้ว — เข้าได้เฉพาะผ่านปุ่ม "ปิดงาน" ที่แนบเอกสาร ลากเข้ามาตรงๆ ไม่ได้) -->
-                                <div class="kanban-column" style="flex: 1; min-width: 250px; background: #f8fafc; border-radius: var(--radius-md); border: 1px solid #e2e8f0; display: flex; flex-direction: column; height: fit-content; max-height: calc(100vh - 260px);">
-                                    <div class="kanban-column-header" style="padding: 12px; border-bottom: 2px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f1f5f9; border-top-left-radius: var(--radius-md); border-top-right-radius: var(--radius-md);">
-                                        <h4 style="font-weight: 600; font-size: 13.5px; color: #475569; margin: 0;" title="เข้าคอลัมน์นี้ได้เฉพาะผ่านปุ่ม ปิดงาน (ต้องแนบเอกสารก่อน) — งานที่ปิดแล้วและลูกค้าชำระเงินครบแล้วจะถูกซ่อนออกจากคอลัมน์นี้อัตโนมัติ (ดูย้อนหลังได้ที่หน้ารายการหรือแท็บออกบิล/รับเงิน)"><span class="ico" data-icon="lock"></span> ปิดงานแล้ว</h4>
-                                        <div style="display: flex; gap: 4px; align-items: center;">
-                                            <span class="badge badge-danger" id="count-kanban-completed-unbilled" style="font-size: 12.5px; padding: 2px 6px; display: none;" title="ปิดงานแล้วแต่ยังไม่ได้รับชำระเงิน (ไม่ว่าจะออกบิลไปแล้วหรือยัง) — หายไปเมื่อลูกค้าชำระครบแล้ว"><span class="ico" data-icon="warn"></span> 0 ยังไม่ได้ชำระ</span>
-                                            <span class="badge badge-success" id="count-kanban-completed" style="font-size: 12.5px; padding: 2px 8px;">0</span>
+                                <div class="kanban-column">
+                                    <div class="kanban-column-header">
+                                        <h4 title="เข้าคอลัมน์นี้ได้เฉพาะผ่านปุ่ม ปิดงาน (ต้องแนบเอกสารก่อน) — งานที่ปิดแล้วและลูกค้าชำระเงินครบแล้วจะถูกซ่อนออกจากคอลัมน์นี้อัตโนมัติ (ดูย้อนหลังได้ที่หน้ารายการหรือแท็บออกบิล/รับเงิน)"><span class="ico" data-icon="lock"></span> ปิดงานแล้ว</h4>
+                                        <div class="kanban-head-badges">
+                                            <span class="badge badge-danger" id="count-kanban-completed-unbilled" style="display: none;" title="ปิดงานแล้วแต่ยังไม่ได้รับชำระเงิน (ไม่ว่าจะออกบิลไปแล้วหรือยัง) — หายไปเมื่อลูกค้าชำระครบแล้ว"><span class="ico" data-icon="warn"></span> 0 ยังไม่ได้ชำระ</span>
+                                            <span class="badge badge-success" id="count-kanban-completed">0</span>
                                         </div>
                                     </div>
-                                    <div class="kanban-cards-container" id="kanban-completed" ondragover="onKanbanDragOver(event)" ondrop="onKanbanDrop(event, 'ปิดงานแล้ว')" style="padding: 12px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-height: 200px; flex-grow: 1;">
+                                    <div class="kanban-cards-container" id="kanban-completed" ondragover="onKanbanDragOver(event)" ondrop="onKanbanDrop(event, 'ปิดงานแล้ว')">
                                     </div>
                                 </div>
                             </div>
@@ -936,26 +936,14 @@
                                 </div>
                                 <div class="cal-weekdays"><span>อา</span><span>จ</span><span>อ</span><span>พ</span><span>พฤ</span><span>ศ</span><span>ส</span></div>
                                 <div class="cal-grid" id="cal-grid"></div>
+                                <p class="text-muted cal-grid-hint">กดวันเพื่อเพิ่มโน้ต • กดค้างแล้วลากหลายวันสำหรับโน้ตหลายวัน (เช่น ลา) • เลื่อนลูกกลิ้งเมาส์บนปฏิทินเพื่อเปลี่ยนเดือน</p>
                             </div>
                             <div class="panel cal-editor">
                                 <h3 id="cal-editor-date"></h3>
                                 <p class="cal-editor-holiday hidden" id="cal-editor-holiday"></p>
                                 <p class="text-muted cal-editor-hint">โน้ตของทีม — ผู้ใช้ภายในทุกคนเห็นและแก้ไขร่วมกัน</p>
                                 <div id="cal-day-notes" class="cal-day-notes"></div>
-                                <div class="cal-form">
-                                    <!-- หลายวัน (เช่น คนลา): เลือก "ถึง" — เว้นว่าง = วันเดียว -->
-                                    <div class="cal-range-row">
-                                        <label class="cal-time-label">ตั้งแต่ <input type="date" id="cal-note-start" onchange="syncCalendarEndMin()" title="วันแรกของโน้ต"></label>
-                                        <label class="cal-time-label">ถึง <input type="date" id="cal-note-end" title="วันสุดท้าย (เว้นว่าง = วันเดียว เช่น ลา 3 วันเลือกวันที่ 3)"></label>
-                                    </div>
-                                    <label class="cal-time-label">เวลา <input type="time" id="cal-note-time" title="เวลาของโน้ต (เว้นว่าง = ทั้งวัน)"></label>
-                                    <textarea id="cal-note-input" maxlength="200" rows="3" placeholder="จดโน้ตของวันนี้ (ไม่เกิน 200 ตัวอักษร)" oninput="updateCalendarNoteCounter()"></textarea>
-                                    <div class="cal-editor-foot">
-                                        <span class="text-muted" id="cal-note-counter">0/200</span>
-                                        <button type="button" class="btn btn-sm btn-outline hidden" id="btn-cal-note-cancel" onclick="cancelCalendarEdit()" title="ยกเลิกการแก้ไขโน้ต">ยกเลิก</button>
-                                        <button type="button" class="btn btn-sm btn-gold" id="btn-cal-note-save" onclick="saveCalendarNote()" title="บันทึกโน้ตของวันที่เลือก">เพิ่มโน้ต</button>
-                                    </div>
-                                </div>
+                                <button type="button" class="btn btn-sm btn-gold cal-add-btn" onclick="openCalendarNoteModal(calendarSelected, calendarSelected)" title="เพิ่มโน้ตของวันที่เลือก (หรือกด/ลากวันในปฏิทิน)">+ เพิ่มโน้ต</button>
                                 <h4 class="cal-upcoming-title">โน้ตที่กำลังจะถึง</h4>
                                 <div id="cal-upcoming"></div>
                                 <h4 class="cal-upcoming-title">วันหยุดราชการถัดไป</h4>
@@ -3190,6 +3178,30 @@
             </div>
         </div>
 
+        <!-- ==================== MODAL: โน้ตปฏิทินทีม (กด/ลากวันในปฏิทิน → openCalendarNoteModal) ==================== -->
+        <div id="cal-note-modal" class="modal-backdrop hidden" onclick="if (event.target === this) closeCalendarNoteModal()">
+            <div class="modal-content cal-note-modal-content">
+                <div class="modal-header">
+                    <h3 id="cal-note-modal-title"><span class="ico" data-icon="calendar"></span> เพิ่มโน้ต</h3>
+                    <button class="close-btn" title="ปิดหน้าต่าง" onclick="closeCalendarNoteModal()">&times;</button>
+                </div>
+                <div class="modal-body cal-form">
+                    <!-- หลายวัน (เช่น คนลา): ลากวันในปฏิทิน หรือเลือก "ถึง" — เว้นว่าง = วันเดียว -->
+                    <div class="cal-range-row">
+                        <label class="cal-time-label">ตั้งแต่ <input type="date" id="cal-note-start" onchange="syncCalendarEndMin()" title="วันแรกของโน้ต"></label>
+                        <label class="cal-time-label">ถึง <input type="date" id="cal-note-end" title="วันสุดท้าย (เว้นว่าง = วันเดียว เช่น ลา 3 วันเลือกวันที่ 3)"></label>
+                    </div>
+                    <label class="cal-time-label">เวลา <input type="time" id="cal-note-time" title="เวลาของโน้ต (เว้นว่าง = ทั้งวัน)"></label>
+                    <textarea id="cal-note-input" maxlength="200" rows="4" placeholder="จดโน้ต (ไม่เกิน 200 ตัวอักษร)" oninput="updateCalendarNoteCounter()" onkeydown="if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) saveCalendarNote()"></textarea>
+                    <span class="text-muted cal-note-counter" id="cal-note-counter">0/200</span>
+                </div>
+                <div class="modal-footer cal-note-modal-foot">
+                    <button type="button" class="btn btn-outline" id="btn-cal-note-cancel" onclick="cancelCalendarEdit()" title="ปิดโดยไม่บันทึก">ยกเลิก</button>
+                    <button type="button" class="btn btn-gold" id="btn-cal-note-save" onclick="saveCalendarNote()" title="บันทึกโน้ต (Ctrl+Enter)">เพิ่มโน้ต</button>
+                </div>
+            </div>
+        </div>
+
         <!-- ==================== MODAL: WORKER DOCUMENTS FOLDER ==================== -->
         <!-- ==================== MODAL: CUSTOMER (นายจ้าง/ลูกค้าผู้ว่าจ้าง) DOCUMENTS FOLDER ==================== -->
         <div id="customer-folder-modal" class="modal-backdrop hidden" style="z-index: 1050;">
@@ -3483,7 +3495,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261015c"></script>
+    <script src="supabase-client.js?v=20261015d"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3494,6 +3506,6 @@
     </script>
 
     <!-- Application Script -->
-    <script src="app.js?v=20261015c"></script>
+    <script src="app.js?v=20261015d"></script>
 </body>
 </html>

@@ -9047,8 +9047,6 @@ function selectCalendarDay(key) {
         calendarMonth = new Date(d.getFullYear(), d.getMonth(), 1);
     }
     renderCalendarNotes();
-    const input = document.getElementById('cal-note-input');
-    if (input) input.focus();
 }
 
 // ฟอร์มว่าง: "ตั้งแต่" = วันที่เลือกในปฏิทิน, "ถึง" ว่าง (= วันเดียว)
@@ -9086,7 +9084,8 @@ function renderCalendarNotes() {
             list.length ? 'has-note' : '', hol ? 'is-holiday' : '', (d.getDay() === 0 || d.getDay() === 6) ? 'is-weekend' : ''].filter(Boolean).join(' ');
         const tip = [hol, ...list.map(n => `${n.time ? n.time + ' ' : ''}${n.note}${n.endDate ? ` (${calRangeLabel(n)})` : ''}`)].filter(Boolean).join('\n');
         const shown = list.slice(0, 2).map(n => `<span class="cal-note${n.endDate ? ' is-range' : ''}">${n.time ? `<b>${n.time}</b> ` : ''}${escapeHtml(n.note)}</span>`).join('');
-        html += `<button type="button" class="${cls}" onclick="selectCalendarDay('${k}')" ${tip ? `title="${escapeHtml(tip)}"` : ''}>
+        const inDrag = calDrag && calDrag.moved && k >= (calDrag.a < calDrag.b ? calDrag.a : calDrag.b) && k <= (calDrag.a < calDrag.b ? calDrag.b : calDrag.a);
+        html += `<button type="button" class="${cls}${inDrag ? ' is-dragsel' : ''}" data-k="${k}" ${tip ? `title="${escapeHtml(tip)}"` : ''}>
             <span class="cal-num">${d.getDate()}</span>${hol ? `<span class="cal-holiday">${escapeHtml(hol)}</span>` : ''}${shown}${list.length > 2 ? `<span class="cal-more">+${list.length - 2} รายการ</span>` : ''}</button>`;
     }
     grid.innerHTML = html;
@@ -9109,7 +9108,6 @@ function renderCalendarNotes() {
             </div>`).join('')
             : '<p class="text-muted cal-empty">ยังไม่มีโน้ตของวันนี้</p>';
     document.getElementById('btn-cal-note-save').innerText = calendarEditingId ? 'บันทึกการแก้ไข' : 'เพิ่มโน้ต';
-    document.getElementById('btn-cal-note-cancel').classList.toggle('hidden', !calendarEditingId);
     updateCalendarNoteCounter();
 
     // ที่กำลังจะถึง: โน้ตที่ยังไม่จบ (วันสุดท้าย >= วันนี้) 8 รายการ + วันหยุด 3 วันถัดไป
@@ -9150,13 +9148,102 @@ function editCalendarNote(id) {
     document.getElementById('cal-note-end').value = n.endDate || '';
     syncCalendarEndMin();
     renderCalendarNotes();
-    document.getElementById('cal-note-input').focus();
+    showCalendarNoteModal();
 }
 
 function cancelCalendarEdit() {
+    closeCalendarNoteModal();
+}
+
+// ==================== ปฏิทินทีม: กด/ลากวัน → หน้าต่างใส่โน้ต, ลูกกลิ้งเมาส์ → เปลี่ยนเดือน (owner 2026-10-15) ====================
+let calDrag = null; // { a: วันที่กดลง, b: วันที่ลากมาถึง, moved } ระหว่างลากเลือกหลายวัน
+
+// เปิดหน้าต่างเพิ่มโน้ตของวัน start (ถึง end ถ้าลากหลายวัน)
+function openCalendarNoteModal(start, end) {
+    if (!start) return;
+    selectCalendarDay(start); // แผงข้างแสดงโน้ตของวันนั้น + ล้างฟอร์ม
+    resetCalendarForm();
+    document.getElementById('cal-note-start').value = start;
+    document.getElementById('cal-note-end').value = end && end !== start ? end : '';
+    syncCalendarEndMin();
+    showCalendarNoteModal();
+}
+
+function showCalendarNoteModal() {
+    const s = document.getElementById('cal-note-start').value;
+    const e = document.getElementById('cal-note-end').value;
+    const when = s ? (e ? `${formatThaiDate(calParse(s))} – ${formatThaiDate(calParse(e))}` : calDayLabel(s)) : '';
+    document.getElementById('cal-note-modal-title').innerHTML = `${icon('calendar')} ${calendarEditingId ? 'แก้ไขโน้ต' : 'เพิ่มโน้ต'}${when ? ` <small>${escapeHtml(when)}</small>` : ''}`;
+    document.getElementById('btn-cal-note-save').innerText = calendarEditingId ? 'บันทึกการแก้ไข' : 'เพิ่มโน้ต';
+    updateCalendarNoteCounter();
+    document.getElementById('cal-note-modal').classList.remove('hidden');
+    setTimeout(() => { const t = document.getElementById('cal-note-input'); if (t) t.focus(); }, 50);
+}
+
+// ปิดหน้าต่าง: ล้างฟอร์ม/สถานะแก้ไข (saved = เรียกจาก saveCalendarNote ซึ่งวาดใหม่เองอยู่แล้ว)
+function closeCalendarNoteModal(saved) {
+    const m = document.getElementById('cal-note-modal');
+    if (m) m.classList.add('hidden');
+    if (saved) return;
     resetCalendarForm();
     renderCalendarNotes();
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+    const grid = document.getElementById('cal-grid');
+    if (!grid) return;
+    const keyAt = (x, y) => {
+        const el = document.elementFromPoint(x, y);
+        const cell = el && el.closest && el.closest('#cal-grid .cal-day');
+        return cell ? cell.dataset.k : null;
+    };
+    grid.addEventListener('pointerdown', e => {
+        const cell = e.button === 0 && e.target.closest('.cal-day');
+        if (!cell) return;
+        e.preventDefault(); // ไม่ให้ลากแล้วเลือกข้อความ
+        calDrag = { a: cell.dataset.k, b: cell.dataset.k, moved: false };
+        try { grid.setPointerCapture(e.pointerId); } catch (err) {}
+    });
+    grid.addEventListener('pointermove', e => {
+        if (!calDrag) return;
+        const k = keyAt(e.clientX, e.clientY);
+        if (k && k !== calDrag.b) {
+            calDrag.b = k;
+            calDrag.moved = calDrag.b !== calDrag.a;
+            renderCalendarNotes(); // ไฮไลต์ช่วงวันที่ลากอยู่ (.is-dragsel)
+        }
+    });
+    const finish = e => {
+        if (!calDrag) return;
+        const d = calDrag;
+        calDrag = null;
+        if (e.type === 'pointercancel') { renderCalendarNotes(); return; }
+        const [s, t] = d.a <= d.b ? [d.a, d.b] : [d.b, d.a];
+        openCalendarNoteModal(s, t);
+    };
+    grid.addEventListener('pointerup', finish);
+    grid.addEventListener('pointercancel', finish);
+    // กด Enter/Space บนวัน (คีย์บอร์ด — click ที่ไม่มี pointer มี detail = 0)
+    grid.addEventListener('click', e => {
+        const cell = e.detail === 0 && e.target.closest('.cal-day');
+        if (cell) openCalendarNoteModal(cell.dataset.k, cell.dataset.k);
+    });
+    // ลูกกลิ้งเมาส์บนปฏิทิน = เปลี่ยนเดือน (ลง = เดือนถัดไป) — สะสมระยะเลื่อน กันทัชแพดพลิกหลายเดือนรวด
+    const panel = grid.closest('.cal-panel') || grid;
+    let acc = 0, lockUntil = 0;
+    panel.addEventListener('wheel', e => {
+        if (e.ctrlKey) return; // Ctrl+ลูกกลิ้ง = ซูมหน้าเว็บ
+        e.preventDefault();
+        const now = Date.now();
+        if (now < lockUntil) return;
+        acc += Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+        if (Math.abs(acc) >= 40) {
+            shiftCalendarMonth(acc > 0 ? 1 : -1);
+            acc = 0;
+            lockUntil = now + 260;
+        }
+    }, { passive: false });
+});
 
 async function saveCalendarNote() {
     const input = document.getElementById('cal-note-input');
@@ -9180,6 +9267,7 @@ async function saveCalendarNote() {
     rebuildCalendarIndex();
     const wasEdit = !!calendarEditingId;
     resetCalendarForm();
+    closeCalendarNoteModal(true);
     renderCalendarNotes();
     updateNotificationBell();
     showToast(wasEdit ? "บันทึกการแก้ไขแล้ว" : "เพิ่มโน้ตแล้ว", "success");
@@ -15042,22 +15130,23 @@ function renderJobsKanban(filtered) {
             const isClosedUnpaid = displayStatus === 'ปิดงานแล้ว' && paymentStatus !== 'ชำระเงินแล้ว' && paymentStatus !== JOB_NO_CHARGE;
             if (isClosedUnpaid) closedUnbilledCount++;
 
-            let paymentBadge = `<span class="badge badge-warning" style="font-size: 12.5px; padding: 2px 6px;">${icon("hourglass")} ยังไม่ออกบิล</span>`;
+            // สีของการ์ด/ป้ายมาจาก class ใน styles.css (ตามธีม — ธีมมืดโทนสงบ ไม่แสบตา owner 2026-10-15) ไม่เขียนสีตายตัวในนี้
+            let paymentBadge = `<span class="badge badge-warning kc-badge">${icon("hourglass")} ยังไม่ออกบิล</span>`;
             if (isClosedUnpaid && paymentStatus === 'ยังไม่ออกบิล') {
-                paymentBadge = `<span class="badge badge-danger" style="font-size: 12.5px; padding: 2px 6px;">${icon("warn")} ยังไม่ออกบิล/ยังไม่ชำระ</span>`;
+                paymentBadge = `<span class="badge badge-danger kc-badge">${icon("warn")} ยังไม่ออกบิล/ยังไม่ชำระ</span>`;
             } else if (isClosedUnpaid && paymentStatus === 'ออกบิลแล้ว') {
-                paymentBadge = `<span class="badge badge-danger" style="font-size: 12.5px; padding: 2px 6px;">${icon("warn")} ออกบิลแล้ว รอชำระ</span>`;
+                paymentBadge = `<span class="badge badge-danger kc-badge">${icon("warn")} ออกบิลแล้ว รอชำระ</span>`;
             } else if (paymentStatus === 'ออกบิลแล้ว') {
-                paymentBadge = `<span class="badge" style="font-size: 12.5px; padding: 2px 6px; background-color: #3b82f6; color: white;">${icon("receipt")} ออกบิลแล้ว</span>`;
+                paymentBadge = `<span class="badge kc-badge kc-billed">${icon("receipt")} ออกบิลแล้ว</span>`;
             } else if (paymentStatus === 'ชำระเงินแล้ว') {
-                paymentBadge = `<span class="badge badge-success" style="font-size: 12.5px; padding: 2px 6px;">${icon("ok")} ชำระเงินแล้ว</span>`;
+                paymentBadge = `<span class="badge badge-success kc-badge">${icon("ok")} ชำระเงินแล้ว</span>`;
             } else if (paymentStatus === JOB_NO_CHARGE) {
                 paymentBadge = noChargeBadgeHtml(j);
             }
 
             // นายจ้างบางรายตั้งไว้ว่าต้องออกบิล+รับชำระก่อนถึงจะเริ่ม "กำลังดำเนินการ" ได้ (customers.requirePrepayment)
             const prepaymentBadge = (cust && cust.requirePrepayment && paymentStatus !== 'ชำระเงินแล้ว' && paymentStatus !== JOB_NO_CHARGE)
-                ? `<div style="font-size: 12.5px;"><span class="badge" style="background-color: #fffbeb; color: #92400e; border: 1px solid #fde68a; font-size: 12.5px; padding: 2px 6px;" title="นายจ้าง &quot;${custName}&quot; ตั้งไว้ว่าต้องออกบิลและรับชำระเงินก่อนย้ายเข้ากำลังดำเนินการ">${icon("moneybag")} ต้องออกบิลและรับชำระเงินก่อน</span></div>`
+                ? `<div><span class="badge badge-warning kc-badge" title="นายจ้าง &quot;${custName}&quot; ตั้งไว้ว่าต้องออกบิลและรับชำระเงินก่อนย้ายเข้ากำลังดำเนินการ">${icon("moneybag")} ต้องออกบิลและรับชำระเงินก่อน</span></div>`
                 : '';
 
             let badgeClass = 'badge-gold';
@@ -15068,12 +15157,12 @@ function renderJobsKanban(filtered) {
 
             let actionBtns = "";
             if (canEditJob(j)) {
-                actionBtns += `<button onclick="openJobModal('${j.id}')" style="background: none; border: none; cursor: pointer; font-size: 13.5px;" title="แก้ไขใบงาน">${icon("edit")}</button>`;
+                actionBtns += `<button type="button" onclick="openJobModal('${j.id}')" title="แก้ไขใบงาน">${icon("edit")}</button>`;
             }
             if (displayStatus === 'ปิดงานแล้ว') {
-                actionBtns += `<button onclick="reopenJob('${j.id}')" style="background: none; border: none; cursor: pointer; font-size: 13.5px;" title="เปิดงานอีกครั้ง">${icon("unlock")}</button>`;
+                actionBtns += `<button type="button" onclick="reopenJob('${j.id}')" title="เปิดงานอีกครั้ง">${icon("unlock")}</button>`;
             } else if (canEditJob(j)) {
-                actionBtns += `<button onclick="openJobCloseModal('${j.id}')" style="background: none; border: none; cursor: pointer; font-size: 13.5px;" title="แนบเอกสารและปิดงาน">${icon("clip")}</button>`;
+                actionBtns += `<button type="button" onclick="openJobCloseModal('${j.id}')" title="แนบเอกสารและปิดงาน">${icon("clip")}</button>`;
             }
 
             // Strip prices for clean display of types
@@ -15082,38 +15171,33 @@ function renderJobsKanban(filtered) {
             // ป้ายบอกว่าใบงานนี้ถูกเปิดมาพร้อมกับงานอื่นในชุดเดียวกัน (batch เดียวกัน)
             const siblings = getJobBatchSiblings(j, true); // เฉพาะงานของคนงานคนนี้
             const batchTag = siblings.length > 0
-                ? `<div style="font-size:12.5px; color:#4338ca; display:flex; align-items:center; gap:4px; flex-wrap:wrap;">${icon("clip")} ชุดเดียวกัน (${siblings.length + 1} งาน):
+                ? `<div class="kc-batch">${icon("clip")} ชุดเดียวกัน (${siblings.length + 1} งาน):
                     ${siblings.map(s => {
                         const sClean = (s.jobType || "").replace(/\s*\(\d+\)/g, "");
-                        const dotColor = isJobStatusOpen(s.status) ? '#f59e0b' : '#22c55e';
-                        return `<span title="${sClean}: ${s.status}" style="display:inline-flex; align-items:center; gap:3px; background:#eef2ff; border-radius:8px; padding:1px 6px;"><span style="width:5px;height:5px;border-radius:50%;background:${dotColor};display:inline-block;"></span>${sClean}</span>`;
+                        return `<span title="${sClean}: ${s.status}"><i class="${isJobStatusOpen(s.status) ? 'is-open' : 'is-done'}"></i>${sClean}</span>`;
                     }).join('')}
                    </div>`
                 : '';
 
-            const cardBorder = isClosedUnpaid ? '1px solid #fca5a5' : '1px solid #e2e8f0';
-            const cardBg = isClosedUnpaid ? '#fef2f2' : 'white';
             container.innerHTML += `
-                <div class="kanban-card" draggable="true" ondragstart="onKanbanDragStart(event, '${j.id}')" style="background: ${cardBg}; border-radius: 6px; padding: 12px; border: ${cardBorder}; box-shadow: 0 1px 3px rgba(0,0,0,0.05); cursor: grab; display: flex; flex-direction: column; gap: 8px;">
-                    <div style="display: flex; justify-content: space-between; align-items: start; gap: 8px;">
-                        <span style="font-weight: 700; font-size: 12.5px; color: var(--gold-dark);">${getJobDisplayNo(j)}</span>
-                        <span class="badge badge-sm ${badgeClass}" style="font-size: 12.5px; padding: 1px 6px;">${cleanJobType}</span>
+                <div class="kanban-card${isClosedUnpaid ? ' is-closed-unpaid' : ''}" draggable="true" ondragstart="onKanbanDragStart(event, '${j.id}')">
+                    <div class="kc-top">
+                        <span class="kc-no">${getJobDisplayNo(j)}</span>
+                        <span class="badge badge-sm ${badgeClass} kc-badge">${cleanJobType}</span>
                     </div>
-                    <div style="font-weight: 600; font-size: 13px; color: #1e293b; line-height: 1.4;">${icon("user")} ${workName}</div>
-                    ${work && work.workerUid ? `<div style="font-size: 12.5px; color: #94a3b8; margin-top:-4px;">เลขประจำตัว: ${work.workerUid}</div>` : ''}
-                    <div style="font-size: 13px; color: #64748b;" ${custIdTitle ? `title="${custIdTitle}"` : ''}>${icon("building")} ${custName}</div>
+                    <div class="kc-worker">${icon("user")} ${workName}</div>
+                    ${work && work.workerUid ? `<div class="kc-faint kc-uid">เลขประจำตัว: ${work.workerUid}</div>` : ''}
+                    <div class="kc-sub" ${custIdTitle ? `title="${custIdTitle}"` : ''}>${icon("building")} ${custName}</div>
                     ${prepaymentBadge}
-                    ${jobAgent ? `<div style="font-size: 12.5px; color: #64748b;">${icon("user")} Agent: ${jobAgent.name}</div>` : ''}
-                    <div style="font-size: 12.5px; color: #94a3b8;">${icon("edit")} เปิดงานโดย: ${getUserNameById(j.openedBy)}${j.closedBy ? ` • ${icon("lock")} ปิดโดย: ${getUserNameById(j.closedBy)}` : ''}</div>
-                    ${jobClosedInfoText(j) ? `<div style="font-size: 12.5px; color: #94a3b8;">${icon("calendar")} ${jobClosedInfoText(j)}</div>` : ''}
+                    ${jobAgent ? `<div class="kc-sub">${icon("user")} Agent: ${jobAgent.name}</div>` : ''}
+                    <div class="kc-faint">${icon("edit")} เปิดงานโดย: ${getUserNameById(j.openedBy)}${j.closedBy ? ` • ${icon("lock")} ปิดโดย: ${getUserNameById(j.closedBy)}` : ''}</div>
+                    ${jobClosedInfoText(j) ? `<div class="kc-faint">${icon("calendar")} ${jobClosedInfoText(j)}</div>` : ''}
                     ${batchTag}
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; padding-top: 8px; border-top: 1px solid #f1f5f9;">
-                        <div style="font-size: 13.5px; font-weight: 700; color: #0f172a;">${icon("moneybag")} ${j.fee.toLocaleString()} บ.</div>
-                        <div style="display: flex; gap: 4px; align-items: center;">
+                    <div class="kc-foot">
+                        <div class="kc-fee">${icon("moneybag")} ${j.fee.toLocaleString()} บ.</div>
+                        <div class="kc-foot-right">
                             ${paymentBadge}
-                            <div style="display: flex; gap: 4px; margin-left: 6px;">
-                                ${actionBtns}
-                            </div>
+                            <div class="kc-actions">${actionBtns}</div>
                         </div>
                     </div>
                 </div>

@@ -238,6 +238,9 @@ max 93 days, `calendarNoteList` = real rows, `calendarNotes` = per-day index bui
 table `calendar_notes` with `is_internal()` RLS
 (`user_id` = who wrote it, `updated_by` set by trigger — migration `20261014030000_team_calendar_notes.sql`),
 loaded in the background right after `loadData` succeeds, on opening the page and on tab refocus (`loadCalendarNotes`).
+Adding/editing a note is a pop-up (`#cal-note-modal`, owner 2026-10-15): click a day, or press and drag across days for a
+multi-day note (`calDrag`, pointer events on `#cal-grid`, range highlighted `.is-dragsel`), or "+ เพิ่มโน้ต" in the side
+panel; the mouse wheel over the calendar changes month (accumulated delta, 260 ms lock).
 The bell warns every internal user 2 days ahead (owner, 2026-10-14): group `calnote` = notes dated today / tomorrow /
 the day after (counted), group `holiday` = government holidays in that window (info only).
 Every bell item and group header has a ✕ to dismiss it (owner, 2026-10-14): stored per account in this browser
@@ -262,6 +265,9 @@ Use existing variables (`--gray-card`, `--text-dark`, …), or write
 so it uses the fallback; pink and dark define them at the end of `styles.css`.
 Printed sheets (`.invoice-sheet`, `.delivery-label-sheet`) always stay
 white-paper.
+Kanban (jobs board): colors come from classes (`.kanban-card`, `.kc-*` in `styles.css`), no inline colors in
+`renderJobsKanban`; dark theme tones it down (dim columns, solid dark cards, neutral counts, muted badges, closed-unpaid
+= red left bar instead of a red card) — owner 2026-10-15 found it too glaring.
 Dark theme = iOS "Liquid Glass" (owner, 2026-10-14): the block at the very end of `styles.css` makes `--gray-card` translucent
 (`rgba(34,38,52,.62)`) with `backdrop-filter` on sidebar/cards/tables/modals over a fixed glow background, blue accent
 `#3d7bff`, glass pills for selected items. `--dk-card` stays solid (`#1b1f2c`) for things that must hide what is behind them
