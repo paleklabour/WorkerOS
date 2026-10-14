@@ -3554,7 +3554,9 @@ function renderCustomers() {
             `;
         }
 
-        // ไม่มีปุ่มดินสอ (แก้ไข) แล้ว — ดับเบิลคลิกที่แถวเพื่อเปิดข้อมูล/แก้ไขนายจ้างแทน (เหมือนตารางคนงาน)
+        // ปุ่มดินสอในแถบปุ่มสไลด์ขวา = เปิดข้อมูล/แก้ไขนายจ้าง; ดับเบิลคลิกแถว = ดูรายชื่อลูกจ้างของนายจ้างนี้ (owner, 2026-10-14)
+        // ตำแหน่งที่แก้นายจ้างไม่ได้ (Account Manager) ปุ่มเดิมเปิดดูอย่างเดียว
+        const editBtn = `<button class="action-icon-btn" onclick="openCustomerModal('${c.id}')" title="${can('ops') ? 'แก้ไขข้อมูลนายจ้าง' : 'ดูข้อมูลนายจ้าง'}">${icon("edit")}</button>`;
         const activeWorkersCount = allWorkers().filter(w => w.employerId === c.id && w.status !== 'archived' && w.status !== 'deleted').length;
         const totalWorkersCount = allWorkers().filter(w => w.employerId === c.id && w.status !== 'deleted').length;
 
@@ -3602,7 +3604,7 @@ function renderCustomers() {
         const idPartsHtml = buildEmployerIdLinesHtml(c);
 
         return `
-            <tr class="clickable-row" ondblclick="handleRowDblClick(event) && openCustomerModal('${c.id}')" title="ดับเบิลคลิกเพื่อดูรายละเอียดนายจ้าง">
+            <tr class="clickable-row" ondblclick="handleRowDblClick(event) && filterWorkersByEmployer('${c.id}')" title="ดับเบิลคลิกเพื่อดูข้อมูลลูกจ้างของนายจ้างนี้">
                 <td>${idPartsHtml}</td>
                 <td><strong>${c.companyName}${statusLabel}${prepaymentLabel}</strong></td>
                 <td><div class="bt-badges">${customerBusinessTypes(c).map(t => `<span class="badge badge-lg badge-gold">${escapeHtml(t)}</span>`).join("") || "-"}</div></td>
@@ -3621,6 +3623,7 @@ function renderCustomers() {
                 <td>${referredAgentHtml}</td>
                 <td class="actions-col" onclick="event.stopPropagation()">
                     <div class="actions-cell">
+                        ${editBtn}
                         ${deleteBtn}
                     </div>
                 </td>
