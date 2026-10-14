@@ -269,6 +269,10 @@ Light theme got the same treatment (owner, 2026-10-14): block `:root:not([data-t
 sheets in light pin the old navy `#2d4fa3`. Light was then toned down (bg `#e7eaf0`, cards `#f8f9fb`, owner: too glaring).
 Pink got the same treatment too (pink glass, accent `#d6457a`). In every theme the calm-mode grey badges exclude
 `.job-type-badge` — job-type headings in the jobs table keep their strong navy/gold (owner, 2026-10-14).
+Pink then softened to dusty rose (accent `#b8607f`, bg `#f3eef0`). Pie charts: colors are theme CSS vars — `PIE_CHART_PALETTE` =
+`var(--chart-1..8)` (one-hue ramp per theme) and `chartColor()` maps the old semantic hexes (green/red/amber/grey/navy) to
+`--chart-ok/bad/warn/warn2/muted/1..4`; draw slices with `style="stroke: …"` (SVG attributes don't take `var()`). Login /
+reset-password: glass `.login-card` over the theme glow in every theme, logo with no tile/frame (owner, 2026-10-14).
 
 ## iOS look & widget boards (standing rule, 2026-10)
 
