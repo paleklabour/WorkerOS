@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261014h">
+    <link rel="stylesheet" href="styles.css?v=20261014i">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -3209,7 +3209,7 @@
                 <div class="modal-footer" style="display:flex; gap:8px; flex-wrap:wrap;">
                     <button type="button" class="btn btn-outline" style="flex:1; min-width:200px;" onclick="shareCustomerFolder(activeFolderCustomerId)"><span class="ico" data-icon="link"></span> คัดลอกลิงก์แชร์ทั้งโฟลเดอร์ (ไม่ต้องล็อกอิน)</button>
                     <button type="button" class="btn btn-outline" style="flex:0 0 auto; color:#b91c1c; border-color:#fca5a5;" onclick="revokeCustomerShareLink(activeFolderCustomerId)"><span class="ico" data-icon="ban"></span> ยกเลิกลิงก์</button>
-                    <a class="btn btn-outline needs-admin hidden" id="btn-customer-drive" target="_blank" rel="noopener" title="เปิดแฟ้มนายจ้างนี้ใน Google Drive (ไฟล์สำรอง)"><span class="ico" data-icon="cloud"></span> เปิดใน Google Drive</a>
+                    <a class="btn btn-outline needs-driveView hidden" id="btn-customer-drive" target="_blank" rel="noopener" title="เปิดแฟ้มนายจ้างนี้ใน Google Drive (ไฟล์สำรอง)"><span class="ico" data-icon="cloud"></span> เปิดใน Google Drive</a>
                     <button type="button" class="btn btn-gold" style="width:100%;" onclick="closeCustomerFolderModal()">ปิดหน้าต่าง</button>
                 </div>
             </div>
@@ -3268,7 +3268,7 @@
                     <button type="button" class="btn btn-outline needs-ops" style="flex:1; min-width:150px;" onclick="copyWorkerFolderLink()" id="btn-copy-worker-folder"><span class="ico" data-icon="link"></span> คัดลอกลิงก์เปิดแฟ้มนี้</button>
                     <button type="button" class="btn btn-outline needs-ops" style="flex:1; min-width:200px;" onclick="shareWorkerFolder(activeFolderWorkerId)"><span class="ico" data-icon="link"></span> คัดลอกลิงก์แชร์ทั้งโฟลเดอร์ (ไม่ต้องล็อกอิน)</button>
                     <button type="button" class="btn btn-outline needs-ops" style="flex:0 0 auto; color:#b91c1c; border-color:#fca5a5;" onclick="revokeWorkerShareLink(activeFolderWorkerId)"><span class="ico" data-icon="ban"></span> ยกเลิกลิงก์</button>
-                    <a class="btn btn-outline needs-admin hidden" id="btn-worker-drive" target="_blank" rel="noopener" title="เปิดแฟ้มคนงานนี้ใน Google Drive (ไฟล์สำรอง)"><span class="ico" data-icon="cloud"></span> เปิดใน Google Drive</a>
+                    <a class="btn btn-outline needs-driveView hidden" id="btn-worker-drive" target="_blank" rel="noopener" title="เปิดแฟ้มคนงานนี้ใน Google Drive (ไฟล์สำรอง)"><span class="ico" data-icon="cloud"></span> เปิดใน Google Drive</a>
                     <button type="button" class="btn btn-gold" style="width:100%;" onclick="closeWorkerFolderModal()">ปิดหน้าต่าง</button>
                 </div>
             </div>
@@ -3471,7 +3471,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261014h"></script>
+    <script src="supabase-client.js?v=20261014i"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3482,6 +3482,6 @@
     </script>
 
     <!-- Application Script -->
-    <script src="app.js?v=20261014h"></script>
+    <script src="app.js?v=20261014i"></script>
 </body>
 </html>

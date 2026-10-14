@@ -920,7 +920,7 @@
                 return { status: "success" };
             }
             case "getDriveBackupIndex": {
-                // ไฟล์/โฟลเดอร์ที่สำรองขึ้น Google Drive แล้ว (อ่านได้เฉพาะ admin ตาม RLS) — ใช้ทำปุ่ม "เปิดใน Google Drive"
+                // ไฟล์/โฟลเดอร์ที่สำรองขึ้น Google Drive แล้ว (อ่านได้เฉพาะผู้ใช้ภายใน ตาม RLS is_internal()) — ใช้ทำปุ่ม "เปิดใน Google Drive"
                 // ดึงทีละ 1000 แถวจนครบ (PostgREST คืนได้ครั้งละไม่เกิน 1000 แถว)
                 const all = async (q) => {
                     const out = [];

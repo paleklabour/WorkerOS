@@ -1141,6 +1141,7 @@ const PERMS = {
     assignJobs:   ['admin', 'operation_manager'],                   // มอบหมายผู้รับผิดชอบ + แก้ใบงานทุกใบ
     manageAgents: ['admin', 'account_manager', 'operation_manager'],
     deleteFiles:  ['admin', 'operation_manager'],                   // ลบไฟล์เอกสารในแฟ้ม (Storage)
+    driveView:    ['admin', 'account_manager', 'operation_manager', 'staff'], // ปุ่ม "เปิดใน Google Drive" ในแฟ้มคนงาน/นายจ้าง (owner, 2026-10-14)
     admin:        ['admin']                                         // ลบข้อมูล จัดการผู้ใช้ สำรอง/กู้คืน
 };
 
@@ -13086,14 +13087,14 @@ async function moveWorkerFileExpiryState(e, markExpired) {
     }
 }
 
-// ==================== ปุ่ม "เปิดใน Google Drive" (เฉพาะ Admin — Drive สำรองเป็นของเจ้าของระบบ) ====================
+// ==================== ปุ่ม "เปิดใน Google Drive" (ผู้ใช้ภายในทุกตำแหน่ง ยกเว้นลูกค้า — can('driveView')) ====================
 // จับคู่ไฟล์ในระบบกับไฟล์สำรองด้วย path ใน Storage (คีย์เดียวกับ supabase/functions/drive-backup: drive_backup_files.source_key)
 // โหลดครั้งแรกตอนเปิดแฟ้ม แล้วรีเฟรชอย่างมากทุก 5 นาที; ยังไม่สำรอง/ยังไม่ตั้งค่า Drive = ไม่มีปุ่ม
 let driveBackupIndex = null; // { files: Map(path → drive_id), folders: Map(key → drive_id), at }
 let _driveIndexLoading = null;
 
 function loadDriveBackupIndex() {
-    if (!can('admin') || !window.supabaseAdapter) return Promise.resolve(null);
+    if (!can('driveView') || !window.supabaseAdapter) return Promise.resolve(null);
     if (driveBackupIndex && Date.now() - driveBackupIndex.at < 5 * 60 * 1000) return Promise.resolve(driveBackupIndex);
     if (!_driveIndexLoading) {
         _driveIndexLoading = callCloudAPI("getDriveBackupIndex", {}).then(res => {
@@ -13131,7 +13132,7 @@ function driveFolderLink(key) {
 // แฟ้มคนงาน/นายจ้าง: ปุ่ม Drive บนแถบพรีวิวเปิด "โฟลเดอร์ทั้งหมดของคนงาน/นายจ้างนี้" แทนไฟล์เดียว (owner, 2026-10-13)
 // folderKey = worker:<id> / customer:<id>; โฟลเดอร์ยังไม่ถูกสร้างใน Drive แต่ไฟล์มีแล้ว (ไม่น่าเกิด) → เปิดไฟล์แทน
 function driveFolderButtonHtml(folderKey, label, url) {
-    if (!can('admin')) return '';
+    if (!can('driveView')) return '';
     const folder = driveFolderLink(folderKey);
     const link = folder || driveFileLink(url);
     if (!link) return '';

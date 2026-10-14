@@ -316,7 +316,7 @@ tables one-way into the owner's personal Gmail Drive (`WorkerOS Backup/นาย
 job-close files keep the same file name as in the app (`WP.pdf`, `PinkCard_2.jpg`,
 " (หมดอายุ)" added when expired), so renaming in the app renames in Drive (owner, 2026-10-12); `การเงิน/` slips by month; `ข้อมูลระบบ/` 30 days; files
 removed from WorkerOS move to `ถูกลบ/`). Supabase stays the source of truth.
-Admin sees "เปิดใน Google Drive" buttons in the worker/customer folder (folder button in the
+Every internal role (Admin, Account/Operation Manager, Staff — `can('driveView')`, RLS `is_internal()`, owner 2026-10-14; not clients) sees "เปิดใน Google Drive" buttons in the worker/customer folder (folder button in the
 footer, plus a "Drive" button in the preview bar) once that item has been backed up — matched by
 Storage path via `getDriveBackupIndex` / `driveFileLink` (2026-10-12). The preview-bar "Drive" button
 opens the whole worker/employer Drive folder, not the single file (owner, 2026-10-13;

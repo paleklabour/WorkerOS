@@ -4815,6 +4815,7 @@ tr.is-voided-row td {
 .perm-no-finance .needs-finance,
 .perm-no-commission .needs-commission,
 .perm-no-deleteFiles .drive-tile-action-btn.danger,
+.perm-no-driveView .needs-driveView,
 .perm-no-admin .needs-admin {
     display: none !important;
 }
