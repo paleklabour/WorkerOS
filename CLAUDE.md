@@ -307,7 +307,10 @@ screen sizes went up ~1px); don't add smaller sizes (printed sheets excepted). D
 (names 14.5–18px, 20px icons) and file actions are labelled buttons (`fvActButton`), not hidden in •••.
 Data-heavy windows use `.modal-content.large` (up to 1180px / 95vw; `.modal-sheet` invoices/receipts stay 900px), the
 document folder fills 1440px / 94vh (owner 2026-10-15: windows that can be bigger should be). The date picker
-(`.ios-calendar`) is a glass popup like the others. Every `.data-table` sits in a `.table-container` (rounded);
+(`.ios-calendar`) is a glass popup like the others. Every `<input type="date">` is shown and typed as ว/ด/ป: `proxyDate` (in
+`setupIosDatePickers`) hides the native field — it still holds YYYY-MM-DD, so ids/onchange/`.value` code is unchanged —
+and puts a d/m/Y text box with the calendar button in front (instance `value` setter keeps it in sync, accepts พ.ศ.,
+MutationObserver covers date fields rendered later; owner 2026-10-15). Every `.data-table` sits in a `.table-container` (rounded);
 the users table is sorted by role, most permissions first (`ROLE_LABELS` order).
 Document expiry (work permit / passport / folder files): show the date and a status color/label only —
 never a day count like "อีก N วัน" / "หมดอายุแล้ว N วัน" (owner, 2026-10-14).

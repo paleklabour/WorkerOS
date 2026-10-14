@@ -18498,7 +18498,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // ==================== ปฏิทินเลือกวันที่แบบ iOS ====================
 // ใช้กับ <input type="date"> ทุกช่อง (ค่า YYYY-MM-DD) และช่องพิมพ์วันที่ "วัน/เดือน/ปี ค.ศ." (placeholder มี "วัน/เดือน/ปี")
 // ที่ได้ปุ่มปฏิทินเล็ก ๆ ในช่อง (ยังพิมพ์เอง/ให้ AI กรอกได้เหมือนเดิม) — ค่า DD/MM/YYYY
-// ช่อง type="date" เปลี่ยนเฉพาะเครื่องที่ใช้เมาส์ — iPad/มือถือใช้ปฏิทินของเครื่อง (เป็นแบบ iOS อยู่แล้ว)
+// ช่อง type="date" ถูกแทนด้วยช่องข้อความ ว/ด/ป + ปุ่มปฏิทินนี้ทุกเครื่อง (proxyDate ใน setupIosDatePickers, 2026-10-15)
 const IOS_WEEKDAYS_TH = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'];
 let _iosCal = null; // { input, mode: 'iso'|'dmy', box, view: Date }
 
@@ -18605,17 +18605,10 @@ function openIosCalendar(input, mode) {
 }
 
 function setupIosDatePickers() {
-    const fine = window.matchMedia && window.matchMedia('(pointer: fine)').matches;
-
-    // ช่อง type="date": คลิกด้วยเมาส์ → ปฏิทินของเราแทนของเบราว์เซอร์
+    // คลิกนอกปฏิทิน → ปิด
     document.addEventListener('mousedown', e => {
         const t = e.target;
         if (_iosCal && !(t.closest && (t.closest('.ios-calendar') || t.closest('.date-text-btn'))) && t !== _iosCal.input) closeIosCalendar();
-        if (!fine || e.button !== 0 || !t.matches || !t.matches('input[type="date"]') || t.disabled || t.readOnly) return;
-        e.preventDefault();
-        t.focus({ preventScroll: true });
-        if (_iosCal && _iosCal.input === t) closeIosCalendar();
-        else openIosCalendar(t, 'iso');
     }, true);
 
     document.addEventListener('keydown', e => {
@@ -18626,9 +18619,10 @@ function setupIosDatePickers() {
             i.focus();
             return;
         }
-        if (fine && e.target.matches && e.target.matches('input[type="date"]') && (e.key === 'Enter' || (e.altKey && e.key === 'ArrowDown'))) {
+        // Alt+ลง ในช่องวันที่ = เปิดปฏิทิน
+        if (e.altKey && e.key === 'ArrowDown' && e.target._dateBtn) {
             e.preventDefault();
-            openIosCalendar(e.target, 'iso');
+            openIosCalendar(e.target, 'dmy');
         }
     }, true);
     window.addEventListener('scroll', e => { if (_iosCal && !_iosCal.box.contains(e.target)) closeIosCalendar(); }, true);
@@ -18657,6 +18651,61 @@ function setupIosDatePickers() {
         wrap.appendChild(btn);
     };
     document.querySelectorAll('input[type="text"][placeholder*="วัน/เดือน/ปี"]').forEach(enhance);
+
+    // ช่อง <input type="date"> ทุกช่อง → แสดง/พิมพ์เป็น ว/ด/ป (owner 2026-10-15: เบราว์เซอร์แสดงตามภาษาเครื่อง เช่น ด/ว/ป)
+    // ช่องเดิมซ่อนไว้เป็นตัวเก็บค่าจริง (YYYY-MM-DD, id/onchange/โค้ดที่อ่าน .value ไม่ต้องแก้) + ช่องข้อความ ว/ด/ป อยู่ด้านหน้า
+    const proxyDate = native => {
+        if (native._dmyProxy) return;
+        const proxy = document.createElement('input');
+        proxy.type = 'text';
+        proxy.className = native.className;
+        proxy.style.cssText = native.style.cssText;
+        proxy.placeholder = 'วว/ดด/ปปปป';
+        proxy.inputMode = 'numeric';
+        proxy.autocomplete = 'off';
+        proxy.title = native.title || 'วัน/เดือน/ปี (ค.ศ. หรือ พ.ศ.)';
+        if (native.required) { proxy.required = true; native.required = false; } // ช่องที่ซ่อนอยู่ใช้ required ของเบราว์เซอร์ไม่ได้
+        native._dmyProxy = proxy;
+        native.parentNode.insertBefore(proxy, native);
+        native.style.display = 'none';
+        const show = () => {
+            const d = iosCalParse(native, 'iso');
+            proxy.value = d ? iosCalFormat(d, 'dmy') : '';
+            proxy.setCustomValidity('');
+            proxy.disabled = native.disabled;
+            proxy.readOnly = native.readOnly;
+        };
+        // โค้ดที่ตั้ง native.value = '2026-10-15' ตรง ๆ → ช่อง ว/ด/ป เปลี่ยนตาม
+        const desc = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+        Object.defineProperty(native, 'value', {
+            configurable: true,
+            get() { return desc.get.call(this); },
+            set(v) { desc.set.call(this, v); show(); }
+        });
+        // พิมพ์/เลือกจากปฏิทินในช่อง ว/ด/ป → เขียนกลับช่องจริง แล้วยิง input/change ของช่องจริง (onchange เดิมทำงานต่อ)
+        const commit = final => {
+            const t = proxy.value.trim();
+            const d = t ? iosCalParse(proxy, 'dmy') : null;
+            if (t && !d) { if (final) proxy.setCustomValidity('รูปแบบวันที่ วัน/เดือน/ปี เช่น 15/10/2026'); return; }
+            proxy.setCustomValidity('');
+            const iso = d ? iosCalFormat(d, 'iso') : '';
+            if (desc.get.call(native) === iso) return;
+            desc.set.call(native, iso);
+            native.dispatchEvent(new Event('input', { bubbles: true }));
+            native.dispatchEvent(new Event('change', { bubbles: true }));
+        };
+        proxy.addEventListener('input', () => commit(false));
+        proxy.addEventListener('change', () => { commit(true); if (!proxy.validationMessage) show(); });
+        show();
+        enhance(proxy);
+    };
+    document.querySelectorAll('input[type="date"]').forEach(proxyDate);
+    // ช่องวันที่ที่ app.js วาดทีหลัง (เช่น หน้าต่างรับเงิน)
+    new MutationObserver(records => records.forEach(r => r.addedNodes.forEach(n => {
+        if (n.nodeType !== 1) return;
+        if (n.matches && n.matches('input[type="date"]')) proxyDate(n);
+        if (n.querySelectorAll) n.querySelectorAll('input[type="date"]').forEach(proxyDate);
+    }))).observe(document.body, { childList: true, subtree: true });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
