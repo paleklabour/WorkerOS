@@ -163,7 +163,7 @@ td.actions-col .btn-outline:hover {
 
 .btn-sm {
     padding: 6px 12px;
-    font-size: 12.5px;
+    font-size: 13.5px;
 }
 
 /* ปุ่มแดงทึบ — ใช้เป็นปุ่ม "ลบ" ในหน้าต่างยืนยัน */
@@ -442,7 +442,7 @@ td.actions-col .btn-outline:hover {
 .worker-id-line span,
 .employer-id-line span {
     color: var(--text-muted);
-    font-size: 12.5px;
+    font-size: 13.5px;
 }
 
 .employer-id-line b,
@@ -534,7 +534,7 @@ td.actions-col .btn-outline:hover {
 
 .alert-row-actions .btn {
     white-space: nowrap;
-    font-size: 12px;
+    font-size: 13px;
     padding: 5px 12px;
 }
 
@@ -544,7 +544,7 @@ td.actions-col .btn-outline:hover {
     align-items: center;
     padding: 3px 10px;
     border-radius: 9999px;
-    font-size: 11.5px;
+    font-size: 12.5px;
     font-weight: 500;
     white-space: nowrap;
     border: 1px solid transparent;
@@ -921,7 +921,7 @@ select:disabled {
 
 .brand-text span {
     color: var(--text-muted);
-    font-size: 11.5px;
+    font-size: 12.5px;
     font-weight: 500;
 }
 
@@ -1038,7 +1038,7 @@ label.user-avatar:hover { box-shadow: 0 0 0 3px rgba(45, 79, 163, 0.18); }
     margin-left: auto;
     background-color: var(--danger);
     color: white;
-    font-size: 11.5px;
+    font-size: 12.5px;
     padding: 2px 7px;
     border-radius: 9999px;
     font-weight: 600;
@@ -1139,7 +1139,7 @@ label.user-avatar:hover { box-shadow: 0 0 0 3px rgba(45, 79, 163, 0.18); }
     right: 6px;
     margin-left: 0;
     padding: 1px 5px;
-    font-size: 11.5px;
+    font-size: 12.5px;
 }
 
 .sidebar.sidebar-collapsed .sidebar-footer {
@@ -1303,7 +1303,7 @@ label.user-avatar:hover { box-shadow: 0 0 0 3px rgba(45, 79, 163, 0.18); }
     background-color: var(--danger);
     color: white;
     border-radius: 999px;
-    font-size: 12.5px;
+    font-size: 13.5px;
     line-height: 1;
     font-weight: 700;
     font-variant-numeric: tabular-nums;
@@ -1594,7 +1594,7 @@ label.user-avatar:hover { box-shadow: 0 0 0 3px rgba(45, 79, 163, 0.18); }
 
 .search-suggest-sub {
     color: var(--text-muted);
-    font-size: 12px;
+    font-size: 13px;
 }
 
 /* ==================== JOB WORKER PICKER (ค้นหา + เลือกคนงานหลายคน แทน <select multiple>) ==================== */
@@ -1621,7 +1621,7 @@ label.user-avatar:hover { box-shadow: 0 0 0 3px rgba(45, 79, 163, 0.18); }
     border: 1px solid #c7d2fe;
     border-radius: 999px;
     padding: 4px 6px 4px 12px;
-    font-size: 12.5px;
+    font-size: 13.5px;
     font-weight: 500;
 }
 
@@ -1690,13 +1690,13 @@ label.user-avatar:hover { box-shadow: 0 0 0 3px rgba(45, 79, 163, 0.18); }
 
 .job-worker-row-uid {
     color: var(--text-muted);
-    font-size: 12px;
+    font-size: 13px;
     font-family: monospace;
 }
 
 .job-worker-row-nat {
     color: var(--text-muted);
-    font-size: 11.5px;
+    font-size: 12.5px;
     background-color: var(--dk-subtle, #f1f5f9);
     border-radius: 999px;
     padding: 2px 8px;
@@ -2007,7 +2007,7 @@ label.user-avatar:hover { box-shadow: 0 0 0 3px rgba(45, 79, 163, 0.18); }
 }
 
 .worker-expiry-line {
-    font-size: 12.5px;
+    font-size: 13.5px;
     line-height: 1.6;
 }
 
@@ -2021,7 +2021,7 @@ label.user-avatar:hover { box-shadow: 0 0 0 3px rgba(45, 79, 163, 0.18); }
 .ewp-paste-text {
     width: 100%;
     font-family: ui-monospace, Menlo, Consolas, monospace;
-    font-size: 12.5px;
+    font-size: 13.5px;
     resize: vertical;
 }
 .ewp-paste-table { box-shadow: none; border: 1px solid var(--dk-line, #e2e8f0); }
@@ -2030,9 +2030,9 @@ label.user-avatar:hover { box-shadow: 0 0 0 3px rgba(45, 79, 163, 0.18); }
 
 /* ==================== BULK IMPORT: นายจ้างของรอบนี้ (เลือกก่อนแนบไฟล์) ==================== */
 .bulk-import-employer-group { margin-bottom: 12px; }
-.bulk-import-employer-note { font-weight: normal; font-size: 12px; }
+.bulk-import-employer-note { font-weight: normal; font-size: 13px; }
 .bulk-import-allow-new { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 12px; cursor: pointer; }
-.bulk-import-allow-new .text-muted { font-size: 12px; }
+.bulk-import-allow-new .text-muted { font-size: 13px; }
 .bulk-split-btn { margin-right: 6px; vertical-align: middle; }
 
 /* ==================== BULK IMPORT: คนงานใหม่ที่จะสร้าง ==================== */
@@ -2078,7 +2078,7 @@ label.user-avatar:hover { box-shadow: 0 0 0 3px rgba(45, 79, 163, 0.18); }
 
 .bulk-new-worker-discard {
     margin-left: auto;
-    font-size: 11.5px;
+    font-size: 12.5px;
     padding: 2px 10px;
 }
 
@@ -2090,7 +2090,7 @@ label.user-avatar:hover { box-shadow: 0 0 0 3px rgba(45, 79, 163, 0.18); }
 
 .bulk-new-worker-fields input,
 .bulk-new-worker-fields select {
-    font-size: 12.5px;
+    font-size: 13.5px;
     padding: 5px 7px;
     border: 1px solid var(--dk-line, #cbd5e1);
     border-radius: var(--radius-sm);
@@ -2178,7 +2178,7 @@ label.user-avatar:hover { box-shadow: 0 0 0 3px rgba(45, 79, 163, 0.18); }
     display: inline-flex;
     align-items: center;
     padding: 0 8px 0 12px;
-    font-size: 12.5px;
+    font-size: 13.5px;
     font-weight: 600;
     color: var(--text-muted);
     background-color: var(--gray-bg);
@@ -2419,7 +2419,7 @@ label.user-avatar:hover { box-shadow: 0 0 0 3px rgba(45, 79, 163, 0.18); }
     background: none;
     border: none;
     color: var(--danger);
-    font-size: 12.5px;
+    font-size: 13.5px;
     font-family: inherit;
     cursor: pointer;
     font-weight: 500;
@@ -2579,14 +2579,14 @@ td > .ico {
 }
 
 .upload-hint {
-    font-size: 11.5px;
+    font-size: 12.5px;
     color: var(--text-muted);
 }
 
 /* AI OCR loader and output styles */
 .ocr-status {
     width: 100%;
-    font-size: 11.5px;
+    font-size: 12.5px;
     font-weight: 500;
     text-align: center;
     min-height: 16px;
@@ -2793,7 +2793,7 @@ td > .ico {
     gap: 2px;
     margin-left: 4px;
     padding: 1px 6px;
-    font-size: 11.5px;
+    font-size: 12.5px;
     font-weight: 600;
     border-radius: 999px;
     background: var(--dk-ok-bg, #ecfdf5);
@@ -2823,7 +2823,7 @@ td > .ico {
     max-width: 180px;
     margin-top: 6px;
     padding: 3px 8px;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
     border-radius: 999px;
     border: 1px dashed var(--dk-line, #cbd5e1);
@@ -2836,7 +2836,7 @@ td > .ico {
     display: inline-block;
     margin-top: 6px;
     padding: 2px 10px;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
     border-radius: 999px;
     border: 1px solid transparent;
@@ -2850,7 +2850,7 @@ td > .ico {
     flex: 0 0 auto;
     min-width: 90px;
     padding: 3px 12px;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
     text-align: center;
     border-radius: 999px;
@@ -2923,7 +2923,7 @@ td > .ico {
 /* ตารางแจ้งงาน: แท็บงานอื่นในชุดเดียวกัน (กดเปิดใบงานนั้น) */
 .job-batch-tab {
     font: inherit;
-    font-size: 11.5px;
+    font-size: 12.5px;
     padding: 1px 8px;
     border-radius: 10px;
     border: 1px solid var(--dk-line, #e2e8f0);
@@ -3483,7 +3483,7 @@ td > .ico {
 .split-note {
     grid-column: 1 / -1;
     margin: 0;
-    font-size: 12.5px;
+    font-size: 13.5px;
     color: var(--text-muted);
 }
 
@@ -3513,7 +3513,7 @@ td > .ico {
 }
 
 .pay-summary span {
-    font-size: 12.5px;
+    font-size: 13.5px;
     color: var(--text-muted);
 }
 
@@ -3658,7 +3658,7 @@ td > .ico {
 }
 
 .receive-summary span {
-    font-size: 12.5px;
+    font-size: 13.5px;
     color: var(--text-muted);
 }
 
@@ -3796,7 +3796,7 @@ tr.is-voided-row td {
 }
 
 .fin-tile small {
-    font-size: 12px;
+    font-size: 13px;
     opacity: 0.85;
 }
 
@@ -3837,7 +3837,7 @@ tr.is-voided-row td {
 }
 
 .bank-balance-main span {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--text-muted);
 }
 
@@ -3917,7 +3917,7 @@ tr.is-voided-row td {
 
 .commission-job-info small {
     color: var(--text-muted);
-    font-size: 12px;
+    font-size: 13px;
 }
 
 .commission-amount-input {
@@ -3997,7 +3997,7 @@ tr.is-voided-row td {
 }
 
 .price-cost-hint {
-    font-size: 12.5px;
+    font-size: 13.5px;
 }
 
 .price-input.price-gov {
@@ -4455,7 +4455,7 @@ tr.is-voided-row td {
     cursor: pointer;
 }
 .worker-bulk-check {
-    font-size: 11.5px;
+    font-size: 12.5px;
     color: var(--gold-primary);
     margin-bottom: 4px;
 }
@@ -4552,7 +4552,7 @@ tr.is-voided-row td {
 }
 
 .bell-panel-head span {
-    font-size: 12.5px;
+    font-size: 13.5px;
     color: var(--text-muted);
 }
 
@@ -4599,7 +4599,7 @@ tr.is-voided-row td {
     border-radius: 999px;
     background-color: var(--danger);
     color: #ffffff;
-    font-size: 12.5px;
+    font-size: 13.5px;
     text-align: center;
 }
 
@@ -4621,7 +4621,7 @@ tr.is-voided-row td {
 }
 
 .bell-item small {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--text-muted);
 }
 
@@ -4662,7 +4662,7 @@ tr.is-voided-row td {
     border-top: 1px solid var(--dk-line, #edf1f7);
     background: transparent;
     font-family: inherit;
-    font-size: 12.5px;
+    font-size: 13.5px;
     color: var(--gold-primary);
     cursor: pointer;
     border-radius: 0 0 10px 10px;
@@ -4671,7 +4671,7 @@ tr.is-voided-row td {
 
 .bell-more {
     padding: 4px 10px 6px 34px;
-    font-size: 12px;
+    font-size: 13px;
     color: var(--text-muted);
 }
 
@@ -4763,7 +4763,7 @@ tr.is-voided-row td {
     white-space: normal;
 }
 
-.js-list-item small { font-size: 12px; color: var(--text-muted); }
+.js-list-item small { font-size: 13px; color: var(--text-muted); }
 .js-list-item:hover { background-color: var(--gold-light); }
 
 /* ==================== พอร์ทัลนายจ้าง (บัญชี Client) ดู renderClientPortal ==================== */
@@ -4804,7 +4804,7 @@ tr.is-voided-row td {
     background-color: var(--dk-subtle, #f3f6fc);
 }
 
-.cp-stats span { font-size: 12.5px; color: var(--text-muted); }
+.cp-stats span { font-size: 13.5px; color: var(--text-muted); }
 .cp-stats strong { font-family: var(--font-head); font-size: 20px; font-weight: 500; color: var(--navy-dark); }
 .cp-stats .is-due strong { color: var(--danger); }
 
@@ -4864,8 +4864,8 @@ tr.is-voided-row td {
 .fv-top .close-btn { margin-left: 2px; }
 
 .fv-photo {
-    width: 46px;
-    height: 46px;
+    width: 54px;
+    height: 54px;
     flex-shrink: 0;
     padding: 0;
     border: none;
@@ -4879,29 +4879,29 @@ tr.is-voided-row td {
 .fv-photo-icon { cursor: default; display: flex; align-items: center; justify-content: center; color: var(--text-muted); }
 
 .fv-person-text { flex: 1; min-width: 180px; }
-.fv-person-text h4 { margin: 0; font-size: 16px; font-weight: 600; line-height: 1.3; color: var(--navy-dark); }
-.fv-person-text p { margin: 0; font-size: 12.5px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.fv-person-text h4 { margin: 0; font-size: 18px; font-weight: 600; line-height: 1.3; color: var(--navy-dark); }
+.fv-person-text p { margin: 0; font-size: 14px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 
 /* ปุ่มแคปซูล "แชร์" และปุ่มไอคอนกลม */
 .fv-pill {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    height: 34px;
+    height: 38px;
     padding: 0 14px;
     border: none;
     border-radius: 999px;
     background-color: var(--dk-subtle, #f1f3f7);
     color: var(--navy-dark);
     font-family: inherit;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     cursor: pointer;
 }
 .fv-pill:hover { background-color: var(--gold-light); }
 .fv-ib {
-    width: 34px;
-    height: 34px;
+    width: 40px;
+    height: 40px;
     flex-shrink: 0;
     display: inline-flex;
     align-items: center;
@@ -4916,6 +4916,7 @@ tr.is-voided-row td {
 }
 .fv-ib:hover, .fv-more.is-open > .fv-ib { background-color: var(--dk-subtle, #f1f3f7); color: var(--navy-dark); }
 .fv-ib:disabled { opacity: 0.4; cursor: default; }
+.fv-ib .ico, .fv-pill .ico, .fv-act .ico { width: 20px; height: 20px; }
 
 /* เมนูเล็ก (แชร์ / •••) */
 .fv-more { position: relative; }
@@ -4944,7 +4945,7 @@ tr.is-voided-row td {
     background: transparent;
     color: var(--navy-dark);
     font-family: inherit;
-    font-size: 13px;
+    font-size: 14px;
     text-align: left;
     text-decoration: none;
     white-space: nowrap;
@@ -4989,15 +4990,15 @@ tr.is-voided-row td {
     align-items: center;
     gap: 6px;
     padding: 10px 6px 4px;
-    font-size: 12px;
+    font-size: 13.5px;
     font-weight: 600;
     color: var(--text-muted);
 }
 .fv-group-head span { flex: 1; }
 .fv-group-head em { font-style: normal; font-weight: 500; opacity: 0.75; }
 .fv-add {
-    width: 26px;
-    height: 26px;
+    width: 30px;
+    height: 30px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -5008,10 +5009,10 @@ tr.is-voided-row td {
     cursor: pointer;
     opacity: 0.6;
 }
-.fv-add .ico { width: 16px; height: 16px; }
+.fv-add .ico { width: 18px; height: 18px; }
 .fv-group-head:hover .fv-add, .fv-add:focus-visible { opacity: 1; }
 .fv-add:hover { background-color: var(--dk-subtle, #f1f3f7); }
-.fv-none { padding: 4px 8px 6px; font-size: 12px; color: var(--text-muted); }
+.fv-none { padding: 4px 8px 6px; font-size: 13px; color: var(--text-muted); }
 
 .fv-item {
     display: flex;
@@ -5026,15 +5027,15 @@ tr.is-voided-row td {
 .fv-item.is-active .fv-item-text b { color: var(--gold-primary); }
 .fv-item.is-expired { opacity: 0.7; }
 .fv-item .drive-tile-thumb {
-    width: 30px;
-    height: 38px;
+    width: 36px;
+    height: 46px;
     flex-shrink: 0;
     border-radius: 5px;
     font-size: 14px;
 }
 .fv-item-text { min-width: 0; display: flex; flex-direction: column; }
-.fv-item-text b { font-size: 13px; font-weight: 600; color: var(--navy-dark); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.fv-item-text small { display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.fv-item-text b { font-size: 14.5px; font-weight: 600; color: var(--navy-dark); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fv-item-text small { display: flex; align-items: center; gap: 5px; font-size: 13px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .fv-dot { width: 7px; height: 7px; flex-shrink: 0; border-radius: 50%; }
 .fv-dot.is-ok { background-color: var(--dk-ok, #2f8a5c); }
 .fv-dot.is-warn { background-color: var(--dk-warn, #e08a12); }
@@ -5050,7 +5051,7 @@ tr.is-voided-row td {
     background: transparent;
     color: var(--text-muted);
     font-family: inherit;
-    font-size: 12px;
+    font-size: 13.5px;
     cursor: pointer;
 }
 .fv-chip:hover { border-color: var(--gold-primary); color: var(--gold-primary); }
@@ -5070,7 +5071,7 @@ tr.is-voided-row td {
     background: transparent;
     color: var(--text-muted);
     font-family: inherit;
-    font-size: 12px;
+    font-size: 13.5px;
     font-weight: 600;
     text-align: left;
     cursor: pointer;
@@ -5100,21 +5101,41 @@ tr.is-voided-row td {
     border-bottom: 1px solid var(--dk-line, #e4e8ef);
 }
 .fv-bar-title { display: flex; flex-direction: column; min-width: 0; flex: 1; }
-.fv-bar-title b { padding: 0 4px; font-size: 14px; color: var(--navy-dark); }
-.fv-bar-title small { padding: 0 4px; font-size: 12px; color: var(--text-muted); }
+.fv-bar-title b { padding: 0 4px; font-size: 16px; color: var(--navy-dark); }
+.fv-bar-title small { padding: 0 4px; font-size: 13.5px; color: var(--text-muted); }
 .fv-name {
     max-width: 420px;
-    padding: 2px 4px;
-    border: 1px solid transparent;
+    padding: 3px 8px;
+    border: 1px dashed var(--dk-line, #cbd5e1);
     border-radius: 8px !important;
     background: transparent;
     font-family: inherit;
-    font-size: 14px;
+    font-size: 16px;
     font-weight: 600;
     color: var(--navy-dark);
 }
 .fv-name:hover, .fv-name:focus { border-color: var(--dk-line, #cbd5e1); background-color: var(--gray-card); outline: none; }
-.fv-bar-actions { display: flex; align-items: center; gap: 2px; }
+.fv-bar-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.fv-act {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 36px;
+    padding: 0 14px;
+    border: none;
+    border-radius: 999px;
+    background-color: var(--dk-subtle, #f1f3f7);
+    color: var(--navy-dark);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+}
+.fv-act:hover { background-color: var(--gold-light); }
+.fv-act.is-danger { color: var(--dk-bad, #c62828); background-color: var(--dk-bad-bg, #fde8e8); }
+.fv-act.is-danger:hover { background-color: var(--dk-bad, #e5534b); color: #fff; }
+.fv-act.is-danger:hover .ico { --ic: #fff; }
 
 .fv-doc {
     flex: 1;
@@ -5393,7 +5414,7 @@ tr.is-voided-row td {
 .ios-select-option.is-disabled { opacity: 0.4; cursor: default; }
 .ios-select-group {
     padding: 8px 12px 4px;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
     color: var(--text-muted);
 }
@@ -5564,7 +5585,7 @@ input[type="checkbox"], input[type="radio"], input[type="range"] {
 .login-footnote {
     margin-top: 28px;
     text-align: center;
-    font-size: 12.5px;
+    font-size: 13.5px;
     color: var(--text-muted);
 }
 
@@ -5956,7 +5977,7 @@ input[type="checkbox"], input[type="radio"], input[type="range"] {
     -webkit-backdrop-filter: saturate(180%) blur(18px);
     backdrop-filter: saturate(180%) blur(18px);
     color: #1c1c1e;
-    font-size: 12.5px;
+    font-size: 13.5px;
     line-height: 1.4;
     white-space: pre-line;
     box-shadow: 0 6px 20px rgba(15, 23, 42, 0.16), 0 0 0 0.5px rgba(60, 60, 67, 0.18);
@@ -6004,7 +6025,7 @@ input[type="checkbox"], input[type="radio"], input[type="range"] {
 /* คนงานแยกรายจังหวัด */
 .province-bars { display: flex; flex-direction: column; gap: 12px; }
 .province-bars .bar-info .ico { --ic: var(--gold-primary); }
-.province-total { margin: 4px 0 0; font-size: 12.5px; text-align: right; }
+.province-total { margin: 4px 0 0; font-size: 13.5px; text-align: right; }
 
 /* แดชบอร์ด > สรุปงานที่แจ้งสำเร็จ (แบบเดียวกับหน้าอื่น) */
 .completed-wallet { justify-content: space-between; min-height: 150px; }
@@ -6049,7 +6070,7 @@ input[type="checkbox"], input[type="radio"], input[type="range"] {
     .widget[data-kind="pill"] { grid-column: span 4; }
     .stat-pill { padding: 12px 16px; gap: 10px; }
     .stat-pill h3 { font-size: 22px; }
-    .stat-pill p { font-size: 12.5px; }
+    .stat-pill p { font-size: 13.5px; }
 }
 
 /* ---------- มือถือ (แนวตั้ง ≤640px, แนวนอน = จอเตี้ย ≤500px) ---------- */
@@ -6077,7 +6098,7 @@ input[type="checkbox"], input[type="radio"], input[type="range"] {
         border-radius: 18px;
     }
     .stat-pill h3 { font-size: 22px; }
-    .stat-pill p { font-size: 12px; line-height: 1.3; }
+    .stat-pill p { font-size: 13px; line-height: 1.3; }
     .stat-pill[data-go]::after { position: absolute; top: 10px; right: 12px; font-size: 18px; }
     .widget-board[data-board="finance"] .stat-pill h3 { font-size: 16px; }
 
@@ -6089,7 +6110,7 @@ input[type="checkbox"], input[type="radio"], input[type="range"] {
     .wallet-amount { font-size: 30px; }
     .wallet-sub { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
     .wallet-sub h3 { font-size: 15px; }
-    .wallet-sub p { font-size: 11.5px; }
+    .wallet-sub p { font-size: 12.5px; }
 
     /* ---------- ตารางเป็นการ์ดรายการแบบ iOS (ชื่อคอลัมน์ทางซ้ายจาก data-label — ดู labelTableCells() ใน app.js) ---------- */
     .data-table,
@@ -6131,7 +6152,7 @@ input[type="checkbox"], input[type="radio"], input[type="range"] {
         flex-shrink: 0;
         max-width: 42%;
         color: var(--text-muted);
-        font-size: 12.5px;
+        font-size: 13.5px;
         font-weight: 500;
         text-align: left;
     }
@@ -6255,7 +6276,7 @@ input[type="checkbox"], input[type="radio"], input[type="range"] {
 }
 .ios-cal-week span {
     padding: 4px 0 6px;
-    font-size: 11.5px;
+    font-size: 12.5px;
     font-weight: 600;
     color: var(--text-muted);
 }
@@ -6461,7 +6482,7 @@ input[type="file"][style*="display:none"] { display: none !important; }
 }
 .ui-sum-heading {
     padding: 12px 0 4px;
-    font-size: 12.5px;
+    font-size: 13.5px;
     font-weight: 700;
     color: var(--gold-primary);
 }
@@ -6588,7 +6609,7 @@ body.has-camera .upload-hint { display: none; }
 
 /* ใบงาน "ไม่เรียกเก็บเงิน" (isJobNoCharge ใน app.js) — โทนเทาอมเขียว แยกจาก "ชำระแล้ว" */
 .badge-nocharge {
-    font-size: 11.5px;
+    font-size: 12.5px;
     padding: 2px 6px;
     background-color: var(--dk-subtle, #f1f5f9);
     color: var(--dk-muted, #475569);
@@ -6623,7 +6644,7 @@ body.has-camera .upload-hint { display: none; }
 }
 .payment-slip-item a { font-weight: 500; color: var(--navy-dark); }
 .payment-slip-item small { flex: 1; min-width: 160px; }
-.payment-slip-item .btn { padding: 3px 8px; font-size: 11.5px; }
+.payment-slip-item .btn { padding: 3px 8px; font-size: 12.5px; }
 
 /* ป้ายผลตรวจ QR บนสลิป (slipQrBadgeHtml) */
 .slip-qr-badge {
@@ -6632,7 +6653,7 @@ body.has-camera .upload-hint { display: none; }
     gap: 3px;
     padding: 1px 7px;
     border-radius: 999px;
-    font-size: 11.5px;
+    font-size: 12.5px;
     font-weight: 600;
     white-space: nowrap;
 }
@@ -6710,7 +6731,7 @@ body.has-camera .upload-hint { display: none; }
 .ui-dialog-wide .ui-dialog-icon { display: none; } /* หน้าต่างดูข้อมูล ไม่ใช่คำเตือน — ไม่ต้องมีไอคอนเตือน */
 
 /* ระบบจัดการแจ้งงาน: อีเมลใต้ชื่อคนงาน + ช่องหมายเหตุสั้น ≤ 20 ตัวอักษร (saveJobRemark) */
-.job-worker-email { font-size: 12px; color: var(--text-muted); margin-top: 2px; overflow-wrap: anywhere; }
+.job-worker-email { font-size: 13px; color: var(--text-muted); margin-top: 2px; overflow-wrap: anywhere; }
 .job-remark-input {
     width: 100%;
     min-width: 120px;
@@ -6821,7 +6842,7 @@ th.sortable-th:hover::after { opacity: 0.8; }
     padding: 12px 16px;
     border-bottom: 1px solid var(--dk-line, #e2e8f0);
 }
-.img-editor-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; }
+.img-editor-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; }
 .img-editor-stage {
     flex: 1;
     min-height: 240px;
@@ -6834,7 +6855,7 @@ th.sortable-th:hover::after { opacity: 0.8; }
     overflow: hidden;
 }
 .img-editor-stage canvas { max-width: 100%; max-height: 100%; cursor: crosshair; touch-action: none; border-radius: 4px; }
-.img-editor-hint { padding: 6px 16px 0; font-size: 12px; }
+.img-editor-hint { padding: 6px 16px 0; font-size: 13px; }
 .img-editor-tools {
     display: flex;
     flex-wrap: wrap;
@@ -6842,7 +6863,7 @@ th.sortable-th:hover::after { opacity: 0.8; }
     gap: 8px 14px;
     padding: 10px 16px;
 }
-.img-editor-slider { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; }
+.img-editor-slider { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; }
 .img-editor-slider input { width: 120px; }
 .img-editor-foot {
     display: flex;
@@ -6859,7 +6880,7 @@ th.sortable-th:hover::after { opacity: 0.8; }
 .img-editor-rot-left { display: inline-flex; transform: scaleX(-1); }
 
 /* DOE-LINK (ทดลอง): ผลจับคู่สลิปจ่ายบิล ↔ ใบเสร็จกรมการจัดหางาน ในหน้าแนบสลิปรายจ่าย */
-.doe-match { margin-top: 6px; font-size: 12.5px; color: var(--dk-ok, #047857); display: flex; gap: 4px; align-items: flex-start; }
+.doe-match { margin-top: 6px; font-size: 13.5px; color: var(--dk-ok, #047857); display: flex; gap: 4px; align-items: flex-start; }
 .doe-match.is-none { color: var(--text-muted); }
 
 /* ==================== รอแนบไฟล์แบบ iOS (beginUploadUi ใน app.js — แบบที่ 1, owner 2026-10-13) ==================== */
@@ -6885,7 +6906,7 @@ th.sortable-th:hover::after { opacity: 0.8; }
 .upl-label { font-size: 13px; font-weight: 600; color: var(--text-dark); line-height: 1.3; }
 .upl-sub {
     max-width: 100%;
-    font-size: 11.5px;
+    font-size: 12.5px;
     color: var(--text-muted);
     white-space: nowrap;
     overflow: hidden;
@@ -6933,7 +6954,7 @@ th.sortable-th:hover::after { opacity: 0.8; }
 .btn > .upl-overlay, label:not(.upload-box) > .upl-overlay { flex-direction: row; gap: 6px; padding: 0 8px; }
 .btn > .upl-overlay .upl-sub, label:not(.upload-box) > .upl-overlay .upl-sub { display: none; }
 .btn > .upl-overlay .ios-spin, .btn > .upl-overlay .upl-check { width: 18px; height: 18px; }
-.btn > .upl-overlay .upl-label { font-size: 12px; white-space: nowrap; }
+.btn > .upl-overlay .upl-label { font-size: 13px; white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) {
     .ios-spin i { animation-duration: 2s; }
     .upl-check, .upl-check svg { animation: none; stroke-dashoffset: 0; }
@@ -6978,7 +6999,7 @@ th.sortable-th:hover::after { opacity: 0.8; }
 .upload-pill.is-bad .upill-ic { background: #ff3b30; }
 .upill-tx { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
 .upill-tx b { font-size: 13.5px; font-weight: 600; }
-.upill-tx small { font-size: 11.5px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.upill-tx small { font-size: 12.5px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .upill-tx small:empty { display: none; }
 /* ข้อความเตือน/ผิดพลาดยาวได้ (เช่นเหตุผลที่ AI อ่านไม่ได้) → ขึ้นบรรทัดใหม่ แคปซูลกลายเป็นมุมโค้ง */
 .upload-pill.is-warn, .upload-pill.is-bad { border-radius: 22px; }
@@ -6992,7 +7013,7 @@ th.sortable-th:hover::after { opacity: 0.8; }
 .cal-head .btn { min-width: 34px; justify-content: center; }
 .cal-today-btn { margin-left: 4px; }
 .cal-weekdays, .cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
-.cal-weekdays span { text-align: center; font-size: 12px; font-weight: 600; color: var(--text-muted); padding-bottom: 4px; }
+.cal-weekdays span { text-align: center; font-size: 13px; font-weight: 600; color: var(--text-muted); padding-bottom: 4px; }
 .cal-day {
     min-height: 86px;
     display: flex;
@@ -7028,7 +7049,7 @@ th.sortable-th:hover::after { opacity: 0.8; }
 .cal-day.has-note { background: var(--dk-subtle, #f4f7fd); }
 .cal-note {
     width: 100%;
-    font-size: 11.5px;
+    font-size: 12.5px;
     line-height: 1.35;
     color: var(--text-muted);
     display: -webkit-box;
@@ -7039,7 +7060,7 @@ th.sortable-th:hover::after { opacity: 0.8; }
 }
 .cal-day.has-note .cal-note::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--gold-primary); margin-right: 5px; vertical-align: 1px; }
 .cal-editor h3 { font-size: 16px; font-weight: 600; color: var(--navy-dark); }
-.cal-editor-hint { font-size: 12px; margin: 2px 0 10px; }
+.cal-editor-hint { font-size: 13px; margin: 2px 0 10px; }
 .cal-editor textarea {
     width: 100%;
     resize: vertical;
@@ -7053,7 +7074,7 @@ th.sortable-th:hover::after { opacity: 0.8; }
 }
 .cal-editor textarea:focus { outline: none; border-color: var(--gold-primary); box-shadow: 0 0 0 3px rgba(45, 79, 163, 0.12); }
 .cal-editor-foot { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
-.cal-editor-foot > span { flex: 1; font-size: 12px; }
+.cal-editor-foot > span { flex: 1; font-size: 13px; }
 .cal-upcoming-title { margin: 20px 0 8px; font-size: 13.5px; font-weight: 600; color: var(--navy-dark); }
 .cal-up-item {
     width: 100%;
@@ -7071,15 +7092,15 @@ th.sortable-th:hover::after { opacity: 0.8; }
     cursor: pointer;
 }
 .cal-up-item:hover { background: var(--dk-head, #e9eef9); }
-.cal-up-item b { font-size: 12.5px; color: var(--gold-primary); }
-.cal-up-item span { font-size: 12.5px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cal-up-item b { font-size: 13.5px; color: var(--gold-primary); }
+.cal-up-item span { font-size: 13.5px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* ปฏิทินทีม (2026-10-14): วันหยุดราชการ (แดง), หลายโน้ตต่อวัน + เวลา */
 .cal-day.is-weekend .cal-num, .cal-day.is-holiday .cal-num { color: var(--dk-bad, #d92d20); }
 .cal-day.is-today .cal-num { color: #fff; }
 .cal-day.is-holiday { background: var(--dk-bad-bg, #fff4f3); }
 .cal-holiday {
     width: 100%;
-    font-size: 11.5px;
+    font-size: 12.5px;
     font-weight: 600;
     line-height: 1.3;
     color: var(--dk-bad, #d92d20);
@@ -7089,10 +7110,10 @@ th.sortable-th:hover::after { opacity: 0.8; }
 }
 .cal-note { -webkit-line-clamp: 2; }
 .cal-note b { color: var(--gold-primary); font-weight: 600; }
-.cal-more { font-size: 11.5px; color: var(--gold-primary); font-weight: 600; }
+.cal-more { font-size: 12.5px; color: var(--gold-primary); font-weight: 600; }
 .cal-editor-holiday { margin: 4px 0 0; font-size: 13px; font-weight: 600; color: var(--dk-bad, #d92d20); }
 .cal-day-notes { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
-.cal-empty { font-size: 12.5px; margin: 0; }
+.cal-empty { font-size: 13.5px; margin: 0; }
 .cal-day-note {
     display: flex;
     align-items: flex-start;
@@ -7103,10 +7124,10 @@ th.sortable-th:hover::after { opacity: 0.8; }
     border: 1px solid transparent;
 }
 .cal-day-note.is-editing { border-color: var(--gold-primary); }
-.cal-day-note-time { flex-shrink: 0; min-width: 40px; font-size: 12.5px; font-weight: 600; color: var(--gold-primary); padding-top: 1px; }
+.cal-day-note-time { flex-shrink: 0; min-width: 40px; font-size: 13.5px; font-weight: 600; color: var(--gold-primary); padding-top: 1px; }
 .cal-day-note-body { flex: 1; min-width: 0; }
 .cal-day-note-body p { margin: 0; font-size: 13px; color: var(--text-dark); word-break: break-word; white-space: pre-wrap; }
-.cal-day-note-body small { font-size: 11.5px; color: var(--text-muted); }
+.cal-day-note-body small { font-size: 12.5px; color: var(--text-muted); }
 .cal-form { border-top: 1px solid var(--dk-line, #e5e7eb); padding-top: 12px; }
 .cal-time-label { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 13px; color: var(--text-muted); }
 .cal-time-label input {
@@ -7168,9 +7189,9 @@ th.sortable-th:hover::after { opacity: 0.8; }
 .lf-main { min-width: 0; display: flex; flex-direction: column; }
 .lf-main a { font-weight: 600; font-size: 13px; color: var(--text-dark); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lf-main a:hover { color: var(--gold-primary); }
-.lf-main small { font-size: 11.5px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lf-main small { font-size: 12.5px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lf-size { font-weight: 600; font-size: 13px; font-variant-numeric: tabular-nums; }
-.lf-state { font-size: 12px; display: inline-flex; align-items: center; gap: 6px; max-width: 220px; }
+.lf-state { font-size: 13px; display: inline-flex; align-items: center; gap: 6px; max-width: 220px; }
 .lf-state .ios-spin { width: 16px; height: 16px; }
 .lf-ok { color: var(--success, #16a34a); font-weight: 600; }
 @media (max-width: 760px) {
@@ -7204,7 +7225,7 @@ th.sortable-th:hover::after { opacity: 0.8; }
 }
 .billing-note-input:focus { outline: none; border-color: var(--gold-primary); box-shadow: 0 0 0 3px rgba(45, 79, 163, 0.12); }
 .billing-note-actions { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
-.billing-note-actions small { flex: 1; font-size: 11.5px; opacity: 0.85; }
+.billing-note-actions small { flex: 1; font-size: 12.5px; opacity: 0.85; }
 .billing-note-add { color: var(--dk-warn, #92400e); border-style: dashed; }
 
 /* สำเนาแผ่นบิลนอกจอสำหรับ "คัดลอกเป็นรูป" (buildPrintLikeClone ใน app.js) — จัดหน้าเหมือนตอนบันทึก PDF/พิมพ์:
@@ -7241,7 +7262,7 @@ html.is-resizing *, html.is-resizing *::before, html.is-resizing *::after { tran
 /* ฟอร์มแจ้งงาน: แท็บ คนงานรอแจ้งเข้า / คนงานต่างด้าวที่เกี่ยวข้อง (setJobWorkerTab) */
 .job-worker-tabs { margin-bottom: 8px; }
 .job-worker-tab-count { color: var(--dk-muted, var(--text-muted)); font-weight: 500; }
-.job-worker-notify-tag { font-size: 11.5px; padding: 1px 6px; margin-left: 4px; vertical-align: middle; }
+.job-worker-notify-tag { font-size: 12.5px; padding: 1px 6px; margin-left: 4px; vertical-align: middle; }
 
 /* ======================================================================================================
    ระบบธีม (รวมไว้ที่เดียว 2026-10-14) — Liquid Glass + โหมดสบายตา + มุมโค้งแคปซูล ใช้ร่วมทั้ง 3 ธีม

@@ -2694,7 +2694,7 @@ function renderPieChartInto(containerId, entries, opts = {}) {
         const color = chartColor(e.color) || PIE_CHART_PALETTE[idx % PIE_CHART_PALETTE.length];
         const pct = ((e.value / total) * 100).toFixed(1);
         return `
-            <div style="display:flex; align-items:center; gap:6px; font-size:12.5px; margin-bottom:6px;">
+            <div style="display:flex; align-items:center; gap:6px; font-size:13.5px; margin-bottom:6px;">
                 <span style="width:12px; height:12px; border-radius:3px; background:${color}; display:inline-block; flex-shrink:0;"></span>
                 <span>${e.name} — ${e.value.toLocaleString('th-TH')} ${unit} (${pct}%)</span>
             </div>
@@ -3588,8 +3588,8 @@ function renderCustomers() {
         const totalWorkersCount = allWorkers().filter(w => w.employerId === c.id && w.status !== 'deleted').length;
 
         const statusLabel = c.status === 'deleted' ?
-            ' <span class="badge" style="background-color: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); font-size: 11.5px; padding: 2px 6px; margin-left: 4px;">ลบแล้ว/เก็บถาวร</span>' :
-            isCustomerInactive(c) ? ' <span class="badge badge-danger" style="font-size: 11.5px; padding: 2px 6px; margin-left: 4px;">ปิดใช้งาน (Inactive)</span>' :
+            ' <span class="badge" style="background-color: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); font-size: 12.5px; padding: 2px 6px; margin-left: 4px;">ลบแล้ว/เก็บถาวร</span>' :
+            isCustomerInactive(c) ? ' <span class="badge badge-danger" style="font-size: 12.5px; padding: 2px 6px; margin-left: 4px;">ปิดใช้งาน (Inactive)</span>' :
             '';
         if (currentUser.role === 'admin') {
             deleteBtn = (isCustomerInactive(c)
@@ -3597,7 +3597,7 @@ function renderCustomers() {
                 : `<button class="action-icon-btn" onclick="toggleCustomerActive('${c.id}')" title="ปิดใช้งานนายจ้าง (ซ่อนคนงานของนายจ้างนี้)">${icon("ban")}</button>`) + deleteBtn;
         }
         const prepaymentLabel = c.requirePrepayment ?
-            ' <span class="badge" style="background-color: #fffbeb; color: #92400e; border: 1px solid #fde68a; font-size: 11.5px; padding: 2px 6px; margin-left: 4px;" title="ต้องออกบิลและรับชำระก่อนย้ายใบงานเข้ากำลังดำเนินการ">' + icon("moneybag") + ' ต้องชำระก่อนดำเนินการ</span>' :
+            ' <span class="badge" style="background-color: #fffbeb; color: #92400e; border: 1px solid #fde68a; font-size: 12.5px; padding: 2px 6px; margin-left: 4px;" title="ต้องออกบิลและรับชำระก่อนย้ายใบงานเข้ากำลังดำเนินการ">' + icon("moneybag") + ' ต้องชำระก่อนดำเนินการ</span>' :
             '';
         
         const attachHtml = `
@@ -3611,10 +3611,10 @@ function renderCustomers() {
         const referredAgent = c.referredByAgentId ? agents.find(a => a.id === c.referredByAgentId) : null;
         const referredAgentHtml = referredAgent
             ? `<span class="badge" style="background-color:#e0f2fe; color:#0369a1; font-weight:600;">${icon("users")} ${referredAgent.name}</span>`
-            : `<span class="text-muted" style="font-size:12.5px;">-</span>`;
+            : `<span class="text-muted" style="font-size:13.5px;">-</span>`;
 
         // หนังสือรับรองนิติบุคคล: มีเฉพาะลูกค้าที่กรอกวันที่ออกหนังสือรับรองไว้ (cert_expiry = วันที่ออก + 6 เดือน)
-        let certCellHtml = `<span class="text-muted" style="font-size:12.5px;">-</span>`;
+        let certCellHtml = `<span class="text-muted" style="font-size:13.5px;">-</span>`;
         if (c.certExpiry) {
             const certExpDate = new Date(c.certExpiry);
             const certDaysDiff = Math.ceil((certExpDate.setHours(0,0,0,0) - new Date().setHours(0,0,0,0)) / (1000 * 60 * 60 * 24));
@@ -4091,7 +4091,7 @@ function renderWorkers() {
                             ${w.thaiName ? `<div><small class="text-muted">ชื่อไทย (บัตรชมพู): ${w.thaiName}</small></div>` : ''}
                             <div><small class="text-muted">เพศ: ${w.gender || '-'}</small></div>
                             ${pendingNotifyBadge}${clientNoteBadge}
-                            ${(w.fatherName || w.motherName) ? `<div style="font-size:11.5px; color:var(--text-muted); margin-top:2px;">พ่อ: ${w.fatherName || '-'} / แม่: ${w.motherName || '-'}</div>` : ''}
+                            ${(w.fatherName || w.motherName) ? `<div style="font-size:12.5px; color:var(--text-muted); margin-top:2px;">พ่อ: ${w.fatherName || '-'} / แม่: ${w.motherName || '-'}</div>` : ''}
                         </div>
                     </div>
                 </td>
@@ -4553,7 +4553,7 @@ function renderAttachmentChipsHtml(fileList, buildRemoveCall, buildPreviewCall) 
     if (!fileList || fileList.length === 0) return '';
     return `<div style="display:flex; flex-direction:column; gap:4px; text-align:left; margin-top:4px;">` +
         fileList.map((f, idx) => `
-            <div style="display:flex; align-items:center; justify-content:space-between; gap:6px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:4px; padding:3px 6px; font-size:11.5px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:6px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:4px; padding:3px 6px; font-size:12.5px;">
                 <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#166534; ${buildPreviewCall ? 'cursor:pointer; text-decoration:underline dotted;' : ''}"
                       title="${buildPreviewCall ? `คลิกเพื่อดูตัวอย่างไฟล์: ${f.name}` : f.name}"
                       ${buildPreviewCall ? `onclick="${buildPreviewCall(idx)}"` : ''}>${icon("ok")} ${f.name}</span>
@@ -6510,7 +6510,7 @@ function renderJobs() {
         const custIdLines = buildEmployerIdLinesHtml(cust);
         const workName = work ? `${workerFullName(work)} (${work.nationality})` : "ไม่พบข้อมูลคนงาน";
         const jobAgent = j.agentId ? agents.find(a => a.id === j.agentId) : null;
-        const agentLine = jobAgent ? `<br><span style="font-size:11.5px; color:var(--text-muted);">${icon("user")} Agent: ${jobAgent.name}</span>` : '';
+        const agentLine = jobAgent ? `<br><span style="font-size:12.5px; color:var(--text-muted);">${icon("user")} Agent: ${jobAgent.name}</span>` : '';
 
         // Status styling and display (สถานะขั้นตอนงาน — แยกจากสถานะการเงินโดยสิ้นเชิงแล้ว)
         let displayStatus = j.status;
@@ -6528,11 +6528,11 @@ function renderJobs() {
 
         // Payment badge (ออกบิล/ชำระเงิน) — เป็นอิสระจากสถานะขั้นตอนงาน ออกบิลได้ตั้งแต่เปิดงาน
         const paymentStatus = j.paymentStatus || 'ยังไม่ออกบิล';
-        let paymentBadge = `<span class="badge badge-warning" style="font-size: 11.5px; padding: 2px 6px;">${icon("hourglass")} ยังไม่ออกบิล</span>`;
+        let paymentBadge = `<span class="badge badge-warning" style="font-size: 12.5px; padding: 2px 6px;">${icon("hourglass")} ยังไม่ออกบิล</span>`;
         if (paymentStatus === 'ออกบิลแล้ว') {
-            paymentBadge = `<span class="badge" style="font-size: 11.5px; padding: 2px 6px; background-color: #3b82f6; color: white;">${icon("receipt")} ออกบิลแล้ว</span>`;
+            paymentBadge = `<span class="badge" style="font-size: 12.5px; padding: 2px 6px; background-color: #3b82f6; color: white;">${icon("receipt")} ออกบิลแล้ว</span>`;
         } else if (paymentStatus === 'ชำระเงินแล้ว') {
-            paymentBadge = `<span class="badge badge-success" style="font-size: 11.5px; padding: 2px 6px;">${icon("ok")} ชำระเงินแล้ว${j.paymentMethod ? ` (${j.paymentMethod})` : ''}</span>`;
+            paymentBadge = `<span class="badge badge-success" style="font-size: 12.5px; padding: 2px 6px;">${icon("ok")} ชำระเงินแล้ว${j.paymentMethod ? ` (${j.paymentMethod})` : ''}</span>`;
         } else if (paymentStatus === JOB_NO_CHARGE) {
             paymentBadge = noChargeBadgeHtml(j);
         }
@@ -6540,7 +6540,7 @@ function renderJobs() {
         // นายจ้างบางรายตั้งไว้ว่าต้องออกบิล+รับชำระก่อนถึงจะเริ่ม "กำลังดำเนินการ" ได้ (customers.requirePrepayment)
         // โชว์เตือนไว้ในตารางใบงานเลยเพื่อให้เจ้าหน้าที่เห็นล่วงหน้า ไม่ต้องเปิดไปเช็กที่หน้านายจ้างก่อน
         const prepaymentBadge = (cust && cust.requirePrepayment && paymentStatus !== 'ชำระเงินแล้ว' && paymentStatus !== JOB_NO_CHARGE)
-            ? `<br><span class="badge" style="background-color: #fffbeb; color: #92400e; border: 1px solid #fde68a; font-size: 11.5px; padding: 2px 6px;" title="นายจ้าง &quot;${custName}&quot; ตั้งไว้ว่าต้องออกบิลและรับชำระเงินก่อนย้ายเข้ากำลังดำเนินการ">${icon("moneybag")} ต้องออกบิลและรับชำระเงินก่อน</span>`
+            ? `<br><span class="badge" style="background-color: #fffbeb; color: #92400e; border: 1px solid #fde68a; font-size: 12.5px; padding: 2px 6px;" title="นายจ้าง &quot;${custName}&quot; ตั้งไว้ว่าต้องออกบิลและรับชำระเงินก่อนย้ายเข้ากำลังดำเนินการ">${icon("moneybag")} ต้องออกบิลและรับชำระเงินก่อน</span>`
             : '';
 
         // Action buttons
@@ -6572,7 +6572,7 @@ function renderJobs() {
         const cleanJobType = (j.jobType || "").replace(/\s*\(\d+\)/g, "");
         const siblings = getJobBatchSiblings(j, true); // เฉพาะงานของคนงานคนนี้
         const batchBadge = siblings.length > 0
-            ? `<br><span class="badge" style="font-size:11.5px; margin-top:3px; background:#eef2ff; color:#4338ca; display:inline-block;">${icon("clip")} ชุดงานเดียวกัน • ${siblings.length + 1} รายการ</span>`
+            ? `<br><span class="badge" style="font-size:12.5px; margin-top:3px; background:#eef2ff; color:#4338ca; display:inline-block;">${icon("clip")} ชุดงานเดียวกัน • ${siblings.length + 1} รายการ</span>`
             : '';
         const siblingPills = siblings.length > 0
             ? `<div style="margin-top:5px; display:flex; flex-wrap:wrap; gap:4px;">${siblings.map(s => {
@@ -6607,8 +6607,8 @@ function renderJobs() {
                 </td>
                 <td>
                     <span style="font-size:13px;">${getUserNameById(j.openedBy)}</span>
-                    ${j.closedBy ? `<br><span style="font-size:11.5px; color:var(--text-muted);">${icon("lock")} ปิดโดย: ${getUserNameById(j.closedBy)}</span>` : ''}
-                    ${jobClosedInfoText(j) ? `<br><span style="font-size:11.5px; color:var(--text-muted);">${icon("calendar")} ${jobClosedInfoText(j)}</span>` : ''}
+                    ${j.closedBy ? `<br><span style="font-size:12.5px; color:var(--text-muted);">${icon("lock")} ปิดโดย: ${getUserNameById(j.closedBy)}</span>` : ''}
+                    ${jobClosedInfoText(j) ? `<br><span style="font-size:12.5px; color:var(--text-muted);">${icon("calendar")} ${jobClosedInfoText(j)}</span>` : ''}
                 </td>
                 <td class="actions-col" onclick="event.stopPropagation()">
                     <div class="actions-cell">
@@ -7476,7 +7476,7 @@ function refreshJobTypeLocks() {
 
             const note = document.createElement('div');
             note.className = 'job-type-lock-note';
-            note.style.cssText = 'width:100%; font-size:11.5px; color:#b91c1c; margin-top:2px; line-height:1.4;';
+            note.style.cssText = 'width:100%; font-size:12.5px; color:#b91c1c; margin-top:2px; line-height:1.4;';
             const detail = conflicts.map(x => {
                 const w = workers.find(item => item.id === x.wid);
                 const wName = w ? workerFullName(w) : x.wid;
@@ -7500,7 +7500,7 @@ function renderJobBatchHint(job, workerIdForNew) {
     if (!hintBox) {
         hintBox = document.createElement("div");
         hintBox.id = "job-batch-hint";
-        hintBox.style.cssText = "font-size:12.5px; border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 14px; display:none;";
+        hintBox.style.cssText = "font-size:13.5px; border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 14px; display:none;";
         const container = document.getElementById("job-type-checkboxes-container");
         if (container && container.parentNode) {
             container.parentNode.insertBefore(hintBox, container);
@@ -9375,7 +9375,7 @@ function renderUsers() {
         const isSelf = u.id === currentUser.id;
         const status = !userAuthInfo ? '<span class="text-muted">กำลังโหลด...</span>'
             : a.suspended ? '<span class="badge badge-danger">ระงับอยู่</span>'
-            : `<span class="badge badge-success">ใช้งานได้</span><div class="text-muted" style="font-size:11.5px;">${a.lastSignInAt ? 'เข้าล่าสุด ' + formatThaiDate(a.lastSignInAt, true) : 'ยังไม่เคยเข้าระบบ'}</div>`;
+            : `<span class="badge badge-success">ใช้งานได้</span><div class="text-muted" style="font-size:12.5px;">${a.lastSignInAt ? 'เข้าล่าสุด ' + formatThaiDate(a.lastSignInAt, true) : 'ยังไม่เคยเข้าระบบ'}</div>`;
         return `
         <tr>
             <td><div class="user-name-cell"><span class="user-avatar user-avatar-sm">${userAvatarHtml(u)}</span>${escapeHtml(u.name || '-')}</div></td>
@@ -11759,11 +11759,13 @@ function renderCustomerFolderPreview() {
             : `<b>${escapeHtml(fItem.name || '-')}</b>`,
         sub: fvShortLabel(type.label),
         download: "customerFolderAction('download')", printBox: 'customer-folder-preview', url,
+        edits: [
+            canEdit && !isPdfUrl(url) ? fvActButton('edit', 'แก้ไขรูป', `openImageEditor('customer', '${sel.key}', ${sel.idx})`, { title: 'ตัดกรอบ หมุน ปรับองศา ปรับความสว่างของรูปนี้' }) : '',
+            can('deleteFiles') ? fvActButton('trash', 'ลบ', `deleteCustomerFolderFileIndex('${sel.key}', ${sel.idx})`, { danger: true, title: 'ลบไฟล์นี้' }) : ''
+        ],
         menu: [
-            canEdit && !isPdfUrl(url) ? fvMenuItem('edit', 'แก้ไขรูป (ตัด หมุน ปรับแสง)', `openImageEditor('customer', '${sel.key}', ${sel.idx})`) : '',
             fvMenuItem('link', 'แชร์ไฟล์นี้', "customerFolderAction('share')"),
-            fvDriveMenuItem(`customer:${c.id}`, url),
-            can('deleteFiles') ? `<hr>${fvMenuItem('trash', 'ลบไฟล์', `deleteCustomerFolderFileIndex('${sel.key}', ${sel.idx})`, { danger: true })}` : ''
+            fvDriveMenuItem(`customer:${c.id}`, url)
         ]
     }) + `<div class="fv-doc">${viewer}</div>`;
 }
@@ -12252,7 +12254,7 @@ function renderMonthlyDetails() {
             custUl.innerHTML = matchingCustomers.map(c => `
                 <li style="font-size:13.5px; padding: 6px 10px; background-color: #ffffff; border-radius: var(--radius-sm); border: 1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
                     <span>${icon("building")} <strong>${c.companyName}</strong> (${c.businessType})</span>
-                    <span style="font-size:12px; color:var(--text-muted);">${formatDateOnly(c.createdAt)}</span>
+                    <span style="font-size:13px; color:var(--text-muted);">${formatDateOnly(c.createdAt)}</span>
                 </li>
             `).join('');
         }
@@ -12269,9 +12271,9 @@ function renderMonthlyDetails() {
                     <li style="font-size:13.5px; padding: 6px 10px; background-color: #ffffff; border-radius: var(--radius-sm); border: 1px solid #e2e8f0; display:flex; flex-direction:column; gap:4px;">
                         <div style="display:flex; justify-content:space-between;">
                             <strong>${icon("user")} ${workerFullName(w)} (${w.nationality})</strong>
-                            <span style="font-size:12px; color:var(--text-muted);">${formatDateOnly(w.createdAt)}</span>
+                            <span style="font-size:13px; color:var(--text-muted);">${formatDateOnly(w.createdAt)}</span>
                         </div>
-                        <div style="font-size:12px; color:var(--text-muted);">
+                        <div style="font-size:13px; color:var(--text-muted);">
                             เลขประจำตัว: ${w.workerUid || '-'} | นายจ้าง: ${empName}
                         </div>
                     </li>
@@ -12415,7 +12417,7 @@ function renderFinanceStats() {
             <div class="stats-card" style="border-left: 4px solid #10b981; background: #ffffff; padding: 12px; border-radius: var(--radius-sm); border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 10px;">
                 <div style="font-size: 24px;">${icon("cash")}</div>
                 <div style="display: flex; flex-direction: column;">
-                    <span style="font-size: 11.5px; color: #64748b; font-weight: 500;">เงินสด (Cash)</span>
+                    <span style="font-size: 12.5px; color: #64748b; font-weight: 500;">เงินสด (Cash)</span>
                     <strong style="font-size: 14px; color: #0f172a; margin-top: 2px;">${cashSum.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บ.</strong>
                 </div>
             </div>
@@ -12428,7 +12430,7 @@ function renderFinanceStats() {
                 <div class="stats-card" style="border-left: 4px solid ${meta.color}; background: #ffffff; padding: 12px; border-radius: var(--radius-sm); border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 10px;">
                     ${renderBankLogoBadge(bankName, 28)}
                     <div style="display: flex; flex-direction: column;">
-                        <span style="font-size: 11.5px; color: #64748b; font-weight: 500; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; max-width: 120px;" title="${bankName}">${bankName}</span>
+                        <span style="font-size: 12.5px; color: #64748b; font-weight: 500; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; max-width: 120px;" title="${bankName}">${bankName}</span>
                         <strong style="font-size: 14px; color: #0f172a; margin-top: 2px;">${sum.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บ.</strong>
                     </div>
                 </div>
@@ -12441,7 +12443,7 @@ function renderFinanceStats() {
                 <div class="stats-card" style="border-left: 4px solid #94a3b8; background: #ffffff; padding: 12px; border-radius: var(--radius-sm); border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 10px;">
                     <div style="font-size: 24px;">${icon("edit")}</div>
                     <div style="display: flex; flex-direction: column;">
-                        <span style="font-size: 11.5px; color: #64748b; font-weight: 500;">บัญชีธนาคาร (ไม่ระบุ)</span>
+                        <span style="font-size: 12.5px; color: #64748b; font-weight: 500;">บัญชีธนาคาร (ไม่ระบุ)</span>
                         <strong style="font-size: 14px; color: #0f172a; margin-top: 2px;">${unspecifiedSum.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บ.</strong>
                     </div>
                 </div>
@@ -12545,12 +12547,12 @@ function renderFinanceStats() {
                 let actionBtn = "";
                 if (item.unpaid > 0) {
                     actionBtn = `
-                        <button class="btn btn-sm btn-gold" onclick="quickCombineInvoice('${item.customer.id}')" style="font-size: 11.5px; padding: 4px 10px;">
+                        <button class="btn btn-sm btn-gold" onclick="quickCombineInvoice('${item.customer.id}')" style="font-size: 12.5px; padding: 4px 10px;">
                             ${icon("receipt")} รวมบิลเพื่อเก็บเงิน
                         </button>
                     `;
                 } else {
-                    actionBtn = `<span class="badge badge-success" style="font-size: 11.5px; padding: 2px 8px;">${icon("ok")} ครบถ้วน</span>`;
+                    actionBtn = `<span class="badge badge-success" style="font-size: 12.5px; padding: 2px 8px;">${icon("ok")} ครบถ้วน</span>`;
                 }
                 return `
                     <tr>
@@ -12985,19 +12987,24 @@ function fvEmptyChips(list) {
 // ชื่อหมวดแบบสั้น: ตัดวงเล็บภาษาอังกฤษท้ายชื่อออก ("ใบอนุญาตทำงาน (Work Permit)" → "ใบอนุญาตทำงาน")
 const fvShortLabel = label => String(label || '').replace(/\s*\([^)]*\)\s*$/, '');
 
-// แถบบนพรีวิว: ปุ่มไอคอนที่ใช้บ่อย (ดาวน์โหลด / พิมพ์ / เปิดแท็บใหม่) + เมนู ••• สำหรับคำสั่งที่เหลือ
-function fvBarHtml({ title, sub, download, printBox, url, menu }) {
-    const items = (menu || []).filter(Boolean);
+// แถบบนพรีวิว: ปุ่มแก้ไขไฟล์มีป้ายชื่อเห็นชัด (แก้ไขรูป / ตั้งเป็นรูปคนงาน / ลบ — owner 2026-10-15 หาไม่เจอตอนซ่อนในเมนู)
+// + ดาวน์โหลด / พิมพ์ + เมนู ••• (เปิดแท็บใหม่ แชร์ Drive)
+function fvBarHtml({ title, sub, download, printBox, url, edits, menu }) {
+    const items = [url ? fvMenuItem('external', 'เปิดในแท็บใหม่', '', { href: url }) : '', ...(menu || [])].filter(Boolean);
     return `
         <div class="fv-bar">
             <div class="fv-bar-title">${title}<small>${sub || ''}</small></div>
             <div class="fv-bar-actions">
-                ${download ? `<button type="button" class="fv-ib" onclick="${download}" title="ดาวน์โหลดไฟล์">${icon('inbox', 'slate')}</button>` : ''}
-                ${printBox ? `<button type="button" class="fv-ib" onclick="printFolderPreview('${printBox}')" title="พิมพ์ไฟล์นี้">${icon('print', 'slate')}</button>` : ''}
-                ${url ? `<a class="fv-ib" href="${escapeHtml(url)}" target="_blank" rel="noopener" title="เปิดไฟล์ในแท็บใหม่">${icon('external', 'slate')}</a>` : ''}
+                ${(edits || []).filter(Boolean).join('')}
+                ${download ? fvActButton('inbox', 'ดาวน์โหลด', download, { title: 'ดาวน์โหลดไฟล์' }) : ''}
+                ${printBox ? fvActButton('print', 'พิมพ์', `printFolderPreview('${printBox}')`, { title: 'พิมพ์ไฟล์นี้' }) : ''}
                 ${items.length ? `<div class="fv-more"><button type="button" class="fv-ib" onclick="toggleFvMenu(this)" title="คำสั่งอื่นของไฟล์นี้">${icon('more', 'slate')}</button><div class="fv-menu">${items.join('')}</div></div>` : ''}
             </div>
         </div>`;
+}
+// ปุ่มแคปซูลมีไอคอน+ข้อความบนแถบพรีวิว
+function fvActButton(iconName, label, onclick, opts = {}) {
+    return `<button type="button" class="fv-act${opts.danger ? ' is-danger' : ''}" onclick="${onclick}" title="${escapeHtml(opts.title || label)}">${icon(iconName, opts.danger ? 'red' : 'slate')} ${label}</button>`;
 }
 // รายการในเมนู ••• (ปุ่ม หรือ ลิงก์เมื่อมี href)
 function fvMenuItem(iconName, label, onclick, opts = {}) {
@@ -13140,7 +13147,7 @@ function renderWorkerFolderPreview() {
             title,
             sub: `${escapeHtml(d.group)} · ${escapeHtml(getCleanJobTypeName(j.jobType))} (${escapeHtml(getJobDisplayNo(j))})${d.note ? ` · ${escapeHtml(d.note)}` : ''}`,
             download: "workerFolderAction('download')", printBox: 'worker-folder-preview', url: jurl,
-            menu: [fvDriveMenuItem(`worker:${w.id}`, jurl).replace(/^<hr>/, '')]
+            menu: [fvDriveMenuItem(`worker:${w.id}`, jurl)]
         }) + `<div class="fv-doc">${jviewer}</div>`;
         return;
     }
@@ -13160,12 +13167,14 @@ function renderWorkerFolderPreview() {
             : `<b>${escapeHtml(fItem.name || '-')}</b>`,
         sub: `${fvShortLabel(type.label)}${fItem.expiryDate ? ` · หมดอายุ ${formatThaiDate(fItem.expiryDate)}` : ''}${fItem.note ? ` · ${escapeHtml(fItem.note)}` : ''}${doeReceiptBadgeHtml(fItem)}`,
         download: "workerFolderAction('download')", printBox: 'worker-folder-preview', url,
+        edits: [
+            canEdit && isImg ? fvActButton('edit', 'แก้ไขรูป', `openImageEditor('worker', '${k}', ${i})`, { title: 'ตัดกรอบ หมุน ปรับองศา ปรับความสว่างของรูปนี้' }) : '',
+            canEdit && isImg && w.photo !== url ? fvActButton('photo', 'ตั้งเป็นรูปคนงาน', "workerFolderAction('setPhoto')", { title: 'ใช้รูปนี้เป็นรูปประจำตัวคนงาน' }) : '',
+            canEdit && can('deleteFiles') ? fvActButton('trash', 'ลบ', `deleteFolderFileIndex('${k}', ${i})`, { danger: true, title: 'ลบไฟล์นี้' }) : ''
+        ],
         menu: [
-            canEdit && isImg ? fvMenuItem('edit', 'แก้ไขรูป (ตัด หมุน ปรับแสง)', `openImageEditor('worker', '${k}', ${i})`) : '',
-            canEdit && isImg && w.photo !== url ? fvMenuItem('photo', 'ตั้งเป็นรูปคนงาน', "workerFolderAction('setPhoto')") : '',
             fvMenuItem('link', 'แชร์ไฟล์นี้', "workerFolderAction('share')"),
-            fvDriveMenuItem(`worker:${w.id}`, url),
-            canEdit && can('deleteFiles') ? `<hr>${fvMenuItem('trash', 'ลบไฟล์', `deleteFolderFileIndex('${k}', ${i})`, { danger: true })}` : ''
+            fvDriveMenuItem(`worker:${w.id}`, url)
         ]
     }) + `<div class="fv-doc">${viewer}</div>`;
 }
@@ -14062,20 +14071,20 @@ function renderBulkImportTable() {
 
     tbody.innerHTML = bulkImportRows.map((row, idx) => {
         let statusBadge;
-        if (row.status === 'pending' && row.ocrStatus === 'busy') statusBadge = '<span class="badge badge-warning" style="font-size:11.5px;" title="Gemini ไม่ว่างหรือโควตาหมด — กด ให้ AI อ่าน อีกครั้งทีหลัง หรือเลือกคนงาน/ประเภทเอง">' + icon("warn") + ' AI ไม่ว่าง</span>';
-        else if (row.status === 'pending' && row.ocrStatus === 'failed') statusBadge = '<span class="badge badge-warning" style="font-size:11.5px;" title="AI อ่านเอกสารนี้ไม่ได้ — เลือกคนงาน/ประเภทเอง">' + icon("warn") + ' AI อ่านไม่ได้</span>';
-        else if (row.status === 'pending' && isBulkNewWorkerId(row.workerId)) statusBadge = '<span class="badge badge-gold" style="font-size:11.5px;" title="ไม่พบคนงานนี้ในระบบ จะสร้างคนงานใหม่ตอนกดนำเข้า">' + icon("sparkles", "blue") + ' คนงานใหม่</span>';
-        else if (row.status === 'pending' && row.matchNote) statusBadge = `<span class="badge badge-success" style="font-size:11.5px;" title="AI อ่านเอกสารแล้วจับคู่กับคนงานเดิมด้วย${row.matchNote}">${icon("bot")} ตรง${row.matchNote}</span>`;
-        else if (row.status === 'failed' && row.aiStatus === 'busy') statusBadge = '<span class="badge badge-warning" style="font-size:11.5px;" title="Gemini มีผู้ใช้งานมาก ไฟล์นี้ยังไม่ได้บันทึก — กด นำเข้า อีกครั้งในอีกสักครู่">' + icon("warn") + ' ยังไม่บันทึก • AI ไม่ว่าง</span>';
-        else if (row.status === 'failed' && row.aiStatus === 'failed') statusBadge = '<span class="badge badge-warning" style="font-size:11.5px;" title="AI อ่านเอกสารไม่ได้ ไฟล์นี้ยังไม่ได้บันทึก — ตรวจไฟล์แล้วลองใหม่">' + icon("warn") + ' ยังไม่บันทึก • AI อ่านไม่ได้</span>';
-        else if (row.status === 'success' && row.aiStatus === 'manual') statusBadge = `<button type="button" class="btn btn-sm btn-outline" style="font-size:11.5px; padding:2px 8px; white-space:nowrap;" onclick="openManualEntryForm('worker', '${row.workerId}', '${row.docType}')" title="ไฟล์เข้าระบบแล้ว (ไม่ผ่าน AI) — กดเพื่อเปิดฟอร์มคนงานไปกรอกข้อมูล">${icon("sign")} กรอกข้อมูล</button>`;
-        else if (row.status === 'success' && row.aiStatus === 'filled') statusBadge = '<span class="badge badge-success" style="font-size:11.5px;">' + icon("ok") + ' นำเข้าแล้ว • AI เติมข้อมูลแล้ว</span>';
-        else if (row.status === 'success') statusBadge = '<span class="badge badge-success" style="font-size:11.5px;">' + icon("ok") + ' นำเข้าแล้ว</span>';
-        else if (row.status === 'failed' && row.aiStatus === 'cancelled') statusBadge = '<span class="badge badge-warning" style="font-size:11.5px;" title="เลข 13 หลักในเอกสารไม่ตรงกับคนงานที่จับคู่ไว้ — เลือกไม่อัปโหลด ไฟล์นี้ไม่ได้บันทึก">' + icon("warn") + ' ไม่อัปโหลด • เลข 13 หลักไม่ตรง</span>';
-        else if (row.status === 'failed') statusBadge = '<span class="badge badge-danger" style="font-size:11.5px;">' + icon("bad") + ' ล้มเหลว</span>';
-        else if (row.confidence === 'high') statusBadge = '<span class="badge badge-success" style="font-size:11.5px;">' + icon("ok") + ' ตรงเลข 13 หลัก</span>';
-        else if (row.confidence === 'medium') statusBadge = '<span class="badge badge-gold" style="font-size:11.5px;">' + icon("dot") + ' จับคู่จากชื่อ</span>';
-        else statusBadge = '<span class="badge badge-danger" style="font-size:11.5px;">' + icon("bad") + ' ไม่พบคู่</span>';
+        if (row.status === 'pending' && row.ocrStatus === 'busy') statusBadge = '<span class="badge badge-warning" style="font-size:12.5px;" title="Gemini ไม่ว่างหรือโควตาหมด — กด ให้ AI อ่าน อีกครั้งทีหลัง หรือเลือกคนงาน/ประเภทเอง">' + icon("warn") + ' AI ไม่ว่าง</span>';
+        else if (row.status === 'pending' && row.ocrStatus === 'failed') statusBadge = '<span class="badge badge-warning" style="font-size:12.5px;" title="AI อ่านเอกสารนี้ไม่ได้ — เลือกคนงาน/ประเภทเอง">' + icon("warn") + ' AI อ่านไม่ได้</span>';
+        else if (row.status === 'pending' && isBulkNewWorkerId(row.workerId)) statusBadge = '<span class="badge badge-gold" style="font-size:12.5px;" title="ไม่พบคนงานนี้ในระบบ จะสร้างคนงานใหม่ตอนกดนำเข้า">' + icon("sparkles", "blue") + ' คนงานใหม่</span>';
+        else if (row.status === 'pending' && row.matchNote) statusBadge = `<span class="badge badge-success" style="font-size:12.5px;" title="AI อ่านเอกสารแล้วจับคู่กับคนงานเดิมด้วย${row.matchNote}">${icon("bot")} ตรง${row.matchNote}</span>`;
+        else if (row.status === 'failed' && row.aiStatus === 'busy') statusBadge = '<span class="badge badge-warning" style="font-size:12.5px;" title="Gemini มีผู้ใช้งานมาก ไฟล์นี้ยังไม่ได้บันทึก — กด นำเข้า อีกครั้งในอีกสักครู่">' + icon("warn") + ' ยังไม่บันทึก • AI ไม่ว่าง</span>';
+        else if (row.status === 'failed' && row.aiStatus === 'failed') statusBadge = '<span class="badge badge-warning" style="font-size:12.5px;" title="AI อ่านเอกสารไม่ได้ ไฟล์นี้ยังไม่ได้บันทึก — ตรวจไฟล์แล้วลองใหม่">' + icon("warn") + ' ยังไม่บันทึก • AI อ่านไม่ได้</span>';
+        else if (row.status === 'success' && row.aiStatus === 'manual') statusBadge = `<button type="button" class="btn btn-sm btn-outline" style="font-size:12.5px; padding:2px 8px; white-space:nowrap;" onclick="openManualEntryForm('worker', '${row.workerId}', '${row.docType}')" title="ไฟล์เข้าระบบแล้ว (ไม่ผ่าน AI) — กดเพื่อเปิดฟอร์มคนงานไปกรอกข้อมูล">${icon("sign")} กรอกข้อมูล</button>`;
+        else if (row.status === 'success' && row.aiStatus === 'filled') statusBadge = '<span class="badge badge-success" style="font-size:12.5px;">' + icon("ok") + ' นำเข้าแล้ว • AI เติมข้อมูลแล้ว</span>';
+        else if (row.status === 'success') statusBadge = '<span class="badge badge-success" style="font-size:12.5px;">' + icon("ok") + ' นำเข้าแล้ว</span>';
+        else if (row.status === 'failed' && row.aiStatus === 'cancelled') statusBadge = '<span class="badge badge-warning" style="font-size:12.5px;" title="เลข 13 หลักในเอกสารไม่ตรงกับคนงานที่จับคู่ไว้ — เลือกไม่อัปโหลด ไฟล์นี้ไม่ได้บันทึก">' + icon("warn") + ' ไม่อัปโหลด • เลข 13 หลักไม่ตรง</span>';
+        else if (row.status === 'failed') statusBadge = '<span class="badge badge-danger" style="font-size:12.5px;">' + icon("bad") + ' ล้มเหลว</span>';
+        else if (row.confidence === 'high') statusBadge = '<span class="badge badge-success" style="font-size:12.5px;">' + icon("ok") + ' ตรงเลข 13 หลัก</span>';
+        else if (row.confidence === 'medium') statusBadge = '<span class="badge badge-gold" style="font-size:12.5px;">' + icon("dot") + ' จับคู่จากชื่อ</span>';
+        else statusBadge = '<span class="badge badge-danger" style="font-size:12.5px;">' + icon("bad") + ' ไม่พบคู่</span>';
 
         const rowStyle = (!row.workerId || !row.docType) && row.status === 'pending' ? 'background:#fef2f2;' : '';
 
@@ -14084,14 +14093,14 @@ function renderBulkImportTable() {
                 <td><input type="checkbox" ${row.selected ? 'checked' : ''} ${row.status === 'success' ? 'disabled' : ''} onchange="setBulkImportRowSelected(${idx}, this.checked)"></td>
                 <td style="max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${row.fileName}">${row.status !== 'success' && row.file && row.file.type === 'application/pdf' ? `<button type="button" class="action-icon-btn bulk-split-btn" onclick="splitBulkImportPdf(${idx})" title="แยก PDF หลายคนเป็นไฟล์ละคน">${icon("scissors")}</button>` : ''}${row.fileName}</td>
                 <td>
-                    <select style="font-size:12.5px; max-width:200px;" onchange="updateBulkImportWorker(${idx}, this.value)">
+                    <select style="font-size:13.5px; max-width:200px;" onchange="updateBulkImportWorker(${idx}, this.value)">
                         <option value="">--- เลือกคนงาน ---</option>
                         ${bulkNewWorkers.map((c, cIdx) => { const v = BULK_NEW_WORKER_PREFIX + c.id; return `<option value="${v}" ${row.workerId === v ? 'selected' : ''}>🆕 คนงานใหม่ #${cIdx + 1}: ${escapeHtml(`${c.data.firstName || '(ไม่มีชื่อ)'} ${c.data.lastName || ''}`.trim())}</option>`; }).join('')}
                         ${bulkImportWorkerPool().map(w => `<option value="${w.id}" ${row.workerId === w.id ? 'selected' : ''}>${workerFullName(w)} (${w.workerUid || 'ไม่มีเลข'})</option>`).join('')}
                     </select>
                 </td>
                 <td>
-                    <select style="font-size:12.5px;" onchange="updateBulkImportDocType(${idx}, this.value)">
+                    <select style="font-size:13.5px;" onchange="updateBulkImportDocType(${idx}, this.value)">
                         <option value="">--- เลือกประเภท ---</option>
                         ${WORKER_DOC_TYPES.map(dt => `<option value="${dt.key}" ${row.docType === dt.key ? 'selected' : ''}>${dt.label}</option>`).join('')}
                     </select>
@@ -15033,22 +15042,22 @@ function renderJobsKanban(filtered) {
             const isClosedUnpaid = displayStatus === 'ปิดงานแล้ว' && paymentStatus !== 'ชำระเงินแล้ว' && paymentStatus !== JOB_NO_CHARGE;
             if (isClosedUnpaid) closedUnbilledCount++;
 
-            let paymentBadge = `<span class="badge badge-warning" style="font-size: 11.5px; padding: 2px 6px;">${icon("hourglass")} ยังไม่ออกบิล</span>`;
+            let paymentBadge = `<span class="badge badge-warning" style="font-size: 12.5px; padding: 2px 6px;">${icon("hourglass")} ยังไม่ออกบิล</span>`;
             if (isClosedUnpaid && paymentStatus === 'ยังไม่ออกบิล') {
-                paymentBadge = `<span class="badge badge-danger" style="font-size: 11.5px; padding: 2px 6px;">${icon("warn")} ยังไม่ออกบิล/ยังไม่ชำระ</span>`;
+                paymentBadge = `<span class="badge badge-danger" style="font-size: 12.5px; padding: 2px 6px;">${icon("warn")} ยังไม่ออกบิล/ยังไม่ชำระ</span>`;
             } else if (isClosedUnpaid && paymentStatus === 'ออกบิลแล้ว') {
-                paymentBadge = `<span class="badge badge-danger" style="font-size: 11.5px; padding: 2px 6px;">${icon("warn")} ออกบิลแล้ว รอชำระ</span>`;
+                paymentBadge = `<span class="badge badge-danger" style="font-size: 12.5px; padding: 2px 6px;">${icon("warn")} ออกบิลแล้ว รอชำระ</span>`;
             } else if (paymentStatus === 'ออกบิลแล้ว') {
-                paymentBadge = `<span class="badge" style="font-size: 11.5px; padding: 2px 6px; background-color: #3b82f6; color: white;">${icon("receipt")} ออกบิลแล้ว</span>`;
+                paymentBadge = `<span class="badge" style="font-size: 12.5px; padding: 2px 6px; background-color: #3b82f6; color: white;">${icon("receipt")} ออกบิลแล้ว</span>`;
             } else if (paymentStatus === 'ชำระเงินแล้ว') {
-                paymentBadge = `<span class="badge badge-success" style="font-size: 11.5px; padding: 2px 6px;">${icon("ok")} ชำระเงินแล้ว</span>`;
+                paymentBadge = `<span class="badge badge-success" style="font-size: 12.5px; padding: 2px 6px;">${icon("ok")} ชำระเงินแล้ว</span>`;
             } else if (paymentStatus === JOB_NO_CHARGE) {
                 paymentBadge = noChargeBadgeHtml(j);
             }
 
             // นายจ้างบางรายตั้งไว้ว่าต้องออกบิล+รับชำระก่อนถึงจะเริ่ม "กำลังดำเนินการ" ได้ (customers.requirePrepayment)
             const prepaymentBadge = (cust && cust.requirePrepayment && paymentStatus !== 'ชำระเงินแล้ว' && paymentStatus !== JOB_NO_CHARGE)
-                ? `<div style="font-size: 11.5px;"><span class="badge" style="background-color: #fffbeb; color: #92400e; border: 1px solid #fde68a; font-size: 11.5px; padding: 2px 6px;" title="นายจ้าง &quot;${custName}&quot; ตั้งไว้ว่าต้องออกบิลและรับชำระเงินก่อนย้ายเข้ากำลังดำเนินการ">${icon("moneybag")} ต้องออกบิลและรับชำระเงินก่อน</span></div>`
+                ? `<div style="font-size: 12.5px;"><span class="badge" style="background-color: #fffbeb; color: #92400e; border: 1px solid #fde68a; font-size: 12.5px; padding: 2px 6px;" title="นายจ้าง &quot;${custName}&quot; ตั้งไว้ว่าต้องออกบิลและรับชำระเงินก่อนย้ายเข้ากำลังดำเนินการ">${icon("moneybag")} ต้องออกบิลและรับชำระเงินก่อน</span></div>`
                 : '';
 
             let badgeClass = 'badge-gold';
@@ -15073,7 +15082,7 @@ function renderJobsKanban(filtered) {
             // ป้ายบอกว่าใบงานนี้ถูกเปิดมาพร้อมกับงานอื่นในชุดเดียวกัน (batch เดียวกัน)
             const siblings = getJobBatchSiblings(j, true); // เฉพาะงานของคนงานคนนี้
             const batchTag = siblings.length > 0
-                ? `<div style="font-size:11.5px; color:#4338ca; display:flex; align-items:center; gap:4px; flex-wrap:wrap;">${icon("clip")} ชุดเดียวกัน (${siblings.length + 1} งาน):
+                ? `<div style="font-size:12.5px; color:#4338ca; display:flex; align-items:center; gap:4px; flex-wrap:wrap;">${icon("clip")} ชุดเดียวกัน (${siblings.length + 1} งาน):
                     ${siblings.map(s => {
                         const sClean = (s.jobType || "").replace(/\s*\(\d+\)/g, "");
                         const dotColor = isJobStatusOpen(s.status) ? '#f59e0b' : '#22c55e';
@@ -15087,19 +15096,19 @@ function renderJobsKanban(filtered) {
             container.innerHTML += `
                 <div class="kanban-card" draggable="true" ondragstart="onKanbanDragStart(event, '${j.id}')" style="background: ${cardBg}; border-radius: 6px; padding: 12px; border: ${cardBorder}; box-shadow: 0 1px 3px rgba(0,0,0,0.05); cursor: grab; display: flex; flex-direction: column; gap: 8px;">
                     <div style="display: flex; justify-content: space-between; align-items: start; gap: 8px;">
-                        <span style="font-weight: 700; font-size: 11.5px; color: var(--gold-dark);">${getJobDisplayNo(j)}</span>
-                        <span class="badge badge-sm ${badgeClass}" style="font-size: 11.5px; padding: 1px 6px;">${cleanJobType}</span>
+                        <span style="font-weight: 700; font-size: 12.5px; color: var(--gold-dark);">${getJobDisplayNo(j)}</span>
+                        <span class="badge badge-sm ${badgeClass}" style="font-size: 12.5px; padding: 1px 6px;">${cleanJobType}</span>
                     </div>
                     <div style="font-weight: 600; font-size: 13px; color: #1e293b; line-height: 1.4;">${icon("user")} ${workName}</div>
-                    ${work && work.workerUid ? `<div style="font-size: 11.5px; color: #94a3b8; margin-top:-4px;">เลขประจำตัว: ${work.workerUid}</div>` : ''}
-                    <div style="font-size: 12px; color: #64748b;" ${custIdTitle ? `title="${custIdTitle}"` : ''}>${icon("building")} ${custName}</div>
+                    ${work && work.workerUid ? `<div style="font-size: 12.5px; color: #94a3b8; margin-top:-4px;">เลขประจำตัว: ${work.workerUid}</div>` : ''}
+                    <div style="font-size: 13px; color: #64748b;" ${custIdTitle ? `title="${custIdTitle}"` : ''}>${icon("building")} ${custName}</div>
                     ${prepaymentBadge}
-                    ${jobAgent ? `<div style="font-size: 11.5px; color: #64748b;">${icon("user")} Agent: ${jobAgent.name}</div>` : ''}
-                    <div style="font-size: 11.5px; color: #94a3b8;">${icon("edit")} เปิดงานโดย: ${getUserNameById(j.openedBy)}${j.closedBy ? ` • ${icon("lock")} ปิดโดย: ${getUserNameById(j.closedBy)}` : ''}</div>
-                    ${jobClosedInfoText(j) ? `<div style="font-size: 11.5px; color: #94a3b8;">${icon("calendar")} ${jobClosedInfoText(j)}</div>` : ''}
+                    ${jobAgent ? `<div style="font-size: 12.5px; color: #64748b;">${icon("user")} Agent: ${jobAgent.name}</div>` : ''}
+                    <div style="font-size: 12.5px; color: #94a3b8;">${icon("edit")} เปิดงานโดย: ${getUserNameById(j.openedBy)}${j.closedBy ? ` • ${icon("lock")} ปิดโดย: ${getUserNameById(j.closedBy)}` : ''}</div>
+                    ${jobClosedInfoText(j) ? `<div style="font-size: 12.5px; color: #94a3b8;">${icon("calendar")} ${jobClosedInfoText(j)}</div>` : ''}
                     ${batchTag}
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; padding-top: 8px; border-top: 1px solid #f1f5f9;">
-                        <div style="font-size: 12.5px; font-weight: 700; color: #0f172a;">${icon("moneybag")} ${j.fee.toLocaleString()} บ.</div>
+                        <div style="font-size: 13.5px; font-weight: 700; color: #0f172a;">${icon("moneybag")} ${j.fee.toLocaleString()} บ.</div>
                         <div style="display: flex; gap: 4px; align-items: center;">
                             ${paymentBadge}
                             <div style="display: flex; gap: 4px; margin-left: 6px;">

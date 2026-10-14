@@ -149,7 +149,8 @@ Owner's rules (2026-10-09):
   photo, name, "แชร์" menu with all link/Drive actions, ✕), tools row (tabs, search, ZIP icon), list left / preview right.
   Group heads are plain grey text with a small +; empty doc types collapse into dashed "+ type" chips at the end
   (`fvEmptyChips`); expired files fold away (`.fv-expired.is-folded`, drop target kept); expiry = colored dot + date.
-  Preview bar = download / print / open-in-tab icons + ••• menu (`fvBarHtml` / `fvMenuItem` / `toggleFvMenu`).
+  Preview bar = labelled buttons แก้ไขรูป / ตั้งเป็นรูปคนงาน / ลบ / ดาวน์โหลด / พิมพ์ + ••• (open in tab, share, Drive)
+  (`fvBarHtml` / `fvActButton` / `fvMenuItem` / `toggleFvMenu`); "ดาวน์โหลดเอกสารทุกไฟล์" is a text button.
 
 ## Search-to-select fields (standing rule)
 
@@ -295,7 +296,9 @@ The UI follows iOS (owner's request): SF Pro/Sukhumvit fonts, light theme
 with a sliding thumb (`attachTabSlider`), every `<select>` opens an iOS menu on
 mouse devices (`openIosSelect` — the native `<select>` still holds the value),
 charts animate via `setupChartMagicMove` ("magic move": every pie/bar regrows from 0 each time it comes into view — tab/page switch or scroll — and flows old→new on re-render; owner 2026-10-13). Keep new UI consistent with that.
-Smallest UI font is 11.5px; don't add smaller sizes (printed sheets excepted).
+Smallest UI font is 12.5px (raised from 11.5px on 2026-10-15, owner: many spots were too small — all 11–12.5px
+screen sizes went up ~1px); don't add smaller sizes (printed sheets excepted). Document folder text/icons are larger
+(names 14.5–18px, 20px icons) and file actions are labelled buttons (`fvActButton`), not hidden in •••.
 Data-heavy windows use `.modal-content.large` (up to 1180px / 95vw; `.modal-sheet` invoices/receipts stay 900px), the
 document folder fills 1440px / 94vh (owner 2026-10-15: windows that can be bigger should be). The date picker
 (`.ios-calendar`) is a glass popup like the others. Every `.data-table` sits in a `.table-container` (rounded);

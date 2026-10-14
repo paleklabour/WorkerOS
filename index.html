@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261015b">
+    <link rel="stylesheet" href="styles.css?v=20261015c">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -830,7 +830,7 @@
                                 <div class="kanban-column" style="flex: 1; min-width: 250px; background: #f8fafc; border-radius: var(--radius-md); border: 1px solid #e2e8f0; display: flex; flex-direction: column; height: fit-content; max-height: calc(100vh - 260px);">
                                     <div class="kanban-column-header" style="padding: 12px; border-bottom: 2px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f1f5f9; border-top-left-radius: var(--radius-md); border-top-right-radius: var(--radius-md);">
                                         <h4 style="font-weight: 600; font-size: 13.5px; color: #475569; margin: 0;"><span class="ico" data-icon="folder"></span> รอเอกสาร</h4>
-                                        <span class="badge badge-danger" id="count-kanban-docs" style="font-size: 11.5px; padding: 2px 8px;">0</span>
+                                        <span class="badge badge-danger" id="count-kanban-docs" style="font-size: 12.5px; padding: 2px 8px;">0</span>
                                     </div>
                                     <div class="kanban-cards-container" id="kanban-docs" ondragover="onKanbanDragOver(event)" ondrop="onKanbanDrop(event, 'รอเอกสารเพิ่มเติม')" style="padding: 12px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-height: 200px; flex-grow: 1;">
                                     </div>
@@ -840,7 +840,7 @@
                                 <div class="kanban-column" style="flex: 1; min-width: 250px; background: #f8fafc; border-radius: var(--radius-md); border: 1px solid #e2e8f0; display: flex; flex-direction: column; height: fit-content; max-height: calc(100vh - 260px);">
                                     <div class="kanban-column-header" style="padding: 12px; border-bottom: 2px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f1f5f9; border-top-left-radius: var(--radius-md); border-top-right-radius: var(--radius-md);">
                                         <h4 style="font-weight: 600; font-size: 13.5px; color: #475569; margin: 0;"><span class="ico" data-icon="hourglass"></span> รอดำเนินการ</h4>
-                                        <span class="badge badge-warning" id="count-kanban-pending" style="font-size: 11.5px; padding: 2px 8px;">0</span>
+                                        <span class="badge badge-warning" id="count-kanban-pending" style="font-size: 12.5px; padding: 2px 8px;">0</span>
                                     </div>
                                     <div class="kanban-cards-container" id="kanban-pending" ondragover="onKanbanDragOver(event)" ondrop="onKanbanDrop(event, 'รอดำเนินการ')" style="padding: 12px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-height: 200px; flex-grow: 1;">
                                     </div>
@@ -850,7 +850,7 @@
                                 <div class="kanban-column" style="flex: 1; min-width: 250px; background: #f8fafc; border-radius: var(--radius-md); border: 1px solid #e2e8f0; display: flex; flex-direction: column; height: fit-content; max-height: calc(100vh - 260px);">
                                     <div class="kanban-column-header" style="padding: 12px; border-bottom: 2px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f1f5f9; border-top-left-radius: var(--radius-md); border-top-right-radius: var(--radius-md);">
                                         <h4 style="font-weight: 600; font-size: 13.5px; color: #475569; margin: 0;"><span class="ico" data-icon="settings"></span> กำลังดำเนินการ</h4>
-                                        <span class="badge badge-gold" id="count-kanban-progress" style="font-size: 11.5px; padding: 2px 8px;">0</span>
+                                        <span class="badge badge-gold" id="count-kanban-progress" style="font-size: 12.5px; padding: 2px 8px;">0</span>
                                     </div>
                                     <div class="kanban-cards-container" id="kanban-progress" ondragover="onKanbanDragOver(event)" ondrop="onKanbanDrop(event, 'กำลังดำเนินการ')" style="padding: 12px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-height: 200px; flex-grow: 1;">
                                     </div>
@@ -861,8 +861,8 @@
                                     <div class="kanban-column-header" style="padding: 12px; border-bottom: 2px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f1f5f9; border-top-left-radius: var(--radius-md); border-top-right-radius: var(--radius-md);">
                                         <h4 style="font-weight: 600; font-size: 13.5px; color: #475569; margin: 0;" title="เข้าคอลัมน์นี้ได้เฉพาะผ่านปุ่ม ปิดงาน (ต้องแนบเอกสารก่อน) — งานที่ปิดแล้วและลูกค้าชำระเงินครบแล้วจะถูกซ่อนออกจากคอลัมน์นี้อัตโนมัติ (ดูย้อนหลังได้ที่หน้ารายการหรือแท็บออกบิล/รับเงิน)"><span class="ico" data-icon="lock"></span> ปิดงานแล้ว</h4>
                                         <div style="display: flex; gap: 4px; align-items: center;">
-                                            <span class="badge badge-danger" id="count-kanban-completed-unbilled" style="font-size: 11.5px; padding: 2px 6px; display: none;" title="ปิดงานแล้วแต่ยังไม่ได้รับชำระเงิน (ไม่ว่าจะออกบิลไปแล้วหรือยัง) — หายไปเมื่อลูกค้าชำระครบแล้ว"><span class="ico" data-icon="warn"></span> 0 ยังไม่ได้ชำระ</span>
-                                            <span class="badge badge-success" id="count-kanban-completed" style="font-size: 11.5px; padding: 2px 8px;">0</span>
+                                            <span class="badge badge-danger" id="count-kanban-completed-unbilled" style="font-size: 12.5px; padding: 2px 6px; display: none;" title="ปิดงานแล้วแต่ยังไม่ได้รับชำระเงิน (ไม่ว่าจะออกบิลไปแล้วหรือยัง) — หายไปเมื่อลูกค้าชำระครบแล้ว"><span class="ico" data-icon="warn"></span> 0 ยังไม่ได้ชำระ</span>
+                                            <span class="badge badge-success" id="count-kanban-completed" style="font-size: 12.5px; padding: 2px 8px;">0</span>
                                         </div>
                                     </div>
                                     <div class="kanban-cards-container" id="kanban-completed" ondragover="onKanbanDragOver(event)" ondrop="onKanbanDrop(event, 'ปิดงานแล้ว')" style="padding: 12px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-height: 200px; flex-grow: 1;">
@@ -1455,7 +1455,7 @@
                                         <label for="user-password">รหัสผ่าน <span class="required">*</span></label>
                                         <input type="text" id="user-password" required>
                                     </div>
-                                    <p id="user-edit-note" class="text-muted hidden" style="font-size:12.5px; margin:-6px 0 12px;">
+                                    <p id="user-edit-note" class="text-muted hidden" style="font-size:13.5px; margin:-6px 0 12px;">
                                         แก้ไขได้เฉพาะชื่อ/บทบาท/นายจ้าง — เปลี่ยนรหัสผ่าน/อีเมล หรือระงับบัญชี ใช้ปุ่มในตารางผู้ใช้
                                     </p>
                                     <div class="form-group">
@@ -1653,7 +1653,7 @@
                             </div>
                             <div id="expense-slip-attached" class="hidden" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; padding: 8px 12px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); font-size: 13px;">
                                 <a id="expense-slip-link" href="#" target="_blank" rel="noopener" style="color: var(--navy-dark); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><span class="ico" data-icon="clip"></span> ไฟล์แนบ</a>
-                                <button type="button" class="btn btn-sm btn-outline delete-btn" onclick="removeExpenseSlip()" style="padding: 3px 8px; font-size: 11.5px; flex-shrink: 0;">ลบไฟล์แนบ</button>
+                                <button type="button" class="btn btn-sm btn-outline delete-btn" onclick="removeExpenseSlip()" style="padding: 3px 8px; font-size: 12.5px; flex-shrink: 0;">ลบไฟล์แนบ</button>
                             </div>
                         </div>
 
@@ -2108,7 +2108,7 @@
                                     <input type="file" id="worker-photo-input" accept="image/*" onchange="handleWorkerPhotoUpload(event)" style="position: absolute; width: 100%; height: 100%; opacity: 0; cursor: pointer;">
                                     <button type="button" class="remove-photo-btn" onclick="removeWorkerPhoto(event)" title="ลบรูปถ่าย">&times;</button>
                                 </div>
-                                <small style="font-size: 11.5px; color: var(--text-muted); text-align: center; line-height: 1.3;">คลิกอัปโหลดรูปภาพ</small>
+                                <small style="font-size: 12.5px; color: var(--text-muted); text-align: center; line-height: 1.3;">คลิกอัปโหลดรูปภาพ</small>
                             </div>
                             <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 12px; width: calc(100% - 160px);">
                                 <div class="form-row" style="margin-bottom: 0;">
@@ -2473,7 +2473,7 @@
                             </div>
                         </div>
 
-                        <div id="job-opened-by-info" class="text-muted" style="font-size:12.5px; margin-bottom:10px; display:none;"></div>
+                        <div id="job-opened-by-info" class="text-muted" style="font-size:13.5px; margin-bottom:10px; display:none;"></div>
 
                         <!-- ผู้รับผิดชอบ (มอบหมายงาน) — เลือกได้เฉพาะ Admin/Operation Manager; Staff เปิดงานเองจะเป็นผู้รับผิดชอบอัตโนมัติ ดู fillJobAssigneeSelect() -->
                         <div class="form-group">
@@ -3265,7 +3265,7 @@
                         <input type="text" id="search-worker-folder" placeholder="ค้นหาไฟล์" oninput="renderWorkerFolderTiles()">
                     </div>
                     <span class="fv-spacer"></span>
-                    <button type="button" class="fv-ib" id="btn-fv-download-all" onclick="downloadAllWorkerDocs()" title="ดาวน์โหลดเอกสารทุกไฟล์ของคนงานนี้ (รวมเอกสารปิดงาน) เป็นไฟล์ ZIP"><span class="ico" data-icon="inbox" data-color="slate"></span></button>
+                    <button type="button" class="fv-act" id="btn-fv-download-all" onclick="downloadAllWorkerDocs()" title="ดาวน์โหลดเอกสารทุกไฟล์ของคนงานนี้ (รวมเอกสารปิดงาน) เป็นไฟล์ ZIP"><span class="ico" data-icon="inbox" data-color="slate"></span> ดาวน์โหลดเอกสารทุกไฟล์</button>
                 </div>
                 <div class="modal-body fv-body">
                     <input type="file" id="folder-upload-input" accept="image/*,application/pdf" multiple style="display:none;" onchange="handleFolderFileUpload(event)">
@@ -3298,7 +3298,7 @@
                         <div id="confirm-delete-attachment-thumb" style="flex-shrink:0;"></div>
                         <div style="min-width:0; overflow:hidden;">
                             <div id="confirm-delete-attachment-filename" style="font-weight:600; font-size:14px; word-break:break-all; color:var(--navy-dark);"></div>
-                            <a href="#" id="confirm-delete-attachment-viewlink" target="_blank" rel="noopener" style="font-size:12.5px;"><span class="ico" data-icon="search"></span> เปิดดูไฟล์ก่อนลบ</a>
+                            <a href="#" id="confirm-delete-attachment-viewlink" target="_blank" rel="noopener" style="font-size:13.5px;"><span class="ico" data-icon="search"></span> เปิดดูไฟล์ก่อนลบ</a>
                         </div>
                     </div>
                     <p style="font-size:13.5px; color:var(--text-muted); margin:0;">ไฟล์นี้จะถูกลบออกจากระบบอย่างถาวร ไม่สามารถกู้คืนได้</p>
@@ -3483,7 +3483,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261015b"></script>
+    <script src="supabase-client.js?v=20261015c"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3494,6 +3494,6 @@
     </script>
 
     <!-- Application Script -->
-    <script src="app.js?v=20261015b"></script>
+    <script src="app.js?v=20261015c"></script>
 </body>
 </html>
