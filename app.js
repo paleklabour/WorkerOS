@@ -17351,10 +17351,10 @@ function attachTabSlider(host, getActive) {
     const placeNow = (entries) => {
         // ResizeObserver ยิงซ้ำทั้งที่ขนาดเท่าเดิมได้ (เช่น ตอนสลับแท็บแล้วเนื้อหาด้านล่างวาดใหม่ทั้งก้อน — หน้าแจ้งงาน/การเงิน)
         // ถ้าปิด transition ตอนนั้น ตัวเลื่อนจะกระโดดไปเลยไม่เด้ง → วางทันทีเฉพาะตอนขนาดเปลี่ยนจริงเท่านั้น
-        // ปุ่มที่เลือกตัวหนาขึ้น → กลุ่มแท็บกว้างขึ้นไม่ถึง 1-2px (เช่น แท็บคนงานในฟอร์มแจ้งงาน) — ไม่นับเป็นการเปลี่ยนขนาด
+        // ปุ่มที่เลือกตัวหนาขึ้น / ตัวเลขจำนวนบนแท็บเปลี่ยน → กลุ่มแท็บกว้างขึ้นไม่กี่ px (เช่น แท็บคนงานในฟอร์มแจ้งงาน) — ไม่นับเป็นการเปลี่ยนขนาด
         // ไม่งั้นตัวเลื่อนจะกระโดดแทนที่จะเลื่อน (owner 2026-10-14)
         const r = entries && entries[0] && entries[0].contentRect;
-        if (r && lastSize && Math.abs(r.width - lastSize.w) <= 2 && Math.abs(r.height - lastSize.h) <= 2) return;
+        if (r && lastSize && Math.abs(r.width - lastSize.w) <= 8 && Math.abs(r.height - lastSize.h) <= 8) return;
         const size = r ? { w: r.width, h: r.height } : null;
         if (!size && lastSize === null) return;
         lastSize = size;
