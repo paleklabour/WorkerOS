@@ -145,6 +145,11 @@ Owner's rules (2026-10-09):
   style #3, placed mid-screen) instead of `showToast`.
 - Document folders have an image editor (`openImageEditor`: crop / rotate 90° + fine angle / brightness /
   contrast), images only, saving replaces the original (no copy kept).
+- Document folder layout (owner chose "clean" version 2026-10-15, worker + employer folders): one top row (round
+  photo, name, "แชร์" menu with all link/Drive actions, ✕), tools row (tabs, search, ZIP icon), list left / preview right.
+  Group heads are plain grey text with a small +; empty doc types collapse into dashed "+ type" chips at the end
+  (`fvEmptyChips`); expired files fold away (`.fv-expired.is-folded`, drop target kept); expiry = colored dot + date.
+  Preview bar = download / print / open-in-tab icons + ••• menu (`fvBarHtml` / `fvMenuItem` / `toggleFvMenu`).
 
 ## Search-to-select fields (standing rule)
 
@@ -269,15 +274,17 @@ Light theme got the same treatment (owner, 2026-10-14): block `:root:not([data-t
 sheets in light pin the old navy `#2d4fa3`. Light was then toned down (bg `#e7eaf0`, cards `#f8f9fb`, owner: too glaring).
 Pink got the same treatment too (pink glass, accent `#d6457a`). In every theme the calm-mode grey badges exclude
 `.job-type-badge` — job-type headings in the jobs table keep their strong navy/gold (owner, 2026-10-14).
-Pink then softened to dusty rose (accent `#b8607f`, bg `#f3eef0`). Pie charts: colors are theme CSS vars — `PIE_CHART_PALETTE` =
-`var(--chart-1..8)` (one-hue ramp per theme) and `chartColor()` maps the old semantic hexes (green/red/amber/grey/navy) to
-`--chart-ok/bad/warn/warn2/muted/1..4`; draw slices with `style="stroke: …"` (SVG attributes don't take `var()`). Login /
+Pink then softened to dusty rose (accent `#b8607f`, bg `#f3eef0`). Pie charts (owner 2026-10-15): one fixed
+color set for every theme (`CHART_COLORS` in `app.js` — not theme vars; `chartColor()` maps the old semantic hexes to it) and
+drawn as a tilted 3D donut (`renderPieChartInto`: side wall = the same `<circle>`s stacked 1px apart in a darker
+`color-mix`, shine overlay is an `<ellipse>` so magic move only animates the circles). Login /
 reset-password: no card box at all (form floats on the theme glow), 150px logo with no tile/frame (owner, 2026-10-14).
 All of that lives in ONE section at the end of `styles.css` ("ระบบธีม (รวมไว้ที่เดียว …)"): per-theme variables
-(`--glass-*`, `--pill-on`, `--calm-*`, `--glow-*`, `--chart-*` …) + shared rules written once. Glow is a single fixed
+(`--glass-*`, `--pill-on`, `--calm-*`, `--glow-*` …) + shared rules written once, plus every per-component
+`[data-theme]` rule (logos, scrollbars, inline-style overrides, print sheets…) — no `data-theme` selector anywhere else (2026-10-15). Glow is a single fixed
 `body::before` layer (never `background-attachment: fixed` — it repaints on scroll); blur only on things that float over
-content (modals/popups), not the sidebar. Scroll containers have `overscroll-behavior: contain` and the page behind an open
-`.modal-backdrop` doesn't scroll (owner: wheel scrolls only the panel under the mouse).
+content (modals/popups), not the sidebar. Scrolling is the browser default again
+(the 2026-10-14 overscroll containment / modal scroll lock was reverted at the owner's request 2026-10-15).
 
 ## iOS look & widget boards (standing rule, 2026-10)
 
@@ -287,6 +294,10 @@ with a sliding thumb (`attachTabSlider`), every `<select>` opens an iOS menu on
 mouse devices (`openIosSelect` — the native `<select>` still holds the value),
 charts animate via `setupChartMagicMove` ("magic move": every pie/bar regrows from 0 each time it comes into view — tab/page switch or scroll — and flows old→new on re-render; owner 2026-10-13). Keep new UI consistent with that.
 Smallest UI font is 11.5px; don't add smaller sizes (printed sheets excepted).
+Data-heavy windows use `.modal-content.large` (up to 1180px / 95vw; `.modal-sheet` invoices/receipts stay 900px), the
+document folder fills 1440px / 94vh (owner 2026-10-15: windows that can be bigger should be). The date picker
+(`.ios-calendar`) is a glass popup like the others. Every `.data-table` sits in a `.table-container` (rounded);
+the users table is sorted by role, most permissions first (`ROLE_LABELS` order).
 Document expiry (work permit / passport / folder files): show the date and a status color/label only —
 never a day count like "อีก N วัน" / "หมดอายุแล้ว N วัน" (owner, 2026-10-14).
 
@@ -342,11 +353,11 @@ tables one-way into the owner's personal Gmail Drive (`WorkerOS Backup/นาย
 job-close files keep the same file name as in the app (`WP.pdf`, `PinkCard_2.jpg`,
 " (หมดอายุ)" added when expired), so renaming in the app renames in Drive (owner, 2026-10-12); `การเงิน/` slips by month; `ข้อมูลระบบ/` 30 days; files
 removed from WorkerOS move to `ถูกลบ/`). Supabase stays the source of truth.
-Every internal role (Admin, Account/Operation Manager, Staff — `can('driveView')`, RLS `is_internal()`, owner 2026-10-14; not clients) sees "เปิดใน Google Drive" buttons in the worker/customer folder (folder button in the
-footer, plus a "Drive" button in the preview bar) once that item has been backed up — matched by
-Storage path via `getDriveBackupIndex` / `driveFileLink` (2026-10-12). The preview-bar "Drive" button
+Every internal role (Admin, Account/Operation Manager, Staff — `can('driveView')`, RLS `is_internal()`, owner 2026-10-14; not clients) sees "เปิดใน Google Drive" buttons in the worker/customer folder (in the folder's "แชร์" menu, plus
+"เปิดใน Google Drive" in the preview bar's ••• menu) once that item has been backed up — matched by
+Storage path via `getDriveBackupIndex` / `driveFileLink` (2026-10-12). The ••• menu item
 opens the whole worker/employer Drive folder, not the single file (owner, 2026-10-13;
-`driveFolderButtonHtml`, falls back to the file link only if the folder isn't tracked).
+`fvDriveMenuItem`, falls back to the file link only if the folder isn't tracked).
 Incremental, tracked in `drive_backup_files` / `drive_backup_folders`, runs hourly
 via pg_cron (`20261008090100_drive_backup_cron.sql`, apply only after the function
 and its secrets exist). Customer folders are shared read-only to `customers.email`

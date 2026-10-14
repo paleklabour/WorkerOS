@@ -427,8 +427,6 @@ function showSyncStatus(state, detail = '') {
     showUploadPill('warn', 'ดึงข้อมูลออนไลน์ไม่สำเร็จ', `ใช้ข้อมูลที่บันทึกไว้ในเครื่องแทน${detail ? ` (${detail})` : ''}`, 6000);
 }
 
-function hideSyncStatus() {}
-
 // ปุ่มรีเฟรชข้างกระดิ่ง (มุมขวาบน) — ดึงข้อมูลล่าสุดจาก Supabase แล้ววาดหน้าที่เปิดอยู่ใหม่ (ช่องค้นหา/ตัวกรองคงค่าเดิม)
 let _refreshingAppData = false;
 async function refreshAppData() {
@@ -1943,6 +1941,9 @@ const ICON_GLYPHS = {
     grip:     { c: 'slate',  d: '<circle cx="9" cy="6" r="1.3"/><circle cx="15" cy="6" r="1.3"/><circle cx="9" cy="12" r="1.3"/><circle cx="15" cy="12" r="1.3"/><circle cx="9" cy="18" r="1.3"/><circle cx="15" cy="18" r="1.3"/>' },
     chevronDown: { c: 'slate', d: '<path d="m6.5 9.5 5.5 5.5 5.5-5.5"/>' }, // ลูกศรลงแบบ iOS (ตัวกรองหลายค่า)
     chevronUp: { c: 'slate', d: '<path d="m6.5 14.5 5.5-5.5 5.5 5.5"/>' }, // ยุบทั้งหมด (พอร์ทัลนายจ้าง)
+    more:     { c: 'slate',  d: '<circle cx="5.5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="18.5" cy="12" r="1.4"/>' },
+    share:    { c: 'blue',   d: '<path d="M12 15V4M8 8l4-4 4 4"/><path class="fl" d="M6 12v6a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-6"/>' },
+    external: { c: 'slate',  d: '<path d="M14 4h6v6M20 4l-9 9"/><path class="fl" d="M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"/>' },
     xmark:    { c: 'slate',  d: '<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>' },
 };
 
@@ -2625,19 +2626,23 @@ function calculateDeadlines() {
     return alerts;
 }
 
-// สีกราฟตามธีม (โหมดสบายตา owner 2026-10-14): สีไล่โทนเดียวของแต่ละธีม --chart-1..8 + สีความหมาย (ok/warn/bad/muted)
-// กำหนดใน styles.css ต่อธีม — โค้ดที่ส่งสีมาเป็น hex เดิม (เขียว/แดง/ส้ม/เทา/กรมท่า) ถูกแปลงเป็นตัวแปรความหมายด้วย chartColor()
-const PIE_CHART_PALETTE = [1, 2, 3, 4, 5, 6, 7, 8].map(n => `var(--chart-${n})`);
+// สีกราฟชุดเดียวทุกธีม (owner 2026-10-15: ไม่เอาสีตามธีม) — สีสดแยกกันชัด อ่านได้ทั้งพื้นสว่างและมืด
+// โค้ดที่ส่งสีมาเป็น hex เดิม (เขียว/แดง/ส้ม/เทา/กรมท่า) ถูกแปลงเป็นสีความหมายของชุดนี้ด้วย chartColor()
+const CHART_COLORS = {
+    1: '#4c7cf3', 2: '#f5a524', 3: '#22b07d', 4: '#8b5cf6', 5: '#14b8c4', 6: '#f472b6', 7: '#e5534b', 8: '#94a3b8',
+    ok: '#22b07d', warn: '#f5a524', warn2: '#f08a3c', bad: '#e5534b', muted: '#a3adbf'
+};
+const PIE_CHART_PALETTE = [1, 2, 3, 4, 5, 6, 7, 8].map(n => CHART_COLORS[n]);
 const CHART_SEMANTIC = {
     '#16a34a': 'ok', '#1f9254': 'ok', '#22c55e': 'ok', '#65a30d': 'ok',
     '#dc2626': 'bad', '#e0565b': 'bad', '#ef4444': 'bad',
     '#f59e0b': 'warn', '#ea580c': 'warn2',
     '#94a3b8': 'muted', '#64748b': 'muted',
-    '#2d4fa3': '1', '#d4af37': '2', '#38bdf8': '3', '#a855f7': '4'
+    '#2d4fa3': '1', '#d4af37': '2', '#38bdf8': '5', '#a855f7': '4'
 };
 function chartColor(c) {
     const k = CHART_SEMANTIC[String(c || '').toLowerCase()];
-    return k ? `var(--chart-${k})` : c;
+    return k ? CHART_COLORS[k] : c;
 }
 
 // วาดกราฟวงกลม (SVG โดนัท) ทั่วไป — รับ entries = [{name, value, color?}] ไม่ใช้ไลบรารีภายนอก
@@ -2655,19 +2660,35 @@ function renderPieChartInto(containerId, entries, opts = {}) {
         return;
     }
 
+    // โดนัทแบบมีมิติ (owner 2026-10-15): วงเอียง (บีบแนวตั้ง 0.62) + ขอบด้านข้างหนา DEPTH px (วงเดิมซ้อนลงไปทีละ 1px สีเข้มขึ้น)
+    // + แสงเงาบนผิว + เงาใต้กราฟ — ทุกชั้นเป็น <circle> ชุดเดียวกัน magic move (setupChartMagicMove) จึงงอกพร้อมกันทุกชั้น
     const radius = 80;
     const circumference = 2 * Math.PI * radius;
+    const TILT = 0.62, DEPTH = 14, CY = 64;
+    const slices = [];
     let offsetAcc = 0;
-
-    const circles = sorted.map((e, idx) => {
+    sorted.forEach((e, idx) => {
         const color = chartColor(e.color) || PIE_CHART_PALETTE[idx % PIE_CHART_PALETTE.length];
-        const fraction = e.value / total;
-        const dash = fraction * circumference;
-        const gap = circumference - dash;
-        const circle = `<circle r="${radius}" cx="100" cy="100" fill="transparent" style="stroke: ${color}" stroke-width="36" stroke-dasharray="${dash} ${gap}" stroke-dashoffset="${-offsetAcc}"></circle>`;
+        const dash = (e.value / total) * circumference;
+        slices.push({ color, dash, gap: circumference - dash, off: -offsetAcc });
         offsetAcc += dash;
-        return circle;
-    }).join('');
+    });
+    const ring = (dy, colorOf) => `<g transform="translate(100 ${CY + dy}) scale(1 ${TILT}) rotate(-90)">${slices.map(s =>
+        `<circle r="${radius}" cx="0" cy="0" fill="transparent" style="stroke: ${colorOf(s.color)}" stroke-width="36" stroke-dasharray="${s.dash} ${s.gap}" stroke-dashoffset="${s.off}"></circle>`).join('')}</g>`;
+    const gid = `pie3d-${containerId}`;
+    const sides = [];
+    for (let dy = DEPTH; dy >= 1; dy--) sides.push(ring(dy, c => `color-mix(in srgb, ${c} ${dy === DEPTH ? 55 : 68}%, #000)`));
+    const circles = `
+        <defs>
+            <linearGradient id="${gid}-shine" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#fff" stop-opacity="0.38"/><stop offset="0.5" stop-color="#fff" stop-opacity="0.06"/><stop offset="1" stop-color="#000" stop-opacity="0.10"/>
+            </linearGradient>
+            <filter id="${gid}-blur" x="-20%" y="-50%" width="140%" height="200%"><feGaussianBlur stdDeviation="5"/></filter>
+        </defs>
+        <ellipse cx="100" cy="${CY + DEPTH + 6}" rx="96" ry="${96 * TILT}" fill="rgba(15, 23, 42, 0.18)" filter="url(#${gid}-blur)"/>
+        ${sides.join('')}
+        ${ring(0, c => c)}
+        <g transform="translate(100 ${CY}) scale(1 ${TILT})"><ellipse rx="${radius}" ry="${radius}" fill="none" stroke="url(#${gid}-shine)" stroke-width="36" pointer-events="none"/></g>`;
 
     const legend = sorted.map((e, idx) => {
         const color = chartColor(e.color) || PIE_CHART_PALETTE[idx % PIE_CHART_PALETTE.length];
@@ -2681,7 +2702,7 @@ function renderPieChartInto(containerId, entries, opts = {}) {
     }).join('');
 
     container.innerHTML = `
-        <svg class="pie-chart" viewBox="0 0 200 200" width="${opts.size || 220}" height="${opts.size || 220}" style="transform: rotate(-90deg); flex-shrink: 0;">
+        <svg class="pie-chart pie-3d" viewBox="0 0 200 150" width="${opts.size || 220}" height="${Math.round((opts.size || 220) * 0.75)}" style="flex-shrink: 0; overflow: visible;">
             ${circles}
         </svg>
         <div>${legend}</div>
@@ -4930,15 +4951,6 @@ function extFromDataUrl(dataUrl) {
     return subtype ? '.' + subtype.replace(/[^a-z0-9]/g, '') : '';
 }
 
-// แนบไฟล์เอกสารคนงาน แล้วอัปโหลดขึ้น Supabase Storage (ไม่มีการอ่านข้อมูลด้วย AI ปลอมๆ อีกต่อไป — ใช้ Gemini จริงเท่านั้น)
-// ชื่อไฟล์เอกสารคนงาน = เลขประจำตัวคนต่างด้าว 13 หลัก_ชื่อ_ประเภทเอกสาร (เช่น 1234567890123_AUNG_NAING_WP.pdf)
-// ไม่มีเลข 13 หลักครบ = ขึ้นต้นด้วยชื่อ, ไฟล์ที่ 2 ขึ้นไปของประเภทเดียวกันต่อท้าย _2, _3
-// ประเภทเป็นภาษาอังกฤษ — ชื่อไฟล์ใน Storage ใช้ได้เฉพาะ A-Z/0-9 (ภาษาไทยจะกลายเป็น _)
-const WORKER_DOC_FILE_CODES = {
-    'worker-wp-doc': 'WP', 'worker-passport': 'Passport', 'worker-visa': 'Visa', 'worker-myanmar-id': 'MyanmarID',
-    'worker-pink-card': 'PinkCard', 'worker-receipt': 'Receipt', 'worker-medical': 'Medical',
-    'worker-insurance-doc': 'Insurance', 'worker-application': 'Application', 'worker-other': 'Other'
-};
 // ชื่อไฟล์เอกสารคนงาน = ตัวย่อของออฟฟิศอย่างเดียว (เจ้าของระบบเลือก 2026-10-09 ตามแฟ้ม AYE LIN AUNG) เช่น
 // WP_FB.pdf / CI.pdf / VISA.pdf / PinkCard.pdf / REC1900.pdf / WP22.pdf / NTID.jpg — ไฟล์อยู่ในแฟ้มของคนงานคนนั้นอยู่แล้ว
 // hint = ชื่อไฟล์ต้นฉบับ/ชื่อเดิม ใช้เก็บตัวย่อที่ละเอียดกว่า (WP_FB, REC410, WP46, NTID_FB, VISA, INF) ไว้
@@ -9344,10 +9356,13 @@ function renderUsers() {
     const search = searchEl ? searchEl.value.trim().toLowerCase() : "";
     const emailOf = u => (auth[u.id] && auth[u.id].email) || (String(u.email || '').includes('@') ? u.email : '');
 
+    // เรียงตามสิทธิ์ใหญ่ → เล็ก (ลำดับใน ROLE_LABELS) แล้วตามชื่อ (owner, 2026-10-15)
+    const roleRank = Object.keys(ROLE_LABELS);
+    const rankOf = u => { const i = roleRank.indexOf(u.role); return i === -1 ? roleRank.length : i; };
     const filtered = users.filter(u => {
         if (!search) return true;
         return (u.name || "").toLowerCase().includes(search) || emailOf(u).toLowerCase().includes(search);
-    });
+    }).sort((a, b) => rankOf(a) - rankOf(b) || String(a.name || '').localeCompare(String(b.name || ''), 'th'));
 
     if (filtered.length === 0) {
         tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:24px; color:var(--text-muted);">ไม่พบบัญชีผู้ใช้งาน</td></tr>`;
@@ -9679,7 +9694,6 @@ async function deleteBank(id) {
 // บิลมี 2 สถานะในหน้าต่างนี้ (ดู ACCOUNTING MODULE ท้ายไฟล์ด้วย):
 //   - ร่าง (draft): สร้างจากใบงาน / บิลรวม / บิลอิสระ ยังไม่มีเลขที่ ยังไม่ถูกบันทึก — กด "ออกบิล" เพื่อรับเลข INV-ปปปป-NNNN
 //   - บิลที่ออกแล้ว (stored): อยู่ในตาราง invoices — รับเงินได้หลายงวด พิมพ์ซ้ำ/ยกเลิกได้ (currentInvoiceId)
-let currentActiveJobForInvoice = null;
 let currentInvoiceItems = [];
 let currentInvoiceJobIds = [];
 let freeInvoiceCustomerId = null;
@@ -11482,7 +11496,7 @@ function getAiRejectedMessage(ocrError) {
 // ช่องที่ผู้ใช้แนบไฟล์ (กล่องแนบ / ไทล์ในแฟ้ม / ปุ่มที่กด) กลายเป็นตัวหมุนแบบ iOS + ข้อความขั้นตอน
 // ("AI กำลังอ่านเอกสาร…" → "กำลังอัปโหลด…") แล้วขึ้นติ๊กเขียว "แนบแล้ว" ครู่หนึ่ง
 // หาช่องจากเหตุการณ์ล่าสุดของผู้ใช้: เลือกไฟล์ (change) / ลากวาง (drop) / วาง Ctrl+V (paste) / คลิกปุ่มที่เปิดช่องเลือกไฟล์ที่ซ่อนอยู่
-const UPLOAD_HOST_SEL = '.upload-box, .drive-tile, [data-paste-target], .fv-add, .fv-item, .slip-upload, .btn, label';
+const UPLOAD_HOST_SEL = '.upload-box, [data-paste-target], .fv-add, .fv-item, .slip-upload, .btn, label';
 let uploadUiHost = null, uploadUiHostAt = 0, lastClickHost = null, lastClickAt = 0;
 
 function setUploadUiHost(el) {
@@ -11671,6 +11685,7 @@ function renderCustomerFolderTiles() {
 
     const canAdd = can('ops');
     const groups = [];
+    const emptyTypes = [];
     const allFiles = [];
     CUSTOMER_DOC_TYPES.forEach(docInfo => {
         const items = [];
@@ -11683,17 +11698,15 @@ function renderCustomerFolderTiles() {
                     <div class="fv-item-text"><b>${escapeHtml(fItem.name || '-')}</b><small>${fItem.uploadedAt ? formatThaiDate(String(fItem.uploadedAt).slice(0, 10)) : ''}</small></div>
                 </div>`);
         });
-        if (query && items.length === 0) return;
-        groups.push(`
-            <div class="fv-group">
-                <div class="fv-group-head">
-                    <span>${icon(docInfo.icon)} ${docInfo.label}</span>
-                    <b>${items.length || ''}</b>
-                    ${canAdd ? `<button type="button" class="fv-add" onclick="triggerCustomerFolderFileUpload('${docInfo.key}')" data-paste-target="customer-folder:${docInfo.key}" title="แนบไฟล์: ${docInfo.label} — คลิกเลือกไฟล์ หรือชี้แล้วกด Ctrl+V วางภาพ">${icon('plus')} แนบ</button>` : ''}${canAdd && isCameraDevice() ? cameraButtonHtml(`cameraCustomerFolderUpload('${docInfo.key}')`, 'fv-cam') : ''}
-                </div>
-                ${items.join('') || '<div class="fv-none">ยังไม่มีไฟล์</div>'}
-            </div>`);
+        if (items.length === 0) {
+            if (!query) emptyTypes.push({ short: fvShortLabel(docInfo.label), label: docInfo.label, pasteTarget: `customer-folder:${docInfo.key}`,
+                onclick: canAdd ? `triggerCustomerFolderFileUpload('${docInfo.key}')` : '' });
+            return;
+        }
+        const add = canAdd ? fvAddButton(`triggerCustomerFolderFileUpload('${docInfo.key}')`, `customer-folder:${docInfo.key}`, docInfo.label, `cameraCustomerFolderUpload('${docInfo.key}')`) : '';
+        groups.push(`<div class="fv-group">${fvGroupHead(fvShortLabel(docInfo.label), items.length, add)}${items.join('')}</div>`);
     });
+    if (emptyTypes.length) groups.push(fvEmptyChips(emptyTypes));
 
     // คงไฟล์ที่เลือกไว้ (หลังแนบ/เปลี่ยนชื่อ/ลบ) — ถ้าไม่อยู่แล้ว เลือกไฟล์แรกแทน
     const sel = activeCustomerFolderSel;
@@ -11730,7 +11743,7 @@ function renderCustomerFolderPreview() {
     if (!box || !c) return;
     const sel = activeCustomerFolderSel;
     if (!sel) {
-        box.innerHTML = `<div class="fv-placeholder">${icon('folder')}<p>ยังไม่มีเอกสารในแฟ้มนี้${can('ops') ? ' — กด "แนบ" ที่หมวดทางซ้ายเพื่อเพิ่มไฟล์' : ''}</p></div>`;
+        box.innerHTML = `<div class="fv-placeholder">${icon('folder')}<p>ยังไม่มีเอกสารในแฟ้มนี้${can('ops') ? ' — กด + ที่หมวดทางซ้ายเพื่อเพิ่มไฟล์' : ''}</p></div>`;
         return;
     }
     const type = CUSTOMER_DOC_TYPES.find(t => t.key === sel.key) || { label: '' };
@@ -11741,23 +11754,18 @@ function renderCustomerFolderPreview() {
     const viewer = isPdfUrl(url)
         ? `<iframe src="${escapeHtml(url)}" title="${escapeHtml(fItem.name || '')}"></iframe>`
         : `<img src="${escapeHtml(url)}" alt="${escapeHtml(fItem.name || '')}" onerror="this.outerHTML = '<iframe src=&quot;' + this.src + '&quot;></iframe>'">`;
-    box.innerHTML = `
-        <div class="fv-bar">
-            <div class="fv-bar-title">
-                ${canEdit ? `<input type="text" class="fv-name" value="${escapeHtml(fItem.name || '')}" title="แก้ชื่อไฟล์แล้วกด Enter" onchange="renameCustomerFolderFileIndex('${sel.key}', ${sel.idx}, this.value)">`
-                    : `<b>${escapeHtml(fItem.name || '-')}</b>`}
-                <small>${type.label}</small>
-            </div>
-            <div class="fv-bar-actions">
-                ${canEdit && !isPdfUrl(url) ? `<button type="button" class="btn btn-sm btn-outline" onclick="openImageEditor('customer', '${sel.key}', ${sel.idx})" title="ตัดกรอบ หมุน ปรับองศา ปรับความสว่างของรูปนี้">${icon('edit')} แก้ไขรูป</button>` : ''}
-                <a class="btn btn-sm btn-outline" href="${escapeHtml(url)}" target="_blank" rel="noopener">${icon('link')} เปิดแท็บใหม่</a> <button type="button" class="btn btn-sm btn-outline" onclick="printFolderPreview('customer-folder-preview')" title="พิมพ์ไฟล์นี้">${icon('print')} พิมพ์</button>
-                <button type="button" class="btn btn-sm btn-outline" onclick="customerFolderAction('download')">${icon('inbox')} ดาวน์โหลด</button>
-                <button type="button" class="btn btn-sm btn-outline" onclick="customerFolderAction('share')">${icon('link')} แชร์</button>
-                ${driveFolderButtonHtml(`customer:${c.id}`, 'นายจ้าง', url)}
-                <button type="button" class="btn btn-sm btn-outline btn-danger-outline drive-tile-action-btn danger" onclick="deleteCustomerFolderFileIndex('${sel.key}', ${sel.idx})" title="ลบไฟล์">${icon('trash')}</button>
-            </div>
-        </div>
-        <div class="fv-doc">${viewer}</div>`;
+    box.innerHTML = fvBarHtml({
+        title: canEdit ? `<input type="text" class="fv-name" value="${escapeHtml(fItem.name || '')}" title="แก้ชื่อไฟล์แล้วกด Enter" onchange="renameCustomerFolderFileIndex('${sel.key}', ${sel.idx}, this.value)">`
+            : `<b>${escapeHtml(fItem.name || '-')}</b>`,
+        sub: fvShortLabel(type.label),
+        download: "customerFolderAction('download')", printBox: 'customer-folder-preview', url,
+        menu: [
+            canEdit && !isPdfUrl(url) ? fvMenuItem('edit', 'แก้ไขรูป (ตัด หมุน ปรับแสง)', `openImageEditor('customer', '${sel.key}', ${sel.idx})`) : '',
+            fvMenuItem('link', 'แชร์ไฟล์นี้', "customerFolderAction('share')"),
+            fvDriveMenuItem(`customer:${c.id}`, url),
+            can('deleteFiles') ? `<hr>${fvMenuItem('trash', 'ลบไฟล์', `deleteCustomerFolderFileIndex('${sel.key}', ${sel.idx})`, { danger: true })}` : ''
+        ]
+    }) + `<div class="fv-doc">${viewer}</div>`;
 }
 
 function customerFolderAction(action) {
@@ -12861,9 +12869,7 @@ function renderWorkerFolderAllDocs(w, query) {
     const listEl = document.getElementById("worker-folder-files-list");
     listEl.innerHTML = `
         <div class="fv-group">
-            <div class="fv-group-head">
-                <span>${icon('folder')} เอกสารทั้งหมด</span><b>${docs.length || ''}</b>
-            </div>
+            ${fvGroupHead('เอกสารทั้งหมด', docs.length)}
             ${docs.map(d => `
                 <div class="fv-item" data-key="${escapeHtml(d.sel.key)}" data-idx="${d.sel.idx}" draggable="false"
                      onclick="selectWorkerFolderAnyDoc('${escapeHtml(d.sel.kind)}', '${escapeHtml(d.sel.key)}', ${d.sel.idx})" title="${escapeHtml(d.name)}">
@@ -12941,6 +12947,71 @@ async function downloadAllWorkerDocs() {
     }
 }
 
+// ==================== ชิ้นส่วนแฟ้มเอกสาร (คนงาน/นายจ้าง จัดใหม่ owner 2026-10-15) ====================
+// เมนูเล็ก (แชร์ / •••): <div class="fv-more"><button onclick="toggleFvMenu(this)">…</button><div class="fv-menu">…</div></div>
+function toggleFvMenu(btn) {
+    const box = btn.closest('.fv-more');
+    if (!box) return;
+    const open = !box.classList.contains('is-open');
+    document.querySelectorAll('.fv-more.is-open').forEach(el => el.classList.remove('is-open'));
+    box.classList.toggle('is-open', open);
+}
+document.addEventListener('click', e => {
+    const inMenu = e.target.closest && e.target.closest('.fv-more');
+    document.querySelectorAll('.fv-more.is-open').forEach(el => {
+        // กดปุ่มในเมนูแล้วปิดเมนู / กดนอกเมนูแล้วปิด — ปุ่มเปิดเมนูเองสลับใน toggleFvMenu
+        if (el !== inMenu || (e.target.closest('.fv-menu') && e.target.closest('button, a'))) el.classList.remove('is-open');
+    });
+});
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') document.querySelectorAll('.fv-more.is-open').forEach(el => el.classList.remove('is-open'));
+});
+
+// หัวหมวดในรายการไฟล์ + ปุ่ม + แนบ (ถ่ายรูปบนเครื่องที่มีกล้อง)
+function fvGroupHead(label, count, addBtn) {
+    return `<div class="fv-group-head"><span>${escapeHtml(label)} <em>${count || ''}</em></span>${addBtn || ''}</div>`;
+}
+function fvAddButton(onclick, pasteTarget, label, cameraOnclick) {
+    return `<button type="button" class="fv-add" onclick="${onclick}" data-paste-target="${pasteTarget}" title="แนบไฟล์: ${escapeHtml(label)} — คลิกเลือกไฟล์ หรือชี้แล้วกด Ctrl+V วางภาพ">${icon('plus', 'slate')}</button>`
+        + (cameraOnclick && isCameraDevice() ? cameraButtonHtml(cameraOnclick, 'fv-cam') : '');
+}
+// หมวดที่ยังไม่มีไฟล์: รวมเป็นแคปซูลเส้นประท้ายรายการ กดเพื่อแนบเข้าหมวดนั้น
+function fvEmptyChips(list) {
+    if (!list.length) return '';
+    return `<div class="fv-empty-groups"><div class="fv-group-head"><span>ยังไม่มีไฟล์</span></div><div class="fv-chips">${list.map(t =>
+        t.onclick ? `<button type="button" class="fv-chip" onclick="${t.onclick}" data-paste-target="${t.pasteTarget}" title="แนบไฟล์: ${escapeHtml(t.label)} — คลิกเลือกไฟล์ หรือชี้แล้วกด Ctrl+V วางภาพ">+ ${escapeHtml(t.short)}</button>`
+            : `<span class="fv-chip is-static">${escapeHtml(t.short)}</span>`).join('')}</div></div>`;
+}
+// ชื่อหมวดแบบสั้น: ตัดวงเล็บภาษาอังกฤษท้ายชื่อออก ("ใบอนุญาตทำงาน (Work Permit)" → "ใบอนุญาตทำงาน")
+const fvShortLabel = label => String(label || '').replace(/\s*\([^)]*\)\s*$/, '');
+
+// แถบบนพรีวิว: ปุ่มไอคอนที่ใช้บ่อย (ดาวน์โหลด / พิมพ์ / เปิดแท็บใหม่) + เมนู ••• สำหรับคำสั่งที่เหลือ
+function fvBarHtml({ title, sub, download, printBox, url, menu }) {
+    const items = (menu || []).filter(Boolean);
+    return `
+        <div class="fv-bar">
+            <div class="fv-bar-title">${title}<small>${sub || ''}</small></div>
+            <div class="fv-bar-actions">
+                ${download ? `<button type="button" class="fv-ib" onclick="${download}" title="ดาวน์โหลดไฟล์">${icon('inbox', 'slate')}</button>` : ''}
+                ${printBox ? `<button type="button" class="fv-ib" onclick="printFolderPreview('${printBox}')" title="พิมพ์ไฟล์นี้">${icon('print', 'slate')}</button>` : ''}
+                ${url ? `<a class="fv-ib" href="${escapeHtml(url)}" target="_blank" rel="noopener" title="เปิดไฟล์ในแท็บใหม่">${icon('external', 'slate')}</a>` : ''}
+                ${items.length ? `<div class="fv-more"><button type="button" class="fv-ib" onclick="toggleFvMenu(this)" title="คำสั่งอื่นของไฟล์นี้">${icon('more', 'slate')}</button><div class="fv-menu">${items.join('')}</div></div>` : ''}
+            </div>
+        </div>`;
+}
+// รายการในเมนู ••• (ปุ่ม หรือ ลิงก์เมื่อมี href)
+function fvMenuItem(iconName, label, onclick, opts = {}) {
+    if (opts.href) return `<a href="${escapeHtml(opts.href)}" target="_blank" rel="noopener">${icon(iconName)} ${label}</a>`;
+    return `<button type="button" class="${opts.danger ? 'is-danger' : ''}" onclick="${onclick}">${icon(iconName)} ${label}</button>`;
+}
+// เมนู ••• → "เปิดใน Google Drive" เปิดโฟลเดอร์ทั้งหมดของคนงาน/นายจ้างนี้ ไม่ใช่ไฟล์เดียว (owner, 2026-10-13)
+// folderKey = worker:<id> / customer:<id>; โฟลเดอร์ยังไม่ถูกติดตามแต่ไฟล์มีแล้ว (ไม่น่าเกิด) → เปิดไฟล์แทน
+function fvDriveMenuItem(folderKey, url) {
+    if (!can('driveView')) return '';
+    const link = driveFolderLink(folderKey) || driveFileLink(url);
+    return link ? `<hr>${fvMenuItem('cloud', 'เปิดใน Google Drive', '', { href: link })}` : '';
+}
+
 function renderWorkerFolderTiles() {
     const w = workers.find(item => item.id === activeFolderWorkerId);
     if (!w) return;
@@ -12950,6 +13021,7 @@ function renderWorkerFolderTiles() {
     if (workerFolderMode === 'all') { renderWorkerFolderAllDocs(w, query); return; }
 
     const groups = [];
+    const emptyTypes = [];
     const expiredItems = [];
     const allFiles = [];
     WORKER_FOLDER_DOC_TYPES.forEach(file => {
@@ -12962,17 +13034,16 @@ function renderWorkerFolderTiles() {
             const row = renderWorkerFolderItem(file, fItem, fIdx, isExpired);
             if (isExpired) expiredItems.push(row); else items.push(row);
         });
-        if (query && items.length === 0) return;
-        groups.push(`
-            <div class="fv-group">
-                <div class="fv-group-head">
-                    <span>${icon(file.icon)} ${file.label}</span>
-                    <b>${items.length || ''}</b>
-                    ${canAdd ? `<button type="button" class="fv-add" onclick="triggerFolderFileUpload('${file.key}')" data-paste-target="worker-folder:${file.key}" title="แนบไฟล์: ${file.label} — คลิกเลือกไฟล์ หรือชี้แล้วกด Ctrl+V วางภาพ">${icon('plus')} แนบ</button>` : ''}${canAdd && isCameraDevice() ? cameraButtonHtml(`cameraWorkerFolderUpload('${file.key}')`, 'fv-cam') : ''}
-                </div>
-                ${items.join('') || '<div class="fv-none">ยังไม่มีไฟล์</div>'}
-            </div>`);
+        if (items.length === 0) {
+            // หมวดว่าง (ไม่มีไฟล์ปัจจุบัน) → แคปซูลท้ายรายการ (ตอนค้นหาไม่แสดง)
+            if (!query) emptyTypes.push({ short: fvShortLabel(file.label), label: file.label, pasteTarget: `worker-folder:${file.key}`,
+                onclick: canAdd ? `triggerFolderFileUpload('${file.key}')` : '' });
+            return;
+        }
+        const add = canAdd ? fvAddButton(`triggerFolderFileUpload('${file.key}')`, `worker-folder:${file.key}`, file.label, `cameraWorkerFolderUpload('${file.key}')`) : '';
+        groups.push(`<div class="fv-group">${fvGroupHead(fvShortLabel(file.label), items.length, add)}${items.join('')}</div>`);
     });
+    if (emptyTypes.length) groups.push(fvEmptyChips(emptyTypes));
 
     // คงไฟล์ที่เลือกไว้ (เช่น หลังเปลี่ยนชื่อ/ลบ/แนบไฟล์ใหม่) — ถ้าไฟล์นั้นไม่อยู่แล้ว เลือกไฟล์ปัจจุบันไฟล์แรกแทน
     const stillThere = activeFolderSel && activeFolderSel.kind === 'file' && allFiles.some(f => f.key === activeFolderSel.key && f.idx === activeFolderSel.idx);
@@ -12990,6 +13061,9 @@ function renderWorkerFolderTiles() {
     if (expiredSection && expiredListEl) {
         expiredListEl.innerHTML = expiredItems.join('') || `<div class="fv-none">${can('ops') ? 'ลากไฟล์จากด้านบนมาวางที่นี่เพื่อย้ายเป็น "หมดอายุ"' : 'ไม่มีไฟล์ที่หมดอายุ'}</div>`;
         hydratePdfThumbnails(expiredListEl);
+        document.getElementById("worker-folder-expired-title").textContent = expiredItems.length ? `ไฟล์ที่หมดอายุ ${expiredItems.length} ไฟล์` : 'ไฟล์ที่หมดอายุ';
+        // ไฟล์ที่เลือกอยู่เป็นไฟล์หมดอายุ → กางไว้ให้เห็น
+        if (activeFolderSel && allFiles.some(f => f.isExpired && f.key === activeFolderSel.key && f.idx === activeFolderSel.idx)) expiredSection.classList.remove('is-folded');
         expiredSection.classList.remove("hidden");
     }
     markWorkerFolderSelection();
@@ -12999,15 +13073,16 @@ function renderWorkerFolderTiles() {
 function renderWorkerFolderItem(file, fItem, idx, isExpired) {
     const exp = fItem.expiryDate ? safeParseDate(fItem.expiryDate) : null;
     const days = exp ? Math.ceil((exp - new Date()) / 86400000) : null;
-    const expTag = isExpired ? '<span class="tag-mini is-bad">หมดอายุ</span>'
-        : days === null ? '' : days < 0 ? '<span class="tag-mini is-bad">หมดอายุ</span>'
-        // ไม่นับจำนวนวันที่เหลือ — แสดงวันหมดอายุเสมอ ใกล้หมด (≤ 60 วัน) เป็นสีส้ม (owner, 2026-10-14)
-        : `<span class="tag-mini ${days <= 60 ? 'is-warn' : 'is-ok'}">ถึง ${formatThaiDate(fItem.expiryDate)}</span>`;
+    // วันหมดอายุ = จุดสีหน้าวันที่ (เขียว / ส้ม ใกล้หมด ≤ 60 วัน / แดง หมดแล้ว) ไม่นับจำนวนวัน (owner, 2026-10-14) — ไม่มีวันหมดอายุ = วันที่แนบ
+    const meta = (isExpired || (days !== null && days < 0))
+        ? `<span class="fv-dot is-bad"></span>${exp ? `หมดอายุ ${formatThaiDate(fItem.expiryDate)}` : 'หมดอายุ'}`
+        : days !== null ? `<span class="fv-dot ${days <= 60 ? 'is-warn' : 'is-ok'}"></span>ถึง ${formatThaiDate(fItem.expiryDate)}`
+        : (fItem.uploadedAt ? formatThaiDate(String(fItem.uploadedAt).slice(0, 10)) : '');
     return `
         <div class="fv-item${isExpired ? ' is-expired' : ''}" data-key="${file.key}" data-idx="${idx}" draggable="${can('ops') ? 'true' : 'false'}"
              ondragstart="onWorkerFileDragStart(event, '${file.key}', ${idx})" onclick="selectWorkerFolderFile('${file.key}', ${idx})" title="${escapeHtml(fItem.name || '')}">
             ${renderDriveThumbnail(workerFolderFileUrl(fItem))}
-            <div class="fv-item-text"><b>${escapeHtml(fItem.name || '-')}</b><small>${fItem.uploadedAt ? formatThaiDate(String(fItem.uploadedAt).slice(0, 10)) : ''} ${expTag}</small></div>
+            <div class="fv-item-text"><b>${escapeHtml(fItem.name || '-')}</b><small>${meta}</small></div>
         </div>`;
 }
 
@@ -13039,14 +13114,12 @@ function renderWorkerFolderPreview() {
     const w = workers.find(item => item.id === activeFolderWorkerId);
     if (!box || !w) return;
     if (!activeFolderSel) {
-        box.innerHTML = `<div class="fv-placeholder">${icon('folder')}<p>ยังไม่มีเอกสารในแฟ้มนี้${can('ops') ? ' — กด "แนบ" ที่หมวดทางซ้ายเพื่อเพิ่มไฟล์' : ''}</p></div>`;
+        box.innerHTML = `<div class="fv-placeholder">${icon('folder')}<p>ยังไม่มีเอกสารในแฟ้มนี้${can('ops') ? ' — กด + ที่หมวดทางซ้ายเพื่อเพิ่มไฟล์' : ''}</p></div>`;
         return;
     }
     if (activeFolderSel.kind === 'photo') {
-        box.innerHTML = `
-            <div class="fv-bar"><div class="fv-bar-title"><b>รูปคนงาน</b><small>${escapeHtml(workerFullName(w))}</small></div>
-                <div class="fv-bar-actions"><a class="btn btn-sm btn-outline" href="${escapeHtml(w.photo)}" target="_blank" rel="noopener">${icon('link')} เปิดแท็บใหม่</a> <button type="button" class="btn btn-sm btn-outline" onclick="printFolderPreview('worker-folder-preview')" title="พิมพ์ไฟล์นี้">${icon('print')} พิมพ์</button></div></div>
-            <div class="fv-doc"><img src="${escapeHtml(w.photo)}" alt="รูปคนงาน"></div>`;
+        box.innerHTML = fvBarHtml({ title: '<b>รูปคนงาน</b>', sub: escapeHtml(workerFullName(w)), printBox: 'worker-folder-preview', url: w.photo })
+            + `<div class="fv-doc"><img src="${escapeHtml(w.photo)}" alt="รูปคนงาน"></div>`;
         return;
     }
     if (activeFolderSel.kind === 'jobdoc') {
@@ -13060,19 +13133,15 @@ function renderWorkerFolderPreview() {
             : `<img src="${escapeHtml(jurl)}" alt="${escapeHtml(d.name)}" onerror="this.outerHTML = '<iframe src=&quot;' + this.src + '&quot;></iframe>'">`;
         // เอกสารปิดงานแก้ชื่อได้ตรงนี้ (คนที่แก้ใบงานนั้นได้) — ใบนัดหมายไม่มีชื่อไฟล์ให้แก้
         const canRenameJobDoc = d.group === 'เอกสารปิดงาน' && canEditJob(j);
-        box.innerHTML = `
-            <div class="fv-bar">
-                <div class="fv-bar-title">${canRenameJobDoc
-                    ? `<input type="text" class="fv-name" value="${escapeHtml(d.name)}" title="แก้ชื่อไฟล์แล้วกด Enter" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}" onchange="saveJobCloseDocName('${j.id}', ${activeFolderSel.idx}, this.value)">`
-                    : `<b>${escapeHtml(d.name)}</b>`}
-                    <small>${escapeHtml(d.group)} • ${escapeHtml(getCleanJobTypeName(j.jobType))} (${escapeHtml(getJobDisplayNo(j))})${d.note ? ` • ${escapeHtml(d.note)}` : ''}</small></div>
-                <div class="fv-bar-actions">
-                    <a class="btn btn-sm btn-outline" href="${escapeHtml(jurl)}" target="_blank" rel="noopener">${icon('link')} เปิดแท็บใหม่</a> <button type="button" class="btn btn-sm btn-outline" onclick="printFolderPreview('worker-folder-preview')" title="พิมพ์ไฟล์นี้">${icon('print')} พิมพ์</button>
-                    <button type="button" class="btn btn-sm btn-outline" onclick="workerFolderAction('download')">${icon('inbox')} ดาวน์โหลด</button>
-                    ${driveFolderButtonHtml(`worker:${w.id}`, 'คนงาน', jurl)}
-                </div>
-            </div>
-            <div class="fv-doc">${jviewer}</div>`;
+        const title = canRenameJobDoc
+            ? `<input type="text" class="fv-name" value="${escapeHtml(d.name)}" title="แก้ชื่อไฟล์แล้วกด Enter" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}" onchange="saveJobCloseDocName('${j.id}', ${activeFolderSel.idx}, this.value)">`
+            : `<b>${escapeHtml(d.name)}</b>`;
+        box.innerHTML = fvBarHtml({
+            title,
+            sub: `${escapeHtml(d.group)} · ${escapeHtml(getCleanJobTypeName(j.jobType))} (${escapeHtml(getJobDisplayNo(j))})${d.note ? ` · ${escapeHtml(d.note)}` : ''}`,
+            download: "workerFolderAction('download')", printBox: 'worker-folder-preview', url: jurl,
+            menu: [fvDriveMenuItem(`worker:${w.id}`, jurl).replace(/^<hr>/, '')]
+        }) + `<div class="fv-doc">${jviewer}</div>`;
         return;
     }
     const type = WORKER_FOLDER_DOC_TYPES.find(t => t.key === activeFolderSel.key) || { label: '' };
@@ -13081,27 +13150,24 @@ function renderWorkerFolderPreview() {
     if (!fItem) { box.innerHTML = ''; return; }
     const url = workerFolderFileUrl(fItem);
     const canEdit = can('ops');
+    const isImg = !isPdfUrl(url);
     const viewer = isPdfUrl(url)
         ? `<iframe src="${escapeHtml(url)}" title="${escapeHtml(fItem.name || '')}"></iframe>`
         : `<img src="${escapeHtml(url)}" alt="${escapeHtml(fItem.name || '')}" onerror="this.outerHTML = '<iframe src=&quot;' + this.src + '&quot;></iframe>'">`;
-    box.innerHTML = `
-        <div class="fv-bar">
-            <div class="fv-bar-title">
-                ${canEdit ? `<input type="text" class="fv-name" value="${escapeHtml(fItem.name || '')}" title="แก้ชื่อไฟล์แล้วกด Enter" onchange="renameFolderFileIndex('${activeFolderSel.key}', ${activeFolderSel.idx}, this.value)">`
-                    : `<b>${escapeHtml(fItem.name || '-')}</b>`}
-                <small>${type.label}${fItem.expiryDate ? ` • หมดอายุ ${formatThaiDate(fItem.expiryDate)}` : ''}${fItem.note ? ` • ${escapeHtml(fItem.note)}` : ''}${doeReceiptBadgeHtml(fItem)}</small>
-            </div>
-            <div class="fv-bar-actions">
-                ${canEdit && !isPdfUrl(url) ? `<button type="button" class="btn btn-sm btn-outline" onclick="openImageEditor('worker', '${activeFolderSel.key}', ${activeFolderSel.idx})" title="ตัดกรอบ หมุน ปรับองศา ปรับความสว่างของรูปนี้">${icon('edit')} แก้ไขรูป</button>` : ''}
-                ${canEdit && !isPdfUrl(url) && w.photo !== url ? `<button type="button" class="btn btn-sm btn-outline" onclick="workerFolderAction('setPhoto')" title="ใช้รูปนี้เป็นรูปประจำตัวคนงาน (แสดงด้านบนแฟ้มและในตาราง)">${icon('photo')} ตั้งเป็นรูปคนงาน</button>` : ''}
-                <a class="btn btn-sm btn-outline" href="${escapeHtml(url)}" target="_blank" rel="noopener">${icon('link')} เปิดแท็บใหม่</a> <button type="button" class="btn btn-sm btn-outline" onclick="printFolderPreview('worker-folder-preview')" title="พิมพ์ไฟล์นี้">${icon('print')} พิมพ์</button>
-                <button type="button" class="btn btn-sm btn-outline" onclick="workerFolderAction('download')">${icon('inbox')} ดาวน์โหลด</button>
-                <button type="button" class="btn btn-sm btn-outline" onclick="workerFolderAction('share')">${icon('link')} แชร์</button>
-                ${driveFolderButtonHtml(`worker:${w.id}`, 'คนงาน', url)}
-                ${canEdit ? `<button type="button" class="btn btn-sm btn-outline btn-danger-outline drive-tile-action-btn danger" onclick="deleteFolderFileIndex('${activeFolderSel.key}', ${activeFolderSel.idx})" title="ลบไฟล์">${icon('trash')}</button>` : ''}
-            </div>
-        </div>
-        <div class="fv-doc">${viewer}</div>`;
+    const k = activeFolderSel.key, i = activeFolderSel.idx;
+    box.innerHTML = fvBarHtml({
+        title: canEdit ? `<input type="text" class="fv-name" value="${escapeHtml(fItem.name || '')}" title="แก้ชื่อไฟล์แล้วกด Enter" onchange="renameFolderFileIndex('${k}', ${i}, this.value)">`
+            : `<b>${escapeHtml(fItem.name || '-')}</b>`,
+        sub: `${fvShortLabel(type.label)}${fItem.expiryDate ? ` · หมดอายุ ${formatThaiDate(fItem.expiryDate)}` : ''}${fItem.note ? ` · ${escapeHtml(fItem.note)}` : ''}${doeReceiptBadgeHtml(fItem)}`,
+        download: "workerFolderAction('download')", printBox: 'worker-folder-preview', url,
+        menu: [
+            canEdit && isImg ? fvMenuItem('edit', 'แก้ไขรูป (ตัด หมุน ปรับแสง)', `openImageEditor('worker', '${k}', ${i})`) : '',
+            canEdit && isImg && w.photo !== url ? fvMenuItem('photo', 'ตั้งเป็นรูปคนงาน', "workerFolderAction('setPhoto')") : '',
+            fvMenuItem('link', 'แชร์ไฟล์นี้', "workerFolderAction('share')"),
+            fvDriveMenuItem(`worker:${w.id}`, url),
+            canEdit && can('deleteFiles') ? `<hr>${fvMenuItem('trash', 'ลบไฟล์', `deleteFolderFileIndex('${k}', ${i})`, { danger: true })}` : ''
+        ]
+    }) + `<div class="fv-doc">${viewer}</div>`;
 }
 
 // ปุ่ม "พิมพ์" ในแฟ้มคนงาน/นายจ้าง — พิมพ์ไฟล์ที่พรีวิวอยู่ผ่าน iframe ซ่อน ไม่ต้องดาวน์โหลดหรือเปิดแท็บใหม่
@@ -13256,17 +13322,6 @@ function driveFolderLink(key) {
     return id ? `https://drive.google.com/drive/folders/${encodeURIComponent(id)}` : '';
 }
 
-
-// แฟ้มคนงาน/นายจ้าง: ปุ่ม Drive บนแถบพรีวิวเปิด "โฟลเดอร์ทั้งหมดของคนงาน/นายจ้างนี้" แทนไฟล์เดียว (owner, 2026-10-13)
-// folderKey = worker:<id> / customer:<id>; โฟลเดอร์ยังไม่ถูกสร้างใน Drive แต่ไฟล์มีแล้ว (ไม่น่าเกิด) → เปิดไฟล์แทน
-function driveFolderButtonHtml(folderKey, label, url) {
-    if (!can('driveView')) return '';
-    const folder = driveFolderLink(folderKey);
-    const link = folder || driveFileLink(url);
-    if (!link) return '';
-    const tip = folder ? `เปิดโฟลเดอร์${label}นี้ใน Google Drive (ไฟล์สำรอง)` : 'เปิดไฟล์นี้ใน Google Drive (ไฟล์สำรอง)';
-    return `<a class="btn btn-sm btn-outline" href="${escapeHtml(link)}" target="_blank" rel="noopener" title="${tip}">${icon('cloud')} Drive</a>`;
-}
 
 // ปุ่มท้ายแฟ้ม: แสดงเมื่อมีโฟลเดอร์นั้นใน Drive แล้ว — โหลดดัชนีเสร็จทีหลังก็วาดพรีวิวใหม่ให้มีปุ่ม Drive ของไฟล์
 function updateFolderDriveButton(btnId, folderKey, rerender) {

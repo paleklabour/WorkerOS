@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261014zc">
+    <link rel="stylesheet" href="styles.css?v=20261015a">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -1404,6 +1404,7 @@
                             </button>
                         </div>
 
+                        <div class="table-container">
                         <table class="data-table">
                             <thead>
                                 <tr>
@@ -1417,6 +1418,7 @@
                             </thead>
                             <tbody id="users-tbody"></tbody>
                         </table>
+                        </div>
                     </div>
 
                     <!-- ==================== USER MODAL (Add/Edit Account) ==================== -->
@@ -2415,7 +2417,7 @@
 
         <!-- ==================== MODAL: ADD/EDIT JOB ==================== -->
         <div id="job-modal" class="modal-backdrop hidden">
-            <div class="modal-content" style="max-width: 1000px;">
+            <div class="modal-content large">
                 <div class="modal-header">
                     <h3 id="job-modal-title">แจ้งสั่งงานและขั้นตอนดำเนินการ</h3>
                     <button class="close-btn" title="ปิดหน้าต่าง" onclick="closeJobModal()">&times;</button>
@@ -3192,25 +3194,32 @@
         <!-- ==================== MODAL: CUSTOMER (นายจ้าง/ลูกค้าผู้ว่าจ้าง) DOCUMENTS FOLDER ==================== -->
         <div id="customer-folder-modal" class="modal-backdrop hidden" style="z-index: 1050;">
             <div class="modal-content fv-modal">
-                <div class="modal-header">
-                    <h3><span class="ico" data-icon="folder"></span> แฟ้มเอกสารของนายจ้าง / ลูกค้าผู้ว่าจ้าง</h3>
-                    <button class="close-btn" title="ปิดหน้าต่าง" onclick="closeCustomerFolderModal()">&times;</button>
-                </div>
-                <div class="modal-body" style="padding-top: 10px;">
-                    <input type="file" id="customer-folder-upload-input" accept="image/*,application/pdf" multiple style="display:none;" onchange="handleCustomerFolderFileUpload(event)">
-                    <!-- แฟ้มเอกสารนายจ้าง แบบ "รายการ + พรีวิวใหญ่" เหมือนแฟ้มคนงาน — ดู renderCustomerFolderTiles() / renderCustomerFolderPreview() -->
-                    <div class="fv-person">
-                        <div class="fv-photo fv-photo-icon"><span class="ico" data-icon="building"></span></div>
-                        <div class="fv-person-text">
-                            <h4 id="customer-folder-name"></h4>
-                            <p id="customer-folder-meta"></p>
-                        </div>
-                        <div class="search-box fv-search">
-                            <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle class="fl" cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/></svg>
-                            <input type="text" id="search-customer-folder" placeholder="ค้นหาชื่อไฟล์ในแฟ้มนี้..." oninput="renderCustomerFolderTiles()">
+                <!-- แฟ้มเอกสารนายจ้าง หน้าตาเดียวกับแฟ้มคนงาน (จัดใหม่ owner 2026-10-15) — ดู renderCustomerFolderTiles() / renderCustomerFolderPreview() -->
+                <div class="fv-top">
+                    <div class="fv-photo fv-photo-icon"><span class="ico" data-icon="building"></span></div>
+                    <div class="fv-person-text">
+                        <h4 id="customer-folder-name"></h4>
+                        <p id="customer-folder-meta"></p>
+                    </div>
+                    <div class="fv-more">
+                        <button type="button" class="fv-pill" onclick="toggleFvMenu(this)" title="แชร์และลิงก์ของแฟ้มนี้"><span class="ico" data-icon="share"></span> แชร์</button>
+                        <div class="fv-menu">
+                            <button type="button" onclick="shareCustomerFolder(activeFolderCustomerId)"><span class="ico" data-icon="link"></span> ลิงก์แชร์ทั้งโฟลเดอร์ (ไม่ต้องล็อกอิน)</button>
+                            <a class="needs-driveView hidden" id="btn-customer-drive" target="_blank" rel="noopener" title="เปิดแฟ้มนายจ้างนี้ใน Google Drive (ไฟล์สำรอง)"><span class="ico" data-icon="cloud"></span> เปิดใน Google Drive</a>
+                            <hr>
+                            <button type="button" class="is-danger" onclick="revokeCustomerShareLink(activeFolderCustomerId)"><span class="ico" data-icon="ban"></span> ยกเลิกลิงก์แชร์</button>
                         </div>
                     </div>
-
+                    <button class="close-btn" title="ปิดหน้าต่าง" onclick="closeCustomerFolderModal()">&times;</button>
+                </div>
+                <div class="fv-tools">
+                    <div class="search-box fv-search">
+                        <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle class="fl" cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/></svg>
+                        <input type="text" id="search-customer-folder" placeholder="ค้นหาไฟล์" oninput="renderCustomerFolderTiles()">
+                    </div>
+                </div>
+                <div class="modal-body fv-body">
+                    <input type="file" id="customer-folder-upload-input" accept="image/*,application/pdf" multiple style="display:none;" onchange="handleCustomerFolderFileUpload(event)">
                     <div class="fv-layout">
                         <div class="fv-list">
                             <div id="customer-folder-files-list" class="fv-groups"></div>
@@ -3218,70 +3227,61 @@
                         <div class="fv-view" id="customer-folder-preview"></div>
                     </div>
                 </div>
-                <div class="modal-footer" style="display:flex; gap:8px; flex-wrap:wrap;">
-                    <button type="button" class="btn btn-outline" style="flex:1; min-width:200px;" onclick="shareCustomerFolder(activeFolderCustomerId)"><span class="ico" data-icon="link"></span> คัดลอกลิงก์แชร์ทั้งโฟลเดอร์ (ไม่ต้องล็อกอิน)</button>
-                    <button type="button" class="btn btn-outline" style="flex:0 0 auto; color:#b91c1c; border-color:#fca5a5;" onclick="revokeCustomerShareLink(activeFolderCustomerId)"><span class="ico" data-icon="ban"></span> ยกเลิกลิงก์</button>
-                    <a class="btn btn-outline needs-driveView hidden" id="btn-customer-drive" target="_blank" rel="noopener" title="เปิดแฟ้มนายจ้างนี้ใน Google Drive (ไฟล์สำรอง)"><span class="ico" data-icon="cloud"></span> เปิดใน Google Drive</a>
-                    <button type="button" class="btn btn-gold" style="width:100%;" onclick="closeCustomerFolderModal()">ปิดหน้าต่าง</button>
-                </div>
             </div>
         </div>
 
         <div id="worker-folder-modal" class="modal-backdrop hidden" style="z-index: 1050;">
             <div class="modal-content fv-modal">
-                <div class="modal-header">
-                    <h3 id="worker-folder-title"><span class="ico" data-icon="folder"></span> แฟ้มเอกสารของคนงานต่างด้าว</h3>
+                <!-- แฟ้มเอกสารคนงาน (จัดใหม่ให้โล่ง owner 2026-10-15): หัวแถวเดียว (รูป ชื่อ แชร์ ✕) → แท็บ+ค้นหา → รายการซ้าย / พรีวิวขวา
+                     ปุ่มลิงก์ทั้งหมดอยู่ในเมนู "แชร์" ปุ่มคำสั่งไฟล์ที่ใช้น้อยอยู่ในเมนู ••• ของพรีวิว — ดู renderWorkerFolderTiles() / renderWorkerFolderPreview() -->
+                <div class="fv-top">
+                    <button type="button" class="fv-photo" onclick="selectWorkerFolderPhoto()" title="ดูรูปคนงานขนาดใหญ่">
+                        <img id="worker-folder-avatar" src="" alt="รูปคนงาน">
+                    </button>
+                    <div class="fv-person-text">
+                        <h4 id="worker-folder-name"></h4>
+                        <p id="worker-folder-meta"></p>
+                    </div>
+                    <div class="fv-more">
+                        <button type="button" class="fv-pill" onclick="toggleFvMenu(this)" title="แชร์และลิงก์ของแฟ้มนี้"><span class="ico" data-icon="share"></span> แชร์</button>
+                        <div class="fv-menu">
+                            <button type="button" class="needs-ops" onclick="copyWorkerFolderLink()" id="btn-copy-worker-folder"><span class="ico" data-icon="link"></span> คัดลอกลิงก์เปิดแฟ้มนี้</button>
+                            <button type="button" class="needs-ops" onclick="shareWorkerFolder(activeFolderWorkerId)"><span class="ico" data-icon="link"></span> ลิงก์แชร์ทั้งโฟลเดอร์ (ไม่ต้องล็อกอิน)</button>
+                            <a class="needs-driveView hidden" id="btn-worker-drive" target="_blank" rel="noopener" title="เปิดแฟ้มคนงานนี้ใน Google Drive (ไฟล์สำรอง)"><span class="ico" data-icon="cloud"></span> เปิดใน Google Drive</a>
+                            <hr class="needs-ops">
+                            <button type="button" class="needs-ops is-danger" onclick="revokeWorkerShareLink(activeFolderWorkerId)"><span class="ico" data-icon="ban"></span> ยกเลิกลิงก์แชร์</button>
+                        </div>
+                    </div>
                     <button class="close-btn" title="ปิดหน้าต่าง" onclick="closeWorkerFolderModal()">&times;</button>
                 </div>
-                <div class="modal-body" style="padding-top: 10px;">
+                <div class="fv-tools">
+                    <!-- แท็บ: แยกตามหมวด / เอกสารทั้งหมด (รวมเอกสารปิดงาน+ใบนัดหมายจากใบงาน) — ดู setWorkerFolderMode() -->
+                    <div class="view-toggle-bar">
+                        <button type="button" class="btn btn-gold btn-sm" id="btn-fv-mode-type" onclick="setWorkerFolderMode('type')">แยกตามหมวด</button>
+                        <button type="button" class="btn btn-outline btn-sm" id="btn-fv-mode-all" onclick="setWorkerFolderMode('all')">เอกสารทั้งหมด</button>
+                    </div>
+                    <div class="search-box fv-search">
+                        <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle class="fl" cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/></svg>
+                        <input type="text" id="search-worker-folder" placeholder="ค้นหาไฟล์" oninput="renderWorkerFolderTiles()">
+                    </div>
+                    <span class="fv-spacer"></span>
+                    <button type="button" class="fv-ib" id="btn-fv-download-all" onclick="downloadAllWorkerDocs()" title="ดาวน์โหลดเอกสารทุกไฟล์ของคนงานนี้ (รวมเอกสารปิดงาน) เป็นไฟล์ ZIP"><span class="ico" data-icon="inbox" data-color="slate"></span></button>
+                </div>
+                <div class="modal-body fv-body">
                     <input type="file" id="folder-upload-input" accept="image/*,application/pdf" multiple style="display:none;" onchange="handleFolderFileUpload(event)">
-                    <!-- แฟ้มเอกสารคนงาน แบบ "รายการ + พรีวิวใหญ่" (เลือกโดยเจ้าของระบบ 2026-10-02) — ดู renderWorkerFolderTiles() / renderWorkerFolderPreview() -->
-                    <div class="fv-person">
-                        <button type="button" class="fv-photo" onclick="selectWorkerFolderPhoto()" title="ดูรูปคนงานขนาดใหญ่">
-                            <img id="worker-folder-avatar" src="" alt="รูปคนงาน">
-                        </button>
-                        <div class="fv-person-text">
-                            <h4 id="worker-folder-name"></h4>
-                            <p id="worker-folder-meta"></p>
-                        </div>
-                        <div class="search-box fv-search">
-                            <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle class="fl" cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/></svg>
-                            <input type="text" id="search-worker-folder" placeholder="ค้นหาชื่อไฟล์ในแฟ้มนี้..." oninput="renderWorkerFolderTiles()">
-                        </div>
-                    </div>
-
-                    <!-- แท็บ: แยกตามหมวด (เดิม) / เอกสารทั้งหมด (รวมเอกสารปิดงาน+ใบนัดหมายจากใบงาน) + ดาวน์โหลดทั้งหมดเป็น ZIP — ดู setWorkerFolderMode() -->
-                    <div class="fv-mode-bar">
-                        <div class="view-toggle-bar">
-                            <button type="button" class="btn btn-gold btn-sm" id="btn-fv-mode-type" onclick="setWorkerFolderMode('type')">
-                                <span class="ico" data-icon="folder"></span> แยกตามหมวด
-                            </button>
-                            <button type="button" class="btn btn-outline btn-sm" id="btn-fv-mode-all" onclick="setWorkerFolderMode('all')">
-                                <span class="ico" data-icon="clip"></span> เอกสารทั้งหมด
-                            </button>
-                        </div>
-                        <button type="button" class="btn btn-outline btn-sm" id="btn-fv-download-all" onclick="downloadAllWorkerDocs()" title="รวมเอกสารทุกไฟล์ของคนงานนี้ (รวมเอกสารปิดงาน) เป็นไฟล์ ZIP">
-                            <span class="ico" data-icon="inbox"></span> ดาวน์โหลดทั้งหมด
-                        </button>
-                    </div>
-
                     <div class="fv-layout">
                         <div class="fv-list">
                             <div id="worker-folder-files-list" class="fv-groups" ondragover="onWorkerFileDragOver(event)" ondrop="onWorkerFileDropToCurrent(event)"></div>
-                            <div id="worker-folder-expired-section" class="fv-expired hidden">
-                                <h5><span class="ico" data-icon="folder"></span> ไฟล์ที่หมดอายุ <small>(ลากไฟล์มาวางที่นี่)</small></h5>
+                            <!-- ไฟล์หมดอายุ: พับไว้ กดหัวเพื่อกาง — ลากไฟล์มาวางที่หัวหรือในรายการเพื่อย้ายเป็น "หมดอายุ" ได้เหมือนเดิม -->
+                            <div id="worker-folder-expired-section" class="fv-expired is-folded hidden">
+                                <button type="button" class="fv-fold" onclick="this.parentElement.classList.toggle('is-folded')" ondragover="onWorkerFileDragOver(event)" ondrop="onWorkerFileDropToExpired(event)" title="กาง/พับรายการไฟล์ที่หมดอายุ">
+                                    <span id="worker-folder-expired-title">ไฟล์ที่หมดอายุ</span><span class="ico" data-icon="chevronDown" data-color="slate"></span>
+                                </button>
                                 <div id="worker-folder-expired-files-list" ondragover="onWorkerFileDragOver(event)" ondrop="onWorkerFileDropToExpired(event)"></div>
                             </div>
                         </div>
                         <div class="fv-view" id="worker-folder-preview"></div>
                     </div>
-                </div>
-                <div class="modal-footer" style="display: flex; gap: 10px; flex-wrap: wrap;">
-                    <button type="button" class="btn btn-outline needs-ops" style="flex:1; min-width:150px;" onclick="copyWorkerFolderLink()" id="btn-copy-worker-folder"><span class="ico" data-icon="link"></span> คัดลอกลิงก์เปิดแฟ้มนี้</button>
-                    <button type="button" class="btn btn-outline needs-ops" style="flex:1; min-width:200px;" onclick="shareWorkerFolder(activeFolderWorkerId)"><span class="ico" data-icon="link"></span> คัดลอกลิงก์แชร์ทั้งโฟลเดอร์ (ไม่ต้องล็อกอิน)</button>
-                    <button type="button" class="btn btn-outline needs-ops" style="flex:0 0 auto; color:#b91c1c; border-color:#fca5a5;" onclick="revokeWorkerShareLink(activeFolderWorkerId)"><span class="ico" data-icon="ban"></span> ยกเลิกลิงก์</button>
-                    <a class="btn btn-outline needs-driveView hidden" id="btn-worker-drive" target="_blank" rel="noopener" title="เปิดแฟ้มคนงานนี้ใน Google Drive (ไฟล์สำรอง)"><span class="ico" data-icon="cloud"></span> เปิดใน Google Drive</a>
-                    <button type="button" class="btn btn-gold" style="width:100%;" onclick="closeWorkerFolderModal()">ปิดหน้าต่าง</button>
                 </div>
             </div>
         </div>
@@ -3312,7 +3312,7 @@
 
         <!-- ==================== MODAL: BULK IMPORT DOCUMENTS ==================== -->
         <div id="bulk-import-modal" class="modal-backdrop hidden" style="z-index: 1050;">
-            <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-content large">
                 <div class="modal-header">
                     <h3><span class="ico" data-icon="inbox"></span> นำเข้าเอกสารหลายไฟล์พร้อมกัน (Bulk Import)</h3>
                     <button class="close-btn" title="ปิดหน้าต่าง" onclick="closeBulkImportModal()">&times;</button>
@@ -3389,7 +3389,7 @@
 
         <!-- ==================== MODAL: วางรายชื่อจาก e-WorkPermit → สร้างคนงานหลายคน (ไม่ใช้ AI, ดู parseEwpPasteText ใน app.js) ==================== -->
         <div id="ewp-paste-modal" class="modal-backdrop hidden" style="z-index: 1050;">
-            <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-content large">
                 <div class="modal-header">
                     <h3><span class="ico" data-icon="users"></span> วางรายชื่อจาก e-WorkPermit</h3>
                     <button class="close-btn" title="ปิดหน้าต่าง" onclick="closeEwpPasteModal()">&times;</button>
@@ -3483,7 +3483,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261014zc"></script>
+    <script src="supabase-client.js?v=20261015a"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3494,6 +3494,6 @@
     </script>
 
     <!-- Application Script -->
-    <script src="app.js?v=20261014zc"></script>
+    <script src="app.js?v=20261015a"></script>
 </body>
 </html>
