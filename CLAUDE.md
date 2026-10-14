@@ -266,7 +266,9 @@ data cards/tables are solid `#171b26`, glow dimmed; only alerts keep color (red/
 Dark radii: buttons, single-line fields, selects, menu items, segmented tabs = capsules (999px); cards 22px, modals 26px, sidebar 26px.
 Light theme got the same treatment (owner, 2026-10-14): block `:root:not([data-theme])` at the end of `styles.css` (light = no
 `data-theme` attribute) — glass sidebar/modals over a faint glow, accent `#2d6cf6`, calm colors, capsule radii. Printed
-sheets in light pin the old navy `#2d4fa3`. Pink theme is still the original look.
+sheets in light pin the old navy `#2d4fa3`. Light was then toned down (bg `#e7eaf0`, cards `#f8f9fb`, owner: too glaring).
+Pink got the same treatment too (pink glass, accent `#d6457a`). In every theme the calm-mode grey badges exclude
+`.job-type-badge` — job-type headings in the jobs table keep their strong navy/gold (owner, 2026-10-14).
 
 ## iOS look & widget boards (standing rule, 2026-10)
 
