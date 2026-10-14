@@ -7728,3 +7728,28 @@ html.is-resizing *, html.is-resizing *::before, html.is-resizing *::after { tran
 :root[data-theme="dark"] .worker-id-line span,
 :root[data-theme="dark"] .worker-id-line b { color: var(--text-muted); font-weight: 500; }
 :root[data-theme="dark"] .data-table tbody tr:nth-child(even) { background-color: rgba(255, 255, 255, 0.018); }
+
+/* ==================== ธีมมืด: มุมโค้งแบบ Liquid Glass (owner 2026-10-14 — ให้โค้งเท่าตัวอย่าง) ====================
+   ปุ่ม/ช่องกรอกบรรทัดเดียว/เมนู/แท็บ = แคปซูล, การ์ด 22px, หน้าต่าง 26px, แถบเมนูซ้าย 26px, ปุ่มไอคอนกลม */
+:root[data-theme="dark"] {
+    --radius-sm: 12px;
+    --radius-md: 22px;
+    --radius-lg: 26px;
+}
+:root[data-theme="dark"] .btn { border-radius: 999px; }
+:root[data-theme="dark"] .action-icon-btn { border-radius: 50%; }
+:root[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]),
+:root[data-theme="dark"] select { border-radius: 999px; }
+:root[data-theme="dark"] textarea { border-radius: 16px; }
+:root[data-theme="dark"] .menu-item,
+:root[data-theme="dark"] .sidebar-menu > .tab-slider { border-radius: 999px; }
+:root[data-theme="dark"] .seg-host { border-radius: 999px; }
+:root[data-theme="dark"] .seg-host > .btn,
+:root[data-theme="dark"] .seg-host > .tab-slider { border-radius: 999px !important; }
+:root[data-theme="dark"] .ios-select-menu,
+:root[data-theme="dark"] .bell-panel { border-radius: 20px; }
+:root[data-theme="dark"] .invoice-sheet input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]),
+:root[data-theme="dark"] .invoice-sheet select { border-radius: 6px; }
+@media (min-width: 1025px) {
+    :root[data-theme="dark"] .sidebar { border-radius: 26px; }
+}
