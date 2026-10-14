@@ -273,6 +273,11 @@ Pink then softened to dusty rose (accent `#b8607f`, bg `#f3eef0`). Pie charts: c
 `var(--chart-1..8)` (one-hue ramp per theme) and `chartColor()` maps the old semantic hexes (green/red/amber/grey/navy) to
 `--chart-ok/bad/warn/warn2/muted/1..4`; draw slices with `style="stroke: …"` (SVG attributes don't take `var()`). Login /
 reset-password: no card box at all (form floats on the theme glow), 150px logo with no tile/frame (owner, 2026-10-14).
+All of that lives in ONE section at the end of `styles.css` ("ระบบธีม (รวมไว้ที่เดียว …)"): per-theme variables
+(`--glass-*`, `--pill-on`, `--calm-*`, `--glow-*`, `--chart-*` …) + shared rules written once. Glow is a single fixed
+`body::before` layer (never `background-attachment: fixed` — it repaints on scroll); blur only on things that float over
+content (modals/popups), not the sidebar. Scroll containers have `overscroll-behavior: contain` and the page behind an open
+`.modal-backdrop` doesn't scroll (owner: wheel scrolls only the panel under the mouse).
 
 ## iOS look & widget boards (standing rule, 2026-10)
 
