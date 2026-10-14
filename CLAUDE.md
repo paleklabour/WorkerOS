@@ -307,7 +307,9 @@ The UI follows iOS (owner's request): SF Pro/Sukhumvit fonts, light theme
 with a sliding thumb (`attachTabSlider`), every `<select>` opens an iOS menu on
 mouse devices (`openIosSelect` — the native `<select>` still holds the value),
 charts animate via `setupChartMagicMove` ("magic move": every pie/bar regrows from 0 each time it comes into view — tab/page switch or scroll — and flows old→new on re-render; owner 2026-10-13). Keep new UI consistent with that.
-Every search box gets a ✕ clear button (`attachSearchClear`, `SEARCH_CLEAR_SEL` — `.search-box` inputs or
+Toolbars above tables (`.table-actions`): search box + filter dropdowns sit together on the left, action buttons
+(`.btn-add`, `.action-buttons-group`, last `.btn`) are pushed right with `margin-left: auto` — no `space-between`
+(owner 2026-10-15: dropdowns ended up far from the search box). Every search box gets a ✕ clear button (`attachSearchClear`, `SEARCH_CLEAR_SEL` — `.search-box` inputs or
 placeholder containing "ค้นหา"; clicking it empties the field and fires input/change). Search fields with an inline
 `oninput="render…()"` run it 0.2 s after typing stops (`SEARCH_DEBOUNCE_MS`, wrapped in `attachSearchClear`). Smallest UI font is 12.5px (raised from 11.5px on 2026-10-15, owner: many spots were too small — all 11–12.5px
 screen sizes went up ~1px); don't add smaller sizes (printed sheets excepted). Document folder text/icons are larger
