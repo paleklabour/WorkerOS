@@ -1954,6 +1954,18 @@ label.user-avatar:hover { box-shadow: 0 0 0 3px rgba(45, 79, 163, 0.18); }
     body:not(.is-client-portal) .data-table tr > td.actions-col:not(.prices-table *) :is(button, a, input, select, .actions-cell) { pointer-events: auto; }
     /* ชี้ปุ่มอื่นในแถวอยู่ (เช่น เปิดแฟ้ม / ป้ายจำนวนคนงาน) → .actions-dodge (ใส่จาก setupRowActionsOverlay)
        แถบปุ่มลอยสไลด์หลบออกไปทางขวา ให้ปุ่มนั้นกดได้เต็มๆ */
+
+    /* ตารางใบงาน (.actions-on-edge, owner 2026-10-14): ชี้แถวเฉยๆ ปุ่มไม่โผล่ — โผล่เฉพาะตอนเมาส์อยู่ที่คอลัมน์สุดท้ายทางขวา
+       (.actions-edge-hover ใส่จาก setupRowActionsOverlay) — ไม่ทับช่องหมายเหตุ/Order No. ตอนทำงานในแถว */
+    body:not(.is-client-portal) .data-table.actions-on-edge tr:is(:hover, :focus-within):not(.actions-edge-hover) > td.actions-col:not(.prices-table *) {
+        visibility: hidden;
+        background-position: 280px 0;
+        transition: background-position 0.22s cubic-bezier(0.4, 0, 1, 1), visibility 0s linear 0.22s;
+    }
+    body:not(.is-client-portal) .data-table.actions-on-edge tr:is(:hover, :focus-within):not(.actions-edge-hover) > td.actions-col:not(.prices-table *) > * {
+        transform: translateX(280px);
+        transition: transform 0.22s cubic-bezier(0.4, 0, 1, 1);
+    }
 }
 @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: reduce) {
     body:not(.is-client-portal) .data-table tr > td.actions-col:not(.prices-table *),

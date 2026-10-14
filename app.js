@@ -18053,6 +18053,30 @@ function setupRowActionsOverlay() {
         if (row) row.classList.add('actions-dodge');
         dodged = row;
     }, { passive: true });
+
+    // ตารางที่ติด .actions-on-edge (ตารางใบงาน — owner 2026-10-14): แถบปุ่ม (ปิดงาน/แก้ไข/ลบ) โผล่เฉพาะตอนเมาส์อยู่ที่
+    // คอลัมน์สุดท้ายทางขวาของแถว (หรืออยู่บนแถบปุ่มเอง) ไม่ใช่ทุกที่ในแถว → ใส่ .actions-edge-hover ให้แถวนั้น
+    let edgeRow = null, edgeQueued = false, lastX = 0, lastTarget = null;
+    const updateEdge = () => {
+        edgeQueued = false;
+        const tr = lastTarget && lastTarget.closest && lastTarget.closest('.data-table.actions-on-edge tr');
+        let show = null;
+        const td = tr && tr.querySelector(':scope > td.actions-col');
+        if (td) {
+            const lastCell = td.previousElementSibling;
+            const btnLeft = td.getBoundingClientRect().left + (parseFloat(getComputedStyle(td).paddingLeft) || 0);
+            const edgeLeft = Math.min(lastCell ? lastCell.getBoundingClientRect().left : btnLeft, btnLeft);
+            if (lastX >= edgeLeft) show = tr;
+        }
+        if (show === edgeRow) return;
+        if (edgeRow) edgeRow.classList.remove('actions-edge-hover');
+        if (show) show.classList.add('actions-edge-hover');
+        edgeRow = show;
+    };
+    document.addEventListener('mousemove', e => {
+        lastX = e.clientX; lastTarget = e.target;
+        if (!edgeQueued) { edgeQueued = true; requestAnimationFrame(updateEdge); }
+    }, { passive: true });
     // เลื่อนตารางแนวนอนขณะชี้แถวอยู่ → ขยับแถวนั้นแถวเดียว ครั้งเดียวต่อเฟรม
     document.addEventListener('scroll', e => {
         if (hoverRow && e.target.classList && e.target.classList.contains('table-container')) schedule();
