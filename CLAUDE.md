@@ -212,7 +212,8 @@ change permissions only in `PERMS` in `app.js` and check with `can('…')` /
 `is_internal()` / `can_finance()` / `can_ops()` (migration
 `20261002042034_roles_gm_am_om_staff.sql`) — update both sides together.
 The bell is per role (`buildNotificationGroups`); clicking a job item opens a read-only job summary pop-up
-(`openJobQuickView`: details + buttons by permission — open worker folder / bill / close job / edit), other items open the
+(`openJobQuickView`, same look as the wide "ตรวจสอบข้อมูลก่อนบันทึก" dialog — worker card + column sections via
+`fillUiDialogCard`/`fillUiDialogSummary`, but inside a `.modal-backdrop` so other windows can stack on it; details + buttons by permission — open worker folder / bill / close job / edit), other items open the
 thing to act on (bill, receipt, commission payout, calendar day); clicking a group header opens that page filtered to just
 that group's items (`openBellGroup` → `bellFilter`, bar "แสดงทั้งหมด" clears it; leaving the page clears it too). Dismissed
 ids use `legacyAction` so earlier dismissals survive (owner 2026-10-15). Pop-ups stack: opening a window from another

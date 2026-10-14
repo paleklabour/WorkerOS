@@ -2825,38 +2825,60 @@ function openJobQuickView(jobId) {
     const cust = customers.find(c => c.id === j.customerId);
     const w = allWorkers().find(x => x.id === j.workerId);
     const inv = getJobInvoice(j);
-    const row = (label, value) => value ? `<div class="jq-row"><dt>${label}</dt><dd>${value}</dd></div>` : '';
-    const appt = j.appointmentDate
-        ? [formatThaiDate(j.appointmentDate), j.appointmentTime, j.appointmentLocation, j.appointmentNo ? `เลขที่นัด ${escapeHtml(j.appointmentNo)}` : ''].filter(Boolean).map(s => escapeHtml(String(s))).join(' • ')
-        : '';
     const pay = isJobNoCharge(j) ? 'ไม่เรียกเก็บเงิน' : (j.paymentStatus || 'ยังไม่ออกบิล');
-    const statusCls = j.status === 'รอเอกสารเพิ่มเติม' ? 'badge-danger' : j.status === 'ปิดงานแล้ว' ? 'badge-success' : j.status === 'รอดำเนินการ' ? 'badge-warning' : 'badge-gold';
 
-    document.getElementById('job-quick-title').innerHTML = `${icon('clipboard')} ${escapeHtml(getJobDisplayNo(j))} <small>${escapeHtml(getCleanJobTypeName(j.jobType))}</small>`;
-    document.getElementById('job-quick-body').innerHTML = `
-        <div class="jq-status"><span class="badge ${statusCls}">${escapeHtml(j.status || '-')}</span>${j.tag ? `<span class="badge">${escapeHtml(j.tag)}</span>` : ''}${j.remark ? `<span class="jq-remark">${escapeHtml(j.remark)}</span>` : ''}</div>
-        <dl class="jq-list">
-            ${row('นายจ้าง', escapeHtml(cust ? cust.companyName : '-'))}
-            ${row('คนงาน', w ? `${escapeHtml(workerFullName(w))}${w.nationality ? ` (${escapeHtml(w.nationality)})` : ''}${w.workerUid ? `<small>${escapeHtml(w.workerUid)}</small>` : ''}` : '-')}
-            ${row('ผู้รับผิดชอบ', j.assignedTo ? escapeHtml(getUserNameById(j.assignedTo)) : '<span class="jq-warn">ยังไม่มอบหมาย</span>')}
-            ${row('เปิดงาน', `${escapeHtml(getUserNameById(j.openedBy))}${j.openedAt || j.createdAt ? ` • ${formatThaiDate(j.openedAt || j.createdAt)}` : ''}`)}
-            ${row('นัดหมาย', appt)}
-            ${row('ปิดงาน', jobClosedInfoText(j) ? escapeHtml(jobClosedInfoText(j)) : '')}
-            ${row('ค่าบริการ', `${fmtMoney(j.fee || 0)} บาท`)}
-            ${row('บิล / ชำระเงิน', `${escapeHtml(pay)}${inv ? ` • ${escapeHtml(inv.invoiceNo)}` : ''}`)}
-            ${row('หมายเหตุ', j.notes ? `<span class="jq-notes">${escapeHtml(j.notes)}</span>` : '')}
-        </dl>`;
+    // หน้าตาเดียวกับ "ตรวจสอบข้อมูลก่อนบันทึก": การ์ดคนงาน (รูป ชื่อ สัญชาติ • เลข 13 หลัก) + หัวข้อเป็นคอลัมน์ (fillUiDialogSummary)
+    document.getElementById('job-quick-title').textContent = `${getJobDisplayNo(j)} • ${getCleanJobTypeName(j.jobType)}`;
+    document.getElementById('job-quick-message').textContent = `สถานะ: ${j.status || '-'}${j.remark ? ` • ${j.remark}` : ''}`;
+    const cardBox = document.getElementById('job-quick-card');
+    cardBox.innerHTML = '';
+    fillUiDialogCard(cardBox, w
+        ? { image: w.photo || '', imageIcon: 'user', title: workerFullName(w), subtitle: [w.nationality, w.workerUid].filter(Boolean).join(' • ') }
+        : { imageIcon: 'clipboard', imageIconColor: 'blue', title: 'ไม่พบคนงานของใบงานนี้' });
 
+    const rows = [
+        { heading: 'ใบงาน' },
+        { label: 'นายจ้าง', value: cust ? cust.companyName : '-' },
+        { label: 'สถานะ', value: j.status },
+        { label: 'ผู้รับผิดชอบ', value: j.assignedTo ? getUserNameById(j.assignedTo) : 'ยังไม่มอบหมาย' },
+        { label: 'เปิดงาน', value: `${getUserNameById(j.openedBy)}${j.openedAt || j.createdAt ? ` • ${formatThaiDate(j.openedAt || j.createdAt)}` : ''}` },
+        { label: 'ปิดงาน', value: jobClosedInfoText(j) },
+        { label: 'ป้าย', value: j.tag },
+        { heading: 'นัดหมาย' },
+        { label: 'วันที่', value: j.appointmentDate ? formatThaiDate(j.appointmentDate) : '' },
+        { label: 'เวลา', value: j.appointmentTime },
+        { label: 'สถานที่', value: j.appointmentLocation },
+        { label: 'เลขที่นัด', value: j.appointmentNo },
+        { heading: 'บิลและหมายเหตุ' },
+        { label: 'ค่าบริการ', value: `${fmtMoney(j.fee || 0)} บาท` },
+        { label: 'บิล / ชำระเงิน', value: `${pay}${inv ? ` • ${inv.invoiceNo}` : ''}` },
+        { label: 'หมายเหตุ', value: j.notes },
+    ];
+    // ตัดช่องว่าง และหัวข้อที่ไม่มีข้อมูลใต้หัวข้อเลย (เหมือนหน้าต่างข้อมูลคนงาน)
+    const summary = [];
+    let pendingHeading = null;
+    rows.forEach(r => {
+        if (r.heading) { pendingHeading = r; return; }
+        if (r.value == null || String(r.value).trim() === '') return;
+        if (pendingHeading) { summary.push(pendingHeading); pendingHeading = null; }
+        summary.push(r);
+    });
+    const sumBox = document.getElementById('job-quick-summary');
+    sumBox.innerHTML = '';
+    fillUiDialogSummary(sumBox, summary, true);
+
+    // ปุ่มทำต่อตามสิทธิ์ — หน้าต่างนี้เปิดค้างไว้ข้างหลังหน้าต่างที่กดเปิดต่อ
     const btn = (iconName, label, onclick, cls = 'btn-outline') => `<button type="button" class="btn ${cls}" onclick="${onclick}">${icon(iconName)} ${label}</button>`;
     const acts = [];
-    if (w) acts.push(btn('folder', 'เปิดแฟ้มคนงาน', `openWorkerFolderModal('${w.id}')`));
+    if (canEditJob(j)) acts.push(btn('edit', 'แก้ไขใบงาน', `openJobModal('${j.id}')`, 'btn-gold'));
+    if (canEditJob(j) && isJobStatusOpen(j.status)) acts.push(btn('clip', 'ปิดงาน', `openJobCloseModal('${j.id}')`));
     if (can('finance')) {
         if (inv) acts.push(btn('receipt', 'ดูบิล', `openStoredInvoice('${inv.id}')`));
         else if (jobAwaitingBill(j)) acts.push(btn('receipt', 'ออกบิล', `openInvoiceModal('${j.id}')`));
     }
-    if (canEditJob(j) && isJobStatusOpen(j.status)) acts.push(btn('clip', 'ปิดงาน', `openJobCloseModal('${j.id}')`));
-    if (canEditJob(j)) acts.push(btn('edit', 'แก้ไขใบงาน', `openJobModal('${j.id}')`, 'btn-gold'));
-    document.getElementById('job-quick-foot').innerHTML = acts.join('') || '<span class="text-muted">ดูได้อย่างเดียว</span>';
+    if (w) acts.push(btn('folder', 'เปิดแฟ้มคนงาน', `openWorkerFolderModal('${w.id}')`));
+    acts.push(btn('xmark', 'ปิด', 'closeJobQuickView()'));
+    document.getElementById('job-quick-foot').innerHTML = acts.join('');
     document.getElementById('job-quick-modal')._jobId = j.id;
     document.getElementById('job-quick-modal').classList.remove('hidden');
 }

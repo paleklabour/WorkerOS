@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261015j">
+    <link rel="stylesheet" href="styles.css?v=20261015k">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -3180,13 +3180,15 @@
 
         <!-- ==================== MODAL: สรุปใบงาน (กดรายการใบงานในกระดิ่ง → openJobQuickView) ==================== -->
         <div id="job-quick-modal" class="modal-backdrop hidden" onclick="if (event.target === this) closeJobQuickView()">
-            <div class="modal-content job-quick-content">
-                <div class="modal-header">
-                    <h3 id="job-quick-title"></h3>
-                    <button class="close-btn" title="ปิดหน้าต่าง" onclick="closeJobQuickView()">&times;</button>
-                </div>
-                <div class="modal-body" id="job-quick-body"></div>
-                <div class="modal-footer job-quick-foot" id="job-quick-foot"></div>
+            <!-- หน้าตาเดียวกับหน้าต่าง "ตรวจสอบข้อมูลก่อนบันทึก" (ui-dialog แบบกว้าง: การ์ด + หัวข้อเป็นคอลัมน์) แต่เป็น .modal-backdrop
+                 เพื่อให้เปิดแฟ้ม/บิล/แก้ไขซ้อนด้านบนได้ (owner 2026-10-15) -->
+            <div class="ui-dialog ui-dialog-wide job-quick-dialog" role="dialog" aria-modal="true">
+                <button class="close-btn job-quick-close" title="ปิดหน้าต่าง" onclick="closeJobQuickView()">&times;</button>
+                <h3 class="ui-dialog-title" id="job-quick-title"></h3>
+                <p class="ui-dialog-message" id="job-quick-message"></p>
+                <div class="ui-dialog-card" id="job-quick-card"></div>
+                <div class="ui-dialog-summary" id="job-quick-summary"></div>
+                <div class="ui-dialog-actions job-quick-foot" id="job-quick-foot"></div>
             </div>
         </div>
 
@@ -3507,7 +3509,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261015j"></script>
+    <script src="supabase-client.js?v=20261015k"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3518,6 +3520,6 @@
     </script>
 
     <!-- Application Script -->
-    <script src="app.js?v=20261015j"></script>
+    <script src="app.js?v=20261015k"></script>
 </body>
 </html>
