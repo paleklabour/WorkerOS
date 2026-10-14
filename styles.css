@@ -1503,14 +1503,19 @@ label.user-avatar:hover { box-shadow: 0 0 0 3px rgba(45, 79, 163, 0.18); }
 }
 
 /* ==================== DATA TABLES ==================== */
+/* แถบเครื่องมือเหนือตาราง: ช่องค้นหา + ตัวกรอง (dropdown) ชิดกันทางซ้าย, ปุ่มคำสั่งชิดขวา
+   (เดิม space-between ทำให้ dropdown ในบางหน้าไปอยู่ไกลจากช่องค้นหา — owner 2026-10-15) */
 .table-actions {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start;
     align-items: center;
     margin-bottom: 24px;
-    gap: 20px;
+    gap: 12px 16px;
     flex-wrap: wrap;
 }
+.table-actions > .btn-add,
+.table-actions > .action-buttons-group,
+.table-actions > .btn:last-child:not(.renewal-filter-clear) { margin-left: auto; }
 
 /* กลุ่มปุ่มบนแถบเครื่องมือ — ปุ่มไม่ตัดคำแล้ว จอแคบให้ปุ่มขึ้นแถวใหม่แทนการล้นจอ */
 .action-buttons-group {
