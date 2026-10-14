@@ -8821,9 +8821,9 @@ const THAI_HOLIDAYS = {
     '2027-12-31': 'วันสิ้นปี',
 };
 
-// ชื่อวันในสัปดาห์ เช่น "วันพฤหัสบดี" — แสดงคู่กับวันที่ในแผงขวา รายการที่กำลังจะถึง และกระดิ่ง
+// ชื่อวันในสัปดาห์ เช่น "วันพฤหัสบดี" — แสดงต่อท้ายวันที่ (ว/ด/ป)ในแผงขวา รายการที่กำลังจะถึง และกระดิ่ง
 const CAL_WEEKDAYS = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
-const calDayLabel = k => `วัน${CAL_WEEKDAYS[calParse(k).getDay()]} ${formatThaiDate(calParse(k))}`;
+const calDayLabel = k => `${formatThaiDate(calParse(k))} (วัน${CAL_WEEKDAYS[calParse(k).getDay()]})`; // ว/ด/ป ก่อน แล้วชื่อวัน: "15/10/2569 (วันพฤหัสบดี)"
 const calTime = t => (t ? String(t).slice(0, 5) : '');
 const calSortNotes = list => list.sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''));
 const CAL_MAX_SPAN_DAYS = 92; // ตรงกับ check ใน calendar_notes (โน้ตหลายวันยาวสุด ~3 เดือน)
