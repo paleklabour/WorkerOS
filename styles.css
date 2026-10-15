@@ -5060,6 +5060,20 @@ tr.is-voided-row td {
 .fv-chip.is-static { cursor: default; }
 .fv-chip.is-static:hover { border-color: var(--dk-line, #cfd6e2); color: var(--text-muted); }
 
+/* ลากไฟล์จากเครื่องมาวาง: หมวดที่วางได้มีกรอบเส้นประ หมวดที่ชี้อยู่เป็นสีเน้น (fvFileDrag ใน app.js) */
+.fv-modal.is-file-drag .fv-group[data-paste-target] {
+    outline: 1.5px dashed var(--dk-line, #cfd6e2);
+    outline-offset: -2px;
+    border-radius: 12px;
+}
+.fv-modal.is-file-drag .fv-group.dragover,
+.fv-modal.is-file-drag .fv-chip.dragover {
+    outline: 2px dashed var(--gold-primary);
+    border-color: var(--gold-primary);
+    background-color: var(--gold-light);
+    color: var(--gold-primary);
+}
+
 /* ไฟล์ที่หมดอายุ: พับไว้ */
 .fv-expired { margin-top: 8px; }
 .fv-fold {
@@ -7902,6 +7916,19 @@ html:has(.ui-dialog-backdrop) { overflow: hidden; }
 .job-quick-close { position: absolute; top: 14px; right: 14px; }
 .job-quick-foot { flex-direction: row; flex-wrap: wrap; justify-content: center; }
 .job-quick-foot .btn { flex: 0 1 auto; width: auto; min-width: 130px; }
+
+/* เมนูคลิกขวา (openCtxMenu — แถวคนงาน / ใบงาน / การ์ด Kanban, owner 2026-10-15): หน้าตาเดียวกับ .fv-menu วางตรงเมาส์ */
+.fv-menu.ctx-menu {
+    display: grid;
+    position: fixed;
+    top: 0;
+    right: auto;
+    z-index: 3000;
+    min-width: 220px;
+    max-height: calc(100vh - 16px);
+    overflow-y: auto;
+    animation: fadeIn 0.12s ease-out;
+}
 
 /* แถบ "แสดงเฉพาะจากการแจ้งเตือน" บนหน้าแจ้งงาน/ออกบิล (openBellGroup / renderBellFilterBar) */
 .bell-filter-bar {

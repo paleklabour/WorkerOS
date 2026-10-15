@@ -2435,7 +2435,7 @@ function renderRenewalGroups() {
             const emp = customers.find(c => c.id === w.employerId);
             const daysDiff = daysLeftOf(w);
             return `
-                <tr class="clickable-row" ondblclick="handleRowDblClick(event) && openWorkerModal('${w.id}')" title="ดับเบิลคลิกเพื่อดูรายละเอียดคนงาน">
+                <tr class="clickable-row" data-ctx="worker:${w.id}" ondblclick="handleRowDblClick(event) && openWorkerQuickView('${w.id}', 'renewal')" title="ดับเบิลคลิกเพื่อดูข้อมูลคนงาน • คลิกขวาเพื่อดูคำสั่ง">
                     <td>
                         <div><strong>${w.refNo || '-'}</strong></div>
                         <div class="worker-id-line"><span>เลขประจำตัวคนต่างด้าว</span> <b>${w.workerUid || '-'}</b></div>
@@ -2887,6 +2887,244 @@ function closeJobQuickView() {
     document.getElementById('job-quick-modal').classList.add('hidden');
 }
 
+// ==================== หน้าต่างข้อมูลคนงาน (ดับเบิลคลิกแถวคนงาน, owner 2026-10-15) ====================
+// อ่านอย่างเดียว หน้าตาเดียวกับสรุปใบงาน (การ์ด + หัวข้อเป็นคอลัมน์) — ฟอร์มแก้ไขเต็มเปิดจากปุ่ม "แก้ไขข้อมูล" เท่านั้น
+// mode 'renewal' (แท็บต่ออายุ): หัวข้อวันหมดอายุ + ใบงานที่เปิดอยู่ขึ้นก่อน และปุ่มหลักเป็น "เปิดใบงานใหม่"
+// วันหมดอายุแสดงวันที่ + สถานะ ไม่นับจำนวนวัน (owner, 2026-10-14)
+function openWorkerQuickView(workerId, mode) {
+    const w = allWorkers().find(x => x.id === workerId);
+    if (!w) { closeWorkerQuickView(); showToast("ไม่พบคนงานนี้ (อาจถูกลบไปแล้ว)", "warning"); return; }
+    const modal = document.getElementById('worker-quick-modal');
+    if (mode === undefined) mode = modal._workerId === workerId && !modal.classList.contains('hidden') ? modal._mode : '';
+    const emp = customers.find(c => c.id === w.employerId);
+    const d = v => v ? formatThaiDate(v) : '';
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const expText = (v, warnDays) => {
+        const dt = safeParseDate(v);
+        if (!dt) return '';
+        const diff = Math.ceil((dt - today) / 86400000);
+        return `${formatThaiDate(v)} • ${diff < 0 ? 'หมดอายุแล้ว' : diff <= warnDays ? 'ใกล้หมดอายุ' : 'ปกติ'}`;
+    };
+    // วันหมดอายุล่าสุดของไฟล์ในแฟ้ม (บัตรชมพู / ประกัน ไม่มีช่องวันหมดอายุในข้อมูลคนงาน)
+    const fileExp = key => getAttachments(w, key).map(f => f && f.expiryDate).filter(Boolean).sort().pop() || '';
+    const myJobs = jobs.filter(j => j.workerId === w.id);
+    const openJobs = myJobs.filter(j => isJobStatusOpen(j.status));
+    const closedCount = myJobs.length - openJobs.length;
+
+    const sections = {
+        personal: [
+            { heading: 'ข้อมูลส่วนตัว' },
+            { label: 'ชื่อไทย (บัตรชมพู)', value: w.thaiName },
+            { label: 'เพศ', value: w.gender },
+            { label: 'วันเกิด', value: d(w.dob) },
+            { label: 'ชื่อพ่อ', value: w.fatherName },
+            { label: 'ชื่อแม่', value: w.motherName },
+            { label: 'อีเมล', value: w.email },
+        ],
+        ids: [
+            { heading: 'เลขประจำตัว / เอกสาร' },
+            { label: 'เลขอ้างอิง', value: w.refNo },
+            { label: 'เลขที่ใบอนุญาตทำงาน', value: w.permitNo },
+            { label: 'เลขพาสปอร์ต / CI', value: w.passportNo },
+            { label: 'เลขบัตรชมพู', value: w.pinkCardNo },
+            { label: 'เลขกรมธรรม์ประกัน', value: w.insuranceNo },
+        ],
+        work: [
+            { heading: 'นายจ้าง / งาน' },
+            { label: 'นายจ้าง', value: emp ? emp.companyName : '' },
+            { label: 'ตำแหน่งงาน', value: w.position },
+            { label: 'สถานที่ทำงาน', value: w.workplace },
+        ],
+        expiry: [
+            { heading: 'วันหมดอายุ' },
+            { label: 'ใบอนุญาตทำงาน', value: expText(w.permitExpiry, 60) },
+            { label: 'พาสปอร์ต / CI', value: expText(w.passportExpiry, 180) },
+            { label: 'บัตรชมพู', value: expText(fileExp('worker-pink-card'), 60) },
+            { label: 'ประกัน', value: expText(fileExp('worker-insurance-doc'), 60) },
+        ],
+        jobs: [
+            { heading: 'ใบงาน' },
+            ...openJobs.map(j => ({ label: getJobDisplayNo(j), value: `${getCleanJobTypeName(j.jobType)} • ${j.status}` })),
+            { label: 'ปิดแล้ว', value: closedCount ? `${closedCount} ใบ` : '' },
+            { label: 'เปิดอยู่', value: myJobs.length && !openJobs.length ? 'ไม่มี' : '' },
+        ],
+        notes: [
+            { heading: 'โน้ต' },
+            { label: 'โน้ตจากนายจ้าง', value: w.clientNote },
+        ],
+    };
+    const order = mode === 'renewal'
+        ? ['expiry', 'jobs', 'work', 'ids', 'personal', 'notes']
+        : ['personal', 'ids', 'work', 'expiry', 'jobs', 'notes'];
+    // ตัดช่องว่าง และหัวข้อที่ไม่มีข้อมูลใต้หัวข้อเลย (เหมือนสรุปใบงาน)
+    const summary = [];
+    order.forEach(k => {
+        const rows = sections[k].slice(1).filter(r => r.value != null && String(r.value).trim() !== '');
+        if (rows.length) summary.push(sections[k][0], ...rows);
+    });
+
+    document.getElementById('worker-quick-title').textContent = 'ข้อมูลคนงาน';
+    document.getElementById('worker-quick-message').textContent = [
+        WORKER_STATUS_LABELS[w.status] || w.status,
+        workerNeedsNotifyEntry(w) ? 'รอแจ้งเข้า' : '',
+        emp ? emp.companyName : 'ไม่ระบุนายจ้าง'
+    ].filter(Boolean).join(' • ');
+    const cardBox = document.getElementById('worker-quick-card');
+    cardBox.innerHTML = '';
+    fillUiDialogCard(cardBox, { image: w.photo || '', imageIcon: 'user', title: workerFullName(w), subtitle: [w.nationality, w.workerUid].filter(Boolean).join(' • ') });
+    const sumBox = document.getElementById('worker-quick-summary');
+    sumBox.innerHTML = '';
+    fillUiDialogSummary(sumBox, summary, true);
+
+    // ปุ่มทำต่อตามสิทธิ์ — หน้าต่างนี้เปิดค้างไว้ข้างหลังหน้าต่างที่กดเปิดต่อ
+    const btn = (iconName, label, onclick, cls = 'btn-outline') => `<button type="button" class="btn ${cls}" onclick="${onclick}">${icon(iconName)} ${label}</button>`;
+    const canNewJob = can('ops') && w.status !== 'archived' && workers.some(x => x.id === w.id);
+    const acts = [];
+    if (mode === 'renewal' && canNewJob) acts.push(btn('plus', 'เปิดใบงานใหม่', `openNewJobForWorker('${w.id}')`, 'btn-gold'));
+    acts.push(btn('edit', can('ops') ? 'แก้ไขข้อมูล' : 'ดูข้อมูลเต็ม', `openWorkerModal('${w.id}')`, mode === 'renewal' ? 'btn-outline' : 'btn-gold'));
+    acts.push(btn('folder', 'เปิดแฟ้มเอกสาร', `openWorkerFolderModal('${w.id}')`));
+    if (mode !== 'renewal' && canNewJob) acts.push(btn('plus', 'เปิดใบงานใหม่', `openNewJobForWorker('${w.id}')`));
+    if (myJobs.length) acts.push(btn('clipboard', 'ดูใบงานทั้งหมด', `showWorkerJobs('${w.id}')`));
+    acts.push(btn('xmark', 'ปิด', 'closeWorkerQuickView()'));
+    document.getElementById('worker-quick-foot').innerHTML = acts.join('');
+    modal._workerId = w.id;
+    modal._mode = mode;
+    modal.classList.remove('hidden');
+}
+
+function closeWorkerQuickView() {
+    document.getElementById('worker-quick-modal').classList.add('hidden');
+}
+
+// เปิดฟอร์มแจ้งงานใหม่ เลือกนายจ้าง + ติ๊กคนงานคนนี้ไว้ให้แล้ว (เลือกประเภทงานเอง)
+function openNewJobForWorker(workerId) {
+    const w = workers.find(x => x.id === workerId);
+    if (!w || !can('ops')) return;
+    openJobModal();
+    if (document.getElementById('job-modal').classList.contains('hidden')) return;
+    const emp = customers.find(c => c.id === w.employerId);
+    if (!emp) return;
+    document.getElementById('job-customer-id').value = emp.id;
+    const custSearch = document.getElementById('job-customer-search');
+    if (custSearch) custSearch.value = emp.companyName;
+    onJobCustomerChange([w.id]);
+}
+
+// หน้าแจ้งงาน ค้นด้วยเลข 13 หลัก (หรือชื่อ) ของคนงานคนนี้
+function showWorkerJobs(workerId) {
+    const w = allWorkers().find(x => x.id === workerId);
+    if (!w) return;
+    closeWorkerQuickView();
+    switchView('jobs');
+    const box = document.getElementById('search-job');
+    if (box) box.value = w.workerUid || workerFullName(w);
+    renderJobs();
+}
+
+// ==================== เมนูคลิกขวา (owner 2026-10-15) ====================
+// แถว/การ์ดที่มี data-ctx="worker:<id>" / "job:<id>" → เมนูคำสั่งตามสิทธิ์ ใช้หน้าตาเดียวกับเมนูในแฟ้ม (.fv-menu)
+// เป็นทางลัดเท่านั้น ทุกคำสั่งมีปุ่มปกติอยู่แล้ว — ในช่องกรอก / ตอนลากคลุมข้อความ / จอสัมผัส ใช้เมนูของเบราว์เซอร์ตามเดิม
+function ctxCopy(text, what) {
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => showToast(`📋 คัดลอก${what}แล้ว: ${text}`, "success"))
+        .catch(err => uiAlert("ไม่สามารถคัดลอกได้: " + err));
+}
+
+function workerCtxItems(w) {
+    const items = [
+        { icon: 'user', label: 'ดูข้อมูลคนงาน', run: () => openWorkerQuickView(w.id) },
+        { icon: 'edit', label: can('ops') ? 'แก้ไขข้อมูล' : 'ดูข้อมูลเต็ม', run: () => openWorkerModal(w.id) },
+        { icon: 'folder', label: 'เปิดแฟ้มเอกสาร', run: () => openWorkerFolderModal(w.id) },
+    ];
+    if (can('ops') && w.status !== 'archived') items.push({ icon: 'plus', label: 'เปิดใบงานใหม่', run: () => openNewJobForWorker(w.id) });
+    if (jobs.some(j => j.workerId === w.id)) items.push({ icon: 'clipboard', label: 'ดูใบงานของคนนี้', run: () => showWorkerJobs(w.id) });
+    items.push('-');
+    if (w.workerUid) items.push({ icon: 'file', label: 'คัดลอกเลข 13 หลัก', run: () => ctxCopy(w.workerUid, 'เลข 13 หลัก') });
+    items.push({ icon: 'file', label: 'คัดลอกชื่อ', run: () => ctxCopy(workerFullName(w), 'ชื่อ') });
+    if (w.passportNo) items.push({ icon: 'file', label: 'คัดลอกเลขพาสปอร์ต', run: () => ctxCopy(w.passportNo, 'เลขพาสปอร์ต') });
+    if (can('admin')) items.push('-', { icon: 'trash', label: 'ลบคนงาน', danger: true, run: () => deleteWorker(w.id, w._rowNum || null) });
+    return items;
+}
+
+function jobCtxItems(j) {
+    const w = allWorkers().find(x => x.id === j.workerId);
+    const inv = getJobInvoice(j);
+    const edit = canEditJob(j);
+    const items = [{ icon: 'clipboard', label: 'ดูสรุปใบงาน', run: () => openJobQuickView(j.id) }];
+    if (edit) items.push({ icon: 'edit', label: 'แก้ไขใบงาน', run: () => openJobModal(j.id) });
+    if (edit && isJobStatusOpen(j.status)) {
+        items.push('-');
+        JOB_OPEN_STATUSES.filter(s => s !== j.status).forEach(s =>
+            items.push({ icon: 'refresh', label: `เปลี่ยนเป็น "${s}"`, run: () => moveJobToStatus(j.id, s) }));
+        items.push({ icon: 'clip', label: 'แนบเอกสารและปิดงาน', run: () => openJobCloseModal(j.id) });
+    } else if (edit && j.status === 'ปิดงานแล้ว') {
+        items.push({ icon: 'unlock', label: 'เปิดงานอีกครั้ง', run: () => reopenJob(j.id) });
+    }
+    if (can('finance')) {
+        if (inv) items.push('-', { icon: 'receipt', label: 'ดูบิล', run: () => openStoredInvoice(inv.id) });
+        else if (jobAwaitingBill(j)) items.push('-', { icon: 'receipt', label: 'ออกบิล', run: () => openInvoiceModal(j.id) });
+    }
+    if (w) {
+        items.push('-',
+            { icon: 'user', label: 'ดูข้อมูลคนงาน', run: () => openWorkerQuickView(w.id) },
+            { icon: 'folder', label: 'เปิดแฟ้มคนงาน', run: () => openWorkerFolderModal(w.id) });
+    }
+    items.push('-', { icon: 'file', label: 'คัดลอกเลขใบงาน', run: () => ctxCopy(getJobDisplayNo(j), 'เลขใบงาน') });
+    return items;
+}
+
+function closeCtxMenu() {
+    const m = document.getElementById('ctx-menu');
+    if (m) m.remove();
+}
+
+function openCtxMenu(x, y, items) {
+    closeCtxMenu();
+    const menu = document.createElement('div');
+    menu.id = 'ctx-menu';
+    menu.className = 'fv-menu ctx-menu';
+    menu.setAttribute('role', 'menu');
+    items.forEach(it => {
+        if (it === '-') { menu.appendChild(document.createElement('hr')); return; }
+        const b = document.createElement('button');
+        b.type = 'button';
+        if (it.danger) b.className = 'is-danger';
+        b.innerHTML = `${icon(it.icon, it.danger ? 'red' : undefined)} ${escapeHtml(it.label)}`;
+        b.addEventListener('click', () => { closeCtxMenu(); it.run(); });
+        menu.appendChild(b);
+    });
+    // เส้นคั่นติดกัน (หมวดที่ไม่มีคำสั่งเลย) → เหลือเส้นเดียว
+    menu.querySelectorAll('hr + hr').forEach(hr => hr.remove());
+    document.body.appendChild(menu);
+    // ไม่ให้ล้นจอ: ชิดขวา/ล่างเกิน → พลิกไปอีกด้านของเมาส์
+    const r = menu.getBoundingClientRect();
+    const left = x + r.width > window.innerWidth - 8 ? Math.max(8, x - r.width) : x;
+    const top = y + r.height > window.innerHeight - 8 ? Math.max(8, y - r.height) : y;
+    menu.style.left = `${left}px`;
+    menu.style.top = `${top}px`;
+}
+
+document.addEventListener('contextmenu', e => {
+    const row = e.target.closest && e.target.closest('[data-ctx]');
+    if (!row) { closeCtxMenu(); return; }
+    if (e.target.closest('input, textarea, select, [contenteditable="true"], .ctx-menu')) return;
+    if (String(window.getSelection() || '').trim()) return; // ลากคลุมข้อความไว้ → ให้คัดลอกด้วยเมนูเบราว์เซอร์ได้
+    if (!window.matchMedia || !window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+    if (!currentUser || currentUser.role === 'client') return;
+    const [kind, id] = row.dataset.ctx.split(':');
+    let items = null;
+    if (kind === 'worker') { const w = allWorkers().find(x => x.id === id); if (w) items = workerCtxItems(w); }
+    else if (kind === 'job') { const j = jobs.find(x => x.id === id); if (j) items = jobCtxItems(j); }
+    if (!items) return;
+    e.preventDefault();
+    openCtxMenu(e.clientX, e.clientY, items);
+});
+document.addEventListener('mousedown', e => { if (!(e.target.closest && e.target.closest('.ctx-menu'))) closeCtxMenu(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCtxMenu(); });
+window.addEventListener('blur', closeCtxMenu);
+window.addEventListener('resize', closeCtxMenu);
+document.addEventListener('scroll', e => { if (!(e.target.closest && e.target.closest('.ctx-menu'))) closeCtxMenu(); }, true);
+
 // ==================== หน้าต่างซ้อนกัน (owner 2026-10-15) ====================
 // เปิดหน้าต่างจากอีกหน้าต่าง (เช่น สรุปใบงาน → แฟ้มคนงาน / บิล / แก้ไข) หน้าต่างเดิมยังเปิดอยู่ข้างหลัง ปิดลูกแล้วกลับมาที่เดิม
 // หน้าต่างที่เพิ่งเปิดอยู่บนสุดเสมอ (ยก z-index เหนือหน้าต่างที่เปิดอยู่) — ปิดแล้วคืนค่าเดิม
@@ -2908,6 +3146,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (el._baseZ !== undefined) el.style.zIndex = el._baseZ;
             const quick = document.getElementById('job-quick-modal');
             if (el !== quick && quick && !quick.classList.contains('hidden') && quick._jobId) openJobQuickView(quick._jobId);
+            const wq = document.getElementById('worker-quick-modal');
+            if (el !== wq && wq && !wq.classList.contains('hidden') && wq._workerId) openWorkerQuickView(wq._workerId);
         }
     }));
     document.querySelectorAll('.modal-backdrop').forEach(bd =>
@@ -4229,12 +4469,12 @@ function renderWorkers() {
             `;
         }
 
-        // ไม่มีปุ่มดินสอ (แก้ไข) แล้ว — ดับเบิลคลิกที่แถวเพื่อเปิดข้อมูล/แก้ไขคนงานแทน
+        // ไม่มีปุ่มดินสอ (แก้ไข) แล้ว — ดับเบิลคลิกแถว = หน้าต่างข้อมูลคนงาน (มีปุ่ม "แก้ไขข้อมูล"), คลิกขวา = เมนูคำสั่ง
         const avatarUrl = w.photo ? w.photo : 'data:image/svg+xml;utf8,<svg xmlns=%22http:' + '/' + '/www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 width=%2232%22 height=%2232%22 fill=%22%2394a3b8%22><path d=%22M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4.42 0-8 3.58-8 8v1h16v-1c0-4.42-3.58-8-8-8z%22/></svg>';
 
         // ดับเบิลคลิกแถวเพื่อเปิดดูข้อมูลคนงาน เหมือนตาราง "ข้อมูลคนงานต่ออายุ" (ปุ่มในแถวใช้ stopPropagation ไม่ให้เปิดซ้อน)
         return `
-            <tr class="clickable-row" ondblclick="handleRowDblClick(event) && openWorkerModal('${w.id}')" title="ดับเบิลคลิกเพื่อดูรายละเอียดคนงาน">
+            <tr class="clickable-row" data-ctx="worker:${w.id}" ondblclick="handleRowDblClick(event) && openWorkerQuickView('${w.id}')" title="ดับเบิลคลิกเพื่อดูข้อมูลคนงาน • คลิกขวาเพื่อดูคำสั่ง">
                 <td>
                     ${bulkPendingMode && w.status === 'pending_register' ? `<label class="worker-bulk-check" onclick="event.stopPropagation()"><input type="checkbox" ${selectedPendingWorkerIds.has(w.id) ? 'checked' : ''} onchange="togglePendingWorkerSelection('${w.id}', this.checked)"> เลือก</label>` : ''}
                     <div><strong>${w.refNo || '-'}</strong></div>
@@ -6751,7 +6991,7 @@ function renderJobs() {
             : '';
 
         return `
-            <tr ${rowClickAttrs}>
+            <tr ${rowClickAttrs} data-ctx="job:${j.id}">
                 <td><strong>${getJobDisplayNo(j)}</strong>${j.status !== 'ปิดงานแล้ว' && Array.isArray(j.attachments) && j.attachments.length
                     ? ` <span class="job-predocs-flag" title="แนบเอกสารปิดงานไว้แล้ว ${j.attachments.length} ไฟล์ — กดปิดงานได้เลย">${icon('clip')}${j.attachments.length}</span>` : ''}${batchBadge}</td>
                 <td><span class="badge badge-gold job-type-badge">${cleanJobType}</span>${siblingPills}</td>
@@ -11941,7 +12181,7 @@ function renderCustomerFolderTiles() {
             return;
         }
         const add = canAdd ? fvAddButton(`triggerCustomerFolderFileUpload('${docInfo.key}')`, `customer-folder:${docInfo.key}`, docInfo.label, `cameraCustomerFolderUpload('${docInfo.key}')`) : '';
-        groups.push(`<div class="fv-group">${fvGroupHead(fvShortLabel(docInfo.label), items.length, add)}${items.join('')}</div>`);
+        groups.push(`<div class="fv-group"${canAdd ? ` data-paste-target="customer-folder:${docInfo.key}"` : ''}>${fvGroupHead(fvShortLabel(docInfo.label), items.length, add)}${items.join('')}</div>`);
     });
     if (emptyTypes.length) groups.push(fvEmptyChips(emptyTypes));
 
@@ -12001,8 +12241,7 @@ function renderCustomerFolderPreview() {
             can('deleteFiles') ? fvActButton('trash', 'ลบ', `deleteCustomerFolderFileIndex('${sel.key}', ${sel.idx})`, { danger: true, title: 'ลบไฟล์นี้' }) : ''
         ],
         menu: [
-            fvMenuItem('link', 'แชร์ไฟล์นี้', "customerFolderAction('share')"),
-            fvDriveMenuItem(`customer:${c.id}`, url)
+            fvMenuItem('link', 'แชร์ไฟล์นี้', "customerFolderAction('share')")
         ]
     }) + `<div class="fv-doc">${viewer}</div>`;
 }
@@ -12033,7 +12272,7 @@ function openCustomerFolderModal(customerId) {
     if (searchInput && !reopening) searchInput.value = '';
 
     renderCustomerFolderTiles();
-    updateFolderDriveButton('btn-customer-drive', `customer:${c.id}`, () => { if (activeFolderCustomerId === c.id) renderCustomerFolderPreview(); });
+    updateFolderDriveButton('btn-customer-drive', `customer:${c.id}`);
     document.getElementById("customer-folder-modal").classList.remove("hidden");
 }
 
@@ -13211,14 +13450,14 @@ function fvGroupHead(label, count, addBtn) {
     return `<div class="fv-group-head"><span>${escapeHtml(label)} <em>${count || ''}</em></span>${addBtn || ''}</div>`;
 }
 function fvAddButton(onclick, pasteTarget, label, cameraOnclick) {
-    return `<button type="button" class="fv-add" onclick="${onclick}" data-paste-target="${pasteTarget}" title="แนบไฟล์: ${escapeHtml(label)} — คลิกเลือกไฟล์ หรือชี้แล้วกด Ctrl+V วางภาพ">${icon('plus', 'slate')}</button>`
+    return `<button type="button" class="fv-add" onclick="${onclick}" data-paste-target="${pasteTarget}" title="แนบไฟล์: ${escapeHtml(label)} — คลิกเลือกไฟล์ ลากไฟล์มาวาง หรือชี้แล้วกด Ctrl+V วางภาพ">${icon('plus', 'slate')}</button>`
         + (cameraOnclick && isCameraDevice() ? cameraButtonHtml(cameraOnclick, 'fv-cam') : '');
 }
 // หมวดที่ยังไม่มีไฟล์: รวมเป็นแคปซูลเส้นประท้ายรายการ กดเพื่อแนบเข้าหมวดนั้น
 function fvEmptyChips(list) {
     if (!list.length) return '';
     return `<div class="fv-empty-groups"><div class="fv-group-head"><span>ยังไม่มีไฟล์</span></div><div class="fv-chips">${list.map(t =>
-        t.onclick ? `<button type="button" class="fv-chip" onclick="${t.onclick}" data-paste-target="${t.pasteTarget}" title="แนบไฟล์: ${escapeHtml(t.label)} — คลิกเลือกไฟล์ หรือชี้แล้วกด Ctrl+V วางภาพ">+ ${escapeHtml(t.short)}</button>`
+        t.onclick ? `<button type="button" class="fv-chip" onclick="${t.onclick}" data-paste-target="${t.pasteTarget}" title="แนบไฟล์: ${escapeHtml(t.label)} — คลิกเลือกไฟล์ ลากไฟล์มาวาง หรือชี้แล้วกด Ctrl+V วางภาพ">+ ${escapeHtml(t.short)}</button>`
             : `<span class="fv-chip is-static">${escapeHtml(t.short)}</span>`).join('')}</div></div>`;
 }
 // ชื่อหมวดแบบสั้น: ตัดวงเล็บภาษาอังกฤษท้ายชื่อออก ("ใบอนุญาตทำงาน (Work Permit)" → "ใบอนุญาตทำงาน")
@@ -13248,13 +13487,56 @@ function fvMenuItem(iconName, label, onclick, opts = {}) {
     if (opts.href) return `<a href="${escapeHtml(opts.href)}" target="_blank" rel="noopener">${icon(iconName)} ${label}</a>`;
     return `<button type="button" class="${opts.danger ? 'is-danger' : ''}" onclick="${onclick}">${icon(iconName)} ${label}</button>`;
 }
-// เมนู ••• → "เปิดใน Google Drive" เปิดโฟลเดอร์ทั้งหมดของคนงาน/นายจ้างนี้ ไม่ใช่ไฟล์เดียว (owner, 2026-10-13)
-// folderKey = worker:<id> / customer:<id>; โฟลเดอร์ยังไม่ถูกติดตามแต่ไฟล์มีแล้ว (ไม่น่าเกิด) → เปิดไฟล์แทน
-function fvDriveMenuItem(folderKey, url) {
-    if (!can('driveView')) return '';
-    const link = driveFolderLink(folderKey) || driveFileLink(url);
-    return link ? `<hr>${fvMenuItem('cloud', 'เปิดใน Google Drive', '', { href: link })}` : '';
+// "เปิดใน Google Drive" มีที่เดียว คือเมนู "แชร์" ด้านบนแฟ้ม (เอาออกจากเมนู ••• เพราะซ้ำกัน owner 2026-10-15)
+
+// ลากไฟล์จากเครื่องมาวางในแฟ้มเอกสาร (owner 2026-10-15): วางบนหมวด (ทั้งกลุ่ม / ปุ่ม + / แคปซูล "+ หมวด")
+// = แนบเข้าหมวดนั้น ทางเดียวกับ Ctrl+V (data-paste-target) — ระหว่างลาก หมวดที่วางได้มีกรอบเส้นประ
+let fvDropTimer = null;
+function fvFileDrag(e) {
+    const dt = e.dataTransfer;
+    if (!dt || !Array.from(dt.types || []).includes('Files')) return null; // ลากไฟล์ในรายการ (ย้ายหมดอายุ) ไม่ใช่ไฟล์จากเครื่อง
+    const modal = e.target.closest && e.target.closest('#worker-folder-modal, #customer-folder-modal');
+    if (!modal || modal.classList.contains('hidden')) return null;
+    return { modal, tile: e.target.closest('.fv-list [data-paste-target]') };
 }
+function fvClearFileDrag() {
+    document.querySelectorAll('.fv-modal.is-file-drag').forEach(el => el.classList.remove('is-file-drag'));
+    document.querySelectorAll('.fv-list .dragover').forEach(el => el.classList.remove('dragover'));
+}
+document.addEventListener('dragover', e => {
+    const t = fvFileDrag(e);
+    if (!t) return;
+    e.preventDefault(); // ไม่ให้เบราว์เซอร์เปิดไฟล์แทน
+    const ok = can('ops') && !!t.tile;
+    e.dataTransfer.dropEffect = ok ? 'copy' : 'none';
+    const box = t.modal.querySelector('.fv-modal');
+    if (box && can('ops')) box.classList.add('is-file-drag');
+    document.querySelectorAll('.fv-list .dragover').forEach(el => { if (el !== t.tile) el.classList.remove('dragover'); });
+    if (ok) t.tile.classList.add('dragover');
+    clearTimeout(fvDropTimer);
+    fvDropTimer = setTimeout(fvClearFileDrag, 200); // ลากออกนอกหน้าต่าง/ยกเลิก → ไม่มี dragover แล้ว ล้างกรอบเอง
+});
+document.addEventListener('drop', async e => {
+    const t = fvFileDrag(e);
+    if (!t) return;
+    e.preventDefault();
+    fvClearFileDrag();
+    if (!can('ops')) return;
+    const files = Array.from(e.dataTransfer.files || []);
+    if (!files.length) return;
+    if (!t.tile) {
+        showUploadPill('warn', 'วางบนหมวดเอกสาร', 'ลากไฟล์ไปวางบนหมวดทางซ้าย (แท็บ "แยกตามหมวด")');
+        return;
+    }
+    const [kind, docType] = t.tile.dataset.pasteTarget.split(':');
+    if (kind === 'worker-folder') {
+        activeFolderDocType = docType;
+        await handleFolderFileUpload({ target: { files } });
+    } else if (kind === 'customer-folder') {
+        activeFolderCustomerDocType = docType;
+        await handleCustomerFolderFileUpload({ target: { files } });
+    }
+});
 
 function renderWorkerFolderTiles() {
     const w = workers.find(item => item.id === activeFolderWorkerId);
@@ -13285,7 +13567,7 @@ function renderWorkerFolderTiles() {
             return;
         }
         const add = canAdd ? fvAddButton(`triggerFolderFileUpload('${file.key}')`, `worker-folder:${file.key}`, file.label, `cameraWorkerFolderUpload('${file.key}')`) : '';
-        groups.push(`<div class="fv-group">${fvGroupHead(fvShortLabel(file.label), items.length, add)}${items.join('')}</div>`);
+        groups.push(`<div class="fv-group"${canAdd ? ` data-paste-target="worker-folder:${file.key}"` : ''}>${fvGroupHead(fvShortLabel(file.label), items.length, add)}${items.join('')}</div>`);
     });
     if (emptyTypes.length) groups.push(fvEmptyChips(emptyTypes));
 
@@ -13383,8 +13665,7 @@ function renderWorkerFolderPreview() {
         box.innerHTML = fvBarHtml({
             title,
             sub: `${escapeHtml(d.group)} · ${escapeHtml(getCleanJobTypeName(j.jobType))} (${escapeHtml(getJobDisplayNo(j))})${d.note ? ` · ${escapeHtml(d.note)}` : ''}`,
-            download: "workerFolderAction('download')", printBox: 'worker-folder-preview', url: jurl,
-            menu: [fvDriveMenuItem(`worker:${w.id}`, jurl)]
+            download: "workerFolderAction('download')", printBox: 'worker-folder-preview', url: jurl
         }) + `<div class="fv-doc">${jviewer}</div>`;
         return;
     }
@@ -13410,8 +13691,7 @@ function renderWorkerFolderPreview() {
             canEdit && can('deleteFiles') ? fvActButton('trash', 'ลบ', `deleteFolderFileIndex('${k}', ${i})`, { danger: true, title: 'ลบไฟล์นี้' }) : ''
         ],
         menu: [
-            fvMenuItem('link', 'แชร์ไฟล์นี้', "workerFolderAction('share')"),
-            fvDriveMenuItem(`worker:${w.id}`, url)
+            fvMenuItem('link', 'แชร์ไฟล์นี้', "workerFolderAction('share')")
         ]
     }) + `<div class="fv-doc">${viewer}</div>`;
 }
@@ -13551,26 +13831,13 @@ function loadDriveBackupIndex() {
     return _driveIndexLoading;
 }
 
-function driveStoragePath(url) {
-    const s = String(url || '');
-    const i = s.indexOf('/worker-documents/');
-    if (i === -1) return null;
-    try { return decodeURIComponent(s.slice(i + '/worker-documents/'.length).split('?')[0]); } catch (e) { return null; }
-}
-
-function driveFileLink(url) {
-    const id = driveBackupIndex && driveBackupIndex.files.get(driveStoragePath(url));
-    return id ? `https://drive.google.com/file/d/${encodeURIComponent(id)}/view` : '';
-}
-
 function driveFolderLink(key) {
     const id = driveBackupIndex && driveBackupIndex.folders.get(key);
     return id ? `https://drive.google.com/drive/folders/${encodeURIComponent(id)}` : '';
 }
 
-
-// ปุ่มท้ายแฟ้ม: แสดงเมื่อมีโฟลเดอร์นั้นใน Drive แล้ว — โหลดดัชนีเสร็จทีหลังก็วาดพรีวิวใหม่ให้มีปุ่ม Drive ของไฟล์
-function updateFolderDriveButton(btnId, folderKey, rerender) {
+// ปุ่ม "เปิดใน Google Drive" ในเมนูแชร์: แสดงเมื่อมีโฟลเดอร์นั้นใน Drive แล้ว (ดัชนีโหลดเสร็จทีหลังก็อัปเดตปุ่มให้)
+function updateFolderDriveButton(btnId, folderKey) {
     const btn = document.getElementById(btnId);
     if (!btn) return;
     const apply = () => {
@@ -13580,7 +13847,7 @@ function updateFolderDriveButton(btnId, folderKey, rerender) {
     };
     apply();
     const had = driveBackupIndex;
-    loadDriveBackupIndex().then(idx => { if (idx && idx !== had) { apply(); if (rerender) rerender(); } });
+    loadDriveBackupIndex().then(idx => { if (idx && idx !== had) apply(); });
 }
 
 function openWorkerFolderModal(workerId) {
@@ -13603,27 +13870,12 @@ function openWorkerFolderModal(workerId) {
     if (searchInput && !reopening) searchInput.value = '';
 
     renderWorkerFolderTiles();
-    document.getElementById("btn-copy-worker-folder").setAttribute("onclick", `copyWorkerFolderLink('${w.id}')`);
-    updateFolderDriveButton('btn-worker-drive', `worker:${w.id}`, () => { if (activeFolderWorkerId === w.id) renderWorkerFolderPreview(); });
+    updateFolderDriveButton('btn-worker-drive', `worker:${w.id}`);
     document.getElementById("worker-folder-modal").classList.remove("hidden");
 }
 
 function closeWorkerFolderModal() {
     document.getElementById("worker-folder-modal").classList.add("hidden");
-}
-
-function copyWorkerFolderLink(workerId) {
-    const w = workers.find(item => item.id === workerId);
-    if (!w) return;
-    
-    // Simulating copy direct worker folder link
-    const shareText = "แฟ้มเอกสารคนงานของ: " + workerFullName(w) + "\n(รวมใบอนุญาตทำงาน, พาสปอร์ต, บัตรชมพู, ทะเบียนบ้าน, ใบเสร็จ)\nเปิดคลังเอกสารได้ที่: http:" + "/" + "/localhost:3000/#worker-folder-" + w.id;
-    
-    navigator.clipboard.writeText(shareText).then(() => {
-        showToast("📋 คัดลอกลิงก์แฟ้มเอกสารไปที่คลิปบอร์ดเรียบร้อยแล้ว!", "success");
-    }).catch(err => {
-        uiAlert("ไม่สามารถคัดลอกได้: " + err);
-    });
 }
 
 // Trigger hidden file input upload inside Folder modal
@@ -15187,7 +15439,7 @@ function renderMissingDocsOverview() {
 
         // ดับเบิลคลิกแถวเพื่อเปิดดูข้อมูลคนงาน เหมือนตารางคนงานหลัก (ปุ่มเปิดแฟ้มใช้ stopPropagation ไม่ให้เปิดซ้อน)
         return `
-            <tr class="clickable-row" ondblclick="handleRowDblClick(event) && openWorkerModal('${w.id}')" title="ดับเบิลคลิกเพื่อดูรายละเอียดคนงาน">
+            <tr class="clickable-row" data-ctx="worker:${w.id}" ondblclick="handleRowDblClick(event) && openWorkerQuickView('${w.id}')" title="ดับเบิลคลิกเพื่อดูข้อมูลคนงาน • คลิกขวาเพื่อดูคำสั่ง">
                 <td style="width: 50px; text-align: center;">
                     <div style="width: 32px; height: 32px; border-radius: 50%; overflow: hidden; background-color: #f1f5f9; border: 1px solid #cbd5e1; display: inline-flex; align-items: center; justify-content: center;">
                         <img src="${avatarUrl}" style="width: 100%; height: 100%; object-fit: cover;">
@@ -15329,7 +15581,7 @@ function renderJobsKanban(filtered) {
                 : '';
 
             container.innerHTML += `
-                <div class="kanban-card${isClosedUnpaid ? ' is-closed-unpaid' : ''}" draggable="true" ondragstart="onKanbanDragStart(event, '${j.id}')">
+                <div class="kanban-card${isClosedUnpaid ? ' is-closed-unpaid' : ''}" data-ctx="job:${j.id}" draggable="true" ondragstart="onKanbanDragStart(event, '${j.id}')">
                     <div class="kc-top">
                         <span class="kc-no">${getJobDisplayNo(j)}</span>
                         <span class="badge badge-sm ${badgeClass} kc-badge">${cleanJobType}</span>
@@ -15382,7 +15634,11 @@ function onKanbanDragOver(e) {
 
 async function onKanbanDrop(e, targetStatus) {
     e.preventDefault();
-    const jobId = e.dataTransfer.getData("text/plain");
+    await moveJobToStatus(e.dataTransfer.getData("text/plain"), targetStatus);
+}
+
+// ย้ายสถานะใบงาน (ลากการ์ด Kanban / เมนูคลิกขวา "เปลี่ยนสถานะ") — ตรวจสิทธิ์ ปิดงาน ชำระก่อน งานซ้อน เหมือนกันทุกทาง
+async function moveJobToStatus(jobId, targetStatus) {
     const job = jobs.find(j => j.id === jobId);
     if (job && job.status !== targetStatus) {
         // Check write permission

@@ -127,6 +127,9 @@ Owner's rules (2026-10-09):
   "Already Informed"/"แจ้งเข้าแล้ว"), an Admin clicks "ผ่าน", or the worker has a job
   with status "ปิดงานแล้ว" (rule from 2026-10-08, the owner confirmed keeping it). Don't
   auto-clear it anywhere else (the pending_register→active transition used to).
+  Exception (owner, 2026-10-15): workers Claude imports as the initial master-data load get `skip_notify_entry = true`
+  (no badge); the rule above is for workers users key in themselves. The DB can't tell who created a worker (no
+  `created_by`), so Claude sets the flag on the workers it creates as part of each import.
 - No-AI reading of government PDFs (owner, 2026-10-13 — Gemini prepaid credits ran out; owner
   declined the free-AI option): `callOcr` in `supabase-client.js` first runs `parseGovPdf` —
   pdf.js text + regex, no AI, no cost. Learned formats: DOE receipt (ใบเสร็จรับเงิน
@@ -150,8 +153,12 @@ Owner's rules (2026-10-09):
   photo, name, "แชร์" menu with all link/Drive actions, ✕), tools row (tabs, search, ZIP icon), list left / preview right.
   Group heads are plain grey text with a small +; empty doc types collapse into dashed "+ type" chips at the end
   (`fvEmptyChips`); expired files fold away (`.fv-expired.is-folded`, drop target kept); expiry = colored dot + date.
-  Preview bar = labelled buttons แก้ไขรูป / ตั้งเป็นรูปคนงาน / ลบ / ดาวน์โหลด / พิมพ์ + ••• (open in tab, share, Drive)
+  Preview bar = labelled buttons แก้ไขรูป / ตั้งเป็นรูปคนงาน / ลบ / ดาวน์โหลด / พิมพ์ + ••• (open in tab, share file)
   (`fvBarHtml` / `fvActButton` / `fvMenuItem` / `toggleFvMenu`); "ดาวน์โหลดเอกสารทุกไฟล์" is a text button.
+  "เปิดใน Google Drive" lives only in the "แชร์" menu (removed from ••• as a duplicate, owner 2026-10-15); the broken
+  "คัดลอกลิงก์เปิดแฟ้มนี้" (localhost link) was removed — "ลิงก์แชร์ทั้งโฟลเดอร์" is the folder link.
+  Files dragged in from the computer drop onto a doc group / its + / an empty "+ type" chip (each carries
+  `data-paste-target`, same as Ctrl+V); groups get a dashed outline while dragging (`fvFileDrag`, `.is-file-drag`).
 
 ## Search-to-select fields (standing rule)
 
@@ -220,6 +227,17 @@ ids use `legacyAction` so earlier dismissals survive (owner 2026-10-15). Pop-ups
 keeps the first one open behind it (the newest `.modal-backdrop` is raised above the open ones, z restored on close),
 and the job summary re-renders when a window opened from it closes. Don't close the parent before opening a child. missing worker documents
 must not alert anyone, and neither do expiring/expired worker documents — no bell item for any role (owner, 2026-10-14).
+
+Worker pop-up + right-click menu (owner 2026-10-15): double-clicking a worker row (workers table, renewal tab, missing-docs)
+opens a read-only worker pop-up (`openWorkerQuickView(id, mode)`, `#worker-quick-modal`, same look as the job summary),
+not the edit form — the form opens from its "แก้ไขข้อมูล" button. `mode 'renewal'` puts expiry dates + open jobs first and
+"เปิดใบงานใหม่" (`openNewJobForWorker`: employer + this worker pre-picked, job type left to the user) as the main button.
+It re-renders when a window opened from it closes, like the job summary. Right-click on any element with
+`data-ctx="worker:<id>"` / `"job:<id>"` (worker rows, job rows, Kanban cards) opens `openCtxMenu` (a fixed `.fv-menu.ctx-menu`)
+with items from `workerCtxItems` / `jobCtxItems`, filtered by permission; status changes go through `moveJobToStatus` (same
+checks as Kanban drag). It's a shortcut only — every item also exists as a normal button. The browser's own menu stays for
+inputs, selected text, touch devices and the client portal. To add right-click to another row, give it `data-ctx` and add a
+`kind` branch in the `contextmenu` listener.
 
 User photos (2026-10-13): `profiles.avatar_url`. Admin sets anyone's photo in the user
 form (saved via `updateUserProfile`); every user changes their own by clicking their
@@ -380,11 +398,9 @@ tables one-way into the owner's personal Gmail Drive (`WorkerOS Backup/นาย
 job-close files keep the same file name as in the app (`WP.pdf`, `PinkCard_2.jpg`,
 " (หมดอายุ)" added when expired), so renaming in the app renames in Drive (owner, 2026-10-12); `การเงิน/` slips by month; `ข้อมูลระบบ/` 30 days; files
 removed from WorkerOS move to `ถูกลบ/`). Supabase stays the source of truth.
-Every internal role (Admin, Account/Operation Manager, Staff — `can('driveView')`, RLS `is_internal()`, owner 2026-10-14; not clients) sees "เปิดใน Google Drive" buttons in the worker/customer folder (in the folder's "แชร์" menu, plus
-"เปิดใน Google Drive" in the preview bar's ••• menu) once that item has been backed up — matched by
-Storage path via `getDriveBackupIndex` / `driveFileLink` (2026-10-12). The ••• menu item
-opens the whole worker/employer Drive folder, not the single file (owner, 2026-10-13;
-`fvDriveMenuItem`, falls back to the file link only if the folder isn't tracked).
+Every internal role (Admin, Account/Operation Manager, Staff — `can('driveView')`, RLS `is_internal()`, owner 2026-10-14; not clients) sees "เปิดใน Google Drive" in the worker/customer folder's "แชร์" menu (only there — the duplicate in
+the preview bar's ••• menu was removed 2026-10-15) once that folder has been backed up — it opens the whole
+worker/employer Drive folder (`updateFolderDriveButton` / `driveFolderLink`).
 Incremental, tracked in `drive_backup_files` / `drive_backup_folders`, runs hourly
 via pg_cron (`20261008090100_drive_backup_cron.sql`, apply only after the function
 and its secrets exist). Customer folders are shared read-only to `customers.email`

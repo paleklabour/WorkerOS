@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261015l">
+    <link rel="stylesheet" href="styles.css?v=20261015n">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -3192,6 +3192,19 @@
             </div>
         </div>
 
+        <!-- ==================== MODAL: ข้อมูลคนงาน (ดับเบิลคลิกแถวคนงาน → openWorkerQuickView) ==================== -->
+        <div id="worker-quick-modal" class="modal-backdrop hidden" onclick="if (event.target === this) closeWorkerQuickView()">
+            <!-- อ่านอย่างเดียว หน้าตาเดียวกับสรุปใบงาน — ฟอร์มแก้ไขเปิดจากปุ่ม "แก้ไขข้อมูล" (owner 2026-10-15) -->
+            <div class="ui-dialog ui-dialog-wide job-quick-dialog" role="dialog" aria-modal="true">
+                <button class="close-btn job-quick-close" title="ปิดหน้าต่าง" onclick="closeWorkerQuickView()">&times;</button>
+                <h3 class="ui-dialog-title" id="worker-quick-title"></h3>
+                <p class="ui-dialog-message" id="worker-quick-message"></p>
+                <div class="ui-dialog-card" id="worker-quick-card"></div>
+                <div class="ui-dialog-summary" id="worker-quick-summary"></div>
+                <div class="ui-dialog-actions job-quick-foot" id="worker-quick-foot"></div>
+            </div>
+        </div>
+
         <!-- ==================== MODAL: โน้ตปฏิทินทีม (กด/ลากวันในปฏิทิน → openCalendarNoteModal) ==================== -->
         <div id="cal-note-modal" class="modal-backdrop hidden" onclick="if (event.target === this) closeCalendarNoteModal()">
             <div class="modal-content cal-note-modal-content">
@@ -3271,7 +3284,6 @@
                     <div class="fv-more">
                         <button type="button" class="fv-pill" onclick="toggleFvMenu(this)" title="แชร์และลิงก์ของแฟ้มนี้"><span class="ico" data-icon="share"></span> แชร์</button>
                         <div class="fv-menu">
-                            <button type="button" class="needs-ops" onclick="copyWorkerFolderLink()" id="btn-copy-worker-folder"><span class="ico" data-icon="link"></span> คัดลอกลิงก์เปิดแฟ้มนี้</button>
                             <button type="button" class="needs-ops" onclick="shareWorkerFolder(activeFolderWorkerId)"><span class="ico" data-icon="link"></span> ลิงก์แชร์ทั้งโฟลเดอร์ (ไม่ต้องล็อกอิน)</button>
                             <a class="needs-driveView hidden" id="btn-worker-drive" target="_blank" rel="noopener" title="เปิดแฟ้มคนงานนี้ใน Google Drive (ไฟล์สำรอง)"><span class="ico" data-icon="cloud"></span> เปิดใน Google Drive</a>
                             <hr class="needs-ops">
@@ -3509,7 +3521,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261015l"></script>
+    <script src="supabase-client.js?v=20261015n"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3520,6 +3532,6 @@
     </script>
 
     <!-- Application Script -->
-    <script src="app.js?v=20261015l"></script>
+    <script src="app.js?v=20261015n"></script>
 </body>
 </html>
