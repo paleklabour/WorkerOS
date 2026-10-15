@@ -14197,10 +14197,12 @@ async function attachDocumentToWorker(w, docType, fileContent, preParsed = null,
     const parsedForWorker = preParsed || (uploadResult && uploadResult.parsedData);
     if (parsedForWorker) applyOcrDataToWorker(w, docType, parsedForWorker);
 
-    // Auto-transition from pending_register to active when both Work Permit and Receipt are uploaded
+    // รอขึ้นทะเบียน → ปกติ เมื่อมีใบอนุญาตทำงาน + ใบเสร็จ: เฉพาะคนงานที่เพิ่งสร้างในรอบนำเข้านี้ (opts.newWorker)
+    // คนงานที่มีในระบบอยู่แล้ว แนบไฟล์ทางไหนก็ไม่เปลี่ยนสถานะ — เปลี่ยนเองในหน้าแก้ไข (owner 2026-10-15: สถานะเปลี่ยนเอง
+    // ทำให้ป้าย "รอแจ้งเข้า" ที่ซ่อนอยู่โผล่ขึ้นมาตอนแนบหลายไฟล์ แต่แนบจากหน้าแก้ไขไม่โผล่)
     const hasWp = getAttachments(w, 'worker-wp-doc').length > 0;
     const hasReceipt = getAttachments(w, 'worker-receipt').length > 0;
-    if (w.status === 'pending_register' && hasWp && hasReceipt) {
+    if (opts.newWorker && w.status === 'pending_register' && hasWp && hasReceipt) {
         w.status = 'active';
         // ไม่ล้างป้าย "รอแจ้งเข้า" อัตโนมัติ — คนงานใหม่ต้องขึ้นรอแจ้งเข้าเสมอ จนกว่าจะตรวจผ่าน e-WorkPermit
         // (วางรายชื่อที่ "แจ้งเข้าแล้ว") หรือ Admin กด "ผ่าน" (เจ้าของระบบกำหนด 2026-10-09)
@@ -14972,6 +14974,7 @@ function discardBulkNewWorker(candId) {
 // สร้างคนงานใหม่ที่ไฟล์ในรอบนี้ชี้ถึง (ก่อนแนบไฟล์) — คืน Map id ชั่วคราว -> id คนงานจริง
 async function createBulkNewWorkers(candIds, progressEl) {
     const created = new Map();
+    created.newIds = new Set(); // id คนงานที่สร้างใหม่จริงในรอบนี้
     for (let i = 0; i < candIds.length; i++) {
         const c = findBulkNewWorker(BULK_NEW_WORKER_PREFIX + candIds[i]);
         if (!c) continue;
@@ -15005,6 +15008,7 @@ async function createBulkNewWorkers(candIds, progressEl) {
         if (!res || res.status === "error") continue; // ไฟล์ของคนนี้จะขึ้นล้มเหลวในตาราง
         workers.push(workerData);
         created.set(c.id, workerData.id);
+        created.newIds.add(workerData.id); // สร้างใหม่จริง (ไม่ใช่คนเดิมที่เลข 13 หลักตรงกัน) — ให้เปลี่ยนสถานะเองได้ตอนแนบ
     }
     return created;
 }
@@ -15327,9 +15331,11 @@ async function runBulkImport() {
 
     // สร้างคนงานใหม่ก่อน แล้วชี้ไฟล์ของคนนั้นไปที่ id จริง
     let createdWorkerCount = 0;
+    let newWorkerIds = new Set();
     if (newCandIds.length > 0) {
         const created = await createBulkNewWorkers(newCandIds, progressEl);
-        createdWorkerCount = created.size;
+        createdWorkerCount = created.newIds.size;
+        newWorkerIds = created.newIds;
         rowsToImport.forEach(r => {
             if (!isBulkNewWorkerId(r.workerId)) return;
             const realId = created.get(r.workerId.slice(BULK_NEW_WORKER_PREFIX.length));
@@ -15359,7 +15365,7 @@ async function runBulkImport() {
 
             // อ่านด้วย AI ไปแล้วในขั้น "ให้ AI อ่านและจับคู่" -> ใช้ผลเดิม ไม่เรียก AI ซ้ำ
             // ไม่ติ๊ก "AI อ่าน" = แนบอย่างเดียว ไม่เรียก AI
-            const uploadResult = await attachDocumentToWorker(w, row.docType, fileContent, row.parsedData || null, { noAi: row.aiRead === false, hint: row.fileName });
+            const uploadResult = await attachDocumentToWorker(w, row.docType, fileContent, row.parsedData || null, { noAi: row.aiRead === false, hint: row.fileName, newWorker: newWorkerIds.has(w.id) });
             row.status = 'success';
             row.aiStatus = row.parsedData ? 'filled' : row.aiRead === false ? null : getBulkImportAiStatus(uploadResult);
             successCount++;
