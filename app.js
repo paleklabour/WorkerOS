@@ -3092,6 +3092,18 @@ function openWorkerFolderAt(workerId, key, idx) {
     renderWorkerFolderTiles();
 }
 
+// คลิกนอกแผง (ฝั่งตาราง) = ยุบแผง (owner 2026-10-15) — รอ 260 ms ก่อนปิด ถ้าเป็นดับเบิลคลิก (เปลี่ยนไปดูอีกคน) ยกเลิกการปิด
+// ไม่นับคลิกในหน้าต่าง/เมนู/ป๊อปอัปที่ลอยอยู่ และปุ่มที่หายไปหลังคลิก (เช่น รายการในเมนูคลิกขวา)
+let workerPanelCloseTimer = null;
+const WORKER_PANEL_KEEP_SEL = '.worker-panel, .modal-backdrop, .ui-dialog-backdrop, .ctx-menu, .ios-select-menu, .ios-calendar, .search-suggest-dropdown, .bell-panel, .ios-tooltip';
+document.addEventListener('click', e => {
+    if (!workerPanelOpen() || !e.target.isConnected || (e.target.closest && e.target.closest(WORKER_PANEL_KEEP_SEL))) return;
+    if (document.querySelector('.modal-backdrop:not(.hidden), .ui-dialog-backdrop:not(.hidden)')) return;
+    clearTimeout(workerPanelCloseTimer);
+    workerPanelCloseTimer = setTimeout(closeWorkerQuickView, 260);
+});
+document.addEventListener('dblclick', () => clearTimeout(workerPanelCloseTimer));
+
 // Esc ปิดแผง (เมื่อไม่มีหน้าต่างอื่นเปิดทับอยู่ — Esc ตอนนั้นเป็นของหน้าต่างนั้น)
 document.addEventListener('keydown', e => {
     if (e.key !== 'Escape' || !workerPanelOpen()) return;

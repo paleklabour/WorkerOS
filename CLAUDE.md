@@ -233,7 +233,7 @@ double-clicking a worker row (workers table, renewal tab, missing-docs) slides i
 (`openWorkerQuickView(id, mode, tab)`, `<aside id="worker-quick-modal" class="worker-panel">`, open = `.is-open`) — not the
 edit form (that opens from "แก้ไขข้อมูล"). It is NOT a `.modal-backdrop`: the table stays usable, double-clicking another row
 switches the panel, windows opened from it stack above (panel z 950 < modals 1000), it re-renders when such a window
-closes, and `switchView` / Esc / ✕ close it. Header colour = `color-mix(var(--gold-primary) 55%, #0b1020)` so it is dark in
+closes, and `switchView` / Esc / ✕ / a click outside it close it (outside click waits 260 ms so a double-click on another row switches instead). Header colour = `color-mix(var(--gold-primary) 55%, #0b1020)` so it is dark in
 every theme. Tabs ข้อมูล / เอกสาร / ใบงาน (+ การเงิน for `can('finance')`). `mode 'renewal'` makes "ใบงานใหม่"
 (`openNewJobForWorker`) the main button. Accounting (Account Manager = finance without ops): panel opens on the การเงิน tab
 (jobs with bill status, awaiting-bill estimate `jobBillEstimate`, owing invoices, employer credit, billing note), personal
