@@ -228,16 +228,24 @@ keeps the first one open behind it (the newest `.modal-backdrop` is raised above
 and the job summary re-renders when a window opened from it closes. Don't close the parent before opening a child. missing worker documents
 must not alert anyone, and neither do expiring/expired worker documents — no bell item for any role (owner, 2026-10-14).
 
-Worker pop-up + right-click menu (owner 2026-10-15): double-clicking a worker row (workers table, renewal tab, missing-docs)
-opens a read-only worker pop-up (`openWorkerQuickView(id, mode)`, `#worker-quick-modal`, same look as the job summary),
-not the edit form — the form opens from its "แก้ไขข้อมูล" button. `mode 'renewal'` puts expiry dates + open jobs first and
-"เปิดใบงานใหม่" (`openNewJobForWorker`: employer + this worker pre-picked, job type left to the user) as the main button.
-It re-renders when a window opened from it closes, like the job summary. Right-click on any element with
-`data-ctx="worker:<id>"` / `"job:<id>"` (worker rows, job rows, Kanban cards) opens `openCtxMenu` (a fixed `.fv-menu.ctx-menu`)
-with items from `workerCtxItems` / `jobCtxItems`, filtered by permission; status changes go through `moveJobToStatus` (same
-checks as Kanban drag). It's a shortcut only — every item also exists as a normal button. The browser's own menu stays for
-inputs, selected text, touch devices and the client portal. To add right-click to another row, give it `data-ctx` and add a
-`kind` branch in the `contextmenu` listener.
+Worker side panel + right-click menu (owner 2026-10-15, picked design #3 "แผงเลื่อนออกด้านขวา" with a dark header):
+double-clicking a worker row (workers table, renewal tab, missing-docs) slides in a read-only panel from the right
+(`openWorkerQuickView(id, mode, tab)`, `<aside id="worker-quick-modal" class="worker-panel">`, open = `.is-open`) — not the
+edit form (that opens from "แก้ไขข้อมูล"). It is NOT a `.modal-backdrop`: the table stays usable, double-clicking another row
+switches the panel, windows opened from it stack above (panel z 950 < modals 1000), it re-renders when such a window
+closes, and `switchView` / Esc / ✕ close it. Header colour = `color-mix(var(--gold-primary) 55%, #0b1020)` so it is dark in
+every theme. Tabs ข้อมูล / เอกสาร / ใบงาน (+ การเงิน for `can('finance')`). `mode 'renewal'` makes "ใบงานใหม่"
+(`openNewJobForWorker`) the main button. Accounting (Account Manager = finance without ops): panel opens on the การเงิน tab
+(jobs with bill status, awaiting-bill estimate `jobBillEstimate`, owing invoices, employer credit, billing note), personal
+details are hidden, footer = ออกบิล / ออกบิลรวม / รับเงิน / เปิดแฟ้ม. Billing table rows: double-click opens the bill
+(`openStoredInvoice`) or, for unbilled / no-charge jobs, the job summary.
+Right-click on any element with `data-ctx="worker:<id>"` / `"job:<id>"` / `"invoice:<id>"` (worker rows, job rows, Kanban
+cards, billing rows) opens `openCtxMenu` (a fixed `.fv-menu.ctx-menu`) with items from `workerCtxItems` / `jobCtxItems` /
+`invoiceCtxItems`, filtered by permission (finance items: view money, issue/combine bill, receive money, no-charge, copy
+bill no / balance; Admin: restore/delete void bills). Status changes go through `moveJobToStatus` (same checks as Kanban
+drag). It's a shortcut only — every item also exists as a normal button. The browser's own menu stays for inputs, selected
+text, touch devices and the client portal. To add right-click to another row, give it `data-ctx` and add a `kind` branch
+in the `contextmenu` listener.
 
 User photos (2026-10-13): `profiles.avatar_url`. Admin sets anyone's photo in the user
 form (saved via `updateUserProfile`); every user changes their own by clicking their

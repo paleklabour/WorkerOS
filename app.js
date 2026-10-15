@@ -1784,6 +1784,7 @@ function writeSessionValue(key, value) {
 
 function switchView(viewName) {
     writeSessionValue('mw_last_view', viewName);
+    closeWorkerQuickView(); // แผงข้อมูลคนงานผูกกับตารางหน้าเดิม — เปลี่ยนหน้าแล้วปิด
     // ออกจากหน้าที่กำลังกรองจากกระดิ่ง → ล้างตัวกรองนั้น (กลับมาหน้าเดิมทีหลังเห็นรายการครบตามปกติ)
     if (bellFilter && viewName !== (bellFilter.view === 'billing' ? 'expenses' : bellFilter.view)) bellFilter = null;
     // Toggles sections
@@ -2887,114 +2888,216 @@ function closeJobQuickView() {
     document.getElementById('job-quick-modal').classList.add('hidden');
 }
 
-// ==================== หน้าต่างข้อมูลคนงาน (ดับเบิลคลิกแถวคนงาน, owner 2026-10-15) ====================
-// อ่านอย่างเดียว หน้าตาเดียวกับสรุปใบงาน (การ์ด + หัวข้อเป็นคอลัมน์) — ฟอร์มแก้ไขเต็มเปิดจากปุ่ม "แก้ไขข้อมูล" เท่านั้น
-// mode 'renewal' (แท็บต่ออายุ): หัวข้อวันหมดอายุ + ใบงานที่เปิดอยู่ขึ้นก่อน และปุ่มหลักเป็น "เปิดใบงานใหม่"
-// วันหมดอายุแสดงวันที่ + สถานะ ไม่นับจำนวนวัน (owner, 2026-10-14)
-function openWorkerQuickView(workerId, mode) {
+// ==================== แผงข้อมูลคนงานด้านขวา (ดับเบิลคลิกแถวคนงาน, owner เลือกแบบ 3 + หัวเข้ม 2026-10-15) ====================
+// อ่านอย่างเดียว ไม่บังตาราง (ไม่ใช่ .modal-backdrop) — ดับเบิลคลิกแถวคนงานอื่นแผงเปลี่ยนเป็นคนนั้น แท็บ ข้อมูล / เอกสาร / ใบงาน
+// ฟอร์มแก้ไขเต็มเปิดจากปุ่ม "แก้ไขข้อมูล" เท่านั้น; mode 'renewal' (แท็บต่ออายุ) ปุ่มหลักเป็น "เปิดใบงานใหม่"
+// วันหมดอายุแสดงวันที่ + จุดสี/สถานะ ไม่นับจำนวนวัน (owner, 2026-10-14)
+let workerPanelTab = 'info';
+
+function workerPanelOpen() {
+    const p = document.getElementById('worker-quick-modal');
+    return !!p && p.classList.contains('is-open');
+}
+
+// บัญชี (owner 2026-10-15): แท็บ "การเงิน" (can('finance')) = ใบงานพร้อมสถานะบิล ยอดรอออกบิล บิลค้าง มัดจำนายจ้าง โน้ตการเงิน
+// Account Manager (การเงินอย่างเดียว ไม่มีสิทธิ์ ops) เปิดแผงมาเจอแท็บการเงินก่อน ไม่เห็นข้อมูลส่วนตัว ปุ่มล่าง = ออกบิล / รับเงิน
+function openWorkerQuickView(workerId, mode, tab) {
+    const panel = document.getElementById('worker-quick-modal');
     const w = allWorkers().find(x => x.id === workerId);
     if (!w) { closeWorkerQuickView(); showToast("ไม่พบคนงานนี้ (อาจถูกลบไปแล้ว)", "warning"); return; }
-    const modal = document.getElementById('worker-quick-modal');
-    if (mode === undefined) mode = modal._workerId === workerId && !modal.classList.contains('hidden') ? modal._mode : '';
+    if (mode === undefined) mode = panel._workerId === workerId && workerPanelOpen() ? panel._mode : '';
+    const financeOnly = can('finance') && !can('ops');
+    if (tab) workerPanelTab = tab;
+    else if (!workerPanelOpen()) workerPanelTab = financeOnly ? 'money' : 'info';
+    if (workerPanelTab === 'money' && !can('finance')) workerPanelTab = 'info';
     const emp = customers.find(c => c.id === w.employerId);
-    const d = v => v ? formatThaiDate(v) : '';
     const today = new Date(); today.setHours(0, 0, 0, 0);
-    const expText = (v, warnDays) => {
+    const expState = (v, warnDays) => {
         const dt = safeParseDate(v);
-        if (!dt) return '';
+        if (!dt) return null;
         const diff = Math.ceil((dt - today) / 86400000);
-        return `${formatThaiDate(v)} • ${diff < 0 ? 'หมดอายุแล้ว' : diff <= warnDays ? 'ใกล้หมดอายุ' : 'ปกติ'}`;
+        return diff < 0 ? ['is-bad', 'หมดอายุแล้ว'] : diff <= warnDays ? ['is-warn', 'ใกล้หมดอายุ'] : ['is-ok', 'ปกติ'];
+    };
+    const expHtml = (v, warnDays) => {
+        const st = expState(v, warnDays);
+        return st ? `<span class="wp-exp" title="${st[1]}"><span class="fv-dot ${st[0]}"></span>${formatThaiDate(v)}</span>` : '';
     };
     // วันหมดอายุล่าสุดของไฟล์ในแฟ้ม (บัตรชมพู / ประกัน ไม่มีช่องวันหมดอายุในข้อมูลคนงาน)
     const fileExp = key => getAttachments(w, key).map(f => f && f.expiryDate).filter(Boolean).sort().pop() || '';
-    const myJobs = jobs.filter(j => j.workerId === w.id);
-    const openJobs = myJobs.filter(j => isJobStatusOpen(j.status));
-    const closedCount = myJobs.length - openJobs.length;
+    const myJobs = jobs.filter(j => j.workerId === w.id)
+        .sort((a, b) => String(b.openedAt || b.createdAt || '').localeCompare(String(a.openedAt || a.createdAt || '')));
+    const docs = [];
+    WORKER_FOLDER_DOC_TYPES.forEach(t => getAttachments(w, t.key).forEach((f, i, list) => {
+        if (f) docs.push({ t, f, i, expired: isWorkerDocFileExpired(f, i, list, t.key) });
+    }));
+    // การเงิน: ใบงานรอออกบิล / บิลที่ยังค้างชำระ (บิลรวมนับยอดค้างทั้งใบ)
+    const awaiting = can('finance') ? myJobs.filter(jobAwaitingBill) : [];
+    const myInvoices = [...new Map(myJobs.map(getJobInvoice).filter(i => i && i.status !== 'void').map(i => [i.id, i])).values()];
+    const owing = can('finance') ? myInvoices.filter(i => (i.status === 'issued' || i.status === 'partial') && invoiceBalance(i) > 0) : [];
 
-    const sections = {
-        personal: [
-            { heading: 'ข้อมูลส่วนตัว' },
-            { label: 'ชื่อไทย (บัตรชมพู)', value: w.thaiName },
-            { label: 'เพศ', value: w.gender },
-            { label: 'วันเกิด', value: d(w.dob) },
-            { label: 'ชื่อพ่อ', value: w.fatherName },
-            { label: 'ชื่อแม่', value: w.motherName },
-            { label: 'อีเมล', value: w.email },
-        ],
-        ids: [
-            { heading: 'เลขประจำตัว / เอกสาร' },
-            { label: 'เลขอ้างอิง', value: w.refNo },
-            { label: 'เลขที่ใบอนุญาตทำงาน', value: w.permitNo },
-            { label: 'เลขพาสปอร์ต / CI', value: w.passportNo },
-            { label: 'เลขบัตรชมพู', value: w.pinkCardNo },
-            { label: 'เลขกรมธรรม์ประกัน', value: w.insuranceNo },
-        ],
-        work: [
-            { heading: 'นายจ้าง / งาน' },
-            { label: 'นายจ้าง', value: emp ? emp.companyName : '' },
-            { label: 'ตำแหน่งงาน', value: w.position },
-            { label: 'สถานที่ทำงาน', value: w.workplace },
-        ],
-        expiry: [
-            { heading: 'วันหมดอายุ' },
-            { label: 'ใบอนุญาตทำงาน', value: expText(w.permitExpiry, 60) },
-            { label: 'พาสปอร์ต / CI', value: expText(w.passportExpiry, 180) },
-            { label: 'บัตรชมพู', value: expText(fileExp('worker-pink-card'), 60) },
-            { label: 'ประกัน', value: expText(fileExp('worker-insurance-doc'), 60) },
-        ],
-        jobs: [
-            { heading: 'ใบงาน' },
-            ...openJobs.map(j => ({ label: getJobDisplayNo(j), value: `${getCleanJobTypeName(j.jobType)} • ${j.status}` })),
-            { label: 'ปิดแล้ว', value: closedCount ? `${closedCount} ใบ` : '' },
-            { label: 'เปิดอยู่', value: myJobs.length && !openJobs.length ? 'ไม่มี' : '' },
-        ],
-        notes: [
-            { heading: 'โน้ต' },
-            { label: 'โน้ตจากนายจ้าง', value: w.clientNote },
-        ],
+    // หัวแผง: รูป ชื่อ สัญชาติ • เลข 13 หลัก + ป้ายสถานะ
+    // ตัวอักษรแรกของชื่ออยู่ข้างใต้รูป — รูปโหลดไม่ได้ก็ลบรูปทิ้ง เหลือตัวอักษร
+    document.getElementById('worker-quick-avatar').innerHTML = `<span>${escapeHtml(String(w.firstName || '?').charAt(0))}</span>`
+        + (w.photo ? `<img src="${escapeHtml(w.photo)}" alt="" onerror="this.remove()">` : '');
+    document.getElementById('worker-quick-name').textContent = workerFullName(w);
+    document.getElementById('worker-quick-sub').textContent = [w.nationality, w.workerUid].filter(Boolean).join(' • ');
+    const statusCls = w.status === 'active' ? 'is-ok' : w.status === 'archived' ? '' : 'is-warn';
+    document.getElementById('worker-quick-pills').innerHTML =
+        `<span class="wp-pill ${statusCls}">${escapeHtml(WORKER_STATUS_LABELS[w.status] || w.status || '-')}</span>`
+        + (workerNeedsNotifyEntry(w) ? '<span class="wp-pill is-warn">รอแจ้งเข้า</span>' : '');
+
+    // แท็บ
+    const tabs = [['info', 'ข้อมูล'], ['docs', `เอกสาร${docs.length ? ` (${docs.length})` : ''}`], ['jobs', `ใบงาน${myJobs.length ? ` (${myJobs.length})` : ''}`]];
+    if (can('finance')) {
+        const moneyTab = ['money', `การเงิน${awaiting.length + owing.length ? ` (${awaiting.length + owing.length})` : ''}`];
+        if (financeOnly) tabs.unshift(moneyTab); else tabs.push(moneyTab);
+    }
+    document.getElementById('worker-quick-tabs').innerHTML = tabs.map(([k, label]) =>
+        `<button type="button" role="tab" class="wp-tab${workerPanelTab === k ? ' is-on' : ''}" aria-selected="${workerPanelTab === k}" onclick="setWorkerPanelTab('${k}')">${label}</button>`).join('');
+
+    // เนื้อหาแท็บ
+    const kv = rows => {
+        const shown = rows.filter(([, v]) => v != null && String(v).trim() !== '');
+        return shown.length ? `<dl class="wp-kv">${shown.map(([k, v, raw]) => `<dt>${k}</dt><dd>${raw ? v : escapeHtml(String(v))}</dd>`).join('')}</dl>` : '';
     };
-    const order = mode === 'renewal'
-        ? ['expiry', 'jobs', 'work', 'ids', 'personal', 'notes']
-        : ['personal', 'ids', 'work', 'expiry', 'jobs', 'notes'];
-    // ตัดช่องว่าง และหัวข้อที่ไม่มีข้อมูลใต้หัวข้อเลย (เหมือนสรุปใบงาน)
-    const summary = [];
-    order.forEach(k => {
-        const rows = sections[k].slice(1).filter(r => r.value != null && String(r.value).trim() !== '');
-        if (rows.length) summary.push(sections[k][0], ...rows);
-    });
+    const sec = (title, body) => body ? `<section class="wp-sec"><h4>${title}</h4>${body}</section>` : '';
+    let body = '';
+    if (workerPanelTab === 'docs') {
+        body = docs.length ? WORKER_FOLDER_DOC_TYPES.map(t => {
+            const list = docs.filter(d => d.t.key === t.key);
+            if (!list.length) return '';
+            return sec(escapeHtml(fvShortLabel(t.label)), `<div class="wp-list">${list.map(d => {
+                const st = d.f.expiryDate ? expState(d.f.expiryDate, 60) : null;
+                const meta = d.expired ? `<span class="fv-dot is-bad"></span>หมดอายุ${d.f.expiryDate ? ` ${formatThaiDate(d.f.expiryDate)}` : ''}`
+                    : st ? `<span class="fv-dot ${st[0]}"></span>ถึง ${formatThaiDate(d.f.expiryDate)}`
+                    : (d.f.uploadedAt ? formatThaiDate(String(d.f.uploadedAt).slice(0, 10)) : '');
+                return `<button type="button" class="wp-row${d.expired ? ' is-dim' : ''}" onclick="openWorkerFolderAt('${w.id}', '${t.key}', ${d.i})" title="เปิดไฟล์นี้ในแฟ้มเอกสาร">
+                    <b>${escapeHtml(d.f.name || '-')}</b><small>${meta}</small></button>`;
+            }).join('')}</div>`);
+        }).join('') : '<p class="wp-empty">ยังไม่มีเอกสารในแฟ้มนี้</p>';
+    } else if (workerPanelTab === 'jobs') {
+        body = myJobs.length ? `<div class="wp-list">${myJobs.map(j => {
+            const open = isJobStatusOpen(j.status);
+            const when = j.status === 'ปิดงานแล้ว' && j.closedAt ? `ปิด ${formatThaiDate(j.closedAt)}` : (j.openedAt || j.createdAt ? `เปิด ${formatThaiDate(j.openedAt || j.createdAt)}` : '');
+            return `<button type="button" class="wp-row" onclick="openJobQuickView('${j.id}')" title="ดูสรุปใบงาน">
+                <b>${escapeHtml(getCleanJobTypeName(j.jobType))}</b>
+                <small><span class="fv-dot ${open ? 'is-warn' : 'is-ok'}"></span>${escapeHtml(getJobDisplayNo(j))} • ${escapeHtml(j.status || '-')}${when ? ` • ${when}` : ''}</small></button>`;
+        }).join('')}</div>` : '<p class="wp-empty">ยังไม่มีใบงาน</p>';
+    } else if (workerPanelTab === 'money') {
+        const credit = emp ? customerCredit(emp.id) : 0;
+        const anyCombined = owing.some(i => (i.jobIds || []).length > 1);
+        const jobRows = myJobs.map(j => {
+            const inv = getJobInvoice(j);
+            const live = inv && inv.status !== 'void' ? inv : null;
+            let state, dot = '';
+            if (isJobNoCharge(j)) state = 'ไม่เรียกเก็บเงิน';
+            else if (live) {
+                const bal = invoiceBalance(live);
+                state = `${escapeHtml(live.invoiceNo)} • ${(INVOICE_STATUS_META[live.status] || {}).label || '-'}${live.status !== 'paid' && bal > 0 ? ` • ค้าง ${fmtMoney(bal)}` : ''}`;
+                dot = live.status === 'paid' ? 'is-ok' : 'is-warn';
+            } else if (jobAwaitingBill(j)) {
+                state = j.status === 'ปิดงานแล้ว' ? 'ปิดงานแล้ว ยังไม่ออกบิล' : 'ยังไม่ออกบิล';
+                dot = j.status === 'ปิดงานแล้ว' ? 'is-bad' : 'is-warn';
+            } else state = escapeHtml(j.paymentStatus || '-');
+            const amount = live ? '' : `<em>${fmtMoney(isJobNoCharge(j) ? 0 : jobBillEstimate(j))}</em>`;
+            const click = live ? `openStoredInvoice('${live.id}')` : `openJobQuickView('${j.id}')`;
+            return `<button type="button" class="wp-row" onclick="${click}" title="${live ? 'ดูบิล' : 'ดูสรุปใบงาน'}">
+                <span class="wp-row-top"><b>${escapeHtml(getCleanJobTypeName(j.jobType))}</b>${amount}</span>
+                <small><span class="fv-dot ${dot}"></span>${escapeHtml(getJobDisplayNo(j))} • ${state}</small></button>`;
+        });
+        body = sec('สรุป', kv([
+            ['รอออกบิล', awaiting.length ? `${awaiting.length} ใบงาน • ประมาณ ${fmtMoney(awaiting.reduce((s, j) => s + jobBillEstimate(j), 0))} บาท` : 'ไม่มี'],
+            ['บิลค้างชำระ', owing.length ? `${owing.length} ใบ • ค้าง ${fmtMoney(owing.reduce((s, i) => s + invoiceBalance(i), 0))} บาท` : 'ไม่มี'],
+            ['มัดจำ/เครดิตของนายจ้าง', credit > 0 ? `${fmtMoney(credit)} บาท` : ''],
+        ]) + (anyCombined ? '<p class="wp-hint">บิลรวมแสดงยอดค้างทั้งใบ (รวมคนงานอื่นในบิลเดียวกัน)</p>' : ''))
+            + sec('โน้ตการเงินของนายจ้าง', emp && emp.billingNote ? `<p class="wp-note">${escapeHtml(emp.billingNote)}</p>` : '')
+            + sec('ใบงานและบิล', jobRows.length ? `<div class="wp-list">${jobRows.join('')}</div>` : '<p class="wp-empty">ยังไม่มีใบงาน</p>');
+    } else {
+        body = sec('วันหมดอายุ', kv([
+            ['ใบอนุญาตทำงาน', expHtml(w.permitExpiry, 60), true],
+            ['พาสปอร์ต / CI', expHtml(w.passportExpiry, 180), true],
+            ['บัตรชมพู', expHtml(fileExp('worker-pink-card'), 60), true],
+            ['ประกัน', expHtml(fileExp('worker-insurance-doc'), 60), true],
+        ])) + sec('นายจ้าง', kv([
+            ['บริษัท', emp ? emp.companyName : ''],
+            ['เลขผู้เสียภาษี', can('finance') && emp ? emp.taxId : ''],
+            ['ตำแหน่งงาน', w.position],
+            ['สถานที่ทำงาน', w.workplace],
+        ])) + sec('เลขประจำตัว / เอกสาร', kv([
+            ['เลขอ้างอิง', w.refNo],
+            ['เลขที่ใบอนุญาตทำงาน', w.permitNo],
+            ['พาสปอร์ต / CI', w.passportNo],
+            ['เลขบัตรชมพู', w.pinkCardNo],
+            ['เลขกรมธรรม์ประกัน', w.insuranceNo],
+        ])) + (financeOnly ? '' : sec('ข้อมูลส่วนตัว', kv([
+            ['ชื่อไทย (บัตรชมพู)', w.thaiName],
+            ['เพศ', w.gender],
+            ['วันเกิด', w.dob ? formatThaiDate(w.dob) : ''],
+            ['ชื่อพ่อ', w.fatherName],
+            ['ชื่อแม่', w.motherName],
+            ['อีเมล', w.email],
+        ]))) + sec('โน้ตจากนายจ้าง', w.clientNote ? `<p class="wp-note">${escapeHtml(w.clientNote)}</p>` : '');
+    }
+    const bodyEl = document.getElementById('worker-quick-body');
+    const sameView = panel._workerId === w.id && panel._tab === workerPanelTab;
+    bodyEl.innerHTML = body;
+    if (!sameView) bodyEl.scrollTop = 0;
 
-    document.getElementById('worker-quick-title').textContent = 'ข้อมูลคนงาน';
-    document.getElementById('worker-quick-message').textContent = [
-        WORKER_STATUS_LABELS[w.status] || w.status,
-        workerNeedsNotifyEntry(w) ? 'รอแจ้งเข้า' : '',
-        emp ? emp.companyName : 'ไม่ระบุนายจ้าง'
-    ].filter(Boolean).join(' • ');
-    const cardBox = document.getElementById('worker-quick-card');
-    cardBox.innerHTML = '';
-    fillUiDialogCard(cardBox, { image: w.photo || '', imageIcon: 'user', title: workerFullName(w), subtitle: [w.nationality, w.workerUid].filter(Boolean).join(' • ') });
-    const sumBox = document.getElementById('worker-quick-summary');
-    sumBox.innerHTML = '';
-    fillUiDialogSummary(sumBox, summary, true);
-
-    // ปุ่มทำต่อตามสิทธิ์ — หน้าต่างนี้เปิดค้างไว้ข้างหลังหน้าต่างที่กดเปิดต่อ
-    const btn = (iconName, label, onclick, cls = 'btn-outline') => `<button type="button" class="btn ${cls}" onclick="${onclick}">${icon(iconName)} ${label}</button>`;
+    // ปุ่มล่าง ตามสิทธิ์ — หน้าต่างที่กดเปิดต่อซ้อนอยู่เหนือแผง ปิดแล้วแผงวาดใหม่
+    const btn = (label, onclick, primary, title) => `<button type="button" class="btn ${primary ? 'btn-gold' : 'btn-outline'}" onclick="${onclick}" title="${title}">${label}</button>`;
     const canNewJob = can('ops') && w.status !== 'archived' && workers.some(x => x.id === w.id);
-    const acts = [];
-    if (mode === 'renewal' && canNewJob) acts.push(btn('plus', 'เปิดใบงานใหม่', `openNewJobForWorker('${w.id}')`, 'btn-gold'));
-    acts.push(btn('edit', can('ops') ? 'แก้ไขข้อมูล' : 'ดูข้อมูลเต็ม', `openWorkerModal('${w.id}')`, mode === 'renewal' ? 'btn-outline' : 'btn-gold'));
-    acts.push(btn('folder', 'เปิดแฟ้มเอกสาร', `openWorkerFolderModal('${w.id}')`));
-    if (mode !== 'renewal' && canNewJob) acts.push(btn('plus', 'เปิดใบงานใหม่', `openNewJobForWorker('${w.id}')`));
-    if (myJobs.length) acts.push(btn('clipboard', 'ดูใบงานทั้งหมด', `showWorkerJobs('${w.id}')`));
-    acts.push(btn('xmark', 'ปิด', 'closeWorkerQuickView()'));
-    document.getElementById('worker-quick-foot').innerHTML = acts.join('');
-    modal._workerId = w.id;
-    modal._mode = mode;
-    modal.classList.remove('hidden');
+    const newJob = canNewJob ? btn('ใบงานใหม่', `openNewJobForWorker('${w.id}')`, mode === 'renewal', 'เปิดใบงานใหม่ให้คนงานคนนี้') : '';
+    // Account Manager: ปุ่มงานบัญชีแทน (ออกบิล 1 ใบงาน / รวมบิลเมื่อค้างหลายใบ, รับเงินเมื่อมีบิลค้าง) + เปิดแฟ้มดูใบเสร็จ/เอกสาร
+    const financeFoot = financeOnly ? [
+        awaiting.length === 1 ? btn('ออกบิล', `openInvoiceModal('${awaiting[0].id}')`, true, 'ออกบิลใบงานที่ค้างของคนงานนี้')
+            : awaiting.length > 1 ? btn(`ออกบิลรวม (${awaiting.length})`, `quickCombineInvoice('${w.employerId}')`, true, 'รวมใบงานที่ค้างออกบิลของนายจ้างนี้เป็นบิลเดียว') : '',
+        owing.length && emp ? btn('รับเงิน', `openReceiveMoneyModal('${emp.id}', '${owing[0].id}')`, !awaiting.length, 'บันทึกรับเงินจากนายจ้างนี้') : '',
+        btn('เปิดแฟ้ม', `openWorkerFolderModal('${w.id}')`, !awaiting.length && !owing.length, 'เปิดแฟ้มเอกสารคนงาน'),
+    ] : null;
+    document.getElementById('worker-quick-foot').innerHTML = (financeFoot || [
+        mode === 'renewal' ? newJob : '',
+        btn(can('ops') ? 'แก้ไขข้อมูล' : 'ดูข้อมูลเต็ม', `openWorkerModal('${w.id}')`, mode !== 'renewal', can('ops') ? 'แก้ไขข้อมูลคนงาน' : 'ดูฟอร์มข้อมูลคนงานแบบเต็ม'),
+        btn('เปิดแฟ้ม', `openWorkerFolderModal('${w.id}')`, false, 'เปิดแฟ้มเอกสารคนงาน'),
+        mode !== 'renewal' ? newJob : '',
+    ]).filter(Boolean).join('');
+
+    panel._workerId = w.id;
+    panel._mode = mode;
+    panel._tab = workerPanelTab;
+    panel.setAttribute('aria-hidden', 'false');
+    panel.classList.add('is-open');
+    // แถวของคนที่เปิดอยู่ในตาราง: ไฮไลต์ไว้ (ไล่ดูทีละคนรู้ว่าอยู่แถวไหน)
+    document.querySelectorAll('tr.is-panel-row').forEach(tr => tr.classList.remove('is-panel-row'));
+    document.querySelectorAll(`tr[data-ctx="worker:${w.id}"]`).forEach(tr => tr.classList.add('is-panel-row'));
+}
+
+function setWorkerPanelTab(tab) {
+    workerPanelTab = tab;
+    const panel = document.getElementById('worker-quick-modal');
+    if (panel._workerId) openWorkerQuickView(panel._workerId);
 }
 
 function closeWorkerQuickView() {
-    document.getElementById('worker-quick-modal').classList.add('hidden');
+    const panel = document.getElementById('worker-quick-modal');
+    if (!panel) return;
+    panel.classList.remove('is-open');
+    panel.setAttribute('aria-hidden', 'true');
+    document.querySelectorAll('tr.is-panel-row').forEach(tr => tr.classList.remove('is-panel-row'));
 }
+
+// แท็บเอกสารในแผง → เปิดแฟ้มคนงานที่ไฟล์นั้นเลย
+function openWorkerFolderAt(workerId, key, idx) {
+    openWorkerFolderModal(workerId);
+    activeFolderSel = { kind: 'file', key, idx };
+    renderWorkerFolderTiles();
+}
+
+// Esc ปิดแผง (เมื่อไม่มีหน้าต่างอื่นเปิดทับอยู่ — Esc ตอนนั้นเป็นของหน้าต่างนั้น)
+document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape' || !workerPanelOpen()) return;
+    if (document.querySelector('.modal-backdrop:not(.hidden), .ui-dialog-backdrop:not(.hidden), .ctx-menu')) return;
+    closeWorkerQuickView();
+});
 
 // เปิดฟอร์มแจ้งงานใหม่ เลือกนายจ้าง + ติ๊กคนงานคนนี้ไว้ให้แล้ว (เลือกประเภทงานเอง)
 function openNewJobForWorker(workerId) {
@@ -3038,6 +3141,14 @@ function workerCtxItems(w) {
     ];
     if (can('ops') && w.status !== 'archived') items.push({ icon: 'plus', label: 'เปิดใบงานใหม่', run: () => openNewJobForWorker(w.id) });
     if (jobs.some(j => j.workerId === w.id)) items.push({ icon: 'clipboard', label: 'ดูใบงานของคนนี้', run: () => showWorkerJobs(w.id) });
+    // บัญชี: ดูการเงิน / ออกบิลงานที่ค้าง / รับเงินจากนายจ้าง
+    if (can('finance')) {
+        const awaiting = jobs.filter(j => j.workerId === w.id && jobAwaitingBill(j));
+        items.push('-', { icon: 'cash', label: 'ดูการเงินของคนนี้', run: () => openWorkerQuickView(w.id, undefined, 'money') });
+        if (awaiting.length === 1) items.push({ icon: 'receipt', label: 'ออกบิล', run: () => openInvoiceModal(awaiting[0].id) });
+        else if (awaiting.length > 1) items.push({ icon: 'receipt', label: `ออกบิลรวม (${awaiting.length} ใบงาน)`, run: () => quickCombineInvoice(w.employerId) });
+        if (w.employerId) items.push({ icon: 'moneybag', label: 'รับเงิน / มัดจำจากนายจ้าง', run: () => openReceiveMoneyModal(w.employerId) });
+    }
     items.push('-');
     if (w.workerUid) items.push({ icon: 'file', label: 'คัดลอกเลข 13 หลัก', run: () => ctxCopy(w.workerUid, 'เลข 13 หลัก') });
     items.push({ icon: 'file', label: 'คัดลอกชื่อ', run: () => ctxCopy(workerFullName(w), 'ชื่อ') });
@@ -3061,8 +3172,18 @@ function jobCtxItems(j) {
         items.push({ icon: 'unlock', label: 'เปิดงานอีกครั้ง', run: () => reopenJob(j.id) });
     }
     if (can('finance')) {
-        if (inv) items.push('-', { icon: 'receipt', label: 'ดูบิล', run: () => openStoredInvoice(inv.id) });
-        else if (jobAwaitingBill(j)) items.push('-', { icon: 'receipt', label: 'ออกบิล', run: () => openInvoiceModal(j.id) });
+        const live = inv && inv.status !== 'void' ? inv : null;
+        items.push('-');
+        if (live) {
+            items.push({ icon: 'receipt', label: `ดูบิล ${live.invoiceNo || ''}`.trim(), run: () => openStoredInvoice(live.id) });
+            if ((live.status === 'issued' || live.status === 'partial') && invoiceBalance(live) > 0)
+                items.push({ icon: 'moneybag', label: 'รับเงินบิลนี้', run: () => openReceiveMoneyModal(j.customerId, live.id) });
+        } else if (jobAwaitingBill(j)) {
+            items.push({ icon: 'receipt', label: 'ออกบิล', run: () => openInvoiceModal(j.id) },
+                { icon: 'ban', label: 'ไม่เรียกเก็บเงิน', run: () => markJobNoCharge(j.id) });
+        } else if (isJobNoCharge(j)) {
+            items.push({ icon: 'refresh', label: 'กลับไปเรียกเก็บเงิน', run: () => unmarkJobNoCharge(j.id) });
+        }
     }
     if (w) {
         items.push('-',
@@ -3070,6 +3191,29 @@ function jobCtxItems(j) {
             { icon: 'folder', label: 'เปิดแฟ้มคนงาน', run: () => openWorkerFolderModal(w.id) });
     }
     items.push('-', { icon: 'file', label: 'คัดลอกเลขใบงาน', run: () => ctxCopy(getJobDisplayNo(j), 'เลขใบงาน') });
+    return items;
+}
+
+// แถวบิลในหน้าออกบิล/รับเงิน (data-ctx="invoice:<id>")
+function invoiceCtxItems(inv) {
+    const bal = invoiceBalance(inv);
+    const owing = (inv.status === 'issued' || inv.status === 'partial') && bal > 0;
+    const items = [{ icon: 'receipt', label: 'ดูบิล / พิมพ์', run: () => openStoredInvoice(inv.id) }];
+    if (can('finance') && owing && inv.customerId) items.push({ icon: 'moneybag', label: 'รับเงินบิลนี้', run: () => openReceiveMoneyModal(inv.customerId, inv.id) });
+    const invJobs = (inv.jobIds || []).map(id => jobs.find(j => j.id === id)).filter(Boolean);
+    if (invJobs.length === 1) {
+        const w = allWorkers().find(x => x.id === invJobs[0].workerId);
+        items.push('-', { icon: 'clipboard', label: 'ดูสรุปใบงาน', run: () => openJobQuickView(invJobs[0].id) });
+        if (w) items.push({ icon: 'user', label: 'ดูข้อมูลคนงาน', run: () => openWorkerQuickView(w.id, undefined, can('finance') ? 'money' : undefined) });
+    }
+    if (can('finance') && inv.customerId && jobs.some(j => j.customerId === inv.customerId && jobAwaitingBill(j)))
+        items.push('-', { icon: 'receipt', label: 'รวมบิลงานที่ค้างของนายจ้างนี้', run: () => quickCombineInvoice(inv.customerId) });
+    items.push('-', { icon: 'file', label: 'คัดลอกเลขที่บิล', run: () => ctxCopy(inv.invoiceNo, 'เลขที่บิล') });
+    if (owing) items.push({ icon: 'file', label: 'คัดลอกยอดค้างชำระ', run: () => ctxCopy(fmtMoney(bal), 'ยอดค้างชำระ') });
+    if (inv.status === 'void' && currentUser.role === 'admin') {
+        items.push('-', { icon: 'refresh', label: 'กู้คืนบิล', run: () => restoreVoidInvoice(inv.id) },
+            { icon: 'trash', label: 'ลบบิลถาวร', danger: true, run: () => deleteVoidInvoice(inv.id) });
+    }
     return items;
 }
 
@@ -3115,6 +3259,7 @@ document.addEventListener('contextmenu', e => {
     let items = null;
     if (kind === 'worker') { const w = allWorkers().find(x => x.id === id); if (w) items = workerCtxItems(w); }
     else if (kind === 'job') { const j = jobs.find(x => x.id === id); if (j) items = jobCtxItems(j); }
+    else if (kind === 'invoice') { const inv = invoices.find(x => x.id === id); if (inv) items = invoiceCtxItems(inv); }
     if (!items) return;
     e.preventDefault();
     openCtxMenu(e.clientX, e.clientY, items);
@@ -3147,7 +3292,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const quick = document.getElementById('job-quick-modal');
             if (el !== quick && quick && !quick.classList.contains('hidden') && quick._jobId) openJobQuickView(quick._jobId);
             const wq = document.getElementById('worker-quick-modal');
-            if (el !== wq && wq && !wq.classList.contains('hidden') && wq._workerId) openWorkerQuickView(wq._workerId);
+            if (wq && wq.classList.contains('is-open') && wq._workerId) openWorkerQuickView(wq._workerId);
         }
     }));
     document.querySelectorAll('.modal-backdrop').forEach(bd =>
@@ -3535,7 +3680,7 @@ function renderBillingTab() {
         const days = inv.status === 'issued' || inv.status === 'partial'
             ? Math.max(0, Math.floor((new Date() - (safeParseDate(inv.issueDate) || new Date())) / 86400000)) : null;
         return `
-            <tr class="${inv.status === 'void' ? 'is-voided-row' : ''}">
+            <tr class="clickable-row${inv.status === 'void' ? ' is-voided-row' : ''}" data-ctx="invoice:${inv.id}" ondblclick="handleRowDblClick(event) && openStoredInvoice('${inv.id}')" title="ดับเบิลคลิกเพื่อดูบิล • คลิกขวาเพื่อดูคำสั่ง">
                 <td><strong>${escapeHtml(inv.invoiceNo)}</strong><div class="employer-id-line"><span>ออกเมื่อ</span> <b>${formatThaiDate(inv.issueDate)}</b></div></td>
                 <td><span class="badge badge-gold">${icon("receipt")} ${kindLabel[inv.kind] || 'บิล'}</span></td>
                 <td><div class="employer-name">${escapeHtml(inv.customerName || '-')}</div></td>
@@ -3559,12 +3704,9 @@ function renderBillingTab() {
         const work = workers.find(w => w.id === j.workerId);
         const cleanJobType = (j.jobType || "").replace(/\s*\(\d+\)/g, "");
         const isClosed = j.status === 'ปิดงานแล้ว';
-        const estimate = j.fee > 0 ? j.fee : parseJobTypeItems(j.jobType, 0).reduce((s, it) => {
-            const std = getServicePrice(it.name);
-            return s + (std ? std.govFee + std.serviceFee : 0);
-        }, 0);
+        const estimate = jobBillEstimate(j);
         return `
-            <tr>
+            <tr class="clickable-row" data-ctx="job:${j.id}" ondblclick="handleRowDblClick(event) && openJobQuickView('${j.id}')" title="ดับเบิลคลิกเพื่อดูสรุปใบงาน • คลิกขวาเพื่อดูคำสั่ง">
                 <td><strong>${getJobDisplayNo(j)}</strong></td>
                 <td><span class="badge badge-lg badge-warning">${icon("edit")} ยังไม่ออกบิล</span></td>
                 <td><div class="employer-name">${escapeHtml(cust ? cust.companyName : "ไม่พบนายจ้าง")}</div>${buildEmployerIdLinesHtml(cust)}</td>
@@ -3584,7 +3726,7 @@ function renderBillingTab() {
         const cust = customers.find(c => c.id === j.customerId);
         const work = workers.find(w => w.id === j.workerId);
         return `
-            <tr>
+            <tr class="clickable-row" data-ctx="job:${j.id}" ondblclick="handleRowDblClick(event) && openJobQuickView('${j.id}')" title="ดับเบิลคลิกเพื่อดูสรุปใบงาน • คลิกขวาเพื่อดูคำสั่ง">
                 <td><strong>${getJobDisplayNo(j)}</strong></td>
                 <td>${noChargeBadgeHtml(j)}</td>
                 <td><div class="employer-name">${escapeHtml(cust ? cust.companyName : "ไม่พบนายจ้าง")}</div>${buildEmployerIdLinesHtml(cust)}</td>
@@ -3601,10 +3743,7 @@ function renderBillingTab() {
     // รวมทุกรายการ (ใบงานรอออกบิล / ไม่เรียกเก็บเงิน / บิล) แล้วเรียงแบบเดียวกับตารางแจ้งงาน (sortBillingRows)
     const day = v => String(v || '').slice(0, 10);
     const custName = id => { const c = customers.find(x => x.id === id); return c ? c.companyName || '' : ''; };
-    const jobAmount = j => j.fee > 0 ? j.fee : parseJobTypeItems(j.jobType, 0).reduce((s, it) => {
-        const std = getServicePrice(it.name);
-        return s + (std ? std.govFee + std.serviceFee : 0);
-    }, 0);
+    const jobAmount = jobBillEstimate;
     // บิลที่มีใบงาน → ใช้วันเปิดงาน/เลขใบงานของใบงานที่เปิดล่าสุดในบิลนั้น (เรียงตามการเปิดงาน เหมือนหน้าแจ้งงาน)
     const newestInvoiceJob = inv => (inv.jobIds || []).map(id => jobs.find(j => j.id === id)).filter(Boolean)
         .sort((a, b) => jobOpenedSortKey(b).localeCompare(jobOpenedSortKey(a)))[0] || null;
@@ -15804,6 +15943,14 @@ function isJobNoCharge(j) {
 }
 
 // ใบงานที่ยังต้องออกบิล = ยังไม่อยู่ในบิลใด และไม่ได้ตั้งเป็น "ไม่เรียกเก็บเงิน"
+// ยอดของใบงานที่ยังไม่ออกบิล: ค่าบริการที่ตั้งไว้ ไม่มี = ราคามาตรฐาน (ค่าธรรมเนียมรัฐ + ค่าบริการ) ของทุกประเภทงานในใบ
+function jobBillEstimate(j) {
+    return j.fee > 0 ? j.fee : parseJobTypeItems(j.jobType, 0).reduce((s, it) => {
+        const std = getServicePrice(it.name);
+        return s + (std ? std.govFee + std.serviceFee : 0);
+    }, 0);
+}
+
 function jobAwaitingBill(j) {
     return !getJobInvoice(j) && !isJobNoCharge(j);
 }

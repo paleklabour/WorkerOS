@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261015n">
+    <link rel="stylesheet" href="styles.css?v=20261015o">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -3192,18 +3192,23 @@
             </div>
         </div>
 
-        <!-- ==================== MODAL: ข้อมูลคนงาน (ดับเบิลคลิกแถวคนงาน → openWorkerQuickView) ==================== -->
-        <div id="worker-quick-modal" class="modal-backdrop hidden" onclick="if (event.target === this) closeWorkerQuickView()">
-            <!-- อ่านอย่างเดียว หน้าตาเดียวกับสรุปใบงาน — ฟอร์มแก้ไขเปิดจากปุ่ม "แก้ไขข้อมูล" (owner 2026-10-15) -->
-            <div class="ui-dialog ui-dialog-wide job-quick-dialog" role="dialog" aria-modal="true">
-                <button class="close-btn job-quick-close" title="ปิดหน้าต่าง" onclick="closeWorkerQuickView()">&times;</button>
-                <h3 class="ui-dialog-title" id="worker-quick-title"></h3>
-                <p class="ui-dialog-message" id="worker-quick-message"></p>
-                <div class="ui-dialog-card" id="worker-quick-card"></div>
-                <div class="ui-dialog-summary" id="worker-quick-summary"></div>
-                <div class="ui-dialog-actions job-quick-foot" id="worker-quick-foot"></div>
+        <!-- ==================== แผงข้อมูลคนงานด้านขวา (ดับเบิลคลิกแถวคนงาน → openWorkerQuickView) ==================== -->
+        <!-- owner เลือกแบบ 3 "แผงเลื่อนออกด้านขวา" + หัวเข้ม (2026-10-15): ไม่บังตาราง ดับเบิลคลิกแถวอื่นแผงเปลี่ยนเป็นคนนั้น
+             ไม่ใช่ .modal-backdrop (หน้าเลื่อน/คลิกตารางได้) หน้าต่างที่เปิดจากแผงซ้อนด้านบน (z 950 < 1000) -->
+        <aside id="worker-quick-modal" class="worker-panel" role="dialog" aria-label="ข้อมูลคนงาน" aria-hidden="true">
+            <div class="wp-head">
+                <div class="wp-avatar" id="worker-quick-avatar"></div>
+                <div class="wp-head-text">
+                    <h3 id="worker-quick-name"></h3>
+                    <p id="worker-quick-sub"></p>
+                    <div class="wp-pills" id="worker-quick-pills"></div>
+                </div>
+                <button type="button" class="wp-close" title="ปิดแผงข้อมูลคนงาน" onclick="closeWorkerQuickView()">&times;</button>
             </div>
-        </div>
+            <div class="wp-tabs" role="tablist" id="worker-quick-tabs"></div>
+            <div class="wp-body" id="worker-quick-body"></div>
+            <div class="wp-foot" id="worker-quick-foot"></div>
+        </aside>
 
         <!-- ==================== MODAL: โน้ตปฏิทินทีม (กด/ลากวันในปฏิทิน → openCalendarNoteModal) ==================== -->
         <div id="cal-note-modal" class="modal-backdrop hidden" onclick="if (event.target === this) closeCalendarNoteModal()">
@@ -3521,7 +3526,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261015n"></script>
+    <script src="supabase-client.js?v=20261015o"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3532,6 +3537,6 @@
     </script>
 
     <!-- Application Script -->
-    <script src="app.js?v=20261015n"></script>
+    <script src="app.js?v=20261015o"></script>
 </body>
 </html>
