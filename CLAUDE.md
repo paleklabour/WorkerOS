@@ -241,7 +241,7 @@ every theme. Tabs ข้อมูล / เอกสาร / ใบงาน (+ �
 (`openNewJobForWorker`) the main button. Accounting (Account Manager = finance without ops): panel opens on the การเงิน tab
 (jobs with bill status, awaiting-bill estimate `jobBillEstimate`, owing invoices, employer credit, billing note), personal
 details are hidden, footer = ออกบิล / ออกบิลรวม / รับเงิน / เปิดแฟ้ม. Billing table rows: double-click opens the bill
-(`openStoredInvoice`) or, for unbilled / no-charge jobs, the job summary.
+(`openStoredInvoice`) or, for unbilled / no-charge jobs, the job summary. Jobs page: double-clicking a job row or Kanban card opens the job summary (`openJobQuickView`) — it used to open the worker folder.
 Right-click on any element with `data-ctx="worker:<id>"` / `"job:<id>"` / `"invoice:<id>"` (worker rows, job rows, Kanban
 cards, billing rows) opens `openCtxMenu` (a fixed `.fv-menu.ctx-menu`) with items from `workerCtxItems` / `jobCtxItems` /
 `invoiceCtxItems`, filtered by permission (finance items: view money, issue/combine bill, receive money, no-charge, copy

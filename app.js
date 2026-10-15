@@ -7137,9 +7137,8 @@ function renderJobs() {
             }).join('')}</div>`
             : '';
 
-        const rowClickAttrs = work
-            ? `class="clickable-row" ondblclick="handleRowDblClick(event) && openWorkerFolderModal('${work.id}')" title="ดับเบิลคลิกเพื่อดูข้อมูลคนงาน / แนบเอกสารเพิ่มเติม"`
-            : '';
+        // ดับเบิลคลิกแถว = สรุปใบงาน (owner 2026-10-15) — แฟ้มคนงานเปิดจากปุ่มในสรุปใบงาน / คลิกขวา
+        const rowClickAttrs = `class="clickable-row" ondblclick="handleRowDblClick(event) && openJobQuickView('${j.id}')" title="ดับเบิลคลิกเพื่อดูสรุปใบงาน • คลิกขวาเพื่อดูคำสั่ง"`;
 
         return `
             <tr ${rowClickAttrs} data-ctx="job:${j.id}">
@@ -15753,7 +15752,7 @@ function renderJobsKanban(filtered) {
                 : '';
 
             container.innerHTML += `
-                <div class="kanban-card${isClosedUnpaid ? ' is-closed-unpaid' : ''}" data-ctx="job:${j.id}" draggable="true" ondragstart="onKanbanDragStart(event, '${j.id}')">
+                <div class="kanban-card${isClosedUnpaid ? ' is-closed-unpaid' : ''}" data-ctx="job:${j.id}" draggable="true" ondragstart="onKanbanDragStart(event, '${j.id}')" ondblclick="handleRowDblClick(event) && openJobQuickView('${j.id}')" title="ดับเบิลคลิกเพื่อดูสรุปใบงาน • ลากเพื่อเปลี่ยนสถานะ • คลิกขวาเพื่อดูคำสั่ง">
                     <div class="kc-top">
                         <span class="kc-no">${getJobDisplayNo(j)}</span>
                         <span class="badge badge-sm ${badgeClass} kc-badge">${cleanJobType}</span>
