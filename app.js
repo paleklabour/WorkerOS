@@ -9767,13 +9767,28 @@ document.addEventListener('DOMContentLoaded', () => {
             renderCalendarNotes(); // ไฮไลต์ช่วงวันที่ลากอยู่ (.is-dragsel)
         }
     });
+    // คลิกเดียว = เลือกวัน (แผงข้างแสดงโน้ตของวันนั้น), ดับเบิลคลิก = หน้าต่างเพิ่มโน้ต, ลากหลายวัน = หน้าต่างโน้ตหลายวัน
+    // (owner 2026-10-15) — นับดับเบิลคลิกเอง: คลิกแรกวาดปฏิทินใหม่ ปุ่มวันถูกแทนที่ เหตุการณ์ dblclick ของเบราว์เซอร์จึงไม่แน่นอน
+    let lastTap = { k: null, t: 0 };
     const finish = e => {
         if (!calDrag) return;
         const d = calDrag;
         calDrag = null;
         if (e.type === 'pointercancel') { renderCalendarNotes(); return; }
-        const [s, t] = d.a <= d.b ? [d.a, d.b] : [d.b, d.a];
-        openCalendarNoteModal(s, t);
+        if (d.moved) {
+            lastTap = { k: null, t: 0 };
+            const [s, t] = d.a <= d.b ? [d.a, d.b] : [d.b, d.a];
+            openCalendarNoteModal(s, t);
+            return;
+        }
+        const now = Date.now();
+        if (lastTap.k === d.a && now - lastTap.t < 400) {
+            lastTap = { k: null, t: 0 };
+            openCalendarNoteModal(d.a, d.a);
+        } else {
+            lastTap = { k: d.a, t: now };
+            selectCalendarDay(d.a);
+        }
     };
     grid.addEventListener('pointerup', finish);
     grid.addEventListener('pointercancel', finish);

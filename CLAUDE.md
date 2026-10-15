@@ -275,7 +275,7 @@ max 93 days, `calendarNoteList` = real rows, `calendarNotes` = per-day index bui
 table `calendar_notes` with `is_internal()` RLS
 (`user_id` = who wrote it, `updated_by` set by trigger — migration `20261014030000_team_calendar_notes.sql`),
 loaded in the background right after `loadData` succeeds, on opening the page and on tab refocus (`loadCalendarNotes`).
-Adding/editing a note is a pop-up (`#cal-note-modal`, owner 2026-10-15): click a day, or press and drag across days for a
+Adding/editing a note is a pop-up (`#cal-note-modal`, owner 2026-10-15): double-click a day (single click only selects it and shows its notes in the side panel; double-click is counted in the pointerup handler, 400 ms), or press and drag across days for a
 multi-day note (`calDrag`, pointer events on `#cal-grid`, range highlighted `.is-dragsel`), or "+ เพิ่มโน้ต" in the side
 panel; the mouse wheel over the calendar changes month (accumulated delta, 260 ms lock).
 The bell warns every internal user 2 days ahead (owner, 2026-10-14): group `calnote` = notes dated today / tomorrow /
