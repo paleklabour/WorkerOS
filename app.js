@@ -13933,6 +13933,13 @@ function onWorkerFileDragStart(e, docType, idx) {
 
 function onWorkerFileDragOver(e) {
     e.preventDefault();
+    // ลากไฟล์ในรายการไปบนหมวดอื่น → กรอบเส้นประที่หมวดนั้น (ลากไฟล์จากเครื่องใช้ fvFileDrag แทน)
+    if (fvFileDrag(e) || !can('ops')) return;
+    const tile = e.target.closest && e.target.closest('#worker-folder-files-list [data-paste-target]');
+    document.querySelectorAll('#worker-folder-files-list .dragover').forEach(el => { if (el !== tile) el.classList.remove('dragover'); });
+    if (tile) tile.classList.add('dragover');
+    clearTimeout(fvDropTimer);
+    fvDropTimer = setTimeout(fvClearFileDrag, 200);
 }
 
 async function onWorkerFileDropToExpired(e) {
@@ -13942,7 +13949,54 @@ async function onWorkerFileDropToExpired(e) {
 
 async function onWorkerFileDropToCurrent(e) {
     e.preventDefault();
+    fvClearFileDrag();
+    // วางบนหมวดอื่น (กลุ่ม / ปุ่ม + / แคปซูล "+ หมวด") = ย้ายไฟล์ข้ามหมวด (owner 2026-10-18)
+    const tile = e.target.closest && e.target.closest('#worker-folder-files-list [data-paste-target]');
+    const [kind, toType] = tile ? tile.dataset.pasteTarget.split(':') : [];
+    if (kind === 'worker-folder' && toType) {
+        let payload = null;
+        try { payload = JSON.parse(e.dataTransfer.getData("text/plain") || 'null'); } catch (err) { return; }
+        if (payload && payload.docType && payload.docType !== toType && typeof payload.idx === 'number') {
+            await moveWorkerFileToDocType(payload.docType, payload.idx, toType);
+            return;
+        }
+    }
     await moveWorkerFileExpiryState(e, false);
+}
+
+// ย้ายไฟล์ไปหมวดเอกสารอื่น — ไฟล์ใน Storage ไม่ต้องอัปโหลดใหม่ (ลิงก์เดิม) แค่ย้ายรายการ + ตั้งชื่อเป็นตัวย่อของหมวดใหม่
+async function moveWorkerFileToDocType(fromType, idx, toType) {
+    if (!can('ops')) return;
+    const w = workers.find(item => item.id === activeFolderWorkerId);
+    if (!w) return;
+    const fromList = getAttachments(w, fromType);
+    const fItem = fromList[idx];
+    if (!fItem) return;
+    const toList = getAttachments(w, toType);
+    const before = { attachments: { ...(w.attachments || {}) }, item: { ...fItem } };
+
+    const m = String(fItem.name || '').match(/\.[A-Za-z0-9]{1,5}$/);
+    const ext = m ? m[0] : extFromDataUrl(String(fItem.data || ''));
+    const moved = { ...fItem, name: uniqueWorkerDocName(toList, workerDocFileName('', '', '', toType, '', ext, fItem.name)) };
+    delete moved.manualExpired; // หมวดใหม่ใช้ตรรกะหมดอายุอัตโนมัติ (วางในรายการปัจจุบัน)
+
+    w.attachments = { ...(w.attachments || {}) };
+    w.attachments[fromType] = fromList.filter((_, i) => i !== idx);
+    w.attachments[toType] = [...toList, moved];
+    activeFolderSel = { kind: 'file', key: toType, idx: w.attachments[toType].length - 1 };
+    renderWorkerFolderTiles();
+
+    const toLabel = (WORKER_FOLDER_DOC_TYPES.find(t => t.key === toType) || {}).label || toType;
+    const res = await callCloudAPI("saveWorker", { workerData: w });
+    if (!res || res.status === "error") {
+        w.attachments = before.attachments;
+        activeFolderSel = { kind: 'file', key: fromType, idx };
+        renderWorkerFolderTiles();
+        showToast("❌ ย้ายไฟล์ไม่สำเร็จ: " + (res && res.message ? res.message : "ยังไม่ถูกบันทึกลงคลาวด์ กรุณาลองใหม่"), "danger");
+        return;
+    }
+    saveData();
+    showToast(`📂 ย้าย "${before.item.name || '-'}" ไปหมวด ${toLabel} แล้ว (ชื่อใหม่ ${moved.name})`, "success");
 }
 
 async function moveWorkerFileExpiryState(e, markExpired) {

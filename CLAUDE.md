@@ -162,6 +162,9 @@ Owner's rules (2026-10-09):
   "คัดลอกลิงก์เปิดแฟ้มนี้" (localhost link) was removed — "ลิงก์แชร์ทั้งโฟลเดอร์" is the folder link.
   Files dragged in from the computer drop onto a doc group / its + / an empty "+ type" chip (each carries
   `data-paste-target`, same as Ctrl+V); groups get a dashed outline while dragging (`fvFileDrag`, `.is-file-drag`).
+  Worker folder files can be dragged onto another doc group / its + / an empty "+ type" chip to move them to that
+  type (owner 2026-10-18, `moveWorkerFileToDocType`): same Storage link, renamed to the new type's code
+  (`workerDocFileName` + `uniqueWorkerDocName`), no AI. Dropping elsewhere in the list still means "not expired".
 
 ## Search-to-select fields (standing rule)
 
