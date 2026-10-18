@@ -6711,6 +6711,15 @@ body.has-camera .upload-hint { display: none; }
 .cp-workers-table .cw-status { width: 9%; }
 .cp-workers-table .cw-note { width: 11%; }
 .cp-workers-table .cw-act { width: 13%; }
+/* พอร์ทัลนายจ้าง > งานที่แจ้ง — แต่ละกลุ่มสถานะเป็นตารางแยก ความกว้างคอลัมน์ตายตัวให้ตรงกันทุกกลุ่ม (renderClientJobsTab) */
+.cp-jobs-table { table-layout: fixed; width: 100%; min-width: 900px; }
+.cp-jobs-table td, .cp-jobs-table th { overflow-wrap: anywhere; }
+.cp-jobs-table .cj-no { width: 14%; }
+.cp-jobs-table .cj-type { width: 20%; }
+.cp-jobs-table .cj-worker { width: 20%; }
+.cp-jobs-table .cj-date { width: 12%; }
+.cp-jobs-table .cj-status { width: 14%; }
+.cp-jobs-table .cj-docs { width: 20%; }
 .cp-worker-actions { display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
 .cp-badge-archived { background-color: #64748b; color: #ffffff; }
 
@@ -7262,7 +7271,8 @@ html.is-resizing *, html.is-resizing *::before, html.is-resizing *::after { tran
 /* บิลฝั่งลูกค้า (client): เห็นแค่ตัวบิล ไม่โชว์แผงใต้บิล — renderInvoiceStatusUi() ใส่ .is-client-view (owner, 2026-10-14) */
 #invoice-modal.is-client-view #invoice-internal-split,
 #invoice-modal.is-client-view #invoice-payments-panel,
-#invoice-modal.is-client-view #invoice-footer-status {
+#invoice-modal.is-client-view #invoice-footer-status,
+#invoice-modal.is-client-view .inv-gov-col { /* คอลัมน์ "ค่าธรรมเนียมรัฐ (ภายใน)" — ลูกค้าต้องไม่เห็น (owner 2026-10-15) */
     display: none !important;
 }
 

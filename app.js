@@ -1677,7 +1677,8 @@ function renderClientJobsTab(list) {
                 <span class="cp-worker-group-meta">${groups[s].length} งาน</span>
             </div>
             <div class="panel-content" style="padding: 0; overflow-x: auto;">
-                <table class="data-table" style="box-shadow: none; border: none; border-radius: 0;">
+                <table class="data-table cp-jobs-table" style="box-shadow: none; border: none; border-radius: 0;">
+                    <colgroup><col class="cj-no"><col class="cj-type"><col class="cj-worker"><col class="cj-date"><col class="cj-status"><col class="cj-docs"></colgroup>
                     <thead><tr><th>เลขที่แจ้งงาน</th><th>ประเภทงาน</th><th>คนงาน</th><th>วันที่แจ้ง</th><th>สถานะ</th><th>เอกสารปิดงาน</th></tr></thead>
                     <tbody>${groups[s].map(row).join('')}</tbody>
                 </table>
