@@ -70,6 +70,9 @@
         // หมายเหตุสั้น ≤ 20 ตัวอักษร (20261006140000_job_remark.sql)
         remark: "remark", tag: "tag", openedAt: "opened_at"
     };
+    // ช่องการเงินของใบงาน — saveJob เขียนลงแถวที่มีอยู่แล้วเฉพาะเมื่อส่ง { billing: true } มา
+    const JOB_BILLING_COLS = ["invoice_id", "payment_status", "payment_method", "paid_at", "paid_by", "fee", "gov_fee",
+        "commission_amount", "commission_paid_at", "commission_expense_id", "no_charge_reason", "no_charge_by", "no_charge_at"];
     const AGENT_MAP = { id: "id", name: "name", phone: "phone", createdAt: "created_at", defaultCommission: "default_commission" };
     const EXPENSE_MAP = {
         id: "id", expenseDate: "expense_date", category: "category", amount: "amount",
@@ -813,6 +816,10 @@
                 // (พบกับ INV-2569-0004, 2026-10-06) — ไม่เจอแถว (ใบงานใหม่) ค่อย upsert ตามเดิม
                 const row = toRow(payload.jobData, JOB_MAP);
                 if (row.id) {
+                    // ช่องการเงินของใบงานที่มีอยู่แล้ว เขียนได้เฉพาะงานบัญชี (payload.billing: ออกบิล/แก้บิล/รับเงิน/ยกเลิกบิล/
+                    // ไม่เรียกเก็บเงิน/ปรับราคามาตรฐาน/จ่ายค่าคอม) — ที่อื่นส่งใบงานทั้งก้อน หน้าเว็บที่ค้างข้อมูลเก่าจึงเขียนทับบิลได้
+                    // (2026-10-19: ใบงาน LOR CHAN ใน INV-2569-0010 กลับเป็น "ยังไม่ออกบิล" ค่าบริการ 0)
+                    if (!payload.billing) JOB_BILLING_COLS.forEach(c => delete row[c]);
                     const { data: upd, error: updErr } = await sb.from("jobs").update(row).eq("id", row.id).select();
                     if (updErr) return { status: "error", message: updErr.message };
                     if (upd && upd.length) return { status: "success", data: toCamel(upd[0], JOB_MAP) };

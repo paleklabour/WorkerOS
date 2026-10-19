@@ -459,6 +459,13 @@ only where the full list is truly needed (localStorage cache, backup, the
 employer's own worker counts). Call `applyInactiveEmployers()` after changing
 any customer's status.
 
+Job billing columns are written only by billing code (2026-10-19): `saveJob` in `supabase-client.js` drops
+`JOB_BILLING_COLS` (invoice_id, payment_status/method, paid_at/by, fee, gov_fee, commission_*, no_charge_*) when updating an
+existing job unless the call passes `{ jobData, billing: true }`. Many paths save the whole job object (remark, Kanban move,
+docs…), so a page holding pre-bill data used to reset a billed job to "ยังไม่ออกบิล" / fee 0 (LOR CHAN, INV-2569-0010).
+Any new code that issues/edits/voids bills, receives money, sets no-charge, changes prices or pays commission must pass
+`billing: true`. New jobs (insert) keep every column.
+
 ## No-charge jobs (2026-10-06)
 
 A job the company deliberately doesn't bill gets `payment_status` =

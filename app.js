@@ -10637,7 +10637,7 @@ async function issueCurrentInvoice() {
             j.paymentStatus = 'ออกบิลแล้ว';
             if (j.noChargeAt) { j.noChargeReason = null; j.noChargeBy = null; j.noChargeAt = null; }
             j.updatedAt = localDateISO(new Date());
-            const r = await callCloudAPI("saveJob", { jobData: j });
+            const r = await callCloudAPI("saveJob", { jobData: j, billing: true });
             if (!r || r.status === "error") { Object.assign(j, prev); failCount++; }
         }
 
@@ -11307,7 +11307,7 @@ async function saveInvoiceFeeEdits() {
         j.jobType = jobUpdates[jobId].typeSegments.map(s => `${s.serviceName} (${Math.round(s.price)})`).join(', ');
         j.govFee = round2(jobUpdates[jobId].govTotal);
         j.updatedAt = localDateISO(new Date());
-        const r = await callCloudAPI("saveJob", { jobData: j });
+        const r = await callCloudAPI("saveJob", { jobData: j, billing: true });
         if (!r || r.status === "error") { Object.assign(j, before); failCount++; }
     }
 
@@ -16082,7 +16082,7 @@ async function markJobNoCharge(jobId) {
     j.noChargeBy = currentUser.id || null;
     j.noChargeAt = new Date().toISOString();
     j.updatedAt = localDateISO(new Date());
-    const r = await callCloudAPI("saveJob", { jobData: j });
+    const r = await callCloudAPI("saveJob", { jobData: j, billing: true });
     if (!r || r.status === "error") {
         Object.assign(j, before);
         showToast(`บันทึกไม่สำเร็จ: ${(r && r.message) || 'เชื่อมต่อไม่ได้'}`, "danger");
@@ -16107,7 +16107,7 @@ async function unmarkJobNoCharge(jobId) {
     j.noChargeBy = null;
     j.noChargeAt = null;
     j.updatedAt = localDateISO(new Date());
-    const r = await callCloudAPI("saveJob", { jobData: j });
+    const r = await callCloudAPI("saveJob", { jobData: j, billing: true });
     if (!r || r.status === "error") {
         Object.assign(j, before);
         showToast(`บันทึกไม่สำเร็จ: ${(r && r.message) || 'เชื่อมต่อไม่ได้'}`, "danger");
@@ -16603,7 +16603,7 @@ async function syncJobsWithInvoice(inv) {
         const changed = ['invoiceId', 'paymentStatus', 'paidAt', 'paidBy', 'paymentMethod'].some(k => (before[k] || null) !== (j[k] || null));
         if (!changed) continue;
         j.updatedAt = localDateISO(new Date());
-        const r = await callCloudAPI("saveJob", { jobData: j });
+        const r = await callCloudAPI("saveJob", { jobData: j, billing: true });
         if (!r || r.status === "error") { Object.assign(j, before); failCount++; }
     }
     return failCount;
@@ -17786,7 +17786,7 @@ async function confirmCommissionPayout() {
             job.commissionAmount = amount;
             job.commissionPaidAt = new Date(`${payDate}T12:00:00`).toISOString();
             job.commissionExpenseId = expense.id;
-            const r = await callCloudAPI("saveJob", { jobData: job });
+            const r = await callCloudAPI("saveJob", { jobData: job, billing: true });
             if (!r || r.status === "error") { Object.assign(job, before); failCount++; }
         }
         saveData();
@@ -18023,7 +18023,7 @@ async function syncUnbilledJobsToServicePrice(jobType, oldPrice, newPrice) {
         j.jobType = items.map(it => `${it.name} (${Math.round(it.price)})`).join(', ');
         j.govFee = Math.max(0, round2((j.govFee || 0) + hits.length * ((newPrice.govFee || 0) - (oldPrice.govFee || 0))));
         j.updatedAt = localDateISO(new Date());
-        const r = await callCloudAPI("saveJob", { jobData: j });
+        const r = await callCloudAPI("saveJob", { jobData: j, billing: true });
         if (!r || r.status === "error") { Object.assign(j, prev); continue; }
         count++;
     }
