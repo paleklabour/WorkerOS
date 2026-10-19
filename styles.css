@@ -6743,7 +6743,7 @@ body.has-camera .upload-hint { display: none; }
 .ui-dialog-wide .ui-dialog-icon { display: none; } /* หน้าต่างดูข้อมูล ไม่ใช่คำเตือน — ไม่ต้องมีไอคอนเตือน */
 
 /* ระบบจัดการแจ้งงาน: อีเมลใต้ชื่อคนงาน + ช่องหมายเหตุสั้น ≤ 20 ตัวอักษร (saveJobRemark) */
-.job-worker-email { font-size: 13px; color: var(--text-muted); margin-top: 2px; overflow-wrap: anywhere; }
+.job-worker-email { font-size: 13px; color: var(--text-muted); margin-top: 2px; white-space: nowrap; }
 .job-remark-input {
     width: 100%;
     min-width: 120px;
