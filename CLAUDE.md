@@ -418,8 +418,9 @@ removed from WorkerOS move to `ถูกลบ/`). Supabase stays the source of 
 Every internal role (Admin, Account/Operation Manager, Staff — `can('driveView')`, RLS `is_internal()`, owner 2026-10-14; not clients) sees "เปิดใน Google Drive" in the worker/customer folder's "แชร์" menu (only there — the duplicate in
 the preview bar's ••• menu was removed 2026-10-15) once that folder has been backed up — it opens the whole
 worker/employer Drive folder (`updateFolderDriveButton` / `driveFolderLink`).
-Incremental, tracked in `drive_backup_files` / `drive_backup_folders`, runs hourly
-via pg_cron (`20261008090100_drive_backup_cron.sql`, apply only after the function
+Incremental, tracked in `drive_backup_files` / `drive_backup_folders`, runs every 3 min
+via pg_cron (job `drive-backup-hourly`, `*/3 * * * *` since 2026-10-19 so job-close files reach the customer's Drive
+within minutes; never closer than 3 min — a run takes ~2 min and has no lock; `20261008090100_drive_backup_cron.sql`, apply only after the function
 and its secrets exist). Customer folders are shared read-only to `customers.email`
 when `customers.drive_share` is ticked. Needs secrets GOOGLE_CLIENT_ID /
 GOOGLE_CLIENT_SECRET / GOOGLE_REFRESH_TOKEN (scope `drive.file`, OAuth app
