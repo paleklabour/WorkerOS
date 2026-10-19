@@ -5,6 +5,7 @@
 //   WorkerOS Backup/
 //   ├─ นายจ้าง/<ชื่อบริษัท (เลขนิติบุคคล)>/00 เอกสารนายจ้าง/<วันที่_ประเภท_เลขนิติบุคคล>.pdf
 //   │                                  └─ คนงาน/<เลข13หลัก_ชื่อ>/<ชื่อไฟล์ตามในระบบ เช่น WP.pdf, PinkCard_2.jpg>  (ไม่แยกโฟลเดอร์ประเภท)
+//   │                                       └─ ใบงาน <วันที่เปิดงาน> <ประเภทงาน + …>/  (เอกสารปิดงาน + ใบนัดหมาย, 1 โฟลเดอร์ต่อการเปิดงาน 1 ครั้ง)
 //   ├─ การเงิน/สลิปรับเงิน/<ปี-เดือน>/  และ  การเงิน/สลิปรายจ่าย/<ปี-เดือน>/
 //   ├─ ข้อมูลระบบ/<วันที่>_ข้อมูลทั้งระบบ.json  (วันละไฟล์ เก็บ 30 วัน)
 //   └─ ถูกลบ/  (ไฟล์ที่ลบออกจากระบบแล้ว ย้ายมาไว้ที่นี่ ไม่ลบทิ้ง)
@@ -271,11 +272,27 @@ async function runBackup(sb: SupabaseClient, trigger: string) {
     });
   });
 
-  // เอกสารใบงาน (ใบนัดหมาย / เอกสารปิดงาน) → โฟลเดอร์คนงาน ใส่เลขใบงานในชื่อไฟล์
+  // เอกสารใบงาน (ใบนัดหมาย / เอกสารปิดงาน) → โฟลเดอร์ย่อยในโฟลเดอร์คนงาน 1 โฟลเดอร์ต่อการเปิดงาน 1 ครั้ง (owner 2026-10-19)
+  // เปิดงานครั้งเดียวหลายประเภท (batch_id เดียวกัน) = โฟลเดอร์เดียว, เปิดงานครั้งใหม่ = โฟลเดอร์ใหม่
+  // ชื่อ "ใบงาน <วันที่เปิดงาน> <ประเภทงาน + …>" (ตัดราคาในวงเล็บออก) — ไฟล์เดิมที่อยู่ในโฟลเดอร์คนงานถูกย้ายเข้าโฟลเดอร์ย่อยเอง
+  const jobSetKey = (j: any) => `jobset:${j.worker_id}:${j.batch_id || j.id}`;
+  const jobSets = new Map<string, any[]>();
+  jobs.forEach((j) => { const k = jobSetKey(j); jobSets.set(k, [...(jobSets.get(k) || []), j]); });
+  const jobSetFolder = (j: any, workerKey: string) => {
+    const key = jobSetKey(j);
+    if (!folders.has(key)) {
+      const set = jobSets.get(key) || [j];
+      const opened = set.map((x) => x.opened_at || x.created_at).filter(Boolean).sort()[0];
+      const date = opened ? bkkDate(new Date(opened)) : "";
+      const types = [...new Set(set.map((x) => String(x.job_type || "").replace(/\s*\(\d+(?:\.\d+)?\)/g, "").trim()).filter(Boolean))];
+      addFolder(key, `ใบงาน ${date} ${types.join(" + ")}`.slice(0, 150), workerKey);
+    }
+    return key;
+  };
   jobs.forEach((j) => {
     const w = workerById.get(j.worker_id);
     if (!w || w.status === "deleted") return;
-    const fk = workerFolder(w);
+    const fk = jobSetFolder(j, workerFolder(w));
     if (j.appointment_doc_url) {
       const p = storagePath(j.appointment_doc_url);
       if (p) want(j.appointment_doc_url, fk, `${dateFromPath(p)}_ใบนัดหมาย_${jobNo(j)}_${workerTag(w)}`);

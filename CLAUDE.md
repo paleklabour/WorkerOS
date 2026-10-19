@@ -413,7 +413,7 @@ New uploads shrink automatically too: `uploadDocumentFile` runs `autoShrinkDataU
 tables one-way into the owner's personal Gmail Drive (`WorkerOS Backup/นายจ้าง/
 <company (tax id)>/คนงาน/<uid_name>/` — files are not split by doc type; worker and
 job-close files keep the same file name as in the app (`WP.pdf`, `PinkCard_2.jpg`,
-" (หมดอายุ)" added when expired), so renaming in the app renames in Drive (owner, 2026-10-12); `การเงิน/` slips by month; `ข้อมูลระบบ/` 30 days; files
+" (หมดอายุ)" added when expired), so renaming in the app renames in Drive (owner, 2026-10-12); job-close + appointment docs go in a subfolder of the worker folder, one per job opening (same `batch_id` = one folder "ใบงาน <date opened> <types + …>", a later opening = a new folder; owner 2026-10-19); `การเงิน/` slips by month; `ข้อมูลระบบ/` 30 days; files
 removed from WorkerOS move to `ถูกลบ/`). Supabase stays the source of truth.
 Every internal role (Admin, Account/Operation Manager, Staff — `can('driveView')`, RLS `is_internal()`, owner 2026-10-14; not clients) sees "เปิดใน Google Drive" in the worker/customer folder's "แชร์" menu (only there — the duplicate in
 the preview bar's ••• menu was removed 2026-10-15) once that folder has been backed up — it opens the whole
