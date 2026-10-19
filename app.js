@@ -2189,6 +2189,7 @@ document.addEventListener('mousedown', e => {
     const host = e.target.closest && e.target.closest('.clickable-row[ondblclick], .kanban-card[ondblclick]');
     if (!host || e.target.closest("button, a, input, select, textarea, label")) return;
     e.preventDefault();
+    clearTimeout(workerPanelCloseTimer); // คลิกแรกตั้งเวลาปิดแผงไว้ — นี่คือดับเบิลคลิก (เปลี่ยนไปดูอีกคน) ไม่ต้องปิด
     host._fastOpenAt = 0;
     host.ondblclick.call(host, e);
     host._fastOpenAt = performance.now();
@@ -3117,7 +3118,10 @@ document.addEventListener('click', e => {
     if (!workerPanelOpen() || !e.target.isConnected || (e.target.closest && e.target.closest(WORKER_PANEL_KEEP_SEL))) return;
     if (document.querySelector('.modal-backdrop:not(.hidden), .ui-dialog-backdrop:not(.hidden)')) return;
     clearTimeout(workerPanelCloseTimer);
-    workerPanelCloseTimer = setTimeout(closeWorkerQuickView, 260);
+    // ปิดทันที (owner 2026-10-19: ปิดช้า) — ยกเว้นคลิกแถวที่ดับเบิลคลิกเปิดได้ รอคลิกที่สองสั้น ๆ (เปิดตอนกดเมาส์ลงครั้งที่สองจะยกเลิกการปิด)
+    if (e.target.closest && e.target.closest('.clickable-row[ondblclick], .kanban-card[ondblclick]')) {
+        workerPanelCloseTimer = setTimeout(closeWorkerQuickView, 200);
+    } else closeWorkerQuickView();
 });
 document.addEventListener('dblclick', () => clearTimeout(workerPanelCloseTimer));
 
