@@ -1496,6 +1496,7 @@ function openClientWorkerView(workerId) {
         { label: 'เลขกรมธรรม์ประกัน', value: w.insuranceNo },
         { label: 'สถานะ', value: WORKER_STATUS_LABELS[w.status] || w.status },
         { label: 'โน้ตถึงเจ้าหน้าที่', value: w.clientNote },
+        ...clientWorkerHistoryRows(w),
     ];
     // ตัดช่องว่าง และหัวข้อที่ไม่มีข้อมูลใต้หัวข้อนั้นเลย
     const summary = [];
@@ -1513,6 +1514,37 @@ function openClientWorkerView(workerId) {
         card: { image: w.photo || '', imageIcon: 'user', title: workerFullName(w), subtitle: [w.nationality, w.workerUid].filter(Boolean).join(' • '), rows: [] },
         summary
     });
+}
+
+// ประวัติงานและค่าบริการของคนงานคนนี้ (owner 2026-10-19) — เฉพาะสิ่งที่นายจ้างเห็นอยู่แล้วในแท็บใบงาน/บิล:
+// ค่าบริการตามบิล (ยังไม่ออกบิล = ไม่แสดงยอด ราคาประมาณเป็นข้อมูลภายใน), ไม่มีต้นทุน/ค่าคอม/ค่าธรรมเนียมรัฐแยก
+// ยอดค้างนับต่อใบงาน (ใบงานในบิลที่ยังชำระไม่ครบ) จึงไม่ปนยอดของคนงานอื่นในบิลรวม
+function clientWorkerHistoryRows(w) {
+    const custId = clientCustomerId();
+    const list = jobs.filter(j => j.workerId === w.id && j.customerId === custId)
+        .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+    if (!list.length) return [];
+    let billed = 0, paid = 0;
+    const rows = list.map(j => {
+        const inv = getJobInvoice(j);
+        let money;
+        if (isJobNoCharge(j)) money = 'ไม่เรียกเก็บเงิน';
+        else if (inv) {
+            const fee = Number(j.fee || 0);
+            const isPaid = inv.status === 'paid' || invoiceBalance(inv) <= 0;
+            billed += fee;
+            if (isPaid) paid += fee;
+            money = `${fmtMoney(fee)} บาท • ${inv.invoiceNo} • ${isPaid ? 'ชำระแล้ว' : 'ค้างชำระ'}`;
+        } else money = 'ยังไม่ออกบิล';
+        const when = formatThaiDate(String(j.createdAt || j.updatedAt || '').slice(0, 10));
+        return { label: `${getCleanJobTypeName(j.jobType)} (${getJobDisplayNo(j)})`, value: `${when} • ${j.status || '-'} • ${money}` };
+    });
+    const totals = billed > 0 ? [
+        { label: 'ค่าบริการที่ออกบิลแล้วรวม', value: `${fmtMoney(round2(billed))} บาท` },
+        { label: 'ชำระแล้ว', value: `${fmtMoney(round2(paid))} บาท` },
+        { label: 'ยังค้างชำระ', value: `${fmtMoney(round2(billed - paid))} บาท` },
+    ] : [];
+    return [{ heading: 'ประวัติงานและค่าบริการ' }, ...totals, ...rows];
 }
 
 // แท็บ "คนงานของฉัน" — ตารางแบบเดียวกับหน้าข้อมูลคนงานต่างด้าว (รูป, เลขคนงาน/บัตร, พาสปอร์ต, วันหมดอายุ, สถานะเอกสาร)

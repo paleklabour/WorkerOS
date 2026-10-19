@@ -449,6 +449,10 @@ snapshot). No prior git history existed. Restructured 2026-08-17 to version
 schema via `supabase/migrations/` and isolate the legacy GAS backend under
 `legacy/`, ahead of setting up GitHub + GitHub Pages.
 
+Client portal worker pop-up (`openClientWorkerView`, owner 2026-10-19) adds "ประวัติงานและค่าบริการ" (`clientWorkerHistoryRows`):
+that worker's jobs with date / status / billed fee + bill no + paid or owing, and totals billed / paid / owing counted per job
+(not the whole combined bill). Unbilled jobs show no amount (estimates are internal); never show costs, commissions or expenses.
+
 ## Inactive employers (2026-10-05)
 
 Admin can deactivate an employer (`customers.status` = `active`/`inactive`,
