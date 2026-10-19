@@ -225,8 +225,9 @@ change permissions only in `PERMS` in `app.js` and check with `can('…')` /
 `is_internal()` / `can_finance()` / `can_ops()` (migration
 `20261002042034_roles_gm_am_om_staff.sql`) — update both sides together.
 The bell is per role (`buildNotificationGroups`); clicking a job item opens a read-only job summary pop-up
-(`openJobQuickView`, same look as the wide "ตรวจสอบข้อมูลก่อนบันทึก" dialog — worker card + column sections via
-`fillUiDialogCard`/`fillUiDialogSummary`, but inside a `.modal-backdrop` so other windows can stack on it; details + buttons by permission — open worker folder / bill / close job / edit), other items open the
+(`openJobQuickView`, iOS grouped-list style — owner picked design #3 on 2026-10-19: centered head with job no / type /
+status pill, worker card (click = open worker folder), grouped rows label-left value-right (`.jq-*` in `styles.css`),
+inside a `.modal-backdrop` so other windows can stack on it; buttons by permission — edit / close job / bill), other items open the
 thing to act on (bill, receipt, commission payout, calendar day); clicking a group header opens that page filtered to just
 that group's items (`openBellGroup` → `bellFilter`, bar "แสดงทั้งหมด" clears it; leaving the page clears it too). Dismissed
 ids use `legacyAction` so earlier dismissals survive (owner 2026-10-15). Pop-ups stack: opening a window from another
@@ -237,7 +238,9 @@ must not alert anyone, and neither do expiring/expired worker documents — no b
 Worker side panel + right-click menu (owner 2026-10-15, picked design #3 "แผงเลื่อนออกด้านขวา" with a dark header):
 double-clicking a worker row (workers table, renewal tab, missing-docs) slides in a read-only panel from the right
 (`openWorkerQuickView(id, mode, tab)`, `<aside id="worker-quick-modal" class="worker-panel">`, open = `.is-open`) — not the
-edit form (that opens from "แก้ไขข้อมูล"). It is NOT a `.modal-backdrop`: the table stays usable, double-clicking another row
+edit form (that opens from "แก้ไขข้อมูล"). Double-click on any `.clickable-row` / `.kanban-card` opens on the second
+mouse-down (`mousedown` with `detail === 2` runs the row's `ondblclick`; `handleRowDblClick` skips the dblclick that follows),
+and the panel slides in over 0.22 s (owner 2026-10-19: wanted it faster). It is NOT a `.modal-backdrop`: the table stays usable, double-clicking another row
 switches the panel, windows opened from it stack above (panel z 950 < modals 1000), it re-renders when such a window
 closes, and `switchView` / Esc / ✕ / a click outside it close it (outside click waits 260 ms so a double-click on another row switches instead). Header colour = `color-mix(var(--gold-primary) 55%, #0b1020)` so it is dark in
 every theme. Tabs ข้อมูล / เอกสาร / ใบงาน (+ การเงิน for `can('finance')`). `mode 'renewal'` makes "ใบงานใหม่"

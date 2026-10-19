@@ -7920,12 +7920,90 @@ html:has(.ui-dialog-backdrop) { overflow: hidden; }
 .search-clear-btn .ico { width: 14px; height: 14px; }
 .search-box .search-clear-btn svg { position: static; transform: none; } /* .search-box svg (ไอคอนแว่นขยาย) ถูกจัดตำแหน่งไว้ซ้าย — ไม่ให้กระทบไอคอน ✕ */
 
-/* หน้าต่างสรุปใบงาน (openJobQuickView — กดรายการใบงานในกระดิ่ง, owner 2026-10-15) */
-/* ใช้ ui-dialog แบบกว้างเดียวกับ "ตรวจสอบข้อมูลก่อนบันทึก" — อยู่ใน .modal-backdrop จึงซ้อนหน้าต่างอื่นด้านบนได้ */
-.ui-dialog.job-quick-dialog { position: relative; overflow-y: auto; width: min(980px, calc(100vw - 32px)); max-width: none; }
-.job-quick-close { position: absolute; top: 14px; right: 14px; }
-.job-quick-foot { flex-direction: row; flex-wrap: wrap; justify-content: center; }
-.job-quick-foot .btn { flex: 0 1 auto; width: auto; min-width: 130px; }
+/* หน้าต่างสรุปใบงาน (openJobQuickView) — แบบรายการ iOS (owner เลือกแบบ 3, 2026-10-19)
+   พื้นเทาแบบ grouped + กลุ่มแถวการ์ดมน ชื่อช่องซ้าย ค่าขวา เส้นคั่นบาง; อยู่ใน .modal-backdrop จึงซ้อนหน้าต่างอื่นด้านบนได้ */
+.jq-sheet {
+    position: relative;
+    width: min(460px, calc(100vw - 32px));
+    max-height: calc(100vh - 40px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 26px;
+    background-color: var(--gray-bg);
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.12), 0 24px 60px rgba(15, 23, 42, 0.28), 0 0 0 1px var(--dk-line, transparent);
+}
+.jq-close { position: absolute; top: 14px; right: 14px; z-index: 1; }
+.jq-head { padding: 24px 52px 14px; text-align: center; }
+.jq-no { font-size: 13px; font-weight: 600; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.jq-title { margin: 2px 0 8px; font-size: 20px; font-weight: 700; line-height: 1.3; color: var(--text-dark); overflow-wrap: anywhere; }
+.jq-pill {
+    display: inline-block;
+    padding: 3px 12px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    background-color: var(--dk-subtle, rgba(120, 120, 128, 0.12));
+}
+.jq-pill.is-ok { color: var(--dk-ok, #1f9254); background-color: var(--dk-ok-bg, #e5f5ed); }
+.jq-pill.is-warn { color: var(--dk-warn, #b45309); background-color: var(--dk-warn-bg, #fffbeb); }
+.jq-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; padding: 4px 16px 16px; }
+.jq-sec { margin: 16px 16px 6px; font-size: 13px; font-weight: 600; color: var(--text-muted); }
+.jq-group {
+    display: block;
+    width: 100%;
+    border-radius: 14px;
+    background-color: var(--dk-card, #ffffff);
+    overflow: hidden;
+}
+.jq-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    margin-left: 16px;
+    padding: 11px 16px 11px 0;
+    font-size: 14.5px;
+}
+.jq-row + .jq-row { border-top: 1px solid var(--dk-line, #e4e8ef); }
+.jq-row > span { flex-shrink: 0; color: var(--text-dark); }
+.jq-row > b { min-width: 0; font-weight: 500; color: var(--text-muted); text-align: right; overflow-wrap: anywhere; }
+.jq-row.is-block { flex-direction: column; gap: 4px; }
+.jq-row.is-block > b { text-align: left; white-space: pre-wrap; color: var(--text-dark); }
+.jq-worker {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border: none;
+    font: inherit;
+    text-align: left;
+    color: inherit;
+}
+button.jq-worker { cursor: pointer; }
+button.jq-worker:hover { background-color: var(--gold-light); }
+.jq-avatar {
+    position: relative;
+    width: 52px;
+    height: 52px;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    border-radius: 50%;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--gold-primary);
+    background-color: var(--gold-light);
+}
+.jq-avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.jq-worker-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.jq-worker-text b { font-size: 16px; font-weight: 600; color: var(--text-dark); overflow-wrap: anywhere; }
+.jq-worker-text small { font-size: 13px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.jq-chev { font-size: 24px; line-height: 1; color: var(--text-muted); }
+.jq-foot { display: flex; flex-wrap: wrap; gap: 10px; padding: 12px 16px 16px; border-top: 1px solid var(--dk-line, #e4e8ef); }
+.jq-foot .btn { flex: 1 1 0; min-width: 120px; justify-content: center; }
 
 /* แผงข้อมูลคนงานด้านขวา (openWorkerQuickView — owner เลือกแบบ 3 + หัวเข้ม 2026-10-15)
    ไม่ใช่ .modal-backdrop: ตาราง/หน้าเลื่อนได้ตามปกติ, หน้าต่างที่เปิดจากแผงอยู่บนสุด (แผง 950 < หน้าต่าง 1000)
@@ -7945,9 +8023,9 @@ html:has(.ui-dialog-backdrop) { overflow: hidden; }
     box-shadow: 0 2px 6px rgba(15, 23, 42, 0.12), 0 24px 60px rgba(15, 23, 42, 0.28), 0 0 0 1px var(--dk-line, #e4e8ef);
     transform: translateX(calc(100% + 24px));
     visibility: hidden;
-    transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1), visibility 0s linear 0.32s;
+    transition: transform 0.22s cubic-bezier(0.32, 0.72, 0, 1), visibility 0s linear 0.22s;
 }
-.worker-panel.is-open { transform: none; visibility: visible; transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1); }
+.worker-panel.is-open { transform: none; visibility: visible; transition: transform 0.22s cubic-bezier(0.32, 0.72, 0, 1); }
 @media (prefers-reduced-motion: reduce) { .worker-panel, .worker-panel.is-open { transition: none; } }
 
 .wp-head {
