@@ -3023,13 +3023,32 @@ function openWorkerQuickView(workerId, mode, tab) {
                 <span class="wp-row-top"><b>${escapeHtml(getCleanJobTypeName(j.jobType))}</b>${amount}</span>
                 <small><span class="fv-dot ${dot}"></span>${escapeHtml(getJobDisplayNo(j))} • ${state}</small></button>`;
         });
+        // ค่าใช้จ่ายย้อนหลังรายคน (owner 2026-10-19): รายจ่ายที่ผูกกับใบงานของคนนี้ — ผูกหลายใบงานคิดเฉพาะส่วนของคนนี้
+        const myJobIds = new Set(myJobs.map(j => j.id));
+        const myExpenses = expenses.filter(e => (e.jobIds || []).some(id => myJobIds.has(id)))
+            .map(e => ({ e, share: expenseShareForJobs(e, myJobIds) }))
+            .sort((a, b) => (b.e.expenseDate || '').localeCompare(a.e.expenseDate || ''));
+        const costTotal = round2(myExpenses.reduce((s, x) => s + x.share, 0));
+        const charged = round2(myJobs.filter(j => !isJobNoCharge(j)).reduce((s, j) => s + (getJobInvoice(j) ? Number(j.fee || 0) : jobBillEstimate(j)), 0));
+        const expenseRows = myExpenses.map(({ e, share }) => {
+            const shared = share !== round2(Number(e.amount || 0));
+            return `<button type="button" class="wp-row" onclick="openExpenseModal('${e.id}')" title="ดูรายจ่ายนี้">
+                <span class="wp-row-top"><b>${escapeHtml(e.category || 'รายจ่าย')}</b><em>${fmtMoney(share)}</em></span>
+                <small>${e.expenseDate ? formatThaiDate(e.expenseDate) : '-'}${e.description ? ` • ${escapeHtml(e.description)}` : ''}${shared ? ` • ส่วนของคนนี้จาก ${fmtMoney(e.amount)}` : ''}</small></button>`;
+        });
         body = sec('สรุป', kv([
             ['รอออกบิล', awaiting.length ? `${awaiting.length} ใบงาน • ประมาณ ${fmtMoney(awaiting.reduce((s, j) => s + jobBillEstimate(j), 0))} บาท` : 'ไม่มี'],
             ['บิลค้างชำระ', owing.length ? `${owing.length} ใบ • ค้าง ${fmtMoney(owing.reduce((s, i) => s + invoiceBalance(i), 0))} บาท` : 'ไม่มี'],
             ['มัดจำ/เครดิตของนายจ้าง', credit > 0 ? `${fmtMoney(credit)} บาท` : ''],
+            ['ค่าบริการรวม', myJobs.length ? `${fmtMoney(charged)} บาท` : ''],
+            ['ค่าใช้จ่ายรวม', myExpenses.length ? `${fmtMoney(costTotal)} บาท` : ''],
+            ['ส่วนต่าง', myExpenses.length && myJobs.length ? `${fmtMoney(round2(charged - costTotal))} บาท` : ''],
         ]) + (anyCombined ? '<p class="wp-hint">บิลรวมแสดงยอดค้างทั้งใบ (รวมคนงานอื่นในบิลเดียวกัน)</p>' : ''))
             + sec('โน้ตการเงินของนายจ้าง', emp && emp.billingNote ? `<p class="wp-note">${escapeHtml(emp.billingNote)}</p>` : '')
-            + sec('ใบงานและบิล', jobRows.length ? `<div class="wp-list">${jobRows.join('')}</div>` : '<p class="wp-empty">ยังไม่มีใบงาน</p>');
+            + sec('ใบงานและบิล', jobRows.length ? `<div class="wp-list">${jobRows.join('')}</div>` : '<p class="wp-empty">ยังไม่มีใบงาน</p>')
+            + sec('ค่าใช้จ่าย', expenseRows.length
+                ? `<div class="wp-list">${expenseRows.join('')}</div><p class="wp-hint">เฉพาะรายจ่ายที่ผูกกับใบงานของคนนี้ — รายจ่ายที่ผูกหลายใบงานแบ่งเท่ากันต่อใบงาน</p>`
+                : '<p class="wp-empty">ยังไม่มีรายจ่ายที่ผูกกับใบงานของคนนี้</p>');
     } else {
         body = sec('วันหมดอายุ', kv([
             ['ใบอนุญาตทำงาน', expHtml(w.permitExpiry, 60), true],
@@ -8443,6 +8462,26 @@ async function deleteAgent(id, name) {
 }
 
 // ==================== รายจ่ายของกิจการ (Expenses) ====================
+// คนงานของรายจ่าย = คนงานของใบงานที่รายจ่ายผูกไว้ (expenses.job_ids) — ใช้ค้นหาด้วยชื่อ/เลข 13 หลัก และดูค่าใช้จ่ายรายคน (owner 2026-10-19)
+function expenseWorkers(e) {
+    const ids = new Set((e.jobIds || []).map(id => (jobs.find(j => j.id === id) || {}).workerId).filter(Boolean));
+    return allWorkers().filter(w => ids.has(w.id));
+}
+
+function expenseWorkersLine(e) {
+    const ws = expenseWorkers(e);
+    if (!ws.length) return '';
+    const names = ws.slice(0, 3).map(workerFullName).join(', ') + (ws.length > 3 ? ` และอีก ${ws.length - 3} คน` : '');
+    return `<div class="expense-workers">${icon('user')} ${escapeHtml(names)}</div>`;
+}
+
+// ส่วนของคนงานคนนี้ในรายจ่ายหนึ่งรายการ: รายจ่ายที่ผูกหลายใบงาน แบ่งเท่ากันต่อใบงาน
+function expenseShareForJobs(e, jobIdSet) {
+    const ids = e.jobIds || [];
+    const mine = ids.filter(id => jobIdSet.has(id)).length;
+    return ids.length ? round2(Number(e.amount || 0) * mine / ids.length) : 0;
+}
+
 function renderExpenses() {
     const query = (document.getElementById("search-expense").value || "").toLowerCase();
     const categoryFilter = document.getElementById("filter-expense-category").value;
@@ -8460,7 +8499,8 @@ function renderExpenses() {
     }
 
     const filtered = expenses.filter(e => {
-        const matchSearch = !query || (e.description || "").toLowerCase().includes(query) || (e.category || "").toLowerCase().includes(query);
+        const matchSearch = !query || (e.description || "").toLowerCase().includes(query) || (e.category || "").toLowerCase().includes(query)
+            || expenseWorkers(e).some(w => workerFullName(w).toLowerCase().includes(query) || String(w.workerUid || '').includes(query));
         const matchCategory = !categoryFilter || e.category === categoryFilter;
         return matchSearch && matchCategory;
     }).sort((a, b) => (b.expenseDate || "").localeCompare(a.expenseDate || ""));
@@ -8482,7 +8522,7 @@ function renderExpenses() {
             <tr>
                 <td>${dateLabel}</td>
                 <td><span class="badge badge-gold">${e.category || '-'}</span></td>
-                <td>${e.description || '<span class="text-muted">-</span>'}${slipLink}</td>
+                <td>${e.description || '<span class="text-muted">-</span>'}${slipLink}${expenseWorkersLine(e)}</td>
                 <td style="text-align: right; font-weight: 600; color: var(--danger);">${(e.amount || 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })} บ.</td>
                 <td style="display: flex; align-items: center;">${payMethodHtml}</td>
                 <td class="actions-col">

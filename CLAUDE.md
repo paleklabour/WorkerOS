@@ -245,7 +245,7 @@ switches the panel, windows opened from it stack above (panel z 950 < modals 100
 closes, and `switchView` / Esc / ✕ / a click outside it close it. Header colour = `color-mix(var(--gold-primary) 55%, #0b1020)` so it is dark in
 every theme. Tabs ข้อมูล / เอกสาร / ใบงาน (+ การเงิน for `can('finance')`). `mode 'renewal'` makes "ใบงานใหม่"
 (`openNewJobForWorker`) the main button. Accounting (Account Manager = finance without ops): panel opens on the การเงิน tab
-(jobs with bill status, awaiting-bill estimate `jobBillEstimate`, owing invoices, employer credit, billing note), personal
+(jobs with bill status, awaiting-bill estimate `jobBillEstimate`, owing invoices, employer credit, billing note, and — owner 2026-10-19 — the worker's expenses: `expenses` linked via `job_ids` to this worker's jobs, an expense covering several jobs counts only this worker's equal share `expenseShareForJobs`, plus totals charged / cost / difference; the expenses page search also matches worker name / 13-digit id via `expenseWorkers`), personal
 details are hidden, footer = ออกบิล / ออกบิลรวม / รับเงิน / เปิดแฟ้ม. Billing table rows: double-click opens the bill
 (`openStoredInvoice`) or, for unbilled / no-charge jobs, the job summary. Jobs page: double-clicking a job row or Kanban card opens the job summary (`openJobQuickView`) — it used to open the worker folder.
 Right-click on any element with `data-ctx="worker:<id>"` / `"job:<id>"` / `"invoice:<id>"` (worker rows, job rows, Kanban
