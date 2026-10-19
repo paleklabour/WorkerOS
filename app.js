@@ -18868,7 +18868,8 @@ function setupCollapsibleSections() {
     const sectionBody = h => {
         const out = [];
         for (let el = h.nextElementSibling; el; el = el.nextElementSibling) {
-            if (el.matches(COLLAPSE_HEADER_SEL)) break;
+            // หยุดที่หัวข้อถัดไป, กล่องที่มีหัวข้อของตัวเอง (.documents-section) และแถบปุ่มบันทึก — ไม่งั้นยุบ 1.3 แล้วปุ่มบันทึกหายไปด้วย
+            if (el.matches(COLLAPSE_HEADER_SEL) || el.matches('.documents-section, .modal-footer, .form-actions')) break;
             out.push(el);
         }
         return out;
