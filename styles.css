@@ -7894,6 +7894,9 @@ html { scrollbar-gutter: stable; }
 html:has(.modal-backdrop:not(.hidden)),
 html:has(.ui-dialog-backdrop) { overflow: hidden; }
 
+/* เส้นกระพริบตอนพิมพ์ (caret) ใช้สีหลักของธีม ให้เห็นชัดทุกช่องพิมพ์ทุกธีม (owner 2026-10-19: มองไม่เห็นในช่องค้นหา) */
+input, textarea, [contenteditable="true"] { caret-color: var(--gold-primary); }
+
 /* ปุ่ม ✕ ล้างข้อความในช่องค้นหา (attachSearchClear ใน app.js, owner 2026-10-15) — แสดงเมื่อช่องมีข้อความ */
 .search-clear-wrap { position: relative; display: block; width: 100%; }
 .has-clear > input[type="text"],
