@@ -6664,6 +6664,49 @@ body.has-camera .upload-hint { display: none; }
 .slip-qr-warn { color: var(--dk-warn, #92400e); background-color: var(--dk-warn-bg, #fffbeb); }
 .slip-qr-none { color: var(--dk-muted, #64748b); background-color: var(--dk-subtle, #f1f5f9); }
 
+/* งานต่ออายุ (renderRenewalCases, owner 2026-10-20): แท็บ ถึงรอบ / กำลังทำ / เสร็จแล้ว + จุดขั้นตอน */
+.renewal-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.rn-count:empty { display: none; }
+.rn-count {
+    display: inline-block;
+    min-width: 22px;
+    margin-left: 6px;
+    padding: 0 7px;
+    border-radius: 999px;
+    background-color: var(--dk-subtle, #e3e8f0);
+    color: var(--text-dark);
+    font-size: 12.5px;
+    font-weight: 700;
+    line-height: 20px;
+    text-align: center;
+}
+.btn-gold .rn-count { background-color: rgba(255, 255, 255, .25); color: #fff; }
+.rn-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.rn-table td, .rn-table th { vertical-align: middle; }
+.rn-table .rn-check { width: 36px; text-align: center; }
+.rn-table .rn-check input, .rn-book-pick input { width: 18px; height: 18px; accent-color: var(--gold-primary); }
+.rn-book-pick { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; cursor: pointer; }
+.rn-dot-cell { width: 76px; text-align: center !important; white-space: nowrap; }
+.rn-dot {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--dk-line, #d5dae3);
+    color: #fff;
+    cursor: pointer;
+    transition: transform .12s;
+}
+.rn-dot:hover { transform: scale(1.1); }
+.rn-dot.is-done { background-color: var(--gold-primary); }
+.rn-dot.is-next { background-color: transparent; box-shadow: inset 0 0 0 2px var(--gold-primary); }
+.rn-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; white-space: nowrap; }
+.rn-empty { text-align: center; padding: 24px !important; color: var(--text-muted); }
+
 /* รูปคนงานในตารางหน้าต่ออายุ/ทำเล่ม (renderRenewalGroups) — วงกลมแบบเดียวกับตารางคนงาน */
 .renewal-worker-cell { display: flex; align-items: center; gap: 10px; }
 .renewal-avatar {

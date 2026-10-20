@@ -907,6 +907,33 @@
                 if (error) return { status: "error", message: error.message };
                 return { status: "success" };
             }
+            // งานต่ออายุใบอนุญาตทำงาน (1 แถว = 1 รอบของคนงาน 1 คน) — ดู 20261020062529_renewals.sql
+            case "getRenewals": {
+                const { data, error } = await sb.from("renewals").select("*").order("started_at", { ascending: false });
+                if (error) return { status: "error", message: error.message };
+                return { status: "success", rows: data || [] };
+            }
+            case "startRenewals": {
+                const rows = (payload.rows || []).map(r => ({
+                    worker_id: r.workerId, customer_id: r.customerId || null,
+                    old_permit_expiry: r.oldPermitExpiry || null, with_book: !!r.withBook
+                }));
+                if (!rows.length) return { status: "error", message: "ยังไม่ได้เลือกคนงาน" };
+                const { data, error } = await sb.from("renewals").insert(rows).select("*");
+                if (error) return { status: "error", message: /renewals_one_active_per_worker/.test(error.message) ? "มีคนงานที่เริ่มรอบต่ออายุไว้แล้ว กรุณารีเฟรชหน้า" : error.message };
+                return { status: "success", rows: data || [] };
+            }
+            case "saveRenewal": {
+                const r = payload.renewal || {};
+                const row = {
+                    status: r.status, with_book: !!r.withBook, steps: r.steps || {},
+                    appointment_date: r.appointmentDate || null, new_permit_expiry: r.newPermitExpiry || null,
+                    done_at: r.doneAt || null, note: r.note || null
+                };
+                const { data, error } = await sb.from("renewals").update(row).eq("id", r.id).select("*").single();
+                if (error) return { status: "error", message: error.message };
+                return { status: "success", row: data };
+            }
             case "claimSession": {
                 // ห้ามล็อกอินซ้อน: จองเซสชันนี้เป็นเซสชันเดียวของบัญชี + ยกเลิก refresh token ของเครื่องอื่น
                 // ดู 20261013043530_profile_single_session.sql

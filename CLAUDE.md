@@ -470,6 +470,18 @@ docs…), so a page holding pre-bill data used to reset a billed job to "ยั�
 Any new code that issues/edits/voids bills, receives money, sets no-charge, changes prices or pays commission must pass
 `billing: true`. New jobs (insert) keep every column.
 
+## WP renewal rounds (owner, 2026-10-20)
+
+Renewal is separate from jobs: table `renewals` (1 row = 1 round for 1 worker, one `active` per worker; migration
+`20261020062529_renewals.sql`, RLS read `is_internal()`, write `can_ops()`). The renewals page has tabs ถึงรอบ (permit ≤ 60
+days or expired, no active round) / กำลังทำ / เสร็จแล้ว / ทั้งหมด (ตามกลุ่ม = the old cohort list, `renderRenewalGroups`);
+`renderRenewalCases` draws the first three. Staff start rounds themselves (`startRenewals`, never automatic). Fixed steps
+(`RENEWAL_STEPS`): ตรวจสุขภาพ (tick, no file) → ใบคำขอ → ใบเสร็จ → ใบแทน (`WP_R`) → ใบนัดหมาย (date only, no file) → Smart
+card; optional ทำเล่ม (`with_book`, suggested by `renewalSuggestBook`). File steps go through `attachDocumentToWorker` into
+the normal worker doc slots; ใบแทน / card / new passport then ask for the new expiry (`askRenewalNewExpiry`) and set it on
+the worker and the file, so the old file folds into "expired" by the usual rule. Card (+ book if any) closes the round.
+Still to build: old→new worker-data preview, deposit at start + bill at close, bell/calendar for appointments, client portal.
+
 ## No-charge jobs (2026-10-06)
 
 A job the company deliberately doesn't bill gets `payment_status` =
