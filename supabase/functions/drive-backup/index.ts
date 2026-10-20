@@ -6,6 +6,8 @@
 //   ├─ นายจ้าง/<ชื่อบริษัท (เลขนิติบุคคล)>/00 เอกสารนายจ้าง/<วันที่_ประเภท_เลขนิติบุคคล>.pdf
 //   │                                  └─ คนงาน/<เลข13หลัก_ชื่อ>/<ชื่อไฟล์ตามในระบบ เช่น WP.pdf, PinkCard_2.jpg>  (ไม่แยกโฟลเดอร์ประเภท)
 //   │                                       └─ ใบงาน <วันที่เปิดงาน> <ประเภทงาน + …>/  (เอกสารปิดงาน + ใบนัดหมาย, 1 โฟลเดอร์ต่อการเปิดงาน 1 ครั้ง)
+//   ├─ รอชำระเงิน (ลูกค้ายังไม่เห็น)/<นายจ้าง>/คนงาน/<คนงาน>/ใบงาน …/  เอกสารปิดงานของใบงานที่ยังไม่ชำระ — ไม่ได้แชร์ให้ลูกค้า
+//   │     จ่ายครบ / ไม่เรียกเก็บเงิน / นายจ้างเปิดสิทธิ์ → ย้ายเข้าโฟลเดอร์คนงานในรอบถัดไป (owner 2026-10-20)
 //   ├─ การเงิน/สลิปรับเงิน/<ปี-เดือน>/  และ  การเงิน/สลิปรายจ่าย/<ปี-เดือน>/
 //   ├─ ข้อมูลระบบ/<วันที่>_ข้อมูลทั้งระบบ.json  (วันละไฟล์ เก็บ 30 วัน)
 //   └─ ถูกลบ/  (ไฟล์ที่ลบออกจากระบบแล้ว ย้ายมาไว้ที่นี่ ไม่ลบทิ้ง)
@@ -194,8 +196,8 @@ async function runBackup(sb: SupabaseClient, trigger: string) {
     if (error) throw new Error(`${table}: ${error.message}`);
     return (data || []) as any[];
   };
-  const [customers, workers, jobs, receipts, payments, expenses] = await Promise.all([
-    load("customers"), load("workers"), load("jobs"), load("receipts"), load("payments"), load("expenses"),
+  const [customers, workers, jobs, receipts, payments, expenses, invoices] = await Promise.all([
+    load("customers"), load("workers"), load("jobs"), load("receipts"), load("payments"), load("expenses"), load("invoices"),
   ]);
 
   // ---------- โครงโฟลเดอร์ที่ควรมี ----------
@@ -289,6 +291,29 @@ async function runBackup(sb: SupabaseClient, trigger: string) {
     }
     return key;
   };
+  // ลูกค้าเปิดเอกสารปิดงานได้เมื่อ: ไม่เรียกเก็บเงิน / นายจ้างเปิดสิทธิ์ดูก่อนชำระ / บิลของงานจ่ายครบ
+  // (กติกาเดียวกับพอร์ทัล — clientJobDocsUnlocked ใน app.js)
+  const invById = new Map(invoices.map((i) => [i.id, i]));
+  const paidByInv = new Map<string, number>();
+  payments.forEach((p) => { if (p.invoice_id && !p.voided) paidByInv.set(p.invoice_id, (paidByInv.get(p.invoice_id) || 0) + (Number(p.amount) || 0)); });
+  const jobDocsUnlocked = (j: any) => {
+    if (j.payment_status === "ไม่เรียกเก็บเงิน") return true;
+    if (custById.get(j.customer_id)?.unlock_unpaid_job_docs) return true;
+    const inv = j.invoice_id ? invById.get(j.invoice_id) : null;
+    return !!inv && inv.status !== "void" && (Number(inv.grand_total) || 0) - (paidByInv.get(inv.id) || 0) <= 0.005;
+  };
+  // โฟลเดอร์ "รอชำระเงิน" อยู่ใต้ root (นอกโฟลเดอร์นายจ้างที่แชร์) — ชื่อนายจ้าง / คนงาน / ใบงาน ซ้อนเหมือนเดิม
+  const heldFolder = (key: string): string => {
+    if (key === "employers") return "held";
+    const spec = folders.get(key)!;
+    const hk = `held:${key}`;
+    if (!folders.has(hk)) {
+      if (!folders.has("held")) addFolder("held", "รอชำระเงิน (ลูกค้ายังไม่เห็น)", "root");
+      addFolder(hk, spec.name, heldFolder(spec.parentKey!));
+    }
+    return hk;
+  };
+
   jobs.forEach((j) => {
     const w = workerById.get(j.worker_id);
     if (!w || w.status === "deleted") return;
@@ -297,9 +322,11 @@ async function runBackup(sb: SupabaseClient, trigger: string) {
       const p = storagePath(j.appointment_doc_url);
       if (p) want(j.appointment_doc_url, fk, `${dateFromPath(p)}_ใบนัดหมาย_${jobNo(j)}_${workerTag(w)}`);
     }
+    // เอกสารปิดงานของใบงานที่ยังไม่ชำระ → "รอชำระเงิน/" (ไม่ได้แชร์ให้ลูกค้า) จ่ายครบแล้วรอบถัดไปย้ายเข้าโฟลเดอร์คนงานเอง (owner 2026-10-20)
+    const closeKey = jobDocsUnlocked(j) ? fk : heldFolder(fk);
     (Array.isArray(j.attachments) ? j.attachments : []).forEach((f: any) => {
       const p = storagePath(f?.url);
-      if (p) want(f.url, fk, `${dateFromPath(p, f.uploadedAt)}_เอกสารปิดงาน_${jobNo(j)}_${workerTag(w)}`, sysFileName(f.name, p));
+      if (p) want(f.url, closeKey, `${dateFromPath(p, f.uploadedAt)}_เอกสารปิดงาน_${jobNo(j)}_${workerTag(w)}`, sysFileName(f.name, p));
     });
   });
 
