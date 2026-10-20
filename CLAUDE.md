@@ -527,9 +527,8 @@ completeness chips via `regChecks`. Employers submit/edit their own pool workers
 "ขึ้นทะเบียน" through RPC `client_save_pending_worker` (they can't write `workers` directly; files upload to Storage first);
 `submitted_by_client` shows a purple tag. Migration `20261020092027_registration_pool.sql`.
 Steps (phase 2, owner picked mockup 4; migration `20261020094803_registration_steps.sql`): putting workers in a round creates a
-`renewals` row with `kind = 'registration'` + `registration_round_id` per worker and bills once — hidden jobs
-"ขึ้นทะเบียนแรงงานต่างด้าว" / "ออกใบรับรองแพทย์" / "ซื้อประกัน" + "ต่อเล่ม CI/Passport" (no passport) or "ตี visa" (has a passport =
-visa surcharge), `batchId = 'register-<id>'` (`roundBatchId`, `isRegisterJob`, own billing/combine tab "งานขึ้นทะเบียน",
+`renewals` row with `kind = 'registration'` + `registration_round_id` per worker and bills once with 2 headings (owner) — hidden jobs
+"ขึ้นทะเบียนแรงงานต่างด้าว" + "ตี visa" only when the worker already has an old passport (no passport = registration only), `batchId = 'register-<id>'` (`roundBatchId`, `isRegisterJob`, own billing/combine tab "งานขึ้นทะเบียน",
 `jobKindOf`). The renewal engine is shared: `renewalStepsOf` / `renewalNextStep` pick `REG_STEPS` (ใบคำขอ → ใบเสร็จ →
 ใบรับรองแพทย์ → กรมธรรม์ → ค่าธรรมเนียมรอบ 2 (optional, "ไม่มี" = `skipped`) → ใบแทน → ใบนัด → Smart card → บัตรชมพู) + book or
 visa step; the round tab shows `renewalActiveRowHtml` rows with a floating bar (appointment / skip receipt 2 / book-visa

@@ -2920,14 +2920,14 @@ const jobKindOf = (j) => isRenewalJob(j) ? 'renewal' : isRegisterJob(j) ? 'regis
 const JOB_KIND_TAG = { renewal: 'งานต่ออายุ', register: 'งานขึ้นทะเบียน' };
 const roundBatchId = (r) => `${r.kind === 'registration' ? 'register' : 'renewal'}-${r.id}`;
 const renewalJobsOf = (r) => jobs.filter(j => j.batchId === roundBatchId(r));
-// ออกบิลครั้งเดียวตอนใส่คนเข้ารอบ (owner): ขึ้นทะเบียน + ตรวจสุขภาพ + ประกัน + ทำเล่ม (ไม่มีเล่ม) หรือ ตี visa (มีเล่มแล้ว = บวกค่า visa)
-const REG_JOB_TYPES = ['ขึ้นทะเบียนแรงงานต่างด้าว', 'ออกใบรับรองแพทย์', 'ซื้อประกัน'];
+// ออกบิลครั้งเดียวตอนใส่คนเข้ารอบ — 2 หัวข้อ (owner 2026-10-20): ขึ้นทะเบียน + ตี visa เฉพาะคนที่มีเล่มเก่า (ไม่มีเล่ม = ขึ้นทะเบียนอย่างเดียว)
+const REG_JOB_TYPES = ['ขึ้นทะเบียนแรงงานต่างด้าว'];
 const REG_VISA_JOB_TYPE = 'ตี visa';
 
 async function createRenewalJobs(r) {
     const cust = customers.find(c => c.id === r.customerId);
     const today = new Date().toISOString().split('T')[0];
-    const types = r.kind === 'registration' ? [...REG_JOB_TYPES, r.withBook ? RENEWAL_BOOK_JOB_TYPE : REG_VISA_JOB_TYPE]
+    const types = r.kind === 'registration' ? [...REG_JOB_TYPES, ...(r.withBook ? [] : [REG_VISA_JOB_TYPE])]
         : r.withBook ? [RENEWAL_JOB_TYPE, RENEWAL_BOOK_JOB_TYPE] : [RENEWAL_JOB_TYPE];
     let seq = 0, failed = 0;
     for (const t of types) {
