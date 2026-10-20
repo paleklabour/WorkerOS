@@ -3267,7 +3267,7 @@ td > .ico {
 .invoice-table td.inv-gov-col {
     background-color: var(--dk-subtle, #f0f8f7) !important;
     text-align: right;
-    color: #0f766e;
+    color: color-mix(in srgb, #0d9488 70%, var(--text-dark));
     font-weight: 600;
     font-variant-numeric: tabular-nums;
 }
@@ -3281,7 +3281,7 @@ td > .ico {
     text-align: right;
     font-family: inherit;
     font-size: 13.5px;
-    color: #0f766e;
+    color: color-mix(in srgb, #0d9488 70%, var(--text-dark));
     background-color: var(--dk-card, #ffffff);
 }
 
@@ -4004,7 +4004,7 @@ tr.is-voided-row td {
 
 .price-input.price-gov {
     border-color: #b7dcd8;
-    color: #0f766e;
+    color: color-mix(in srgb, #0d9488 70%, var(--text-dark));
 }
 
 .price-input:focus {
@@ -6686,26 +6686,64 @@ body.has-camera .upload-hint { display: none; }
 .rn-table .rn-check { width: 36px; text-align: center; }
 .rn-table .rn-check input, .rn-book-pick input { width: 18px; height: 18px; accent-color: var(--gold-primary); }
 .rn-book-pick { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; cursor: pointer; }
-.rn-dot-cell { width: 76px; text-align: center !important; white-space: nowrap; }
-.rn-dot {
-    width: 30px;
-    height: 30px;
-    padding: 0;
-    border: 0;
-    border-radius: 50%;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background-color: var(--dk-line, #d5dae3);
-    color: #fff;
-    cursor: pointer;
-    transition: transform .12s;
+.rn-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 0 20px 14px; }
+.rn-toolbar .rn-province { min-width: 170px; }
+.rn-groups { padding: 0 20px 20px; display: flex; flex-direction: column; gap: 18px; }
+.rn-prov-head { margin: 0 0 8px; font-size: 16px; font-weight: 700; color: var(--text-dark); }
+.rn-prov-head .text-muted { font-size: 13.5px; font-weight: 500; margin-left: 6px; }
+.rn-emp { margin-bottom: 12px; }
+.rn-emp-head { display: flex; align-items: center; gap: 10px; padding: 6px 4px 8px; font-size: 14.5px; }
+.rn-emp-head input { width: 18px; height: 18px; accent-color: var(--gold-primary); }
+
+/* บอร์ด "กำลังทำ": คอลัมน์ = ขั้นที่รออยู่ ลากการ์ดข้ามคอลัมน์ได้ */
+.rn-board { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(250px, 1fr); gap: 12px; padding: 0 20px 20px; overflow-x: auto; }
+.rn-col {
+    display: flex;
+    flex-direction: column;
+    min-height: 220px;
+    border-radius: 18px;
+    background-color: var(--dk-subtle, #eef1f6);
+    transition: box-shadow .15s;
 }
-.rn-dot:hover { transform: scale(1.1); }
-.rn-dot.is-done { background-color: var(--gold-primary); }
-.rn-dot.is-next { background-color: transparent; box-shadow: inset 0 0 0 2px var(--gold-primary); }
-/* ใบคำขอ + ใบเสร็จ ได้มาแล้ว 1 ใน 2 = ครึ่งวง */
-.rn-dot.is-half { background: linear-gradient(90deg, var(--gold-primary) 50%, transparent 50%); box-shadow: inset 0 0 0 2px var(--gold-primary); }
+.rn-col.is-over { box-shadow: inset 0 0 0 2px var(--gold-primary); }
+.rn-col-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 12px 8px; }
+.rn-col-title { display: flex; align-items: center; gap: 8px; font-size: 14.5px; }
+.rn-col-title input { width: 17px; height: 17px; accent-color: var(--gold-primary); }
+.rn-col-body { display: flex; flex-direction: column; gap: 8px; padding: 0 10px 12px; }
+.rn-col-emp { margin-top: 6px; font-size: 13px; font-weight: 600; color: var(--text-dark); }
+.rn-col-empty { margin: 8px 4px; font-size: 13px; color: var(--text-muted); }
+.rn-card {
+    padding: 10px;
+    border-radius: 14px;
+    background-color: var(--dk-card, #ffffff);
+    box-shadow: var(--shadow-sm);
+    cursor: grab;
+}
+.rn-card.is-selected { box-shadow: inset 0 0 0 2px var(--gold-primary), var(--shadow-sm); }
+.rn-card-top { display: flex; align-items: center; gap: 8px; }
+.rn-card-top input { width: 17px; height: 17px; flex-shrink: 0; accent-color: var(--gold-primary); }
+.rn-card-name { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.rn-card-name strong { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rn-card-name small { font-size: 12.5px; }
+.rn-card-x { flex-shrink: 0; }
+.rn-card-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+.rn-minis { display: flex; gap: 4px; }
+.rn-mini { width: 13px; height: 13px; padding: 0; border: 0; border-radius: 50%; background-color: var(--dk-line, #d5dae3); cursor: pointer; }
+.rn-mini.is-done { background-color: var(--gold-primary); }
+
+/* หน้าออกบิล: แถวของงานต่ออายุ สีเขียวอมฟ้า แยกจากใบงานทั่วไป (owner 2026-10-20) */
+.data-table tr.is-renewal-row > td { background-color: color-mix(in srgb, #0d9488 10%, transparent); }
+.data-table tr.is-renewal-row > td:first-child { box-shadow: inset 3px 0 0 #0d9488; }
+.rn-bill-tag {
+    display: inline-block;
+    margin-top: 4px;
+    padding: 1px 9px;
+    border-radius: 999px;
+    background-color: color-mix(in srgb, #0d9488 18%, transparent);
+    color: color-mix(in srgb, #0d9488 70%, var(--text-dark));
+    font-size: 12.5px;
+    font-weight: 700;
+}
 .rn-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; white-space: nowrap; }
 .rn-empty { text-align: center; padding: 24px !important; color: var(--text-muted); }
 
