@@ -6687,7 +6687,8 @@ body.has-camera .upload-hint { display: none; }
 .rn-table .rn-check input, .rn-book-pick input { width: 18px; height: 18px; accent-color: var(--gold-primary); }
 .rn-book-pick { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; cursor: pointer; }
 .rn-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 0 20px 14px; }
-.rn-toolbar .rn-province { min-width: 320px; min-height: 44px; padding: 0 40px 0 18px; font-size: 15px; }
+/* ตัวกรองจังหวัด ใช้หน้าตา .select-filter มาตรฐาน (ความสูง/ระยะขอบ/ลูกศรเท่าตัวกรองอื่นในระบบ) แค่กำหนดความกว้าง */
+.rn-toolbar .rn-province { width: 300px; max-width: 100%; text-overflow: ellipsis; }
 /* ถึงรอบ: ทุกตารางนายจ้างกว้างคอลัมน์เท่ากัน (owner 2026-10-20) */
 .rn-due-table { table-layout: fixed; width: 100%; }
 .rn-due-table .rd-check { width: 52px; }
@@ -6752,6 +6753,41 @@ body.has-camera .upload-hint { display: none; }
 @media (max-width: 760px) {
     .rn-arow { grid-template-columns: 30px minmax(0, 1fr); }
     .rn-arow-progress, .rn-arow-appt, .rn-arow .rn-actions { grid-column: 2; }
+}
+
+/* ฝั่งเจ้าหน้าที่: รอบที่นายจ้างเปิดเองจากพอร์ทัล (owner 2026-10-20) */
+.rn-client-tag {
+    align-self: flex-start;
+    margin-top: 3px;
+    padding: 1px 9px;
+    border-radius: 999px;
+    background-color: color-mix(in srgb, #7c3aed 15%, transparent);
+    color: color-mix(in srgb, #7c3aed 75%, var(--text-dark));
+    font-size: 12.5px;
+    font-weight: 700;
+}
+.rn-client-note { color: var(--text-muted); font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* พอร์ทัลลูกค้า แท็บ "ต่ออายุ" */
+.cp-tab-badge:empty { display: none; }
+.cp-tab-badge { margin-left: 4px; padding: 0 7px; border-radius: 999px; background-color: var(--danger, #c0392b); color: #fff; font-size: 12.5px; font-weight: 700; line-height: 19px; }
+.cp-rn-card { margin-bottom: 14px; padding: 0; overflow: hidden; }
+.cp-rn-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--dk-line, #e3e6ec); }
+.cp-rn-head h3 { margin: 0; font-size: 16.5px; }
+.cp-rn-head h3 .text-muted { font-weight: 500; font-size: 14px; }
+.cp-rn-empty { margin: 0; padding: 16px 18px; }
+.cp-rn-row { display: grid; grid-template-columns: 26px 40px minmax(160px, 1fr) 170px 190px 120px; gap: 12px; align-items: center; padding: 10px 18px; border-top: 1px solid var(--dk-line, #eef0f4); font-size: 14px; }
+.cp-rn-row:first-of-type { border-top: 0; }
+.cp-rn-row.is-selected { background-color: color-mix(in srgb, var(--gold-primary) 8%, transparent); }
+.cp-rn-row > input { width: 18px; height: 18px; accent-color: var(--gold-primary); }
+.cp-rn-active { grid-template-columns: minmax(160px, 240px) minmax(0, 1fr) 170px 160px 90px; }
+.cp-rn-done { grid-template-columns: minmax(160px, 1fr) 160px 220px 140px; }
+.cp-rn-name { display: flex; flex-direction: column; min-width: 0; }
+.cp-rn-name strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 760px) {
+    .cp-rn-row, .cp-rn-active, .cp-rn-done { grid-template-columns: 26px minmax(0, 1fr); }
+    .cp-rn-row > :nth-child(n+3) { grid-column: 2; }
+    .cp-rn-active > *, .cp-rn-done > * { grid-column: 1 / -1; }
 }
 
 /* หน้าออกบิล: แถวของงานต่ออายุ สีเขียวอมฟ้า แยกจากใบงานทั่วไป (owner 2026-10-20) */

@@ -487,7 +487,12 @@ UI: ถึงรอบ is grouped province → employer (`renewalGroupByProvince
 left, fixed column widths shared by every employer table); กำลังดำเนินการ = owner-picked design A (`renewalActiveHtml`): employer
 groups, one row per worker with a segmented progress bar (`renewalBarHtml`, segment click = open that step), next-step
 button; ticking rows shows a floating dark bar (`.rn-selbar`) to mark ตรวจสุขภาพ / set one appointment date for all selected
-(`renewalBulkStep` → `moveRenewalsToStage`; file steps one row at a time). File steps go through `attachDocumentToWorker` into
+(`renewalBulkStep` → `moveRenewalsToStage`; file steps one row at a time).
+Client portal tab "ต่ออายุ" (`renderClientRenewalTab`, owner 2026-10-20): the employer ticks due workers (≤ 60 days) and sends a
+request → the round starts at once via RPC `client_start_renewals` (creates the round + hidden billing jobs, `opened_by_client`,
+`client_note`; migration `20261020072944_renewals_client_portal.sql`); staff rows show a purple "ลูกค้าเปิดงาน" tag + the note.
+The employer can cancel (`client_cancel_renewal`) only before ตรวจสุขภาพ and before any bill / no-charge. Clients read only
+their own rounds (RLS); renewal jobs are hidden from the portal "งานที่แจ้ง" tab. File steps go through `attachDocumentToWorker` into
 the normal worker doc slots; ใบแทน / card / new passport then ask for the new expiry (`askRenewalNewExpiry`) and set it on
 the worker and the file, so the old file folds into "expired" by the usual rule. Card (+ book if any) closes the round.
 Still to build: old→new worker-data preview, deposit shortcut in the start dialog, bell/calendar for appointments, client portal renewal progress.

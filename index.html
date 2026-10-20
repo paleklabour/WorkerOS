@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261020n">
+    <link rel="stylesheet" href="styles.css?v=20261020p">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -578,6 +578,7 @@
                         <div class="client-portal-head" id="client-portal-head"></div>
                         <div class="dashboard-tabs client-portal-tabs">
                             <button type="button" class="btn btn-gold" data-portal-tab="workers" onclick="switchClientPortalTab('workers')"><span class="ico" data-icon="users"></span> คนงานของฉัน</button>
+                            <button type="button" class="btn btn-outline" data-portal-tab="renewal" onclick="switchClientPortalTab('renewal')" title="ขอต่ออายุใบอนุญาตทำงาน และดูความคืบหน้า"><span class="ico" data-icon="refresh"></span> ต่ออายุ <span class="cp-tab-badge" id="cp-renewal-badge"></span></button>
                             <button type="button" class="btn btn-outline" data-portal-tab="jobs" onclick="switchClientPortalTab('jobs')"><span class="ico" data-icon="clipboard"></span> งานที่แจ้ง</button>
                             <button type="button" class="btn btn-outline" data-portal-tab="balance" onclick="switchClientPortalTab('balance')"><span class="ico" data-icon="receipt"></span> ยอดค้างชำระ</button>
                             <button type="button" class="btn btn-outline" data-portal-tab="receipts" onclick="switchClientPortalTab('receipts')"><span class="ico" data-icon="cash"></span> ใบเสร็จรับเงิน</button>
@@ -3551,7 +3552,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261020n"></script>
+    <script src="supabase-client.js?v=20261020p"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3562,6 +3563,6 @@
     </script>
 
     <!-- Application Script -->
-    <script src="app.js?v=20261020n"></script>
+    <script src="app.js?v=20261020p"></script>
 </body>
 </html>

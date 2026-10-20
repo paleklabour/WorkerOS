@@ -923,6 +923,17 @@
                 if (error) return { status: "error", message: /renewals_one_active_per_worker/.test(error.message) ? "มีคนงานที่เริ่มรอบต่ออายุไว้แล้ว กรุณารีเฟรชหน้า" : error.message };
                 return { status: "success", rows: data || [] };
             }
+            // พอร์ทัลลูกค้า: เปิด/ยกเลิกรอบต่ออายุเอง — ตรวจสิทธิ์และเงื่อนไขในฐานข้อมูล (20261020072944_renewals_client_portal.sql)
+            case "clientStartRenewals": {
+                const { data, error } = await sb.rpc("client_start_renewals", { p_rows: payload.rows || [], p_note: payload.note || null });
+                if (error) return { status: "error", message: error.message };
+                return { status: "success", rows: data || [] };
+            }
+            case "clientCancelRenewal": {
+                const { data, error } = await sb.rpc("client_cancel_renewal", { p_id: payload.id });
+                if (error) return { status: "error", message: error.message };
+                return { status: "success", row: data };
+            }
             case "saveRenewal": {
                 const r = payload.renewal || {};
                 const row = {

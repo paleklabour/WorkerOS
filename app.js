@@ -1419,11 +1419,124 @@ function renderClientPortal() {
 
     const body = document.getElementById("client-portal-body");
     if (!body) return;
+    const dueBadge = document.getElementById('cp-renewal-badge');
+    if (dueBadge) dueBadge.textContent = clientRenewalDue(myWorkers).length || '';
     if (clientPortalTab === 'workers') body.innerHTML = renderClientWorkersTab(myWorkers);
-    else if (clientPortalTab === 'jobs') body.innerHTML = renderClientJobsTab(myJobs);
+    else if (clientPortalTab === 'renewal') body.innerHTML = renderClientRenewalTab(myWorkers);
+    else if (clientPortalTab === 'jobs') body.innerHTML = renderClientJobsTab(myJobs.filter(j => !isRenewalJob(j))); // งานต่ออายุอยู่แท็บ "ต่ออายุ"
     else if (clientPortalTab === 'balance') body.innerHTML = renderClientBalanceTab(myInvoices, custId);
     else body.innerHTML = renderClientReceiptsTab(myInvoices, custId);
     applySavedCollapse(body); // กลุ่มที่เคยยุบไว้ ยุบกลับหลังวาดใหม่ (พิมพ์ค้นหา/เปลี่ยนตัวกรอง)
+}
+
+// ==================== พอร์ทัล: แท็บ "ต่ออายุ" (owner 2026-10-20) ====================
+// นายจ้างเลือกคนงานที่ถึงรอบ (ใบอนุญาตเหลือ ≤ 60 วัน) แล้วส่งคำขอ → รอบเริ่มทันที (RPC client_start_renewals:
+// สร้างรอบ + ใบงานเก็บเงินเบื้องหลัง, ป้าย "ลูกค้าเปิดงาน" ฝั่งเจ้าหน้าที่) — ยกเลิกเองได้ถ้ายังไม่ตรวจสุขภาพและยังไม่ออกบิล
+const cpRenewalPick = new Set();
+const cpRenewalBook = new Map();
+const clientRenewalDue = (myWorkers) => myWorkers.filter(w => w.status !== 'archived' && w.status !== 'deleted' && w.permitExpiry
+    && renewalDaysLeft(w.permitExpiry) !== null && renewalDaysLeft(w.permitExpiry) <= RENEWAL_DUE_DAYS && !renewalActiveOf(w.id));
+const clientRenewalBilled = (r) => renewalJobsOf(r).some(j => getJobInvoice(j) || isJobNoCharge(j));
+
+function renderClientRenewalTab(myWorkers) {
+    if (renewalList === null) { loadRenewals(true); return `<div class="cp-card"><p class="text-muted">กำลังโหลด…</p></div>`; }
+    const due = clientRenewalDue(myWorkers).sort((a, b) => String(permitExpiryKey(a)).localeCompare(String(permitExpiryKey(b))));
+    due.forEach(w => { if (!cpRenewalBook.has(w.id)) cpRenewalBook.set(w.id, renewalSuggestBook(w)); });
+    [...cpRenewalPick].forEach(id => { if (!due.some(w => w.id === id)) cpRenewalPick.delete(id); });
+    const mine = new Set(myWorkers.map(w => w.id));
+    const rounds = (renewalList || []).filter(r => mine.has(r.workerId));
+    const active = rounds.filter(r => r.status === 'active');
+    const done = rounds.filter(r => r.status === 'done').sort((a, b) => String(b.doneAt).localeCompare(String(a.doneAt))).slice(0, 20);
+    const wOf = r => workers.find(w => w.id === r.workerId) || {};
+
+    const dueRows = due.map(w => `<div class="cp-rn-row${cpRenewalPick.has(w.id) ? ' is-selected' : ''}">
+        <input type="checkbox" ${cpRenewalPick.has(w.id) ? 'checked' : ''} onchange="toggleClientRenewalPick(['${w.id}'], this.checked)" title="เลือก ${escapeHtml(workerFullName(w))}">
+        <div class="renewal-avatar"><img src="${w.photo ? escapeHtml(w.photo) : WORKER_AVATAR_PLACEHOLDER}" alt="" loading="lazy"></div>
+        <div class="cp-rn-name"><strong>${escapeHtml(workerFullName(w))}</strong><small class="text-muted">${escapeHtml(w.workerUid || '')}</small></div>
+        <span>${renewalExpiryCell(w.permitExpiry)}</span>
+        <span class="text-muted">พาสปอร์ตถึง ${w.passportExpiry ? formatThaiDate(w.passportExpiry) : '-'}</span>
+        <label class="rn-book-pick" title="ทำพาสปอร์ต/CI เล่มใหม่ด้วย (ระบบติ๊กให้เมื่อเล่มจะหมดก่อนใบอนุญาตใหม่)"><input type="checkbox" ${cpRenewalBook.get(w.id) ? 'checked' : ''} onchange="cpRenewalBook.set('${w.id}', this.checked); renderClientPortal()"> ทำเล่มด้วย</label>
+    </div>`).join('');
+
+    const activeRows = active.map(r => {
+        const next = renewalNextStep(r);
+        const owe = renewalJobsOf(r).map(getJobInvoice).filter(Boolean).reduce((s, inv) => s + invoiceBalance(inv), 0);
+        const pill = owe > 0 ? `<span class="badge badge-danger">ค้างชำระ ${fmtMoney(owe)}</span>`
+            : !Object.keys(r.steps).length ? '<span class="badge badge-gold">เริ่มแล้ว</span>' : '<span class="badge badge-warning">กำลังดำเนินการ</span>';
+        const canCancel = !r.steps.medical && !clientRenewalBilled(r);
+        const nextKey = (next || {}).key;
+        const bar = renewalStepsOf(r).map(s => `<span class="rn-seg ${r.steps[s.key] ? 'is-done' : s.key === nextKey ? 'is-next' : ''}${s.key === 'book' ? ' is-book' : ''}" title="${escapeHtml(s.label)}${r.steps[s.key] ? ' · เสร็จแล้ว' : ''}"></span>`).join('');
+        return `<div class="cp-rn-row cp-rn-active">
+            <div class="cp-rn-name"><strong>${escapeHtml(workerFullName(wOf(r)))}</strong><small class="text-muted">เริ่ม ${formatThaiDate(String(r.startedAt || '').slice(0, 10))}${r.withBook ? ' · ทำเล่มด้วย' : ''}</small></div>
+            <div class="rn-arow-progress"><div class="rn-bar">${bar}</div><small class="text-muted">${next ? `รอ${escapeHtml(next.label)}` : 'ครบทุกขั้น'}</small></div>
+            <span class="text-muted">${r.appointmentDate ? `นัดรับบัตร ${formatThaiDate(r.appointmentDate)}` : '—'}</span>
+            <span>${pill}</span>
+            <span>${canCancel ? `<button type="button" class="btn btn-sm btn-outline" onclick="clientCancelRenewal('${r.id}')" title="ยกเลิกคำขอต่ออายุ (ได้เฉพาะก่อนตรวจสุขภาพ)">ยกเลิก</button>` : ''}</span>
+        </div>`;
+    }).join('');
+
+    const doneRows = done.map(r => `<div class="cp-rn-row cp-rn-done">
+        <div class="cp-rn-name"><strong>${escapeHtml(workerFullName(wOf(r)))}</strong></div>
+        <span class="text-muted">เดิม ${r.oldPermitExpiry ? formatThaiDate(r.oldPermitExpiry) : '-'}</span>
+        <span>ใบอนุญาตใหม่ถึง <strong>${r.newPermitExpiry ? formatThaiDate(r.newPermitExpiry) : '-'}</strong></span>
+        <span class="text-muted">เสร็จ ${r.doneAt ? formatThaiDate(String(r.doneAt).slice(0, 10)) : '-'}</span>
+    </div>`).join('');
+
+    const allPicked = due.length > 0 && due.every(w => cpRenewalPick.has(w.id));
+    const nBook = [...cpRenewalPick].filter(id => cpRenewalBook.get(id)).length;
+    return `<div class="cp-card cp-rn-card">
+            <div class="cp-rn-head"><div><h3>ถึงรอบต่ออายุ ${due.length ? `<span class="text-muted">${due.length} คน</span>` : ''}</h3>
+                <small class="text-muted">ใบอนุญาตทำงานจะหมดภายใน 2 เดือน — เลือกคนที่ต้องการต่ออายุ แล้วกดส่งคำขอ</small></div>
+                ${due.length ? `<label class="rn-book-pick"><input type="checkbox" ${allPicked ? 'checked' : ''} onchange="toggleClientRenewalPick(${escapeHtml(JSON.stringify(due.map(w => w.id)))}, this.checked)"> เลือกทั้งหมด</label>` : ''}</div>
+            ${dueRows || '<p class="text-muted cp-rn-empty">ยังไม่มีคนงานที่ถึงรอบต่ออายุ</p>'}
+        </div>
+        <div class="cp-card cp-rn-card"><div class="cp-rn-head"><h3>กำลังดำเนินการ ${active.length ? `<span class="text-muted">${active.length} คน</span>` : ''}</h3></div>
+            ${activeRows || '<p class="text-muted cp-rn-empty">ไม่มีรายการ</p>'}</div>
+        ${done.length ? `<div class="cp-card cp-rn-card"><div class="cp-rn-head"><h3>ต่ออายุเสร็จแล้ว</h3></div>${doneRows}</div>` : ''}
+        ${cpRenewalPick.size ? `<div class="rn-selbar" role="toolbar" aria-label="ส่งคำขอต่ออายุ">
+            <span>เลือก ${cpRenewalPick.size} คน${nBook ? ` · ทำเล่ม ${nBook} คน` : ''}</span>
+            <button type="button" class="btn btn-gold" onclick="clientSubmitRenewals()" title="ส่งคำขอต่ออายุของคนงานที่เลือก">ส่งคำขอต่ออายุ ${cpRenewalPick.size} คน</button>
+            <button type="button" class="btn rn-selbar-clear" onclick="toggleClientRenewalPick([...cpRenewalPick], false)" title="ล้างที่เลือกไว้">ล้าง</button>
+        </div>` : ''}`;
+}
+
+function toggleClientRenewalPick(ids, on) {
+    ids.forEach(id => { if (on) cpRenewalPick.add(id); else cpRenewalPick.delete(id); });
+    renderClientPortal();
+}
+
+async function clientSubmitRenewals() {
+    const list = [...cpRenewalPick].map(id => workers.find(w => w.id === id)).filter(Boolean);
+    if (!list.length) return;
+    const note = await uiPrompt(`ส่งคำขอต่ออายุ ${list.length} คน — เจ้าหน้าที่จะได้รับแจ้งทันที และติดต่อกลับเรื่องเอกสารและค่าบริการ ข้อความถึงเจ้าหน้าที่ (ไม่ใส่ก็ได้)`, {
+        title: 'ส่งคำขอต่ออายุ', okText: 'ส่งคำขอ', placeholder: 'เช่น ให้ติดต่อคุณสมชาย 08x-xxx-xxxx',
+        summary: list.map(w => ({ label: workerFullName(w), value: `ถึง ${formatThaiDate(w.permitExpiry)}${cpRenewalBook.get(w.id) ? ' · ทำเล่มด้วย' : ''}` }))
+    });
+    if (note === null) return;
+    const res = await callCloudAPI("clientStartRenewals", {
+        rows: list.map(w => ({ worker_id: w.id, with_book: !!cpRenewalBook.get(w.id) })), note
+    });
+    if (!res || res.status !== "success") { showToast("❌ ส่งคำขอไม่สำเร็จ: " + (res && res.message ? res.message : "กรุณาลองใหม่"), "danger"); return; }
+    list.forEach(w => cpRenewalPick.delete(w.id));
+    await loadData(); // ดึงรอบ + ใบงานเก็บเงินที่ฐานข้อมูลสร้างให้
+    await loadRenewals(true);
+    showUploadPill('ok', `ส่งคำขอต่ออายุ ${res.rows.length} คนแล้ว`, 'ดูความคืบหน้าได้ที่แท็บ "ต่ออายุ"');
+    renderClientPortal();
+}
+
+async function clientCancelRenewal(id) {
+    const r = (renewalList || []).find(x => x.id === id);
+    const w = r && workers.find(x => x.id === r.workerId);
+    if (!r) return;
+    const ok = await uiConfirm(`ยกเลิกคำขอต่ออายุของ ${w ? workerFullName(w) : 'คนงานนี้'}?`, { title: 'ยกเลิกคำขอต่ออายุ', okText: 'ยกเลิกคำขอ', danger: true });
+    if (!ok) return;
+    const res = await callCloudAPI("clientCancelRenewal", { id });
+    if (!res || res.status !== "success") { showToast("❌ ยกเลิกไม่สำเร็จ: " + (res && res.message ? res.message : "กรุณาลองใหม่"), "danger"); return; }
+    jobs = jobs.filter(j => j.batchId !== `renewal-${id}`);
+    Object.assign(r, renewalFromRow(res.row));
+    saveData();
+    showUploadPill('ok', 'ยกเลิกคำขอต่ออายุแล้ว');
+    renderClientPortal();
 }
 
 // ตัวกรองในพอร์ทัลนายจ้าง (owner, 2026-10-14) — เก็บค่าไว้ในตัวแปร ไม่หายตอนวาดแท็บใหม่
@@ -2610,16 +2723,24 @@ function renewalFromRow(r) {
     return {
         id: r.id, workerId: r.worker_id, customerId: r.customer_id, oldPermitExpiry: r.old_permit_expiry,
         status: r.status, withBook: !!r.with_book, steps: r.steps || {}, appointmentDate: r.appointment_date,
-        newPermitExpiry: r.new_permit_expiry, note: r.note, startedAt: r.started_at, doneAt: r.done_at
+        newPermitExpiry: r.new_permit_expiry, note: r.note, startedAt: r.started_at, doneAt: r.done_at,
+        openedByClient: !!r.opened_by_client, clientNote: r.client_note || ''
     };
 }
 
-async function loadRenewals(silent = false) {
-    if (!currentUser || currentUser.role === 'client') return;
-    const res = await callCloudAPI("getRenewals", {}, { silent });
-    if (!res || res.status !== "success") return;
-    renewalList = res.rows.map(renewalFromRow);
-    if (!document.getElementById('view-renewals')?.classList.contains('hidden')) renderRenewalGroups();
+// ลูกค้าโหลดได้เฉพาะรอบของบริษัทตัวเอง (RLS) — ใช้ในแท็บ "ต่ออายุ" ของพอร์ทัล
+let renewalLoading = null;
+function loadRenewals(silent = false) {
+    if (!currentUser) return Promise.resolve();
+    if (!renewalLoading) renewalLoading = (async () => {
+        const res = await callCloudAPI("getRenewals", {}, { silent });
+        if (!res || res.status !== "success") return;
+        renewalList = res.rows.map(renewalFromRow);
+        if (currentUser.role === 'client') {
+            if (!document.getElementById('view-client-portal')?.classList.contains('hidden')) renderClientPortal();
+        } else if (!document.getElementById('view-renewals')?.classList.contains('hidden')) renderRenewalGroups();
+    })().finally(() => { renewalLoading = null; });
+    return renewalLoading;
 }
 
 function switchRenewalTab(tab) {
@@ -2766,7 +2887,7 @@ function renewalProvinceSelectHtml(ws) {
     const provs = Object.keys(counts).filter(p => p !== '-').sort((a, b) => a.localeCompare(b, 'th'));
     if (counts['-']) provs.push('-');
     if (renewalProvince && !provs.includes(renewalProvince)) provs.unshift(renewalProvince); // คงค่าที่เลือกไว้แม้ไม่เหลือคน
-    return `<select class="rn-province" onchange="renewalProvince = this.value; renderRenewalCases()" title="กรองคนงานตามจังหวัดของนายจ้าง">
+    return `<select class="select-filter rn-province" onchange="renewalProvince = this.value; renderRenewalCases()" title="กรองคนงานตามจังหวัดของนายจ้าง">
         <option value="">ทุกจังหวัด</option>
         ${provs.map(p => `<option value="${escapeHtml(p)}" ${p === renewalProvince ? 'selected' : ''}>${escapeHtml(renewalProvinceLabel(p))} (${counts[p] || 0})</option>`).join('')}
     </select>`;
@@ -2914,7 +3035,9 @@ function renewalActiveRowHtml(r, canEdit) {
     const stepText = next ? `ขั้นที่ ${Math.min(i + 1, RENEWAL_STEPS.length)}/${RENEWAL_STEPS.length} · รอ${next.label}` : 'ครบทุกขั้น';
     return `<div class="rn-arow${renewalSel.has(r.id) ? ' is-selected' : ''}" data-ctx="worker:${w.id}" ondblclick="handleRowDblClick(event) && openWorkerQuickView('${w.id}', 'renewal')" title="ดับเบิลคลิกเพื่อดูข้อมูลคนงาน">
         ${canEdit ? `<input type="checkbox" ${renewalSel.has(r.id) ? 'checked' : ''} onchange="toggleRenewalSel(['${r.id}'], this.checked)" title="เลือกคนงานคนนี้">` : '<span></span>'}
-        <div class="rn-arow-name"><strong>${escapeHtml(workerFullName(w))}</strong><small class="text-muted">หมด ${r.oldPermitExpiry ? formatThaiDate(r.oldPermitExpiry) : '-'}${r.withBook ? ' · ทำเล่มด้วย' : ''}</small></div>
+        <div class="rn-arow-name"><strong>${escapeHtml(workerFullName(w))}</strong><small class="text-muted">หมด ${r.oldPermitExpiry ? formatThaiDate(r.oldPermitExpiry) : '-'}${r.withBook ? ' · ทำเล่มด้วย' : ''}</small>
+            ${r.openedByClient ? `<span class="rn-client-tag" title="นายจ้างเปิดรอบนี้เองจากพอร์ทัลลูกค้า">ลูกค้าเปิดงาน · ${formatThaiDate(String(r.startedAt || '').slice(0, 10))}</span>` : ''}
+            ${r.clientNote ? `<small class="rn-client-note">"${escapeHtml(r.clientNote)}"</small>` : ''}</div>
         <div class="rn-arow-progress">${renewalBarHtml(r)}<small class="text-muted">${escapeHtml(stepText)}</small></div>
         <span class="rn-arow-appt">${r.appointmentDate ? `นัด ${formatThaiDate(r.appointmentDate)}` : '<span class="text-muted">—</span>'}</span>
         <div class="rn-actions">
