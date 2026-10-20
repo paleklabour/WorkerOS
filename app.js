@@ -4497,6 +4497,24 @@ function markWorkerSortHeaders() {
     });
 }
 
+// ตัวเลือก dropdown จังหวัดหน้าคนงาน จากจังหวัดนายจ้างจริง (workerProvinceOf) — คงค่าที่เลือกไว้เดิม, "-" = ไม่ระบุจังหวัด
+function fillWorkerProvinceFilter() {
+    const sel = document.getElementById("filter-worker-province");
+    if (!sel) return '';
+    const prev = sel.value;
+    const counts = {};
+    workers.filter(w => w.status !== 'deleted' && w.status !== 'archived').forEach(w => {
+        const p = workerProvinceOf(w) || '-';
+        counts[p] = (counts[p] || 0) + 1;
+    });
+    const provs = Object.keys(counts).filter(p => p !== '-').sort((a, b) => a.localeCompare(b, 'th'));
+    if (counts['-']) provs.push('-');
+    sel.innerHTML = '<option value="">ทุกจังหวัด</option>' + provs.map(p =>
+        `<option value="${escapeHtml(p)}">${p === '-' ? 'ไม่ระบุจังหวัด' : 'จ.' + escapeHtml(p)} (${counts[p]})</option>`).join('');
+    sel.value = provs.includes(prev) ? prev : '';
+    return sel.value;
+}
+
 // เติมตัวเลือกกลุ่มมติ ครม. — 1 ตัวเลือกต่อรอบ (วัน/เดือน) + แยกรายปีใต้รอบนั้นถ้ามีทั้งคนที่ต่อแล้วและยังไม่ต่อ
 // ค่า: cohort:MM-DD (ทั้งรอบ) / date:YYYY-MM-DD (ปีเดียว) — คงค่าที่เลือกไว้ ถ้าหายไปแล้วกลับเป็น "ทุกกลุ่ม"
 function fillWorkerGroupFilter(cohorts) {
@@ -4533,6 +4551,7 @@ function renderWorkers() {
     // ตัวกรองกลุ่ม: มติ ครม. (รอบตามวัน/เดือนใบอนุญาตหมดอายุ) / MOU — กติกาเดียวกับหน้าต่ออายุ (permitCohorts)
     const { cohorts, cohortOf } = permitCohorts();
     const groupFilter = fillWorkerGroupFilter(cohorts);
+    const provFilter = fillWorkerProvinceFilter();
 
     // Filtering logic
     const filtered = workers.filter(w => {
@@ -4597,7 +4616,9 @@ function renderWorkers() {
             else matchGroup = groupFilter === 'date:' + permitExpiryKey(w);
         }
 
-        return matchSearch && matchNat && matchEmp && matchStatus && matchEmpStatus && matchGroup;
+        const matchProv = !provFilter || (workerProvinceOf(w) || '-') === provFilter;
+
+        return matchSearch && matchNat && matchEmp && matchStatus && matchEmpStatus && matchGroup && matchProv;
     });
 
     // คลิกหัวคอลัมน์เพื่อเรียง (sortWorkersBy) — เรียงก่อนแบ่งหน้า
