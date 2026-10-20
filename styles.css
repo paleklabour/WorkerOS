@@ -6713,7 +6713,7 @@ body.has-camera .upload-hint { display: none; }
 .rn-agroup-head input, .rn-arow input { width: 18px; height: 18px; accent-color: var(--gold-primary); }
 .rn-arow {
     display: grid;
-    grid-template-columns: 30px minmax(180px, 260px) minmax(0, 1fr) 150px auto;
+    grid-template-columns: 30px minmax(180px, 260px) minmax(0, 1fr) 140px 170px auto;
     gap: 14px;
     align-items: center;
     padding: 11px 16px;
@@ -6723,8 +6723,12 @@ body.has-camera .upload-hint { display: none; }
 .rn-arow.is-selected { background-color: color-mix(in srgb, var(--gold-primary) 8%, transparent); }
 .rn-arow-name { display: flex; flex-direction: column; min-width: 0; }
 .rn-arow-name strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rn-uid { font-variant-numeric: tabular-nums; letter-spacing: .2px; color: var(--text-dark); }
 .rn-arow-progress { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .rn-arow-appt { font-size: 13.5px; }
+.rn-arow-bill { min-width: 0; }
+.rn-bill-pill { border: 0; cursor: pointer; font: inherit; font-size: 12.5px; }
+.rn-bill-pill:hover { filter: brightness(.95); }
 .rn-bar { display: flex; gap: 4px; }
 .rn-seg { flex: 1; height: 9px; padding: 0; border: 0; border-radius: 999px; background-color: var(--dk-line, #dde1e8); cursor: pointer; }
 .rn-seg.is-done { background-color: var(--gold-primary); }
@@ -6754,7 +6758,7 @@ body.has-camera .upload-hint { display: none; }
 .rn-selbar .btn:disabled { opacity: .45; }
 @media (max-width: 760px) {
     .rn-arow { grid-template-columns: 30px minmax(0, 1fr); }
-    .rn-arow-progress, .rn-arow-appt, .rn-arow .rn-actions { grid-column: 2; }
+    .rn-arow-progress, .rn-arow-appt, .rn-arow-bill, .rn-arow .rn-actions { grid-column: 2; }
 }
 
 /* ฝั่งเจ้าหน้าที่: รอบที่นายจ้างเปิดเองจากพอร์ทัล (owner 2026-10-20) */

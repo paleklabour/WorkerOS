@@ -3138,16 +3138,39 @@ function renewalActiveRowHtml(r, canEdit) {
     const stepText = next ? `ขั้นที่ ${Math.min(i + 1, RENEWAL_STEPS.length)}/${RENEWAL_STEPS.length} · รอ${next.label}` : 'ครบทุกขั้น';
     return `<div class="rn-arow${renewalSel.has(r.id) ? ' is-selected' : ''}" data-ctx="worker:${w.id}" ondblclick="handleRowDblClick(event) && openWorkerQuickView('${w.id}', 'renewal')" title="ดับเบิลคลิกเพื่อดูข้อมูลคนงาน">
         ${canEdit ? `<input type="checkbox" ${renewalSel.has(r.id) ? 'checked' : ''} onchange="toggleRenewalSel(['${r.id}'], this.checked)" title="เลือกคนงานคนนี้">` : '<span></span>'}
-        <div class="rn-arow-name"><strong>${escapeHtml(workerFullName(w))}</strong><small class="text-muted">หมด ${r.oldPermitExpiry ? formatThaiDate(r.oldPermitExpiry) : '-'}${r.withBook ? (r.steps.bookExternal ? ' · ทำเล่มที่อื่น' : ' · ทำเล่มด้วย') : ''}</small>
+        <div class="rn-arow-name"><strong>${escapeHtml(workerFullName(w))}</strong><small class="rn-uid">${escapeHtml(w.workerUid || 'ยังไม่มีเลข 13 หลัก')}</small><small class="text-muted">หมด ${r.oldPermitExpiry ? formatThaiDate(r.oldPermitExpiry) : '-'}${r.withBook ? (r.steps.bookExternal ? ' · ทำเล่มที่อื่น' : ' · ทำเล่มด้วย') : ''}</small>
             ${r.openedByClient ? `<span class="rn-client-tag" title="นายจ้างเปิดรอบนี้เองจากพอร์ทัลลูกค้า">ลูกค้าเปิดงาน · ${formatThaiDate(String(r.startedAt || '').slice(0, 10))}</span>` : ''}
             ${r.clientNote ? `<small class="rn-client-note">"${escapeHtml(r.clientNote)}"</small>` : ''}</div>
         <div class="rn-arow-progress">${renewalBarHtml(r)}<small class="text-muted">${escapeHtml(stepText)}</small></div>
         <span class="rn-arow-appt">${r.appointmentDate ? `นัด ${formatThaiDate(r.appointmentDate)}` : '<span class="text-muted">—</span>'}</span>
+        <span class="rn-arow-bill">${renewalBillPillHtml(r)}</span>
         <div class="rn-actions">
             ${canEdit && next ? `<button type="button" class="btn btn-sm btn-soft rn-next-btn" onclick="renewalStepClick('${r.id}', '${next.key}')" title="${escapeHtml(renewalNextLabel(r))}">${escapeHtml(renewalNextLabel(r))}</button>` : ''}
             ${canEdit ? `<button type="button" class="action-icon-btn" onclick="cancelRenewal('${r.id}')" title="ยกเลิกรอบต่ออายุนี้">${icon('xmark')}</button>` : ''}
         </div>
     </div>`;
+}
+
+// สถานะบิลของรอบ (owner 2026-10-20) จากใบงานเก็บเงินเบื้องหลัง: รอออกบิล / ค้างชำระ / ชำระบางส่วน / ชำระแล้ว / ไม่เรียกเก็บเงิน
+// ฝ่ายบัญชีกดป้ายเพื่อออกบิล หรือเปิดบิลที่ออกแล้ว
+function renewalBillPillHtml(r) {
+    const js = renewalJobsOf(r);
+    if (!js.length) return '<span class="text-muted">—</span>';
+    const fin = can('finance');
+    const awaiting = js.filter(jobAwaitingBill);
+    const invs = [...new Map(js.map(getJobInvoice).filter(Boolean).map(i => [i.id, i])).values()];
+    const owe = round2(invs.reduce((s, i) => s + invoiceBalance(i), 0));
+    const paid = round2(invs.reduce((s, i) => s + invoicePaidAmount(i), 0));
+    const pill = (cls, text, action, title) => action && fin
+        ? `<button type="button" class="badge ${cls} rn-bill-pill" onclick="${action}" title="${title}">${text}</button>`
+        : `<span class="badge ${cls}" title="${title}">${text}</span>`;
+    if (awaiting.length) return pill('badge-warning', `รอออกบิล${awaiting.length > 1 ? ` ${awaiting.length} รายการ` : ''}`,
+        `openInvoiceModal('${awaiting[0].id}')`, 'ยังไม่ออกบิล — ฝ่ายบัญชีกดเพื่อออกบิล');
+    if (!invs.length) return '<span class="badge badge-gold" title="ตั้งเป็นไม่เรียกเก็บเงิน">ไม่เรียกเก็บเงิน</span>';
+    const open = `openStoredInvoice('${invs[0].id}')`;
+    const no = invs.map(i => i.invoiceNo).filter(Boolean).join(', ');
+    if (owe > 0) return pill('badge-danger', paid > 0 ? `ชำระบางส่วน · ค้าง ${fmtMoney(owe)}` : `ค้างชำระ ${fmtMoney(owe)}`, open, `บิล ${no}`);
+    return pill('badge-success', 'ชำระแล้ว', open, `บิล ${no}`);
 }
 
 function renewalActiveHtml(list, searched = list) {
