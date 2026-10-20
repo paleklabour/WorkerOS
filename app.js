@@ -2981,7 +2981,13 @@ function renewalExpiryCell(iso) {
 function renderRenewalCases() {
     const box = document.getElementById('renewal-cases-container');
     if (!box) return;
-    if (renewalTab === 'pool') { box.innerHTML = renderRegistrationPool(); return; } // ฐานข้อมูลรอขึ้นทะเบียน
+    if (renewalTab === 'pool') { // ฐานข้อมูลรอขึ้นทะเบียน
+        box.innerHTML = renderRegistrationPool();
+        // แท็บย่อย รอขึ้นทะเบียน / รอบ / ขึ้นทะเบียนแล้ว = แท็บเลื่อนแบบ iOS (วาดใหม่ทุกครั้ง จึงติดตัวเลื่อนหลังวาด)
+        const views = box.querySelector('.reg-views');
+        if (views) { views.classList.add('seg-host'); attachTabSlider(views, () => views.querySelector(':scope > .btn.btn-gold')); attachSegmentedGestures(views); }
+        return;
+    }
     const due = renewalDueWorkers();
     const list = renewalList || [];
     const visible = workerId => !!workers.find(w => w.id === workerId); // ไม่นับคนงานของนายจ้างที่ปิดใช้งาน
@@ -3693,7 +3699,7 @@ function renderRegistrationPool() {
                 <button type="button" class="btn btn-outline" onclick="openRegRoundModal()" title="รัฐประกาศเปิดรับแล้ว: สร้างรอบ มติ ครม. (วันประกาศ + วันใบอนุญาตหมด)">สร้างรอบ มติ ครม.</button></div>` : ''}
         </div>
         <div class="rn-toolbar">
-            <div class="dashboard-tabs reg-views">${views.map(v => `<button type="button" class="btn ${v.key === regPoolView ? 'btn-gold' : 'btn-outline'}" onclick="regPoolView = '${v.key}'; renderRenewalCases()">${escapeHtml(v.label)} <span class="rn-count">${v.n || ''}</span></button>`).join('')}</div>
+            <div class="dashboard-tabs reg-views">${views.map(v => `<button type="button" class="btn ${v.key === regPoolView ? 'btn-gold' : 'btn-outline'}" onclick="regSwitchView('${v.key}', this)">${escapeHtml(v.label)} <span class="rn-count">${v.n || ''}</span></button>`).join('')}</div>
             ${renewalProvinceSelectHtml(searched)}
             <select class="select-filter" onchange="regCompleteFilter = this.value; renderRenewalCases()" title="กรองตามความครบของข้อมูล">
                 <option value="">ข้อมูลครบ / ไม่ครบ</option><option value="complete" ${regCompleteFilter === 'complete' ? 'selected' : ''}>เฉพาะข้อมูลครบ</option><option value="incomplete" ${regCompleteFilter === 'incomplete' ? 'selected' : ''}>เฉพาะยังไม่ครบ</option>
@@ -3714,6 +3720,18 @@ function regSelBarHtml(rounds) {
             : '<button type="button" class="btn btn-gold" onclick="openRegRoundModal()" title="ยังไม่มีรอบ — สร้างรอบ มติ ครม. ก่อน">สร้างรอบ มติ ครม. ก่อน</button>'}
         <button type="button" class="btn rn-selbar-clear" onclick="toggleRegPoolSel([...regPoolSel], false)" title="ล้างที่เลือกไว้">ล้าง</button>
     </div>`;
+}
+
+// สลับแท็บย่อย: เลื่อนตัวเลื่อนไปที่ปุ่มก่อน แล้วค่อยวาดหน้าใหม่ (ไม่งั้นวาดใหม่ทันที = ไม่เห็นการเลื่อน)
+function regSwitchView(key, btn) {
+    if (key === regPoolView) return;
+    regPoolView = key;
+    regPoolSel.clear();
+    const host = btn && btn.parentElement;
+    if (host && host._tabSliderMoveTo && !iosReducedMotion()) {
+        host.querySelectorAll(':scope > .btn').forEach(b => { b.classList.toggle('btn-gold', b === btn); b.classList.toggle('btn-outline', b !== btn); });
+        setTimeout(renderRenewalCases, 240);
+    } else renderRenewalCases();
 }
 
 async function regRemoveFromRound(workerId) {
