@@ -274,7 +274,7 @@ async function runBackup(sb: SupabaseClient, trigger: string) {
   // (batch_id = 'renewal-<id>') ปลดล็อกทุกใบ (owner 2026-10-20) — กติกาเดียวกับ clientLockedRenewalUrls ใน app.js
   const lockedRenewalUrls = new Set<string>();
   renewals.forEach((r) => {
-    const js = jobs.filter((j) => j.batch_id === `renewal-${r.id}`);
+    const js = jobs.filter((j) => j.batch_id === `${r.kind === "registration" ? "register" : "renewal"}-${r.id}`); // ขึ้นทะเบียนใช้ batch register-<id>
     if (!js.length || js.every(jobDocsUnlocked)) return;
     Object.values(r.steps || {}).forEach((s: any) => { if (s && s.url) lockedRenewalUrls.add(s.url); });
   });

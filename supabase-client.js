@@ -920,7 +920,8 @@
                 const rows = (payload.rows || []).map(r => ({
                     worker_id: r.workerId, customer_id: r.customerId || null,
                     old_permit_expiry: r.oldPermitExpiry || null, with_book: !!r.withBook,
-                    status: r.status || 'active', note: r.note || null
+                    status: r.status || 'active', note: r.note || null,
+                    kind: r.kind || 'renewal', registration_round_id: r.registrationRoundId || null
                 }));
                 if (!rows.length) return { status: "error", message: "ยังไม่ได้เลือกคนงาน" };
                 const { data, error } = await sb.from("renewals").insert(rows).select("*");
@@ -932,6 +933,12 @@
                 const { data, error } = await sb.from("registration_rounds").select("*").order("created_at", { ascending: false });
                 if (error) return { status: "error", message: error.message };
                 return { status: "success", rows: data || [] };
+            }
+            case "deleteRegistrationRound": {
+                // ลบรอบได้เฉพาะ Admin (RLS) — คนงานในรอบกลับไปรอขึ้นทะเบียน (workers.registration_round_id on delete set null)
+                const { error } = await sb.from("registration_rounds").delete().eq("id", payload.id);
+                if (error) return { status: "error", message: error.message };
+                return { status: "success" };
             }
             case "saveRegistrationRound": {
                 const r = payload.round || {};

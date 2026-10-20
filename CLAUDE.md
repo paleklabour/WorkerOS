@@ -525,9 +525,17 @@ files = `NTID_F` + `NTID_B`). "สร้างรอบ มติ ครม." ta
 workers are ticked in the "รอขึ้นทะเบียน" sub-tab and put in a round from the floating bar (`regAddSelectedToRound`);
 completeness chips via `regChecks`. Employers submit/edit their own pool workers in the portal tab
 "ขึ้นทะเบียน" through RPC `client_save_pending_worker` (they can't write `workers` directly; files upload to Storage first);
-`submitted_by_client` shows a purple tag. Migration `20261020092027_registration_pool.sql`. Phase 2 (not built): the
-renewal-style steps after a round (ใบคำขอ+ใบเสร็จ → ตรวจสุขภาพ → ประกัน → ค่าธรรมเนียมรอบ 2 (optional) → ใบแทน → ใบนัด →
-Smart card → บัตรชมพู → ทำเล่ม / ตี visa), separate billing items, portal progress — owner picked mockup 4.
+`submitted_by_client` shows a purple tag. Migration `20261020092027_registration_pool.sql`.
+Steps (phase 2, owner picked mockup 4; migration `20261020094803_registration_steps.sql`): putting workers in a round creates a
+`renewals` row with `kind = 'registration'` + `registration_round_id` per worker and bills once — hidden jobs
+"ขึ้นทะเบียนแรงงานต่างด้าว" / "ออกใบรับรองแพทย์" / "ซื้อประกัน" + "ต่อเล่ม CI/Passport" (no passport) or "ตี visa" (has a passport =
+visa surcharge), `batchId = 'register-<id>'` (`roundBatchId`, `isRegisterJob`, own billing/combine tab "งานขึ้นทะเบียน",
+`jobKindOf`). The renewal engine is shared: `renewalStepsOf` / `renewalNextStep` pick `REG_STEPS` (ใบคำขอ → ใบเสร็จ →
+ใบรับรองแพทย์ → กรมธรรม์ → ค่าธรรมเนียมรอบ 2 (optional, "ไม่มี" = `skipped`) → ใบแทน → ใบนัด → Smart card → บัตรชมพู) + book or
+visa step; the round tab shows `renewalActiveRowHtml` rows with a floating bar (appointment / skip receipt 2 / book-visa
+elsewhere); WP expiry defaults to the round's `permit_expiry`; pink card + book/visa closes it and the worker becomes
+`active` (→ ขึ้นทะเบียนแล้ว). Renewal tabs filter `kind !== 'registration'`. Removing a worker from a round / deleting a
+round cancels its steps and deletes unbilled jobs (`regCancelRound`). Portal tab shows progress + amount owing.
 
 ## No-charge jobs (2026-10-06)
 

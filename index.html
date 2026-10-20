@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261020z">
+    <link rel="stylesheet" href="styles.css?v=20261021b">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -1262,6 +1262,7 @@
                             <div class="dashboard-tabs billing-kind-tabs">
                                 <button type="button" class="btn btn-outline" data-billing-kind="general" onclick="setBillingKind('general')" title="ใบงานจากระบบแจ้งงาน">ใบงานทั่วไป <span class="rn-count" id="billing-kind-count-general"></span></button>
                                 <button type="button" class="btn btn-outline" data-billing-kind="renewal" onclick="setBillingKind('renewal')" title="งานต่ออายุใบอนุญาตทำงาน (จากหน้าต่ออายุ/ทำเล่ม)">งานต่ออายุ <span class="rn-count" id="billing-kind-count-renewal"></span></button>
+                                <button type="button" class="btn btn-outline" data-billing-kind="register" onclick="setBillingKind('register')" title="งานขึ้นทะเบียน (จากหน้ารอขึ้นทะเบียน)">งานขึ้นทะเบียน <span class="rn-count" id="billing-kind-count-register"></span></button>
                             </div>
                             <div class="table-actions">
                                 <!-- ช่องค้นหา + ตัวกรองสถานะอยู่กลุ่มเดียวกัน (dropdown ชิดหลังช่องค้นหา เหมือนหน้าแจ้งงาน) -->
@@ -3161,6 +3162,7 @@
                     <div class="dashboard-tabs billing-kind-tabs">
                         <button type="button" class="btn btn-outline" data-combine-kind="general" onclick="setCombineKind('general')" title="รวมบิลใบงานจากระบบแจ้งงาน">ใบงานทั่วไป</button>
                         <button type="button" class="btn btn-outline" data-combine-kind="renewal" onclick="setCombineKind('renewal')" title="รวมบิลงานต่ออายุใบอนุญาตทำงาน">งานต่ออายุ</button>
+                        <button type="button" class="btn btn-outline" data-combine-kind="register" onclick="setCombineKind('register')" title="รวมบิลงานขึ้นทะเบียน">งานขึ้นทะเบียน</button>
                     </div>
                     <div class="form-group">
                         <label for="combine-cust-search">เลือกนายจ้าง / ลูกค้าผู้ว่าจ้าง <span class="required">*</span></label>
@@ -3614,7 +3616,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261020z"></script>
+    <script src="supabase-client.js?v=20261021b"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3625,6 +3627,6 @@
     </script>
 
     <!-- Application Script -->
-    <script src="app.js?v=20261020z"></script>
+    <script src="app.js?v=20261021b"></script>
 </body>
 </html>

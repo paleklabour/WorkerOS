@@ -6786,6 +6786,7 @@ body.has-camera .upload-hint { display: none; }
 .reg-chip.is-ok { background-color: var(--dk-ok-bg, #e6f2ea); color: var(--dk-ok, #1f6a3b); }
 .reg-chip.is-miss { background-color: var(--dk-bad-bg, #fbe6e3); color: var(--dk-bad, #a62e22); }
 .reg-head-add { margin-left: auto; }
+.reg-del-round { display: block; margin-top: 8px; }
 .reg-body .reg-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 12px; }
 .reg-slots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
 .reg-slots-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -6820,6 +6821,7 @@ body.has-camera .upload-hint { display: none; }
 .reg-round-row input { width: 18px; height: 18px; accent-color: var(--gold-primary); }
 .reg-round-row > span:nth-child(2) { flex: 1; display: flex; flex-direction: column; }
 .cp-reg-row { grid-template-columns: 40px minmax(160px, 1fr) minmax(0, 2fr); }
+.cp-reg-progress { flex: 1 1 260px; min-width: 200px; }
 @media (max-width: 760px) {
     .reg-row { grid-template-columns: 26px 46px minmax(0, 1fr); }
     .reg-row > :nth-child(n+4) { grid-column: 3; }
