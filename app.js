@@ -7564,6 +7564,8 @@ function jobCloseDocsHtml(j, pre = j.status !== 'ปิดงานแล้ว'
                <input type="file" multiple hidden onchange="addJobCloseDocs('${j.id}', this)"></label>`
         : '';
     if (!docs.length) return `<div class="job-close-docs text-muted">${pre ? 'ยังไม่ได้แนบเอกสารปิดงาน' : 'ไม่มีเอกสารแนบตอนปิดงาน'} ${addBtn}</div>`;
+    if (currentUser && currentUser.role === 'client' && !clientJobDocsUnlocked(j))
+        return `<div class="job-close-docs text-muted">${icon('lock')} ชำระเงินเพื่อดาวน์โหลดเอกสาร (${docs.length} ไฟล์)</div>`;
     const canRename = canEditJob(j);
     return `<div class="job-close-docs"><strong>เอกสารปิดงาน:</strong>${docs.map((f, k) =>
         `<span class="job-close-doc"><a href="${escapeHtml(f.url)}" target="_blank" rel="noopener">${icon('clip')} ${escapeHtml(f.name || `ไฟล์ ${k + 1}`)}</a>` +
@@ -13605,7 +13607,9 @@ function collectWorkerAllDocs(w) {
         });
     });
     const seenUrls = new Set(out.map(d => d.url)); // เอกสารปิดงานที่ AI เก็บเข้าแฟ้มแล้ว ไม่แสดงซ้ำ
-    jobs.filter(j => j.workerId === w.id)
+    // ลูกค้า: เอกสารของใบงานที่ยังไม่ชำระเงิน ไม่แสดงในแฟ้ม (กติกาเดียวกับตารางงานในพอร์ทัล — clientJobDocsUnlocked)
+    const isClient = !!currentUser && currentUser.role === 'client';
+    jobs.filter(j => j.workerId === w.id && (!isClient || clientJobDocsUnlocked(j)))
         .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
         .forEach(j => {
             const jobLabel = `${getCleanJobTypeName(j.jobType)} (${getJobDisplayNo(j)})`;
