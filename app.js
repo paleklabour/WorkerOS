@@ -2953,7 +2953,11 @@ function renderRenewalCases() {
     const list = renewalList || [];
     const visible = workerId => !!workers.find(w => w.id === workerId); // ไม่นับคนงานของนายจ้างที่ปิดใช้งาน
     const active = list.filter(r => r.status === 'active' && visible(r.workerId));
-    const done = list.filter(r => (r.status === 'done' || r.status === 'external') && visible(r.workerId)); // รวมต่อที่อื่น
+    // เสร็จแล้ว (owner 2026-10-20): ได้ Smart card แล้วหายไปเมื่อคนงานทุกคนของนายจ้างนั้นเสร็จหมด (นายจ้างยังมีรอบกำลังดำเนินการ = ยังแสดง)
+    // ต่อที่อื่น / ทำเล่มที่อื่นที่ยังรอข้อมูลใหม่ แสดงจนกว่าจะใส่ข้อมูล — ประวัติดูที่แผงคนงาน (renewalHistoryHtml)
+    const empBusy = new Set(list.filter(r => r.status === 'active').map(r => r.customerId));
+    const done = list.filter(r => (r.status === 'done' || r.status === 'external') && visible(r.workerId)
+        && (renewalExternalPending(r) || renewalBookExternalPending(r) || empBusy.has(r.customerId)));
     const setCount = (id, n) => { const el = document.getElementById(id); if (el) el.textContent = n ? n : ''; };
     setCount('rn-count-due', due.length);
     setCount('rn-count-active', active.length);
@@ -3258,12 +3262,40 @@ function renewalDoneHtml(list) {
     });
     const extSummary = Object.entries(extByEmp).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${escapeHtml(k)} ${n}`).join(' · ');
     return `<div class="dashboard-panel">
-        <div class="panel-header rn-head"><div><h3 style="margin:0;">เสร็จแล้ว</h3><small class="text-muted">เราต่อให้ (ได้ Smart card แล้ว) และต่อที่อื่น${extSummary ? ` · ต่อที่อื่น: ${extSummary}` : ''}</small></div></div>
+        <div class="panel-header rn-head"><div><h3 style="margin:0;">เสร็จแล้ว</h3><small class="text-muted">แสดงจนกว่าคนงานทุกคนของนายจ้างนั้นจะเสร็จ · ต่อที่อื่นที่ยังรอข้อมูลใหม่แสดงจนกว่าจะใส่ข้อมูล · ประวัติดูที่แผงคนงาน${extSummary ? ` · ต่อที่อื่น: ${extSummary}` : ''}</small></div></div>
         <div class="table-container"><table class="data-table rn-table">
             <thead><tr><th>คนงาน / นายจ้าง</th><th>สถานะ</th><th>ใบอนุญาตเดิมหมด</th><th>ใบอนุญาตใหม่หมด</th><th>ทำเล่ม</th><th>วันที่</th><th class="rn-act-cell"></th></tr></thead>
-            <tbody>${rows || `<tr><td colspan="7" class="rn-empty">ยังไม่มีรอบที่เสร็จ</td></tr>`}</tbody>
+            <tbody>${rows || `<tr><td colspan="7" class="rn-empty">ไม่มีรายการค้าง — รอบที่เสร็จครบแล้วดูประวัติได้ที่แผงคนงาน</td></tr>`}</tbody>
         </table></div>
     </div>`;
+}
+
+// ประวัติรอบต่ออายุของคนงาน 1 คน (แผงคนงาน แท็บข้อมูล, owner 2026-10-20) — ใหม่สุดก่อน ไม่นับรอบที่ยกเลิก
+// เช่น "ต่ออายุ: เสร็จ 14 ม.ค. 2570 · ใบอนุญาตใหม่ถึง 13 ก.พ. 2571"
+function renewalHistoryHtml(w) {
+    const rounds = (renewalList || []).filter(r => r.workerId === w.id && r.status !== 'cancelled')
+        .sort((a, b) => String(b.startedAt).localeCompare(String(a.startedAt)));
+    if (!rounds.length) return '';
+    const d = v => v ? formatThaiDate(String(v).slice(0, 10)) : '-';
+    const book = r => !r.withBook ? '' : r.steps.book ? (r.steps.bookExternal ? ' · เล่มทำที่อื่น' : ' · ทำเล่มแล้ว')
+        : r.steps.bookExternal ? ' · เล่มทำที่อื่น (รอข้อมูล)' : ' · ทำเล่มด้วย';
+    const rows = rounds.map(r => {
+        let title, sub;
+        if (r.status === 'done') {
+            title = `ต่ออายุ: เสร็จ ${d(r.doneAt)}`;
+            sub = `ใบอนุญาตใหม่ถึง ${d(r.newPermitExpiry)}${book(r)}`;
+        } else if (r.status === 'external') {
+            title = `ต่อที่อื่น: แจ้ง ${d(r.startedAt)}${r.externalByClient ? ' (ลูกค้าแจ้ง)' : ''}`;
+            sub = renewalExternalPending(r) ? 'รอข้อมูลใบอนุญาตใหม่' : `ใบอนุญาตใหม่ถึง ${d(r.newPermitExpiry || w.permitExpiry)}`;
+        } else {
+            const next = renewalNextStep(r);
+            title = `ต่ออายุ: กำลังดำเนินการ (เริ่ม ${d(r.startedAt)})`;
+            sub = `${next ? `รอ${next.label}` : 'ครบทุกขั้น'}${r.appointmentDate ? ` · นัด ${d(r.appointmentDate)}` : ''}${book(r)}`;
+        }
+        return `<button type="button" class="wp-row" onclick="openRenewalsTab('${r.status === 'active' ? 'active' : 'done'}')" title="เปิดหน้าต่ออายุ">
+            <span class="wp-row-top"><b>${escapeHtml(title)}</b></span><small>${escapeHtml(sub)} · เดิมหมด ${d(r.oldPermitExpiry)}</small></button>`;
+    });
+    return `<div class="wp-list">${rows.join('')}</div>`;
 }
 
 function renewalEnterNewData(id, which) {
@@ -4021,7 +4053,7 @@ function openWorkerQuickView(workerId, mode, tab) {
             ['พาสปอร์ต / CI', expHtml(w.passportExpiry, 180), true],
             ['บัตรชมพู', expHtml(fileExp('worker-pink-card'), 60), true],
             ['ประกัน', expHtml(fileExp('worker-insurance-doc'), 60), true],
-        ])) + sec('นายจ้าง', kv([
+        ])) + sec('ประวัติต่ออายุ', renewalHistoryHtml(w)) + sec('นายจ้าง', kv([
             ['บริษัท', emp ? emp.companyName : ''],
             ['เลขผู้เสียภาษี', can('finance') && emp ? emp.taxId : ''],
             ['ตำแหน่งงาน', w.position],
