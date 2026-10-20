@@ -496,7 +496,15 @@ their own rounds (RLS); renewal jobs are hidden from the portal "งานที
 Renewal files are locked for the employer until the round's billing jobs are all unlocked (`clientJobDocsUnlocked` rule):
 `clientLockedRenewalUrls` hides them in the client's worker folder (+ ZIP) and drive-backup puts them in the unshared
 "รอชำระเงิน" folder. Bell group `renewalreq` (ops roles) = client-opened rounds with no step done yet; renewal jobs are
-excluded from the other job bell groups. File steps go through `attachDocumentToWorker` into
+excluded from the other job bell groups.
+ต่อที่อื่น / ทำเล่มที่อื่น (owner 2026-10-20, migration `20261020074716_renewals_external.sql`): round status `external` = the employer
+renewed elsewhere (no billing jobs; staff `markRenewalsExternal` from the due tab or instead of cancelling an unbilled active
+round; client RPC `client_mark_external`). While `renewalExternalPending` (worker's permit expiry still = the round's old one)
+the worker stays out of the due list; "ใส่ข้อมูลใบอนุญาตใหม่" (`renewalNewDataChoice`: attach WP or type the date) ends it.
+`steps.bookExternal` = we renew the WP but the book is done elsewhere (`markBookExternal` / client `client_book_external`):
+the unbilled book job is deleted and the round can close without the book; new book data can be entered later. Both show
+in the เสร็จแล้ว tab (grey "ต่อที่อื่น" tag, per-employer count) and bell group `renewalext` once the old expiry has passed
+without new data. File steps go through `attachDocumentToWorker` into
 the normal worker doc slots; ใบแทน / card / new passport then ask for the new expiry (`askRenewalNewExpiry`) and set it on
 the worker and the file, so the old file folds into "expired" by the usual rule. Card (+ book if any) closes the round.
 Still to build: old→new worker-data preview, deposit shortcut in the start dialog, bell/calendar for appointments, client portal renewal progress.

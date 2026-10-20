@@ -6769,6 +6769,20 @@ body.has-camera .upload-hint { display: none; }
     font-weight: 700;
 }
 .rn-client-note { color: var(--text-muted); font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* ต่อที่อื่น / ทำเล่มที่อื่น (owner 2026-10-20) */
+.rn-ext-tag, .rn-done-tag {
+    display: inline-block;
+    margin-top: 3px;
+    padding: 1px 9px;
+    border-radius: 999px;
+    font-size: 12.5px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+.rn-ext-tag { background-color: var(--dk-subtle, #eceff4); color: var(--text-muted); box-shadow: inset 0 0 0 1px var(--dk-line, #d5dae3); }
+.rn-done-tag { background-color: color-mix(in srgb, var(--gold-primary) 12%, transparent); color: var(--gold-primary); }
+.rn-seg.is-ext { background: repeating-linear-gradient(45deg, var(--dk-line, #cfd4dd) 0 3px, transparent 3px 6px); box-shadow: inset 0 0 0 1px var(--dk-line, #cfd4dd); }
+.cp-rn-btns { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
 
 /* พอร์ทัลลูกค้า แท็บ "ต่ออายุ" */
 .cp-tab-badge:empty { display: none; }
@@ -6784,7 +6798,7 @@ body.has-camera .upload-hint { display: none; }
 .cp-rn-row:first-of-type { border-top: 0; }
 .cp-rn-row.is-selected { background-color: color-mix(in srgb, var(--gold-primary) 8%, transparent); }
 .cp-rn-row > input { width: 18px; height: 18px; accent-color: var(--gold-primary); }
-.cp-rn-active { grid-template-columns: minmax(160px, 240px) minmax(0, 1fr) 170px 160px 90px; }
+.cp-rn-active { grid-template-columns: minmax(160px, 240px) minmax(0, 1fr) 170px 150px auto; }
 .cp-rn-done { grid-template-columns: minmax(160px, 1fr) 160px 220px 140px; }
 .cp-rn-name { display: flex; flex-direction: column; min-width: 0; }
 .cp-rn-name strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

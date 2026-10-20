@@ -914,9 +914,11 @@
                 return { status: "success", rows: data || [] };
             }
             case "startRenewals": {
+                // status 'external' = ต่อที่อื่น (ไม่มีใบงานเก็บเงิน) — ดู 20261020074716_renewals_external.sql
                 const rows = (payload.rows || []).map(r => ({
                     worker_id: r.workerId, customer_id: r.customerId || null,
-                    old_permit_expiry: r.oldPermitExpiry || null, with_book: !!r.withBook
+                    old_permit_expiry: r.oldPermitExpiry || null, with_book: !!r.withBook,
+                    status: r.status || 'active', note: r.note || null
                 }));
                 if (!rows.length) return { status: "error", message: "ยังไม่ได้เลือกคนงาน" };
                 const { data, error } = await sb.from("renewals").insert(rows).select("*");
@@ -928,6 +930,16 @@
                 const { data, error } = await sb.rpc("client_start_renewals", { p_rows: payload.rows || [], p_note: payload.note || null });
                 if (error) return { status: "error", message: error.message };
                 return { status: "success", rows: data || [] };
+            }
+            case "clientMarkExternal": {
+                const { data, error } = await sb.rpc("client_mark_external", { p_worker_ids: payload.workerIds || [], p_note: payload.note || null });
+                if (error) return { status: "error", message: error.message };
+                return { status: "success", rows: data || [] };
+            }
+            case "clientBookExternal": {
+                const { data, error } = await sb.rpc("client_book_external", { p_id: payload.id });
+                if (error) return { status: "error", message: error.message };
+                return { status: "success", row: data };
             }
             case "clientCancelRenewal": {
                 const { data, error } = await sb.rpc("client_cancel_renewal", { p_id: payload.id });
