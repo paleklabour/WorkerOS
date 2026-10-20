@@ -935,7 +935,7 @@
             }
             case "saveRegistrationRound": {
                 const r = payload.round || {};
-                const row = { name: r.name, open_from: r.openFrom || null, open_to: r.openTo || null, status: r.status || 'open' };
+                const row = { name: r.name, announced_on: r.announcedOn || null, permit_expiry: r.permitExpiry || null, status: r.status || 'open' };
                 const q = r.id ? sb.from("registration_rounds").update(row).eq("id", r.id) : sb.from("registration_rounds").insert(row);
                 const { data, error } = await q.select("*").single();
                 if (error) return { status: "error", message: error.message };

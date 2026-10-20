@@ -269,7 +269,8 @@ Single session per account (owner, 2026-10-13): logging in calls `claimSingleSes
 tab focus (`startSessionGuard` / `checkSingleSession`) and log out if another device
 claimed it later. Tabs in the same browser share the id.
 
-Collapsible headers fold with an animation (height + opacity, `setCollapsed(h, on, true)` on click;
+Collapsible headers fold with an animation (height + opacity, `setCollapsed(h, on, true)` on click — only a click on the
+arrow at the header's right edge counts, owner 2026-10-20: clicking anywhere on the header folded it by accident;
 restored/auto-expanded states skip it). Pie toggles also on: completed jobs by type
 (`donetypes`), employer provinces (`custprov`), receivables aging (`aging`), revenue vs
 gov fees (`govsplit`).
@@ -518,8 +519,11 @@ Workers with no documents collected all year: `workers.status = 'pending_registe
 `'pool'`, `renderRegistrationPool`; back button returns to "ทั้งหมด (ตามกลุ่ม)"). Add/edit window `openRegWorkerModal`
 (employer required; photo, national-ID front/back — slot label follows nationality `regIdLabel`, files `NTID_F` / `NTID_B`
 attach-only; English name, DOB; optional old pink card / passport which go through the normal reader); duplicate warning on
-name + DOB. When the state opens registration: "สร้างรอบ มติ ครม." (`registration_rounds`, `openRegRoundModal`) and tick
-workers into it; completeness chips via `regChecks`. Employers submit/edit their own pool workers in the portal tab
+name + DOB; title (นาย/นาง/นางสาว) sets gender; Myanmar workers have no last-name field; one ID slot (1 file = `NTID_FB`, 2
+files = `NTID_F` + `NTID_B`). "สร้างรอบ มติ ครม." takes only the announcement date + permit expiry date (`announced_on`,
+`permit_expiry`, migration `20261020093415_registration_round_dates.sql`; name made from the date) — no worker picking;
+workers are ticked in the "รอขึ้นทะเบียน" sub-tab and put in a round from the floating bar (`regAddSelectedToRound`);
+completeness chips via `regChecks`. Employers submit/edit their own pool workers in the portal tab
 "ขึ้นทะเบียน" through RPC `client_save_pending_worker` (they can't write `workers` directly; files upload to Storage first);
 `submitted_by_client` shows a purple tag. Migration `20261020092027_registration_pool.sql`. Phase 2 (not built): the
 renewal-style steps after a round (ใบคำขอ+ใบเสร็จ → ตรวจสุขภาพ → ประกัน → ค่าธรรมเนียมรอบ 2 (optional) → ใบแทน → ใบนัด →

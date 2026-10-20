@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261020w">
+    <link rel="stylesheet" href="styles.css?v=20261020y">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -928,10 +928,10 @@
                                     <option value="batch">เฉพาะกลุ่มมติ ครม.</option>
                                     <option value="mou">เฉพาะกลุ่ม MOU</option>
                                 </select>
-                                <!-- ฐานข้อมูลรอขึ้นทะเบียน (owner 2026-10-20): ปุ่มเข้าจากแท็บแรก → renewalTab 'pool' (renderRegistrationPool) -->
-                                <button type="button" class="btn btn-gold" id="btn-open-reg-pool" onclick="switchRenewalTab('pool')" title="คนงานที่รอขึ้นทะเบียน เก็บสะสมไว้รอรัฐเปิดรับ">รอขึ้นทะเบียน <span class="rn-count" id="reg-pool-count"></span></button>
                                 <button type="button" class="btn btn-outline renewal-filter-clear hidden" id="btn-clear-renewal-filters" onclick="clearRenewalFilters()">ล้างตัวกรอง</button>
                             </div>
+                            <!-- ฐานข้อมูลรอขึ้นทะเบียน (owner 2026-10-20): ปุ่มเข้าจากแท็บแรก → renewalTab 'pool' (renderRegistrationPool) -->
+                            <button type="button" class="btn btn-gold btn-add renewal-all-only" id="btn-open-reg-pool" onclick="switchRenewalTab('pool')" title="คนงานที่รอขึ้นทะเบียน เก็บสะสมไว้รอรัฐเปิดรับ">รอขึ้นทะเบียน <span class="rn-count" id="reg-pool-count"></span></button>
                         </div>
                         <p class="renewal-filter-summary hidden" id="renewal-filter-summary"></p>
                         <div id="renewal-groups-container" class="renewal-all-only">
@@ -3464,7 +3464,7 @@
         <div id="reg-worker-modal" class="modal-backdrop hidden">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h3><span class="ico" data-icon="user"></span> <span id="reg-worker-title">เพิ่มคนงานรอขึ้นทะเบียน</span></h3>
+                    <h3><span class="ico" data-icon="user"></span> <span id="reg-worker-title">เพิ่มคนงานขึ้นทะเบียน</span></h3>
                     <button class="close-btn" title="ปิดหน้าต่าง" onclick="closeRegWorkerModal()">&times;</button>
                 </div>
                 <div class="modal-body reg-body">
@@ -3477,14 +3477,14 @@
                     <div class="reg-slots" id="reg-main-slots"></div>
                     <div class="reg-grid">
                         <div class="form-group"><label for="reg-first-name">ชื่อ (อังกฤษ) <span class="required">*</span></label><input type="text" id="reg-first-name" autocomplete="off" oninput="regCheckDuplicate()"></div>
-                        <div class="form-group"><label for="reg-last-name">นามสกุล (อังกฤษ)</label><input type="text" id="reg-last-name" autocomplete="off" placeholder="ถ้ามี" oninput="regCheckDuplicate()"></div>
+                        <div class="form-group" id="reg-last-name-group"><label for="reg-last-name">นามสกุล (อังกฤษ)</label><input type="text" id="reg-last-name" autocomplete="off" placeholder="ถ้ามี" oninput="regCheckDuplicate()"></div>
                         <div class="form-group"><label for="reg-dob">วัน/เดือน/ปีเกิด <span class="required">*</span></label><input type="date" id="reg-dob" onchange="regCheckDuplicate()"></div>
                         <div class="form-group"><label for="reg-nationality">สัญชาติ</label>
-                            <select id="reg-nationality" onchange="renderRegSlots()">
+                            <select id="reg-nationality" onchange="regNationalityChanged()">
                                 <option value="Myanmar">เมียนมา</option><option value="Laos">ลาว</option><option value="Cambodia">กัมพูชา</option><option value="Vietnam">เวียดนาม</option>
                             </select></div>
-                        <div class="form-group"><label for="reg-gender">เพศ</label>
-                            <select id="reg-gender"><option value="">ไม่ระบุ</option><option value="Male">ชาย</option><option value="Female">หญิง</option></select></div>
+                        <div class="form-group"><label for="reg-title">คำนำหน้า</label>
+                            <select id="reg-title" title="คำนำหน้านาม — กำหนดเพศให้เอง"><option value="">ไม่ระบุ</option><option value="นาย">นาย (ชาย)</option><option value="นาง">นาง (หญิง)</option><option value="นางสาว">นางสาว (หญิง)</option></select></div>
                     </div>
                     <p class="reg-sub">เอกสารเก่า (ถ้ามี)</p>
                     <div class="reg-slots reg-slots-2" id="reg-extra-slots"></div>
@@ -3498,7 +3498,7 @@
                 </div>
             </div>
         </div>
-        <!-- สร้างรอบ มติ ครม. แล้วเลือกคนเข้ารอบ — openRegRoundModal ใน app.js -->
+        <!-- สร้างรอบ มติ ครม. (วันประกาศ + วันใบอนุญาตหมด) — openRegRoundModal ใน app.js -->
         <div id="reg-round-modal" class="modal-backdrop hidden">
             <div class="modal-content">
                 <div class="modal-header">
@@ -3506,15 +3506,12 @@
                     <button class="close-btn" title="ปิดหน้าต่าง" onclick="closeRegRoundModal()">&times;</button>
                 </div>
                 <div class="modal-body reg-body">
-                    <p class="text-muted reg-sub">ใช้เมื่อรัฐเปิดรับขึ้นทะเบียน · คนที่ไม่ได้เข้ารอบยังค้างอยู่รอรอบถัดไป</p>
-                    <div class="form-group"><label for="reg-round-name">ชื่อรอบ <span class="required">*</span></label><input type="text" id="reg-round-name" placeholder="เช่น มติ ครม. 24 ก.ย. 2567"></div>
+                    <!-- รอบ มติ ครม. ใส่แค่ วันประกาศ + วันใบอนุญาตหมด (owner 2026-10-20) — ไม่เลือกคนตอนสร้าง (ใส่คนเข้ารอบจากหน้ารอขึ้นทะเบียน) -->
+                    <p class="text-muted reg-sub">ใช้เมื่อรัฐประกาศเปิดรับขึ้นทะเบียน · ใส่คนเข้ารอบได้จากหน้ารอขึ้นทะเบียน (ติ๊กแล้วกด "ใส่เข้ารอบ")</p>
                     <div class="reg-grid">
-                        <div class="form-group"><label for="reg-round-from">เปิดรับ</label><input type="date" id="reg-round-from"></div>
-                        <div class="form-group"><label for="reg-round-to">ปิดรับ</label><input type="date" id="reg-round-to"></div>
+                        <div class="form-group"><label for="reg-round-announced">วันประกาศ (มติ ครม.) <span class="required">*</span></label><input type="date" id="reg-round-announced"></div>
+                        <div class="form-group"><label for="reg-round-expiry">วันใบอนุญาตหมด <span class="required">*</span></label><input type="date" id="reg-round-expiry"></div>
                     </div>
-                    <div class="reg-round-head"><strong id="reg-round-count"></strong>
-                        <label class="rn-book-pick"><input type="checkbox" id="reg-round-all" onchange="regRoundPickComplete(this.checked)"> เลือกทุกคนที่ข้อมูลครบ</label></div>
-                    <div id="reg-round-list" class="reg-round-list"></div>
                 </div>
                 <div class="modal-footer" style="display: flex; gap: 10px;">
                     <button type="button" class="btn btn-outline" onclick="closeRegRoundModal()">ยกเลิก</button>
@@ -3617,7 +3614,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261020w"></script>
+    <script src="supabase-client.js?v=20261020y"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3628,6 +3625,6 @@
     </script>
 
     <!-- Application Script -->
-    <script src="app.js?v=20261020w"></script>
+    <script src="app.js?v=20261020y"></script>
 </body>
 </html>
