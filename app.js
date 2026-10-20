@@ -1438,6 +1438,20 @@ const clientRenewalDue = (myWorkers) => myWorkers.filter(w => w.status !== 'arch
     && renewalDaysLeft(w.permitExpiry) !== null && renewalDaysLeft(w.permitExpiry) <= RENEWAL_DUE_DAYS && !renewalActiveOf(w.id));
 const clientRenewalBilled = (r) => renewalJobsOf(r).some(j => getJobInvoice(j) || isJobNoCharge(j));
 
+// ล็อกเอกสารต่ออายุจนกว่าจ่าย (owner 2026-10-20): ไฟล์ที่ขั้นต่าง ๆ ของรอบแนบไว้ (ใบคำขอ ใบเสร็จ ใบแทน Smart card เล่มใหม่)
+// ลูกค้าไม่เห็นในแฟ้มคนงาน จนกว่าใบงานเก็บเงินของรอบนั้นปลดล็อกทุกใบ (กติกาเดียวกับเอกสารปิดงาน — clientJobDocsUnlocked)
+// รอบที่ยกเลิกแล้ว (ใบงานถูกลบ) ไม่ล็อก; Drive ใช้กติกาเดียวกันใน drive-backup
+function clientLockedRenewalUrls() {
+    const out = new Set();
+    if (!currentUser || currentUser.role !== 'client' || !renewalList) return out;
+    renewalList.forEach(r => {
+        const js = renewalJobsOf(r);
+        if (!js.length || js.every(clientJobDocsUnlocked)) return;
+        Object.values(r.steps || {}).forEach(s => { if (s && s.url) out.add(s.url); });
+    });
+    return out;
+}
+
 function renderClientRenewalTab(myWorkers) {
     if (renewalList === null) { loadRenewals(true); return `<div class="cp-card"><p class="text-muted">กำลังโหลด…</p></div>`; }
     const due = clientRenewalDue(myWorkers).sort((a, b) => String(permitExpiryKey(a)).localeCompare(String(permitExpiryKey(b))));
@@ -1487,17 +1501,15 @@ function renderClientRenewalTab(myWorkers) {
     return `<div class="cp-card cp-rn-card">
             <div class="cp-rn-head"><div><h3>ถึงรอบต่ออายุ ${due.length ? `<span class="text-muted">${due.length} คน</span>` : ''}</h3>
                 <small class="text-muted">ใบอนุญาตทำงานจะหมดภายใน 2 เดือน — เลือกคนที่ต้องการต่ออายุ แล้วกดส่งคำขอ</small></div>
-                ${due.length ? `<label class="rn-book-pick"><input type="checkbox" ${allPicked ? 'checked' : ''} onchange="toggleClientRenewalPick(${escapeHtml(JSON.stringify(due.map(w => w.id)))}, this.checked)"> เลือกทั้งหมด</label>` : ''}</div>
+                ${due.length ? `<div class="cp-rn-actions">
+                    <button type="button" class="btn btn-gold" ${cpRenewalPick.size ? '' : 'disabled'} onclick="clientSubmitRenewals()" title="ส่งคำขอต่ออายุของคนงานที่เลือก">ส่งคำขอต่ออายุ${cpRenewalPick.size ? ` ${cpRenewalPick.size} คน` : ''}${nBook ? ` · ทำเล่ม ${nBook}` : ''}</button>
+                    <label class="rn-book-pick"><input type="checkbox" ${allPicked ? 'checked' : ''} onchange="toggleClientRenewalPick(${escapeHtml(JSON.stringify(due.map(w => w.id)))}, this.checked)"> เลือกทั้งหมด</label>
+                </div>` : ''}</div>
             ${dueRows || '<p class="text-muted cp-rn-empty">ยังไม่มีคนงานที่ถึงรอบต่ออายุ</p>'}
         </div>
         <div class="cp-card cp-rn-card"><div class="cp-rn-head"><h3>กำลังดำเนินการ ${active.length ? `<span class="text-muted">${active.length} คน</span>` : ''}</h3></div>
             ${activeRows || '<p class="text-muted cp-rn-empty">ไม่มีรายการ</p>'}</div>
-        ${done.length ? `<div class="cp-card cp-rn-card"><div class="cp-rn-head"><h3>ต่ออายุเสร็จแล้ว</h3></div>${doneRows}</div>` : ''}
-        ${cpRenewalPick.size ? `<div class="rn-selbar" role="toolbar" aria-label="ส่งคำขอต่ออายุ">
-            <span>เลือก ${cpRenewalPick.size} คน${nBook ? ` · ทำเล่ม ${nBook} คน` : ''}</span>
-            <button type="button" class="btn btn-gold" onclick="clientSubmitRenewals()" title="ส่งคำขอต่ออายุของคนงานที่เลือก">ส่งคำขอต่ออายุ ${cpRenewalPick.size} คน</button>
-            <button type="button" class="btn rn-selbar-clear" onclick="toggleClientRenewalPick([...cpRenewalPick], false)" title="ล้างที่เลือกไว้">ล้าง</button>
-        </div>` : ''}`;
+        ${done.length ? `<div class="cp-card cp-rn-card"><div class="cp-rn-head"><h3>ต่ออายุเสร็จแล้ว</h3></div>${doneRows}</div>` : ''}`;
 }
 
 function toggleClientRenewalPick(ids, on) {
@@ -2738,9 +2750,26 @@ function loadRenewals(silent = false) {
         renewalList = res.rows.map(renewalFromRow);
         if (currentUser.role === 'client') {
             if (!document.getElementById('view-client-portal')?.classList.contains('hidden')) renderClientPortal();
-        } else if (!document.getElementById('view-renewals')?.classList.contains('hidden')) renderRenewalGroups();
+        } else {
+            if (!document.getElementById('view-renewals')?.classList.contains('hidden')) renderRenewalGroups();
+            updateNotificationBell(); // หมวด "ลูกค้าขอต่ออายุ"
+        }
     })().finally(() => { renewalLoading = null; });
     return renewalLoading;
+}
+
+// ลูกค้าอาจส่งคำขอระหว่างที่เปิดหน้าค้างไว้ — กลับมาที่แท็บนี้แล้วโหลดรอบใหม่ (กระดิ่ง + หน้าต่ออายุ)
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible' || !currentUser || renewalList === null) return;
+    loadRenewals(true);
+});
+
+// กดรายการ "ลูกค้าขอต่ออายุ" ในกระดิ่ง → หน้าต่ออายุ แท็บกำลังดำเนินการ
+function openRenewalsActiveTab() {
+    closeNotificationPanel();
+    renewalTab = 'active';
+    try { localStorage.setItem('mw_renewal_tab', 'active'); } catch (e) { /* ไม่มีที่เก็บ */ }
+    switchView('renewals');
 }
 
 function switchRenewalTab(tab) {
@@ -3077,7 +3106,7 @@ function renewalActiveHtml(list, searched = list) {
         <div class="panel-header rn-head"><div><h3 style="margin:0;">กำลังดำเนินการ <span class="text-muted rn-head-count">${list.length} คน</span></h3>
             <small class="text-muted">ติ๊กหลายคนแล้วใช้แถบด้านล่าง (ตรวจสุขภาพ / วันนัด) · ขั้นที่ต้องแนบไฟล์กดปุ่มในแถวทีละคน · กดช่องในแถบความคืบหน้าเพื่อเปิดไฟล์ของขั้นนั้น</small></div></div>
         <div class="rn-toolbar">${renewalProvinceSelectHtml(searched.map(workerOf))}</div>
-        <div class="rn-groups">${body || '<p class="rn-empty">ยังไม่มีรอบที่กำลังดำเนินการ — เริ่มได้จากแท็บ "ถึงรอบ"</p>'}</div>
+        <div class="rn-groups">${body || '<p class="rn-empty">ยังไม่มีรอบที่กำลังดำเนินการ — เริ่มได้จากแท็บ "ต่ออายุ"</p>'}</div>
         ${selBar}
     </div>`;
 }
@@ -4160,7 +4189,7 @@ function buildNotificationGroups() {
     // ---------- งาน (Admin, Operation Manager = ทุกงาน / Staff = เฉพาะงานของตัวเอง) ----------
     const opsAll = role === 'admin' || role === 'operation_manager';
     const mine = j => j.assignedTo === currentUser.id || (!j.assignedTo && j.openedBy === currentUser.id);
-    const scope = opsAll ? jobs : role === 'staff' ? jobs.filter(mine) : [];
+    const scope = (opsAll ? jobs : role === 'staff' ? jobs.filter(mine) : []).filter(j => !isRenewalJob(j)); // งานต่ออายุมีหมวดของตัวเองด้านล่าง
     if (scope.length) {
         if (opsAll) {
             add({ key: 'unassigned', icon: 'users', title: 'งานแจ้งใหม่ ยังไม่มอบหมายผู้รับผิดชอบ', view: 'jobs',
@@ -4183,6 +4212,19 @@ function buildNotificationGroups() {
             items: scope.filter(j => j.status === 'ปิดงานแล้ว' && j.closedAt && daysSince(j.closedAt) <= BELL_RECENT_CLOSE_DAYS)
                 .sort((a, b) => String(b.closedAt).localeCompare(String(a.closedAt)))
                 .map(j => bellJobItem(j, `ปิดเมื่อ ${formatThaiDate(j.closedAt, true)}${j.closedBy ? ` โดย ${getUserNameById(j.closedBy)}` : ''}`)) });
+    }
+
+    // ---------- ลูกค้าขอต่ออายุจากพอร์ทัล (owner 2026-10-20) — ฝ่ายปฏิบัติการ: รอบที่ลูกค้าเปิดเองและยังไม่เริ่มขั้นแรก ----------
+    if (can('ops') && renewalList) {
+        const req = renewalList.filter(r => r.status === 'active' && r.openedByClient && !Object.keys(r.steps || {}).length && workers.some(w => w.id === r.workerId))
+            .sort((a, b) => String(b.startedAt).localeCompare(String(a.startedAt)));
+        add({ key: 'renewalreq', icon: 'refresh', title: 'ลูกค้าขอต่ออายุ (ยังไม่เริ่มขั้นแรก)', view: 'renewals',
+            items: req.map(r => {
+                const w = workers.find(x => x.id === r.workerId);
+                const c = customers.find(x => x.id === r.customerId);
+                return { text: `ต่ออายุ • ${workerFullName(w)}`, action: `openRenewalsActiveTab()`,
+                    sub: `${c ? c.companyName : '-'} • ขอเมื่อ ${formatThaiDate(String(r.startedAt || '').slice(0, 10))}${r.withBook ? ' • ทำเล่มด้วย' : ''}${r.clientNote ? ` • "${r.clientNote}"` : ''}` };
+            }) });
     }
 
     // เอกสารคนงานใกล้หมดอายุ / หมดอายุ: ไม่ขึ้นที่กระดิ่งแล้ว ทุกตำแหน่ง (owner, 2026-10-14) — ดูได้ที่หน้าต่ออายุ/แจ้งเตือนในแดชบอร์ด
@@ -14357,11 +14399,12 @@ function jobDocsOf(j) {
 // รายการเอกสารทั้งหมดของคนงาน (ใช้ทั้งแท็บ "เอกสารทั้งหมด" และปุ่มดาวน์โหลดทั้งหมด)
 function collectWorkerAllDocs(w) {
     const out = [];
+    const lockedUrls = clientLockedRenewalUrls(); // ลูกค้า: ไฟล์ต่ออายุที่ยังไม่ชำระ ไม่แสดง/ไม่รวมใน ZIP
     WORKER_FOLDER_DOC_TYPES.forEach(type => {
         const list = getAttachments(w, type.key);
         list.forEach((fItem, idx) => {
             const url = workerFolderFileUrl(fItem);
-            if (!url) return;
+            if (!url || lockedUrls.has(fItem.data)) return;
             out.push({ sel: { kind: 'file', key: type.key, idx }, name: fItem.name || type.label, url, folder: type.label,
                 sub: type.label + (isWorkerDocFileExpired(fItem, idx, list, type.key) ? ' • หมดอายุ' : ''), date: String(fItem.uploadedAt || '').slice(0, 10) });
         });
@@ -14593,10 +14636,13 @@ function renderWorkerFolderTiles() {
     const emptyTypes = [];
     const expiredItems = [];
     const allFiles = [];
+    const lockedUrls = clientLockedRenewalUrls();
+    let lockedCount = 0;
     WORKER_FOLDER_DOC_TYPES.forEach(file => {
         const list = getAttachments(w, file.key);
         const items = [];
         list.forEach((fItem, fIdx) => {
+            if (lockedUrls.has(fItem.data)) { lockedCount++; return; } // ลูกค้า: ไฟล์ต่ออายุที่ยังไม่ชำระ
             if (query && !(fItem.name || '').toLowerCase().includes(query)) return;
             const isExpired = isWorkerDocFileExpired(fItem, fIdx, list, file.key);
             allFiles.push({ key: file.key, idx: fIdx, isExpired });
@@ -14613,6 +14659,7 @@ function renderWorkerFolderTiles() {
         groups.push(`<div class="fv-group"${canAdd ? ` data-paste-target="worker-folder:${file.key}"` : ''}>${fvGroupHead(fvShortLabel(file.label), items.length, add)}${items.join('')}</div>`);
     });
     if (emptyTypes.length) groups.push(fvEmptyChips(emptyTypes));
+    if (lockedCount) groups.unshift(`<p class="fv-locked-note">${icon('lock')} เอกสารต่ออายุ ${lockedCount} ไฟล์ — ชำระเงินเพื่อดูและดาวน์โหลด</p>`);
 
     // คงไฟล์ที่เลือกไว้ (เช่น หลังเปลี่ยนชื่อ/ลบ/แนบไฟล์ใหม่) — ถ้าไฟล์นั้นไม่อยู่แล้ว เลือกไฟล์ปัจจุบันไฟล์แรกแทน
     const stillThere = activeFolderSel && activeFolderSel.kind === 'file' && allFiles.some(f => f.key === activeFolderSel.key && f.idx === activeFolderSel.idx);

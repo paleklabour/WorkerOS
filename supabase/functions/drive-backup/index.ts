@@ -8,6 +8,7 @@
 //   │                                       └─ ใบงาน <วันที่เปิดงาน> <ประเภทงาน + …>/  (เอกสารปิดงาน + ใบนัดหมาย, 1 โฟลเดอร์ต่อการเปิดงาน 1 ครั้ง)
 //   ├─ รอชำระเงิน (ลูกค้ายังไม่เห็น)/<นายจ้าง>/คนงาน/<คนงาน>/ใบงาน …/  เอกสารปิดงานของใบงานที่ยังไม่ชำระ — ไม่ได้แชร์ให้ลูกค้า
 //   │     จ่ายครบ / ไม่เรียกเก็บเงิน / นายจ้างเปิดสิทธิ์ → ย้ายเข้าโฟลเดอร์คนงานในรอบถัดไป (owner 2026-10-20)
+//   │     เอกสารต่ออายุในแฟ้มคนงาน (ใบคำขอ/ใบเสร็จ/ใบแทน/Smart card/เล่มใหม่) ของรอบที่ยังไม่ชำระ ก็มาอยู่ที่นี่เหมือนกัน
 //   ├─ การเงิน/สลิปรับเงิน/<ปี-เดือน>/  และ  การเงิน/สลิปรายจ่าย/<ปี-เดือน>/
 //   ├─ ข้อมูลระบบ/<วันที่>_ข้อมูลทั้งระบบ.json  (วันละไฟล์ เก็บ 30 วัน)
 //   └─ ถูกลบ/  (ไฟล์ที่ลบออกจากระบบแล้ว ย้ายมาไว้ที่นี่ ไม่ลบทิ้ง)
@@ -196,8 +197,8 @@ async function runBackup(sb: SupabaseClient, trigger: string) {
     if (error) throw new Error(`${table}: ${error.message}`);
     return (data || []) as any[];
   };
-  const [customers, workers, jobs, receipts, payments, expenses, invoices] = await Promise.all([
-    load("customers"), load("workers"), load("jobs"), load("receipts"), load("payments"), load("expenses"), load("invoices"),
+  const [customers, workers, jobs, receipts, payments, expenses, invoices, renewals] = await Promise.all([
+    load("customers"), load("workers"), load("jobs"), load("receipts"), load("payments"), load("expenses"), load("invoices"), load("renewals"),
   ]);
 
   // ---------- โครงโฟลเดอร์ที่ควรมี ----------
@@ -247,50 +248,6 @@ async function runBackup(sb: SupabaseClient, trigger: string) {
     });
   });
 
-  // เอกสารคนงาน (ไม่แยกโฟลเดอร์ประเภท — ประเภทอยู่ในชื่อไฟล์, หมดอายุต่อท้าย "(หมดอายุ)")
-  const workerById = new Map(workers.map((w) => [w.id, w]));
-  const workerFolder = (w: any) => {
-    const cid = ensureCustomer(w.employer_id);
-    const key = `worker:${w.id}`;
-    if (!folders.has(key)) {
-      const name = `${w.worker_uid || "ไม่มีเลข"}_${clean(`${w.first_name || ""} ${w.last_name || ""}`)}`;
-      addFolder(key, name, `customer-workers:${cid}`);
-    }
-    return key;
-  };
-  const workerTag = (w: any) => `${w.worker_uid || ""}_${clean(`${w.first_name || ""} ${w.last_name || ""}`)}`.replace(/^_/, "");
-  workers.filter((w) => w.status !== "deleted").forEach((w) => {
-    const fk = workerFolder(w);
-    if (w.photo) want(w.photo, fk, `รูปคนงาน_${workerTag(w)}`);
-    Object.entries(w.attachments || {}).forEach(([type, list]: [string, any]) => {
-      (Array.isArray(list) ? list : [list]).forEach((f: any) => {
-        const url = typeof f === "string" ? f : f?.data;
-        const p = storagePath(url);
-        if (!p) return;
-        const expired = f && (f.manualExpired === true || (f.manualExpired !== false && f.expiryDate && String(f.expiryDate).slice(0, 10) < today));
-        const suffix = expired ? " (หมดอายุ)" : "";
-        want(url, fk, `${dateFromPath(p, f?.uploadedAt)}_${WORKER_DOC_LABELS[type] || "เอกสาร"}_${workerTag(w)}${suffix}`, sysFileName(f?.name, p, suffix));
-      });
-    });
-  });
-
-  // เอกสารใบงาน (ใบนัดหมาย / เอกสารปิดงาน) → โฟลเดอร์ย่อยในโฟลเดอร์คนงาน 1 โฟลเดอร์ต่อการเปิดงาน 1 ครั้ง (owner 2026-10-19)
-  // เปิดงานครั้งเดียวหลายประเภท (batch_id เดียวกัน) = โฟลเดอร์เดียว, เปิดงานครั้งใหม่ = โฟลเดอร์ใหม่
-  // ชื่อ "ใบงาน <วันที่เปิดงาน> <ประเภทงาน + …>" (ตัดราคาในวงเล็บออก) — ไฟล์เดิมที่อยู่ในโฟลเดอร์คนงานถูกย้ายเข้าโฟลเดอร์ย่อยเอง
-  const jobSetKey = (j: any) => `jobset:${j.worker_id}:${j.batch_id || j.id}`;
-  const jobSets = new Map<string, any[]>();
-  jobs.forEach((j) => { const k = jobSetKey(j); jobSets.set(k, [...(jobSets.get(k) || []), j]); });
-  const jobSetFolder = (j: any, workerKey: string) => {
-    const key = jobSetKey(j);
-    if (!folders.has(key)) {
-      const set = jobSets.get(key) || [j];
-      const opened = set.map((x) => x.opened_at || x.created_at).filter(Boolean).sort()[0];
-      const date = opened ? bkkDate(new Date(opened)) : "";
-      const types = [...new Set(set.map((x) => String(x.job_type || "").replace(/\s*\(\d+(?:\.\d+)?\)/g, "").trim()).filter(Boolean))];
-      addFolder(key, `ใบงาน ${date} ${types.join(" + ")}`.slice(0, 150), workerKey);
-    }
-    return key;
-  };
   // ลูกค้าเปิดเอกสารปิดงานได้เมื่อ: ไม่เรียกเก็บเงิน / นายจ้างเปิดสิทธิ์ดูก่อนชำระ / บิลของงานจ่ายครบ
   // (กติกาเดียวกับพอร์ทัล — clientJobDocsUnlocked ใน app.js)
   const invById = new Map(invoices.map((i) => [i.id, i]));
@@ -313,7 +270,60 @@ async function runBackup(sb: SupabaseClient, trigger: string) {
     }
     return hk;
   };
+  // เอกสารต่ออายุ (ใบคำขอ ใบเสร็จ ใบแทน Smart card เล่มใหม่ — อยู่ในแฟ้มคนงาน) ล็อกจนกว่าใบงานเก็บเงินของรอบนั้น
+  // (batch_id = 'renewal-<id>') ปลดล็อกทุกใบ (owner 2026-10-20) — กติกาเดียวกับ clientLockedRenewalUrls ใน app.js
+  const lockedRenewalUrls = new Set<string>();
+  renewals.forEach((r) => {
+    const js = jobs.filter((j) => j.batch_id === `renewal-${r.id}`);
+    if (!js.length || js.every(jobDocsUnlocked)) return;
+    Object.values(r.steps || {}).forEach((s: any) => { if (s && s.url) lockedRenewalUrls.add(s.url); });
+  });
 
+  // เอกสารคนงาน (ไม่แยกโฟลเดอร์ประเภท — ประเภทอยู่ในชื่อไฟล์, หมดอายุต่อท้าย "(หมดอายุ)")
+  const workerById = new Map(workers.map((w) => [w.id, w]));
+  const workerFolder = (w: any) => {
+    const cid = ensureCustomer(w.employer_id);
+    const key = `worker:${w.id}`;
+    if (!folders.has(key)) {
+      const name = `${w.worker_uid || "ไม่มีเลข"}_${clean(`${w.first_name || ""} ${w.last_name || ""}`)}`;
+      addFolder(key, name, `customer-workers:${cid}`);
+    }
+    return key;
+  };
+  const workerTag = (w: any) => `${w.worker_uid || ""}_${clean(`${w.first_name || ""} ${w.last_name || ""}`)}`.replace(/^_/, "");
+  workers.filter((w) => w.status !== "deleted").forEach((w) => {
+    const fk = workerFolder(w);
+    if (w.photo) want(w.photo, fk, `รูปคนงาน_${workerTag(w)}`);
+    Object.entries(w.attachments || {}).forEach(([type, list]: [string, any]) => {
+      (Array.isArray(list) ? list : [list]).forEach((f: any) => {
+        const url = typeof f === "string" ? f : f?.data;
+        const p = storagePath(url);
+        if (!p) return;
+        const expired = f && (f.manualExpired === true || (f.manualExpired !== false && f.expiryDate && String(f.expiryDate).slice(0, 10) < today));
+        const suffix = expired ? " (หมดอายุ)" : "";
+        want(url, lockedRenewalUrls.has(url) ? heldFolder(fk) : fk,
+          `${dateFromPath(p, f?.uploadedAt)}_${WORKER_DOC_LABELS[type] || "เอกสาร"}_${workerTag(w)}${suffix}`, sysFileName(f?.name, p, suffix));
+      });
+    });
+  });
+
+  // เอกสารใบงาน (ใบนัดหมาย / เอกสารปิดงาน) → โฟลเดอร์ย่อยในโฟลเดอร์คนงาน 1 โฟลเดอร์ต่อการเปิดงาน 1 ครั้ง (owner 2026-10-19)
+  // เปิดงานครั้งเดียวหลายประเภท (batch_id เดียวกัน) = โฟลเดอร์เดียว, เปิดงานครั้งใหม่ = โฟลเดอร์ใหม่
+  // ชื่อ "ใบงาน <วันที่เปิดงาน> <ประเภทงาน + …>" (ตัดราคาในวงเล็บออก) — ไฟล์เดิมที่อยู่ในโฟลเดอร์คนงานถูกย้ายเข้าโฟลเดอร์ย่อยเอง
+  const jobSetKey = (j: any) => `jobset:${j.worker_id}:${j.batch_id || j.id}`;
+  const jobSets = new Map<string, any[]>();
+  jobs.forEach((j) => { const k = jobSetKey(j); jobSets.set(k, [...(jobSets.get(k) || []), j]); });
+  const jobSetFolder = (j: any, workerKey: string) => {
+    const key = jobSetKey(j);
+    if (!folders.has(key)) {
+      const set = jobSets.get(key) || [j];
+      const opened = set.map((x) => x.opened_at || x.created_at).filter(Boolean).sort()[0];
+      const date = opened ? bkkDate(new Date(opened)) : "";
+      const types = [...new Set(set.map((x) => String(x.job_type || "").replace(/\s*\(\d+(?:\.\d+)?\)/g, "").trim()).filter(Boolean))];
+      addFolder(key, `ใบงาน ${date} ${types.join(" + ")}`.slice(0, 150), workerKey);
+    }
+    return key;
+  };
   jobs.forEach((j) => {
     const w = workerById.get(j.worker_id);
     if (!w || w.status === "deleted") return;
@@ -438,7 +448,7 @@ async function runBackup(sb: SupabaseClient, trigger: string) {
   // ---------- ข้อมูลระบบรายวัน (JSON ทุกตาราง) + เก็บย้อนหลัง 30 วัน ----------
   const dataKey = `data:${today}`;
   if (!outOfTime() && !fileDb.has(dataKey)) {
-    const tables = ["customers", "workers", "jobs", "invoices", "payments", "receipts", "expenses", "banks", "agents", "service_prices", "free_invoices", "line_groups"];
+    const tables = ["customers", "workers", "jobs", "invoices", "payments", "receipts", "expenses", "banks", "agents", "service_prices", "free_invoices", "line_groups", "renewals"];
     const dump: Record<string, unknown> = { version: "drive-backup-1", exportDate: new Date().toISOString() };
     for (const t of tables) {
       const { data, error } = await selectAll(sb, t);

@@ -492,7 +492,11 @@ Client portal tab "ต่ออายุ" (`renderClientRenewalTab`, owner 2026-
 request → the round starts at once via RPC `client_start_renewals` (creates the round + hidden billing jobs, `opened_by_client`,
 `client_note`; migration `20261020072944_renewals_client_portal.sql`); staff rows show a purple "ลูกค้าเปิดงาน" tag + the note.
 The employer can cancel (`client_cancel_renewal`) only before ตรวจสุขภาพ and before any bill / no-charge. Clients read only
-their own rounds (RLS); renewal jobs are hidden from the portal "งานที่แจ้ง" tab. File steps go through `attachDocumentToWorker` into
+their own rounds (RLS); renewal jobs are hidden from the portal "งานที่แจ้ง" tab.
+Renewal files are locked for the employer until the round's billing jobs are all unlocked (`clientJobDocsUnlocked` rule):
+`clientLockedRenewalUrls` hides them in the client's worker folder (+ ZIP) and drive-backup puts them in the unshared
+"รอชำระเงิน" folder. Bell group `renewalreq` (ops roles) = client-opened rounds with no step done yet; renewal jobs are
+excluded from the other job bell groups. File steps go through `attachDocumentToWorker` into
 the normal worker doc slots; ใบแทน / card / new passport then ask for the new expiry (`askRenewalNewExpiry`) and set it on
 the worker and the file, so the old file folds into "expired" by the usual rule. Card (+ book if any) closes the round.
 Still to build: old→new worker-data preview, deposit shortcut in the start dialog, bell/calendar for appointments, client portal renewal progress.

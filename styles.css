@@ -5015,6 +5015,8 @@ tr.is-voided-row td {
 .fv-group-head:hover .fv-add, .fv-add:focus-visible { opacity: 1; }
 .fv-add:hover { background-color: var(--dk-subtle, #f1f3f7); }
 .fv-none { padding: 4px 8px 6px; font-size: 13px; color: var(--text-muted); }
+/* แฟ้มคนงานฝั่งลูกค้า: เอกสารต่ออายุที่ยังไม่ชำระถูกซ่อน (clientLockedRenewalUrls) */
+.fv-locked-note { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; padding: 10px 12px; border-radius: 12px; background-color: var(--dk-subtle, #f1f4f9); color: var(--text-muted); font-size: 13.5px; }
 
 .fv-item {
     display: flex;
@@ -6774,6 +6776,8 @@ body.has-camera .upload-hint { display: none; }
 .cp-rn-card { margin-bottom: 14px; padding: 0; overflow: hidden; }
 .cp-rn-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--dk-line, #e3e6ec); }
 .cp-rn-head h3 { margin: 0; font-size: 16.5px; }
+/* ปุ่มส่งคำขออยู่บน "เลือกทั้งหมด" (owner 2026-10-20) */
+.cp-rn-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
 .cp-rn-head h3 .text-muted { font-weight: 500; font-size: 14px; }
 .cp-rn-empty { margin: 0; padding: 16px 18px; }
 .cp-rn-row { display: grid; grid-template-columns: 26px 40px minmax(160px, 1fr) 170px 190px 120px; gap: 12px; align-items: center; padding: 10px 18px; border-top: 1px solid var(--dk-line, #eef0f4); font-size: 14px; }
