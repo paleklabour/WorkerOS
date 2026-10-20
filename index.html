@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261020k">
+    <link rel="stylesheet" href="styles.css?v=20261020n">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -884,12 +884,12 @@
 
                     <!-- ==================== RENEWALS VIEW (ข้อมูลคนงานต่ออายุ) ==================== -->
                     <div id="view-renewals" class="content-section hidden">
-                        <!-- งานต่ออายุ (owner 2026-10-20): ถึงรอบ / กำลังทำ / เสร็จแล้ว = ตาราง renewals (renderRenewalCases),
+                        <!-- งานต่ออายุ (owner 2026-10-20): ถึงรอบ / กำลังดำเนินการ / เสร็จแล้ว = ตาราง renewals (renderRenewalCases),
                              "ทั้งหมด (ตามกลุ่ม)" = รายการเดิมจัดกลุ่มตามวันหมดอายุ (renderRenewalGroups) -->
                         <div class="dashboard-tabs renewal-tabs">
                             <button type="button" class="btn btn-outline" data-renewal-tab="all" onclick="switchRenewalTab('all')" title="คนงานทั้งหมด จัดกลุ่มตามวันหมดอายุใบอนุญาต / กลุ่ม ครม.">ทั้งหมด (ตามกลุ่ม)</button>
                             <button type="button" class="btn btn-outline" data-renewal-tab="due" onclick="switchRenewalTab('due')" title="คนงานที่ใบอนุญาตเหลือไม่ถึง 60 วัน และยังไม่ได้เริ่มรอบต่ออายุ">ถึงรอบ <span class="rn-count" id="rn-count-due"></span></button>
-                            <button type="button" class="btn btn-outline" data-renewal-tab="active" onclick="switchRenewalTab('active')" title="รอบต่ออายุที่เริ่มแล้ว">กำลังทำ <span class="rn-count" id="rn-count-active"></span></button>
+                            <button type="button" class="btn btn-outline" data-renewal-tab="active" onclick="switchRenewalTab('active')" title="รอบต่ออายุที่เริ่มแล้ว">กำลังดำเนินการ <span class="rn-count" id="rn-count-active"></span></button>
                             <button type="button" class="btn btn-outline" data-renewal-tab="done" onclick="switchRenewalTab('done')" title="รอบต่ออายุที่ได้ Smart card แล้ว">เสร็จแล้ว <span class="rn-count" id="rn-count-done"></span></button>
                         </div>
                         <p class="text-muted renewal-all-only" style="font-size: 13px; margin-bottom: 16px;">
@@ -3551,7 +3551,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261020k"></script>
+    <script src="supabase-client.js?v=20261020n"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3562,6 +3562,6 @@
     </script>
 
     <!-- Application Script -->
-    <script src="app.js?v=20261020k"></script>
+    <script src="app.js?v=20261020n"></script>
 </body>
 </html>

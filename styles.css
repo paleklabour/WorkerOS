@@ -6687,14 +6687,16 @@ body.has-camera .upload-hint { display: none; }
 .rn-table .rn-check input, .rn-book-pick input { width: 18px; height: 18px; accent-color: var(--gold-primary); }
 .rn-book-pick { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; cursor: pointer; }
 .rn-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 0 20px 14px; }
-.rn-toolbar .rn-province { min-width: 260px; }
+.rn-toolbar .rn-province { min-width: 320px; min-height: 44px; padding: 0 40px 0 18px; font-size: 15px; }
 /* ถึงรอบ: ทุกตารางนายจ้างกว้างคอลัมน์เท่ากัน (owner 2026-10-20) */
 .rn-due-table { table-layout: fixed; width: 100%; }
-.rn-due-table .rd-check { width: 44px; }
+.rn-due-table .rd-check { width: 52px; }
 .rn-due-table .rd-exp, .rn-due-table .rd-pass { width: 170px; }
 .rn-due-table .rd-book { width: 120px; }
 .rn-due-table .rd-act { width: 150px; }
 .rn-due-table td { overflow: hidden; text-overflow: ellipsis; }
+/* ช่องติ๊กไม่ต้องมี padding/จุดไข่ปลา (เคยขึ้น ".." หลังช่องติ๊ก) */
+.rn-due-table th.rn-check, .rn-due-table td.rn-check { padding-left: 0; padding-right: 0; text-overflow: clip; overflow: visible; }
 .rn-groups { padding: 0 20px 20px; display: flex; flex-direction: column; gap: 18px; }
 .rn-prov-head { margin: 0 0 8px; font-size: 16px; font-weight: 700; color: var(--text-dark); }
 .rn-prov-head .text-muted { font-size: 13.5px; font-weight: 500; margin-left: 6px; }
@@ -6745,6 +6747,7 @@ body.has-camera .upload-hint { display: none; }
 }
 .rn-selbar .rn-selbar-btn { background-color: rgba(255, 255, 255, .14); color: #fff; border: 0; }
 .rn-selbar .rn-selbar-clear { background: transparent; color: #c9d0dc; border: 0; }
+.rn-selbar .rn-selbar-danger { background-color: rgba(255, 107, 94, .18); color: #ff9b91; border: 0; }
 .rn-selbar .btn:disabled { opacity: .45; }
 @media (max-width: 760px) {
     .rn-arow { grid-template-columns: 30px minmax(0, 1fr); }

@@ -474,7 +474,7 @@ Any new code that issues/edits/voids bills, receives money, sets no-charge, chan
 
 Renewal is separate from jobs: table `renewals` (1 row = 1 round for 1 worker, one `active` per worker; migration
 `20261020062529_renewals.sql`, RLS read `is_internal()`, write `can_ops()`). The renewals page has tabs ถึงรอบ (permit ≤ 60
-days or expired, no active round) / กำลังทำ / เสร็จแล้ว / ทั้งหมด (ตามกลุ่ม = the old cohort list, `renderRenewalGroups`);
+days or expired, no active round) / กำลังดำเนินการ / เสร็จแล้ว / ทั้งหมด (ตามกลุ่ม = the old cohort list, `renderRenewalGroups`);
 `renderRenewalCases` draws the first three. Staff start rounds themselves (`startRenewals`, never automatic). Fixed steps
 (`RENEWAL_STEPS`): ตรวจสุขภาพ (tick, no file) → ใบคำขอ → ใบเสร็จ (issued together but attached separately) → ใบแทน (`WP_R`) → ใบนัดหมาย (date
 only, no file) → Smart card; optional ทำเล่ม (`with_book`, suggested by `renewalSuggestBook`; many workers keep their book).
@@ -484,7 +484,7 @@ credit, agent commission, portal all unchanged) but `renderJobs` hides them (`is
 cancelling deletes the unbilled ones. Their billing-page rows are teal (`.is-renewal-row` + "งานต่ออายุ" tag); the billing page and the combine-bills window have
 tabs ใบงานทั่วไป / งานต่ออายุ (`billingKind` / `combineKind`) and a bill never mixes the two (owner).
 UI: ถึงรอบ is grouped province → employer (`renewalGroupByProvince`, province filter `renewalProvince`, start button on the
-left, fixed column widths shared by every employer table); กำลังทำ = owner-picked design A (`renewalActiveHtml`): employer
+left, fixed column widths shared by every employer table); กำลังดำเนินการ = owner-picked design A (`renewalActiveHtml`): employer
 groups, one row per worker with a segmented progress bar (`renewalBarHtml`, segment click = open that step), next-step
 button; ticking rows shows a floating dark bar (`.rn-selbar`) to mark ตรวจสุขภาพ / set one appointment date for all selected
 (`renewalBulkStep` → `moveRenewalsToStage`; file steps one row at a time). File steps go through `attachDocumentToWorker` into

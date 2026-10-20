@@ -2398,7 +2398,7 @@ function cohortYearLabel(c, y) {
 
 function renderRenewalGroups() {
     syncRenewalTabUi();
-    if (renewalTab !== 'all') { renderRenewalCases(); return; } // ถึงรอบ / กำลังทำ / เสร็จแล้ว
+    if (renewalTab !== 'all') { renderRenewalCases(); return; } // ถึงรอบ / กำลังดำเนินการ / เสร็จแล้ว
     const container = document.getElementById("renewal-groups-container");
     if (!container) return;
 
@@ -2696,7 +2696,7 @@ function renewalSuggestBook(w) {
     return pass < until;
 }
 
-// คนงานที่ถึงรอบ: ยังทำงานอยู่ ใบอนุญาตเหลือ ≤ 60 วัน (รวมที่หมดแล้ว) และยังไม่มีรอบที่กำลังทำ
+// คนงานที่ถึงรอบ: ยังทำงานอยู่ ใบอนุญาตเหลือ ≤ 60 วัน (รวมที่หมดแล้ว) และยังไม่มีรอบที่กำลังดำเนินการ
 function renewalDueWorkers() {
     return workers.filter(w => w.status !== 'archived' && w.status !== 'deleted' && w.permitExpiry
         && renewalDaysLeft(w.permitExpiry) !== null && renewalDaysLeft(w.permitExpiry) <= RENEWAL_DUE_DAYS
@@ -2753,7 +2753,7 @@ function renderRenewalCases() {
     else box.innerHTML = renewalDoneHtml(done.filter(r => renewalMatchesSearch(workers.find(w => w.id === r.workerId))));
 }
 
-// ---------- ตัวกรองจังหวัด (ใช้ทั้ง "ถึงรอบ" และ "กำลังทำ") ----------
+// ---------- ตัวกรองจังหวัด (ใช้ทั้ง "ถึงรอบ" และ "กำลังดำเนินการ") ----------
 // จังหวัด = จังหวัดสำนักงานใหญ่ของนายจ้าง (workerProvinceOf — กติกาเดียวกับหน้าคนงาน), '-' = ไม่ระบุจังหวัด
 let renewalProvince = '';
 const renewalProvinceOk = (w) => !renewalProvince || (workerProvinceOf(w) || '-') === renewalProvince;
@@ -2832,7 +2832,7 @@ function renewalDueHtml(list, due = list) {
     </section>`).join('');
     return `<div class="dashboard-panel">
         <div class="panel-header rn-head">
-            <div><h3 style="margin:0;">ถึงรอบต่ออายุ</h3><small class="text-muted">ใบอนุญาตทำงานเหลือไม่ถึง ${RENEWAL_DUE_DAYS} วัน หรือหมดแล้ว และยังไม่ได้เริ่มรอบ · จัดกลุ่มตามจังหวัดและนายจ้าง</small></div>
+            <div><h3 style="margin:0;">ต่ออายุ</h3><small class="text-muted">ใบอนุญาตทำงานเหลือไม่ถึง ${RENEWAL_DUE_DAYS} วัน หรือหมดแล้ว และยังไม่ได้เริ่มรอบ · จัดกลุ่มตามจังหวัดและนายจ้าง</small></div>
         </div>
         <div class="rn-toolbar">
             ${canStart ? `<button type="button" class="btn btn-gold" ${renewalPicked.size ? '' : 'disabled'} onclick="startRenewals([...renewalPicked])" title="เริ่มรอบต่ออายุของคนงานที่เลือกไว้">${icon('plus')} เริ่มต่ออายุ${renewalPicked.size ? ` ${renewalPicked.size} คน` : ''}</button>` : ''}
@@ -2876,11 +2876,11 @@ async function startRenewals(ids) {
     for (const r of started) jobFails += await createRenewalJobs(r);
     saveData();
     if (jobFails) showToast(`⚠️ เริ่มรอบแล้ว แต่สร้างรายการรอออกบิลไม่สำเร็จ ${jobFails} รายการ`, "warning");
-    else showUploadPill('ok', `เริ่มต่ออายุ ${list.length} คนแล้ว`, 'ขึ้นหน้าออกบิลเป็น "รอออกบิล" แล้ว · ดูความคืบหน้าที่แท็บ "กำลังทำ"');
+    else showUploadPill('ok', `เริ่มต่ออายุ ${list.length} คนแล้ว`, 'ขึ้นหน้าออกบิลเป็น "รอออกบิล" แล้ว · ดูความคืบหน้าที่แท็บ "กำลังดำเนินการ"');
     renderRenewalCases();
 }
 
-// ---------- แท็บ "กำลังทำ" (owner เลือกแบบ A 2026-10-20) ----------
+// ---------- แท็บ "กำลังดำเนินการ" (owner เลือกแบบ A 2026-10-20) ----------
 // กลุ่มตามนายจ้าง (เรียงจังหวัด → นายจ้าง) แถวละคน: แถบความคืบหน้า 6 ช่อง + "ขั้นที่ n/6 · รอ…" + วันนัด + ปุ่มขั้นถัดไป
 // ติ๊กหลายคน → แถบคำสั่งลอยด้านล่าง "ตรวจสุขภาพแล้ว" / "ใส่วันนัด" ทำให้ทุกคนที่เลือกที่รอขั้นนั้นอยู่ทีเดียว
 // ขั้นที่ต้องแนบไฟล์ทำทีละคนจากปุ่มในแถว
@@ -2947,13 +2947,14 @@ function renewalActiveHtml(list, searched = list) {
         <span>เลือก ${sel.length} คน</span>
         <button type="button" class="btn btn-gold" ${nMed ? '' : 'disabled'} onclick="renewalBulkStep('medical')" title="ติ๊กตรวจสุขภาพแล้วให้คนที่เลือกที่ยังรอตรวจสุขภาพ">ตรวจสุขภาพแล้ว${nMed ? ` ${nMed} คน` : ''}</button>
         <button type="button" class="btn rn-selbar-btn" ${nAppt ? '' : 'disabled'} onclick="renewalBulkStep('appointment')" title="ใส่วันนัดเดียวกันให้คนที่เลือกที่รอวันนัด">ใส่วันนัด${nAppt ? ` ${nAppt} คน` : ''}</button>
-        <button type="button" class="btn rn-selbar-clear" onclick="toggleRenewalSel([...renewalSel], false)" title="ยกเลิกที่เลือกไว้ทั้งหมด">ล้าง</button>
+        <button type="button" class="btn rn-selbar-danger" onclick="cancelRenewals(${escapeHtml(JSON.stringify(sel.map(r => r.id)))})" title="ยกเลิกรอบต่ออายุของคนงานที่เลือกทั้งหมด">ยกเลิกต่ออายุ ${sel.length} คน</button>
+        <button type="button" class="btn rn-selbar-clear" onclick="toggleRenewalSel([...renewalSel], false)" title="ล้างที่เลือกไว้ (ไม่ยกเลิกรอบ)">ล้าง</button>
     </div>` : '';
     return `<div class="dashboard-panel">
-        <div class="panel-header rn-head"><div><h3 style="margin:0;">กำลังต่ออายุ <span class="text-muted rn-head-count">${list.length} คน</span></h3>
+        <div class="panel-header rn-head"><div><h3 style="margin:0;">กำลังดำเนินการ <span class="text-muted rn-head-count">${list.length} คน</span></h3>
             <small class="text-muted">ติ๊กหลายคนแล้วใช้แถบด้านล่าง (ตรวจสุขภาพ / วันนัด) · ขั้นที่ต้องแนบไฟล์กดปุ่มในแถวทีละคน · กดช่องในแถบความคืบหน้าเพื่อเปิดไฟล์ของขั้นนั้น</small></div></div>
         <div class="rn-toolbar">${renewalProvinceSelectHtml(searched.map(workerOf))}</div>
-        <div class="rn-groups">${body || '<p class="rn-empty">ยังไม่มีรอบที่กำลังทำ — เริ่มได้จากแท็บ "ถึงรอบ"</p>'}</div>
+        <div class="rn-groups">${body || '<p class="rn-empty">ยังไม่มีรอบที่กำลังดำเนินการ — เริ่มได้จากแท็บ "ถึงรอบ"</p>'}</div>
         ${selBar}
     </div>`;
 }
@@ -3126,24 +3127,36 @@ async function askRenewalNewExpiry(r, w, step, f) {
     if (!res || res.status === "error") showToast("⚠️ แนบไฟล์แล้ว แต่บันทึกวันหมดอายุใหม่ไม่สำเร็จ — แก้ในข้อมูลคนงาน", "warning");
 }
 
-async function cancelRenewal(id) {
-    const r = (renewalList || []).find(x => x.id === id);
-    const w = r && workers.find(x => x.id === r.workerId);
-    if (!r || !can('ops')) return;
-    const billed = renewalJobsOf(r).filter(j => !jobAwaitingBill(j));
-    const ok = await uiConfirm(`ยกเลิกรอบต่ออายุของ ${w ? workerFullName(w) : 'คนงานนี้'}? ไฟล์ที่แนบไว้ยังอยู่ในแฟ้มคนงาน`
-        + (billed.length ? ' — ออกบิล/ตั้งไม่เรียกเก็บเงินไปแล้ว รายการในบิลยังอยู่ ให้ฝ่ายบัญชีจัดการบิลต่อ' : ' รายการรอออกบิลของรอบนี้จะถูกลบ'), {
-        title: 'ยกเลิกรอบต่ออายุ', okText: 'ยกเลิกรอบ', danger: true
+function cancelRenewal(id) { return cancelRenewals([id]); }
+
+// ยกเลิกรอบต่ออายุ 1 คน หรือหลายคนที่เลือกไว้ (แถบคำสั่งด้านล่าง, owner 2026-10-20) — ถามยืนยันครั้งเดียว
+// ไฟล์ที่แนบไว้ยังอยู่ในแฟ้มคนงาน; รายการรอออกบิลถูกลบ ส่วนที่ออกบิล/ตั้งไม่เรียกเก็บเงินแล้วเก็บไว้ให้ฝ่ายบัญชีจัดการบิลเอง
+async function cancelRenewals(ids) {
+    if (!can('ops')) return;
+    const rounds = ids.map(id => (renewalList || []).find(x => x.id === id)).filter(r => r && r.status === 'active');
+    if (!rounds.length) return;
+    const nameOf = r => { const w = workers.find(x => x.id === r.workerId); return w ? workerFullName(w) : 'คนงาน'; };
+    const billedCount = rounds.filter(r => renewalJobsOf(r).some(j => !jobAwaitingBill(j))).length;
+    const who = rounds.length === 1 ? nameOf(rounds[0]) : `${rounds.length} คน`;
+    const ok = await uiConfirm(`ยกเลิกรอบต่ออายุของ ${who}? ไฟล์ที่แนบไว้ยังอยู่ในแฟ้มคนงาน รายการรอออกบิลจะถูกลบ`
+        + (billedCount ? ` — ${billedCount} คนออกบิล/ตั้งไม่เรียกเก็บเงินไปแล้ว รายการในบิลยังอยู่ ให้ฝ่ายบัญชีจัดการบิลต่อ` : ''), {
+        title: 'ยกเลิกรอบต่ออายุ', okText: rounds.length === 1 ? 'ยกเลิกรอบ' : `ยกเลิก ${rounds.length} คน`, danger: true,
+        summary: rounds.length > 1 ? rounds.map(r => ({ label: nameOf(r), value: `หมด ${r.oldPermitExpiry ? formatThaiDate(r.oldPermitExpiry) : '-'}` })) : undefined
     });
     if (!ok) return;
-    r.status = 'cancelled';
-    if (!(await saveRenewalRow(r))) return;
-    // รายการที่ยังไม่ออกบิล ลบทิ้ง (ไม่ค้างเป็นรอออกบิล) — ที่ออกบิลแล้วเก็บไว้เป็นหลักฐาน ฝ่ายบัญชียกเลิกบิลเอง
-    for (const j of renewalJobsOf(r).filter(jobAwaitingBill)) {
-        const res = await callCloudAPI("deleteRecord", { sheetName: "Jobs", id: j.id });
-        if (res && res.status !== "error") jobs = jobs.filter(x => x.id !== j.id);
+    let done = 0;
+    for (const r of rounds) {
+        r.status = 'cancelled';
+        if (!(await saveRenewalRow(r))) continue;
+        done++;
+        renewalSel.delete(r.id);
+        for (const j of renewalJobsOf(r).filter(jobAwaitingBill)) {
+            const res = await callCloudAPI("deleteRecord", { sheetName: "Jobs", id: j.id });
+            if (res && res.status !== "error") jobs = jobs.filter(x => x.id !== j.id);
+        }
     }
     saveData();
+    if (rounds.length > 1) showUploadPill(done === rounds.length ? 'ok' : 'warn', `ยกเลิกรอบต่ออายุ ${done} คนแล้ว`, done === rounds.length ? '' : `ไม่สำเร็จ ${rounds.length - done} คน`);
     renderRenewalCases();
 }
 
