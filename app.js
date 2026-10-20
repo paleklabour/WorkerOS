@@ -1423,6 +1423,7 @@ function renderClientPortal() {
     if (dueBadge) dueBadge.textContent = clientRenewalDue(myWorkers).length || '';
     if (clientPortalTab === 'workers') body.innerHTML = renderClientWorkersTab(myWorkers);
     else if (clientPortalTab === 'renewal') body.innerHTML = renderClientRenewalTab(myWorkers);
+    else if (clientPortalTab === 'register') body.innerHTML = renderClientRegisterTab(myWorkers);
     else if (clientPortalTab === 'jobs') body.innerHTML = renderClientJobsTab(myJobs.filter(j => !isRenewalJob(j))); // งานต่ออายุอยู่แท็บ "ต่ออายุ"
     else if (clientPortalTab === 'balance') body.innerHTML = renderClientBalanceTab(myInvoices, custId);
     else body.innerHTML = renderClientReceiptsTab(myInvoices, custId);
@@ -1523,6 +1524,34 @@ function renderClientRenewalTab(myWorkers) {
         <div class="cp-card cp-rn-card"><div class="cp-rn-head"><h3>กำลังดำเนินการ ${active.length ? `<span class="text-muted">${active.length} คน</span>` : ''}</h3></div>
             ${activeRows || '<p class="text-muted cp-rn-empty">ไม่มีรายการ</p>'}</div>
         ${done.length ? `<div class="cp-card cp-rn-card"><div class="cp-rn-head"><h3>เสร็จแล้ว / ต่อที่อื่น</h3></div>${doneRows}</div>` : ''}`;
+}
+
+// ==================== พอร์ทัล: แท็บ "ขึ้นทะเบียน" (owner 2026-10-20) ====================
+// นายจ้างส่งรายชื่อคนงานรอขึ้นทะเบียนเอง (openRegWorkerModal โหมดลูกค้า → RPC client_save_pending_worker)
+// แก้ได้จนกว่าเจ้าหน้าที่จะนำเข้ารอบ มติ ครม. — หลังจากนั้นดูอย่างเดียว
+function renderClientRegisterTab(myWorkers) {
+    if (registrationRounds === null) { loadRegistrationRounds().then(renderClientPortal); }
+    const pool = myWorkers.filter(regInPool);
+    const inRound = myWorkers.filter(w => w.registrationRoundId && w.status === 'pending_register');
+    const done = myWorkers.filter(regDone);
+    const roundName = id => ((registrationRounds || []).find(r => r.id === id) || {}).name || 'มติ ครม.';
+    const row = (w, right) => `<div class="cp-rn-row cp-reg-row">
+        <div class="renewal-avatar"><img src="${w.photo ? escapeHtml(w.photo) : WORKER_AVATAR_PLACEHOLDER}" alt="" loading="lazy"></div>
+        <div class="cp-rn-name"><strong>${escapeHtml(workerFullName(w))}</strong><small class="text-muted">${escapeHtml(w.nationality || '')}${w.dob ? ` · เกิด ${formatThaiDate(w.dob)}` : ''}</small></div>
+        <div class="reg-chips">${right}</div>
+    </div>`;
+    const poolRows = pool.map(w => row(w, regChipsHtml(w)
+        + `<button type="button" class="btn btn-sm btn-outline" onclick="openRegWorkerModal('${w.id}')" title="แก้ไขข้อมูลหรือแนบไฟล์เพิ่ม">แก้ไข</button>`)).join('');
+    const roundRows = inRound.map(w => row(w, `<span class="badge badge-warning">อยู่ในรอบ ${escapeHtml(roundName(w.registrationRoundId))} · เจ้าหน้าที่กำลังดำเนินการ</span>`)).join('');
+    const doneRows = done.map(w => row(w, `<span class="badge badge-success">ขึ้นทะเบียนแล้ว${w.workerUid ? ` · ${escapeHtml(w.workerUid)}` : ''}</span>`)).join('');
+    return `<div class="cp-card cp-rn-card">
+            <div class="cp-rn-head"><div><h3>รายชื่อรอขึ้นทะเบียน ${pool.length ? `<span class="text-muted">${pool.length} คน</span>` : ''}</h3>
+                <small class="text-muted">ส่งรายชื่อไว้ได้ทั้งปี · เมื่อรัฐเปิดรับ เจ้าหน้าที่จะนำเข้ารอบและแจ้งค่าบริการ · ใส่รูปถ่าย บัตรประชาชนหน้า-หลัง ชื่อ และวันเกิดให้ครบ</small></div>
+                <button type="button" class="btn btn-gold" onclick="openRegWorkerModal()" title="ส่งรายชื่อคนงานรอขึ้นทะเบียน">${icon('plus')} ส่งรายชื่อคนงาน</button></div>
+            ${poolRows || '<p class="text-muted cp-rn-empty">ยังไม่มีรายชื่อ — กด "ส่งรายชื่อคนงาน"</p>'}
+        </div>
+        ${inRound.length ? `<div class="cp-card cp-rn-card"><div class="cp-rn-head"><h3>กำลังขึ้นทะเบียน <span class="text-muted">${inRound.length} คน</span></h3></div>${roundRows}</div>` : ''}
+        ${done.length ? `<div class="cp-card cp-rn-card"><div class="cp-rn-head"><h3>ขึ้นทะเบียนแล้ว</h3></div>${doneRows}</div>` : ''}`;
 }
 
 function toggleClientRenewalPick(ids, on) {
@@ -2797,6 +2826,7 @@ function loadRenewals(silent = false) {
         const res = await callCloudAPI("getRenewals", {}, { silent });
         if (!res || res.status !== "success") return;
         renewalList = res.rows.map(renewalFromRow);
+        if (currentUser.role !== 'client' || registrationRounds === null) await loadRegistrationRounds(true); // รอบ มติ ครม. (ฐานข้อมูลรอขึ้นทะเบียน)
         if (currentUser.role === 'client') {
             if (!document.getElementById('view-client-portal')?.classList.contains('hidden')) renderClientPortal();
         } else {
@@ -2836,6 +2866,8 @@ function syncRenewalTabUi() {
         b.classList.toggle('btn-outline', b.dataset.renewalTab !== renewalTab);
     });
     const isAll = renewalTab === 'all';
+    const regCount = document.getElementById('reg-pool-count');
+    if (regCount) regCount.textContent = workers.filter(regInPool).length || '';
     document.querySelectorAll('#view-renewals .renewal-all-only').forEach(el => el.classList.toggle('hidden', !isAll));
     const cases = document.getElementById('renewal-cases-container');
     if (cases) cases.classList.toggle('hidden', isAll);
@@ -2949,6 +2981,7 @@ function renewalExpiryCell(iso) {
 function renderRenewalCases() {
     const box = document.getElementById('renewal-cases-container');
     if (!box) return;
+    if (renewalTab === 'pool') { box.innerHTML = renderRegistrationPool(); return; } // ฐานข้อมูลรอขึ้นทะเบียน
     const due = renewalDueWorkers();
     const list = renewalList || [];
     const visible = workerId => !!workers.find(w => w.id === workerId); // ไม่นับคนงานของนายจ้างที่ปิดใช้งาน
@@ -3567,6 +3600,342 @@ async function cancelRenewals(ids) {
     saveData();
     if (rounds.length > 1) showUploadPill(done === rounds.length ? 'ok' : 'warn', `ยกเลิกรอบต่ออายุ ${done} คนแล้ว`, done === rounds.length ? '' : `ไม่สำเร็จ ${rounds.length - done} คน`);
     renderRenewalCases();
+}
+
+// ==================== ฐานข้อมูลรอขึ้นทะเบียน (owner 2026-10-20) ====================
+// เก็บคนงานที่ยังไม่มีเอกสารสะสมทั้งปี (workers.status 'pending_register' ที่ยังไม่มีวันหมดอายุใบอนุญาต) → รัฐเปิดรับ:
+// สร้างรอบ มติ ครม. (registration_rounds) แล้วเลือกคนเข้ารอบ (workers.registration_round_id) — 20261020092027_registration_pool.sql
+// ช่องหลัก: รูปถ่าย / บัตรประชาชน (ตามสัญชาติ) หน้า-หลัง / ชื่ออังกฤษ / วันเกิด · ช่องเสริม: บัตรชมพูเก่า / Passport-CI เก่า
+// เข้าจากปุ่ม "รอขึ้นทะเบียน" ในแท็บแรกของหน้าต่ออายุ (renewalTab 'pool'); นายจ้างส่งรายชื่อเองที่พอร์ทัลแท็บ "ขึ้นทะเบียน"
+let registrationRounds = null;
+let regPoolView = 'pool';       // 'pool' = รอเข้ารอบ | 'round:<id>' | 'done' = ขึ้นทะเบียนแล้ว
+let regCompleteFilter = '';     // '' | 'complete' | 'incomplete'
+const REG_ID_LABEL = { Myanmar: 'บัตรประชาชนพม่า', Laos: 'บัตรประชาชนลาว', Cambodia: 'บัตรประชาชนกัมพูชา', Vietnam: 'บัตรประชาชนเวียดนาม' };
+const regIdLabel = (nat) => REG_ID_LABEL[nat] || 'บัตรประชาชน';
+const regInPool = (w) => w.status === 'pending_register' && !w.permitExpiry && !w.registrationRoundId;
+const regInRound = (w, id) => w.registrationRoundId === id && w.status !== 'deleted' && w.status !== 'archived';
+const regDone = (w) => !!w.registrationRoundId && w.status === 'active';
+
+function regRoundFromRow(r) {
+    return { id: r.id, name: r.name, openFrom: r.open_from, openTo: r.open_to, status: r.status, createdAt: r.created_at };
+}
+
+async function loadRegistrationRounds(silent = true) {
+    const res = await callCloudAPI("getRegistrationRounds", {}, { silent });
+    if (res && res.status === "success") registrationRounds = res.rows.map(regRoundFromRow);
+}
+
+// ความครบของข้อมูล (นับเฉพาะช่องหลัก) + ป้ายเอกสารเก่า
+function regChecks(w) {
+    const ids = getAttachments(w, 'worker-myanmar-id').map(f => String((f && f.name) || '').toUpperCase());
+    const hasF = ids.some(n => /^(NTID|MID)_(F|FB)\b|^(NTID|MID)_F[_.]/.test(n));
+    const hasB = ids.some(n => /^(NTID|MID)_(B|FB)\b|^(NTID|MID)_B[_.]/.test(n));
+    const label = regIdLabel(w.nationality);
+    const checks = [
+        { label: 'รูป', ok: !!w.photo }, { label: `${label} หน้า`, ok: hasF }, { label: `${label} หลัง`, ok: hasB },
+        { label: 'ชื่อ', ok: !!w.firstName }, { label: 'วันเกิด', ok: !!w.dob }
+    ];
+    const extras = [];
+    if (getAttachments(w, 'worker-pink-card').length) extras.push('มีบัตรชมพูเก่า');
+    if (getAttachments(w, 'worker-passport').length) extras.push('มีเล่มเก่า');
+    return { checks, extras, complete: checks.every(c => c.ok), missing: checks.filter(c => !c.ok).map(c => c.label) };
+}
+
+function regChipsHtml(w) {
+    const { checks, extras } = regChecks(w);
+    return checks.map(c => `<span class="reg-chip ${c.ok ? 'is-ok' : 'is-miss'}">${c.ok ? '✓' : '✗'} ${escapeHtml(c.label)}</span>`).join('')
+        + extras.map(x => `<span class="reg-chip">${escapeHtml(x)}</span>`).join('');
+}
+
+// ---------- หน้า (ฝั่งเจ้าหน้าที่) ----------
+function renderRegistrationPool() {
+    if (registrationRounds === null) { loadRegistrationRounds().then(() => renderRenewalCases()); }
+    const canEdit = can('ops');
+    const rounds = registrationRounds || [];
+    const pool = workers.filter(regInPool);
+    const views = [{ key: 'pool', label: 'รอเข้ารอบ', n: pool.length },
+        ...rounds.filter(r => r.status === 'open').map(r => ({ key: `round:${r.id}`, label: `รอบ ${r.name}`, n: workers.filter(w => regInRound(w, r.id)).length })),
+        { key: 'done', label: 'ขึ้นทะเบียนแล้ว', n: workers.filter(regDone).length }];
+    if (!views.some(v => v.key === regPoolView)) regPoolView = 'pool';
+    let list = regPoolView === 'pool' ? pool : regPoolView === 'done' ? workers.filter(regDone)
+        : workers.filter(w => regInRound(w, regPoolView.slice(6)));
+    const searched = list.filter(renewalMatchesSearch);
+    list = searched.filter(renewalProvinceOk)
+        .filter(w => !regCompleteFilter || (regChecks(w).complete === (regCompleteFilter === 'complete')));
+    const inRound = regPoolView.startsWith('round:');
+    const groups = renewalGroupByProvince(list, w => w).flatMap(pg => pg.employers.map(e => ({ ...e, prov: pg.prov })));
+    const rowHtml = (w) => `<div class="reg-row" data-ctx="worker:${w.id}" ondblclick="handleRowDblClick(event) && openWorkerQuickView('${w.id}')" title="ดับเบิลคลิกเพื่อดูข้อมูลคนงาน">
+        <div class="renewal-avatar reg-avatar"><img src="${w.photo ? escapeHtml(w.photo) : WORKER_AVATAR_PLACEHOLDER}" alt="" loading="lazy"></div>
+        <div class="reg-name"><strong>${escapeHtml(workerFullName(w))}</strong><small class="text-muted">${escapeHtml(w.nationality || '-')}${w.dob ? ` · เกิด ${formatThaiDate(w.dob)}` : ''}</small>
+            ${w.submittedByClient ? '<span class="rn-client-tag">นายจ้างส่งรายชื่อ</span>' : ''}</div>
+        <span class="text-muted reg-added">เพิ่ม ${w.createdAt ? formatThaiDate(String(w.createdAt).slice(0, 10)) : '-'}</span>
+        <div class="reg-chips">${regChipsHtml(w)}</div>
+        <div class="rn-actions">
+            ${canEdit && regInPool(w) ? `<button type="button" class="btn btn-sm rn-next-btn" onclick="openRegWorkerModal('${w.id}')" title="แก้ไขข้อมูลและไฟล์ของคนงานนี้">แก้ไข</button>` : ''}
+            ${canEdit && inRound && w.status === 'pending_register' ? `<button type="button" class="btn btn-sm btn-outline" onclick="regRemoveFromRound('${w.id}')" title="เอาคนงานนี้ออกจากรอบ กลับไปรอเข้ารอบ">เอาออกจากรอบ</button>` : ''}
+            <button type="button" class="action-icon-btn" onclick="openWorkerFolderModal('${w.id}')" title="เปิดแฟ้มเอกสารคนงาน">${icon('folder')}</button>
+        </div>
+    </div>`;
+    const body = groups.map(g => `<section class="rn-agroup">
+        <div class="rn-agroup-head"><strong>${escapeHtml(g.name)}</strong><span class="text-muted">${escapeHtml(renewalProvinceLabel(g.prov))} · ${g.items.length} คน · ข้อมูลครบ ${g.items.filter(w => regChecks(w).complete).length}</span>
+            ${canEdit && regPoolView === 'pool' && g.cust ? `<button type="button" class="btn btn-sm rn-next-btn reg-head-add" onclick="openRegWorkerModal(null, '${g.cust.id}')" title="เพิ่มคนงานรอขึ้นทะเบียนให้นายจ้างนี้">+ เพิ่มคนงานให้นายจ้างนี้</button>` : ''}</div>
+        ${[...g.items].sort((a, b) => workerFullName(a).localeCompare(workerFullName(b))).map(rowHtml).join('')}
+    </section>`).join('');
+    const round = inRound ? rounds.find(r => `round:${r.id}` === regPoolView) : null;
+    return `<div class="dashboard-panel">
+        <div class="reg-crumb"><button type="button" class="btn btn-sm btn-outline" onclick="switchRenewalTab('all')" title="กลับไปแท็บทั้งหมด (ตามกลุ่ม)">‹ กลับไปทั้งหมด (ตามกลุ่ม)</button>
+            <span class="text-muted">ต่ออายุ/ทำเล่ม › ทั้งหมด (ตามกลุ่ม) › รอขึ้นทะเบียน</span></div>
+        <div class="panel-header rn-head"><div><h3 style="margin:0;">รอขึ้นทะเบียน</h3>
+            <small class="text-muted">เก็บรายชื่อสะสมทั้งปี · พอรัฐเปิดรับ สร้างรอบ มติ ครม. แล้วเลือกคนเข้ารอบ${round && (round.openFrom || round.openTo) ? ` · รอบนี้เปิดรับ ${round.openFrom ? formatThaiDate(round.openFrom) : '-'} – ${round.openTo ? formatThaiDate(round.openTo) : '-'}` : ''}</small></div>
+            ${canEdit ? `<div class="rn-actions"><button type="button" class="btn btn-gold" onclick="openRegWorkerModal()" title="เพิ่มคนงานรอขึ้นทะเบียน">${icon('plus')} เพิ่มคนงาน</button>
+                <button type="button" class="btn btn-outline" onclick="openRegRoundModal()" title="รัฐเปิดรับแล้ว: สร้างรอบ มติ ครม. แล้วเลือกคนเข้ารอบ">สร้างรอบ มติ ครม.</button></div>` : ''}
+        </div>
+        <div class="rn-toolbar">
+            <div class="dashboard-tabs reg-views">${views.map(v => `<button type="button" class="btn ${v.key === regPoolView ? 'btn-gold' : 'btn-outline'}" onclick="regPoolView = '${v.key}'; renderRenewalCases()">${escapeHtml(v.label)} <span class="rn-count">${v.n || ''}</span></button>`).join('')}</div>
+            ${renewalProvinceSelectHtml(searched)}
+            <select class="select-filter" onchange="regCompleteFilter = this.value; renderRenewalCases()" title="กรองตามความครบของข้อมูล">
+                <option value="">ข้อมูลครบ / ไม่ครบ</option><option value="complete" ${regCompleteFilter === 'complete' ? 'selected' : ''}>เฉพาะข้อมูลครบ</option><option value="incomplete" ${regCompleteFilter === 'incomplete' ? 'selected' : ''}>เฉพาะยังไม่ครบ</option>
+            </select>
+        </div>
+        <div class="rn-groups">${body || `<p class="rn-empty">${regPoolView === 'pool' ? 'ยังไม่มีคนงานรอขึ้นทะเบียน — กด "เพิ่มคนงาน"' : 'ไม่มีรายการ'}</p>`}</div>
+    </div>`;
+}
+
+async function regRemoveFromRound(workerId) {
+    const w = workers.find(x => x.id === workerId);
+    if (!w || !can('ops')) return;
+    if (!(await uiConfirm(`เอา ${workerFullName(w)} ออกจากรอบ กลับไปรอเข้ารอบ?`, { title: 'เอาออกจากรอบ', okText: 'เอาออก', danger: false }))) return;
+    w.registrationRoundId = null;
+    const res = await callCloudAPI("saveWorker", { workerData: w });
+    if (!res || res.status === "error") { showToast("❌ บันทึกไม่สำเร็จ", "danger"); return; }
+    saveData();
+    renderRenewalCases();
+}
+
+// ---------- หน้าต่างเพิ่ม/แก้คนงาน (เจ้าหน้าที่ + นายจ้าง) ----------
+let regEdit = null; // { id, employerId, isNew, files: { photo|idf|idb|pink|pass: { dataUrl, name } } }
+let regActiveSlot = null;
+let regEmployerId = null;
+const REG_SLOTS_MAIN = [{ key: 'photo', label: 'รูปถ่าย', req: true }, { key: 'idf', label: 'หน้า', req: true, id: true }, { key: 'idb', label: 'หลัง', req: true, id: true }];
+const REG_SLOTS_EXTRA = [{ key: 'pink', label: 'บัตรชมพูเก่า' }, { key: 'pass', label: 'Passport / CI เก่า' }];
+
+function openRegWorkerModal(workerId = null, employerId = null) {
+    const isClient = currentUser && currentUser.role === 'client';
+    if (!isClient && !can('ops')) return;
+    const w = workerId ? workers.find(x => x.id === workerId) : null;
+    regEdit = { id: w ? w.id : null, isNew: !w, files: {} };
+    regEmployerId = isClient ? clientCustomerId() : (w ? w.employerId : employerId);
+    document.getElementById('reg-worker-title').textContent = w ? `แก้ไข ${workerFullName(w)}` : (isClient ? 'ส่งรายชื่อคนงานรอขึ้นทะเบียน' : 'เพิ่มคนงานรอขึ้นทะเบียน');
+    document.getElementById('reg-employer-group').classList.toggle('hidden', isClient);
+    if (!isClient) presetSearchSelect('reg-employer', regEmployerId);
+    document.getElementById('reg-first-name').value = w ? (w.firstName || '') : '';
+    document.getElementById('reg-last-name').value = w ? (w.lastName || '') : '';
+    document.getElementById('reg-dob').value = w && w.dob ? localDateISO(safeParseDate(w.dob)) : '';
+    document.getElementById('reg-nationality').value = (w && w.nationality) || 'Myanmar';
+    document.getElementById('reg-gender').value = (w && w.gender) || '';
+    document.getElementById('btn-reg-save-next').classList.toggle('hidden', !!w);
+    renderRegSlots();
+    regCheckDuplicate();
+    document.getElementById('reg-worker-modal').classList.remove('hidden');
+    setTimeout(() => document.getElementById(isClient || regEmployerId ? 'reg-first-name' : 'reg-employer-search').focus(), 50);
+}
+function closeRegWorkerModal() { document.getElementById('reg-worker-modal').classList.add('hidden'); regEdit = null; }
+
+function renderRegSlots() {
+    if (!regEdit) return;
+    const w = regEdit.id ? workers.find(x => x.id === regEdit.id) : null;
+    const nat = document.getElementById('reg-nationality').value;
+    const have = w ? regChecks(w) : null;
+    const existing = {
+        photo: !!(w && w.photo), idf: !!(have && have.checks[1].ok), idb: !!(have && have.checks[2].ok),
+        pink: !!(w && getAttachments(w, 'worker-pink-card').length), pass: !!(w && getAttachments(w, 'worker-passport').length)
+    };
+    const slot = (s) => {
+        const f = regEdit.files[s.key];
+        const label = s.id ? `${regIdLabel(nat)} ${s.label}` : s.label;
+        const state = f ? `ใหม่: ${f.name}` : existing[s.key] ? '✓ มีไฟล์แล้ว (กดเพื่อเปลี่ยน)' : 'ถ่ายรูป / เลือกไฟล์';
+        return `<button type="button" class="reg-slot ${f || existing[s.key] ? 'is-filled' : ''}" onclick="regPickSlot('${s.key}')" title="แนบ${escapeHtml(label)}">
+            ${f && /^data:image\//.test(f.dataUrl) ? `<img src="${f.dataUrl}" alt="">` : ''}
+            <strong>${escapeHtml(label)}${s.req ? ' *' : ''}</strong><small>${escapeHtml(state)}</small></button>`;
+    };
+    document.getElementById('reg-main-slots').innerHTML = REG_SLOTS_MAIN.map(slot).join('');
+    document.getElementById('reg-extra-slots').innerHTML = REG_SLOTS_EXTRA.map(slot).join('');
+}
+
+function regPickSlot(key) {
+    regActiveSlot = key;
+    const input = document.getElementById('reg-file-input');
+    input.value = '';
+    input.accept = key === 'photo' ? 'image/*' : 'image/*,application/pdf';
+    input.click();
+}
+
+async function regFilePicked(input) {
+    const file = input.files && input.files[0];
+    if (!file || !regEdit || !regActiveSlot) return;
+    regEdit.files[regActiveSlot] = { dataUrl: await readFileAsDataUrl(file), name: file.name };
+    renderRegSlots();
+}
+
+// เตือนคนซ้ำ: ชื่อ + วันเกิดตรงกับคนงานที่มีอยู่แล้ว (ทุกนายจ้าง)
+function regCheckDuplicate() {
+    const box = document.getElementById('reg-dup-warn');
+    if (!box || !regEdit) return;
+    const first = document.getElementById('reg-first-name').value.trim().toLowerCase();
+    const last = document.getElementById('reg-last-name').value.trim().toLowerCase();
+    const dob = document.getElementById('reg-dob').value;
+    const hit = first && dob ? allWorkers().find(w => w.id !== regEdit.id && w.status !== 'deleted'
+        && String(w.firstName || '').trim().toLowerCase() === first && String(w.lastName || '').trim().toLowerCase() === last
+        && w.dob && localDateISO(safeParseDate(w.dob)) === dob) : null;
+    box.classList.toggle('hidden', !hit);
+    if (hit) {
+        const emp = customers.find(c => c.id === hit.employerId);
+        box.textContent = `มีคนงานชื่อ ${workerFullName(hit)} เกิด ${formatThaiDate(dob)} อยู่แล้ว (${emp ? emp.companyName : 'ไม่ระบุนายจ้าง'}${hit.workerUid ? ` · ${hit.workerUid}` : ''}) — ตรวจก่อนบันทึกว่าเป็นคนเดียวกันหรือไม่`;
+    }
+}
+
+async function saveRegWorker(next) {
+    if (!regEdit) return;
+    const isClient = currentUser && currentUser.role === 'client';
+    const employerId = isClient ? clientCustomerId() : regEmployerId;
+    const firstName = document.getElementById('reg-first-name').value.trim().toUpperCase();
+    if (!employerId) { uiAlert('กรุณาเลือกนายจ้าง'); return; }
+    if (!firstName) { uiAlert('กรุณากรอกชื่อคนงาน (ภาษาอังกฤษ)'); return; }
+    const fields = {
+        firstName, lastName: document.getElementById('reg-last-name').value.trim().toUpperCase(),
+        dob: document.getElementById('reg-dob').value || null,
+        nationality: document.getElementById('reg-nationality').value,
+        gender: document.getElementById('reg-gender').value
+    };
+    const btns = ['btn-reg-save', 'btn-reg-save-next'].map(id => document.getElementById(id));
+    btns.forEach(b => { b.disabled = true; });
+    try {
+        const ok = isClient ? await saveRegWorkerClient(employerId, fields) : await saveRegWorkerStaff(employerId, fields);
+        if (!ok) return;
+        saveData();
+        showUploadPill('ok', isClient ? 'ส่งรายชื่อแล้ว' : 'บันทึกคนงานรอขึ้นทะเบียนแล้ว', `${firstName} ${fields.lastName}`.trim());
+        if (isClient) renderClientPortal(); else { renderRenewalCases(); renderWorkers(); }
+        if (next) openRegWorkerModal(null, employerId); else closeRegWorkerModal();
+    } finally {
+        btns.forEach(b => { b.disabled = false; });
+    }
+}
+
+// เจ้าหน้าที่: สร้าง/แก้คนงานผ่าน saveWorker แล้วแนบไฟล์ผ่าน attachDocumentToWorker (ชื่อไฟล์/Drive เหมือนแนบในแฟ้ม)
+async function saveRegWorkerStaff(employerId, fields) {
+    let w = regEdit.id ? workers.find(x => x.id === regEdit.id) : null;
+    const id = w ? w.id : `work-${Date.now()}`;
+    let photo = w ? w.photo : '';
+    if (regEdit.files.photo) {
+        const up = await uploadDocumentFile(regEdit.files.photo.dataUrl, `${fields.firstName}_photo.jpg`, employerId, id);
+        if (up && up.viewUrl) photo = up.viewUrl;
+    }
+    const workerData = w ? Object.assign(w, fields, { employerId, photo }) : {
+        ...fields, id, employerId, photo, workplace: getCustomerHQAddress(employerId), attachments: {},
+        status: 'pending_register', skipNotifyEntry: false, createdAt: localDateISO(new Date())
+    };
+    const res = await callCloudAPI("saveWorker", { workerData });
+    if (!res || res.status === "error") { showToast("❌ บันทึกคนงานไม่สำเร็จ: " + (res && res.message ? res.message : ''), "danger"); return false; }
+    if (!w) { workers.push(workerData); w = workerData; }
+    regEdit.id = w.id;
+    const plan = [['idf', 'worker-myanmar-id', 'NTID_F', true], ['idb', 'worker-myanmar-id', 'NTID_B', true],
+        ['pink', 'worker-pink-card', null, false], ['pass', 'worker-passport', null, false]];
+    for (const [key, docType, hint, noAi] of plan) {
+        const f = regEdit.files[key];
+        if (!f) continue;
+        try { await attachDocumentToWorker(w, docType, f.dataUrl, null, { hint: hint || f.name, noAi }); }
+        catch (err) { if (!(err && err.cancelled)) showToast(`⚠️ แนบไฟล์ ${f.name} ไม่สำเร็จ`, "warning"); }
+    }
+    return true;
+}
+
+// นายจ้าง: อัปโหลดไฟล์ขึ้น Storage เองแล้วส่งข้อมูลทั้งก้อนผ่าน RPC client_save_pending_worker (ลูกค้าเขียน workers ตรงไม่ได้)
+async function saveRegWorkerClient(employerId, fields) {
+    const w = regEdit.id ? workers.find(x => x.id === regEdit.id) : null;
+    const id = w ? w.id : `work-${Date.now()}`;
+    const attachments = JSON.parse(JSON.stringify((w && w.attachments) || {}));
+    let photo = w ? w.photo : '';
+    if (regEdit.files.photo) {
+        const up = await uploadDocumentFile(regEdit.files.photo.dataUrl, `${fields.firstName}_photo.jpg`, employerId, id);
+        if (up && up.viewUrl) photo = up.viewUrl;
+    }
+    const plan = [['idf', 'worker-myanmar-id', 'NTID_F'], ['idb', 'worker-myanmar-id', 'NTID_B'], ['pink', 'worker-pink-card', null], ['pass', 'worker-passport', null]];
+    for (const [key, docType, hint] of plan) {
+        const f = regEdit.files[key];
+        if (!f) continue;
+        const list = attachments[docType] = Array.isArray(attachments[docType]) ? attachments[docType] : [];
+        const name = uniqueWorkerDocName(list, workerDocFileName('', '', '', docType, '', extFromDataUrl(f.dataUrl), hint || f.name));
+        const up = await uploadDocumentFile(f.dataUrl, name, employerId, id, docType, { skipOcr: true });
+        if (!up || !up.fileUrl) { showToast(`⚠️ อัปโหลด ${f.name} ไม่สำเร็จ`, "warning"); continue; }
+        list.push({ name: up.fileName || name, data: up.fileUrl, uploadedAt: new Date().toISOString() });
+    }
+    const res = await callCloudAPI("clientSavePendingWorker", { worker: {
+        id, first_name: fields.firstName, last_name: fields.lastName, nationality: fields.nationality, dob: fields.dob || '',
+        gender: fields.gender, photo, attachments } });
+    if (!res || res.status !== "success") { showToast("❌ ส่งรายชื่อไม่สำเร็จ: " + (res && res.message ? res.message : ''), "danger"); return false; }
+    if (w) Object.assign(w, res.data); else workers.push(res.data);
+    regEdit.id = id;
+    return true;
+}
+
+// ---------- สร้างรอบ มติ ครม. ----------
+const regRoundPick = new Set();
+function openRegRoundModal() {
+    if (!can('ops')) return;
+    regRoundPick.clear();
+    workers.filter(regInPool).filter(w => regChecks(w).complete).forEach(w => regRoundPick.add(w.id));
+    ['reg-round-name', 'reg-round-from', 'reg-round-to'].forEach(id => { document.getElementById(id).value = ''; });
+    document.getElementById('reg-round-all').checked = true;
+    renderRegRoundList();
+    document.getElementById('reg-round-modal').classList.remove('hidden');
+    setTimeout(() => document.getElementById('reg-round-name').focus(), 50);
+}
+function closeRegRoundModal() { document.getElementById('reg-round-modal').classList.add('hidden'); }
+
+function renderRegRoundList() {
+    const pool = workers.filter(regInPool);
+    const groups = renewalGroupByProvince(pool, w => w).flatMap(pg => pg.employers);
+    document.getElementById('reg-round-count').textContent = `เลือกคนงานเข้ารอบ · ${regRoundPick.size} จาก ${pool.length} คน`;
+    document.getElementById('btn-reg-round-save').textContent = `สร้างรอบ${regRoundPick.size ? ` + ใส่ ${regRoundPick.size} คน` : ''}`;
+    document.getElementById('reg-round-list').innerHTML = groups.map(g => `<div class="reg-round-emp">${escapeHtml(g.name)}</div>`
+        + g.items.map(w => {
+            const c = regChecks(w);
+            return `<label class="reg-round-row"><input type="checkbox" ${regRoundPick.has(w.id) ? 'checked' : ''} onchange="regRoundToggle('${w.id}', this.checked)">
+                <span><strong>${escapeHtml(workerFullName(w))}</strong><small class="text-muted">${escapeHtml(w.nationality || '')}</small></span>
+                <span class="reg-chip ${c.complete ? 'is-ok' : 'is-miss'}">${c.complete ? 'ข้อมูลครบ' : `ขาด${escapeHtml(c.missing.join(' · '))}`}</span></label>`;
+        }).join('')).join('') || '<p class="rn-empty">ยังไม่มีคนงานรอเข้ารอบ</p>';
+}
+function regRoundToggle(id, on) { if (on) regRoundPick.add(id); else regRoundPick.delete(id); renderRegRoundList(); }
+function regRoundPickComplete(on) {
+    workers.filter(regInPool).filter(w => regChecks(w).complete).forEach(w => { if (on) regRoundPick.add(w.id); else regRoundPick.delete(w.id); });
+    renderRegRoundList();
+}
+
+async function saveRegRound() {
+    const name = document.getElementById('reg-round-name').value.trim();
+    if (!name) { uiAlert('กรุณาใส่ชื่อรอบ เช่น มติ ครม. 24 ก.ย. 2567'); return; }
+    const btn = document.getElementById('btn-reg-round-save');
+    btn.disabled = true;
+    try {
+        const res = await callCloudAPI("saveRegistrationRound", { round: { name,
+            openFrom: document.getElementById('reg-round-from').value, openTo: document.getElementById('reg-round-to').value } });
+        if (!res || res.status !== "success") { showToast("❌ สร้างรอบไม่สำเร็จ: " + (res && res.message ? res.message : ''), "danger"); return; }
+        const round = regRoundFromRow(res.row);
+        registrationRounds = [round, ...(registrationRounds || [])];
+        let ok = 0;
+        for (const id of regRoundPick) {
+            const w = workers.find(x => x.id === id);
+            if (!w) continue;
+            w.registrationRoundId = round.id;
+            const r = await callCloudAPI("saveWorker", { workerData: w });
+            if (r && r.status !== "error") ok++; else w.registrationRoundId = null;
+        }
+        saveData();
+        closeRegRoundModal();
+        regPoolView = `round:${round.id}`;
+        showUploadPill('ok', `สร้างรอบ ${name} แล้ว`, `ใส่คนงานเข้ารอบ ${ok} คน`);
+        renderRenewalCases();
+    } finally { btn.disabled = false; }
 }
 
 // ==================== DASHBOARD ENGINE & CALCULATIONS ====================
@@ -11929,6 +12298,18 @@ function setupAllSearchSelects() {
     });
 
     // นายจ้างของคนงานใหม่จาก "วางรายชื่อจาก e-WorkPermit" — เก็บใน ewpPasteEmployerId
+    // นายจ้างในหน้าต่างเพิ่มคนงานรอขึ้นทะเบียน (openRegWorkerModal)
+    registerSearchSelect('reg-employer', {
+        inputId: 'reg-employer-search',
+        getValue: () => regEmployerId,
+        setValue: (v) => { regEmployerId = v || null; },
+        getPool: () => customers,
+        getId: c => c.id,
+        getLabel: c => c.companyName,
+        getSub: c => c.taxId ? 'ภาษี ' + c.taxId : '',
+        emptyText: 'ไม่พบนายจ้างที่ตรงกับคำค้นหา'
+    });
+
     registerSearchSelect('ewp-paste-employer', {
         inputId: 'ewp-paste-employer-search',
         getValue: () => ewpPasteEmployerId,

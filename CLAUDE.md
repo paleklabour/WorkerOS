@@ -511,6 +511,20 @@ the normal worker doc slots; ใบแทน / card / new passport then ask for 
 the worker and the file, so the old file folds into "expired" by the usual rule. Card (+ book if any) closes the round.
 Still to build: old→new worker-data preview, deposit shortcut in the start dialog, bell/calendar for appointments, client portal renewal progress.
 
+## Registration pool — รอขึ้นทะเบียน (owner, 2026-10-20)
+
+Workers with no documents collected all year: `workers.status = 'pending_register'` with no permit expiry and no
+`registration_round_id` (`regInPool`). Opened from the button "รอขึ้นทะเบียน" on the renewals page first tab (renewalTab
+`'pool'`, `renderRegistrationPool`; back button returns to "ทั้งหมด (ตามกลุ่ม)"). Add/edit window `openRegWorkerModal`
+(employer required; photo, national-ID front/back — slot label follows nationality `regIdLabel`, files `NTID_F` / `NTID_B`
+attach-only; English name, DOB; optional old pink card / passport which go through the normal reader); duplicate warning on
+name + DOB. When the state opens registration: "สร้างรอบ มติ ครม." (`registration_rounds`, `openRegRoundModal`) and tick
+workers into it; completeness chips via `regChecks`. Employers submit/edit their own pool workers in the portal tab
+"ขึ้นทะเบียน" through RPC `client_save_pending_worker` (they can't write `workers` directly; files upload to Storage first);
+`submitted_by_client` shows a purple tag. Migration `20261020092027_registration_pool.sql`. Phase 2 (not built): the
+renewal-style steps after a round (ใบคำขอ+ใบเสร็จ → ตรวจสุขภาพ → ประกัน → ค่าธรรมเนียมรอบ 2 (optional) → ใบแทน → ใบนัด →
+Smart card → บัตรชมพู → ทำเล่ม / ตี visa), separate billing items, portal progress — owner picked mockup 4.
+
 ## No-charge jobs (2026-10-06)
 
 A job the company deliberately doesn't bill gets `payment_status` =

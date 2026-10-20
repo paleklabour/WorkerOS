@@ -47,7 +47,9 @@
         pinkCardNo: "pink_card_no", thaiName: "thai_name", insuranceNo: "insurance_no",
         email: "email", skipNotifyEntry: "skip_notify_entry",
         // มีคอลัมน์ในฐานข้อมูลตั้งแต่ 0001_init แต่ตกหล่นจาก map → รูป/ชื่อพ่อแม่ที่กรอกไม่เคยถูกบันทึก (แก้ 2026-10-02)
-        photo: "photo", fatherName: "father_name", motherName: "mother_name", attachmentNames: "attachment_names"
+        photo: "photo", fatherName: "father_name", motherName: "mother_name", attachmentNames: "attachment_names",
+        // ฐานข้อมูลรอขึ้นทะเบียน (20261020092027_registration_pool.sql)
+        registrationRoundId: "registration_round_id", submittedByClient: "submitted_by_client"
     };
     const JOB_MAP = {
         id: "id", customerId: "customer_id", workerId: "worker_id", jobType: "job_type",
@@ -924,6 +926,25 @@
                 const { data, error } = await sb.from("renewals").insert(rows).select("*");
                 if (error) return { status: "error", message: /renewals_one_active_per_worker/.test(error.message) ? "มีคนงานที่เริ่มรอบต่ออายุไว้แล้ว กรุณารีเฟรชหน้า" : error.message };
                 return { status: "success", rows: data || [] };
+            }
+            // ฐานข้อมูลรอขึ้นทะเบียน: รอบ มติ ครม. (20261020092027_registration_pool.sql)
+            case "getRegistrationRounds": {
+                const { data, error } = await sb.from("registration_rounds").select("*").order("created_at", { ascending: false });
+                if (error) return { status: "error", message: error.message };
+                return { status: "success", rows: data || [] };
+            }
+            case "saveRegistrationRound": {
+                const r = payload.round || {};
+                const row = { name: r.name, open_from: r.openFrom || null, open_to: r.openTo || null, status: r.status || 'open' };
+                const q = r.id ? sb.from("registration_rounds").update(row).eq("id", r.id) : sb.from("registration_rounds").insert(row);
+                const { data, error } = await q.select("*").single();
+                if (error) return { status: "error", message: error.message };
+                return { status: "success", row: data };
+            }
+            case "clientSavePendingWorker": {
+                const { data, error } = await sb.rpc("client_save_pending_worker", { p: payload.worker || {} });
+                if (error) return { status: "error", message: error.message };
+                return { status: "success", data: toCamel(data, WORKER_MAP) };
             }
             // พอร์ทัลลูกค้า: เปิด/ยกเลิกรอบต่ออายุเอง — ตรวจสิทธิ์และเงื่อนไขในฐานข้อมูล (20261020072944_renewals_client_portal.sql)
             case "clientStartRenewals": {

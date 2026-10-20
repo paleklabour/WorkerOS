@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261020v">
+    <link rel="stylesheet" href="styles.css?v=20261020w">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -579,6 +579,7 @@
                         <div class="dashboard-tabs client-portal-tabs">
                             <button type="button" class="btn btn-gold" data-portal-tab="workers" onclick="switchClientPortalTab('workers')"><span class="ico" data-icon="users"></span> คนงานของฉัน</button>
                             <button type="button" class="btn btn-outline" data-portal-tab="renewal" onclick="switchClientPortalTab('renewal')" title="ขอต่ออายุใบอนุญาตทำงาน และดูความคืบหน้า"><span class="ico" data-icon="refresh"></span> ต่ออายุ <span class="cp-tab-badge" id="cp-renewal-badge"></span></button>
+                            <button type="button" class="btn btn-outline" data-portal-tab="register" onclick="switchClientPortalTab('register')" title="ส่งรายชื่อคนงานที่รอขึ้นทะเบียน"><span class="ico" data-icon="user"></span> ขึ้นทะเบียน</button>
                             <button type="button" class="btn btn-outline" data-portal-tab="jobs" onclick="switchClientPortalTab('jobs')"><span class="ico" data-icon="clipboard"></span> งานที่แจ้ง</button>
                             <button type="button" class="btn btn-outline" data-portal-tab="balance" onclick="switchClientPortalTab('balance')"><span class="ico" data-icon="receipt"></span> ยอดค้างชำระ</button>
                             <button type="button" class="btn btn-outline" data-portal-tab="receipts" onclick="switchClientPortalTab('receipts')"><span class="ico" data-icon="cash"></span> ใบเสร็จรับเงิน</button>
@@ -927,6 +928,8 @@
                                     <option value="batch">เฉพาะกลุ่มมติ ครม.</option>
                                     <option value="mou">เฉพาะกลุ่ม MOU</option>
                                 </select>
+                                <!-- ฐานข้อมูลรอขึ้นทะเบียน (owner 2026-10-20): ปุ่มเข้าจากแท็บแรก → renewalTab 'pool' (renderRegistrationPool) -->
+                                <button type="button" class="btn btn-gold" id="btn-open-reg-pool" onclick="switchRenewalTab('pool')" title="คนงานที่รอขึ้นทะเบียน เก็บสะสมไว้รอรัฐเปิดรับ">รอขึ้นทะเบียน <span class="rn-count" id="reg-pool-count"></span></button>
                                 <button type="button" class="btn btn-outline renewal-filter-clear hidden" id="btn-clear-renewal-filters" onclick="clearRenewalFilters()">ล้างตัวกรอง</button>
                             </div>
                         </div>
@@ -3457,6 +3460,68 @@
         </div>
 
         <!-- ==================== MODAL: วางรายชื่อจาก e-WorkPermit → สร้างคนงานหลายคน (ไม่ใช้ AI, ดู parseEwpPasteText ใน app.js) ==================== -->
+        <!-- ฐานข้อมูลรอขึ้นทะเบียน: เพิ่ม/แก้คนงาน (เจ้าหน้าที่ + นายจ้างในพอร์ทัล) — openRegWorkerModal ใน app.js -->
+        <div id="reg-worker-modal" class="modal-backdrop hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3><span class="ico" data-icon="user"></span> <span id="reg-worker-title">เพิ่มคนงานรอขึ้นทะเบียน</span></h3>
+                    <button class="close-btn" title="ปิดหน้าต่าง" onclick="closeRegWorkerModal()">&times;</button>
+                </div>
+                <div class="modal-body reg-body">
+                    <div class="form-group" id="reg-employer-group">
+                        <label for="reg-employer-search">นายจ้าง <span class="required">*</span></label>
+                        <div class="search-box" style="max-width: 100%;">
+                            <input type="text" id="reg-employer-search" placeholder="พิมพ์ชื่อบริษัท/นายจ้างเพื่อค้นหา..." autocomplete="off">
+                        </div>
+                    </div>
+                    <div class="reg-slots" id="reg-main-slots"></div>
+                    <div class="reg-grid">
+                        <div class="form-group"><label for="reg-first-name">ชื่อ (อังกฤษ) <span class="required">*</span></label><input type="text" id="reg-first-name" autocomplete="off" oninput="regCheckDuplicate()"></div>
+                        <div class="form-group"><label for="reg-last-name">นามสกุล (อังกฤษ)</label><input type="text" id="reg-last-name" autocomplete="off" placeholder="ถ้ามี" oninput="regCheckDuplicate()"></div>
+                        <div class="form-group"><label for="reg-dob">วัน/เดือน/ปีเกิด <span class="required">*</span></label><input type="date" id="reg-dob" onchange="regCheckDuplicate()"></div>
+                        <div class="form-group"><label for="reg-nationality">สัญชาติ</label>
+                            <select id="reg-nationality" onchange="renderRegSlots()">
+                                <option value="Myanmar">เมียนมา</option><option value="Laos">ลาว</option><option value="Cambodia">กัมพูชา</option><option value="Vietnam">เวียดนาม</option>
+                            </select></div>
+                        <div class="form-group"><label for="reg-gender">เพศ</label>
+                            <select id="reg-gender"><option value="">ไม่ระบุ</option><option value="Male">ชาย</option><option value="Female">หญิง</option></select></div>
+                    </div>
+                    <p class="reg-sub">เอกสารเก่า (ถ้ามี)</p>
+                    <div class="reg-slots reg-slots-2" id="reg-extra-slots"></div>
+                    <div id="reg-dup-warn" class="reg-dup hidden"></div>
+                    <input type="file" id="reg-file-input" accept="image/*,application/pdf" hidden onchange="regFilePicked(this)">
+                </div>
+                <div class="modal-footer" style="display: flex; flex-wrap: wrap; gap: 10px;">
+                    <button type="button" class="btn btn-outline" onclick="closeRegWorkerModal()">ยกเลิก</button>
+                    <button type="button" class="btn btn-outline" id="btn-reg-save-next" onclick="saveRegWorker(true)" title="บันทึกแล้วเปิดฟอร์มว่างสำหรับคนต่อไป (นายจ้างเดิม)">บันทึกแล้วเพิ่มคนต่อไป</button>
+                    <button type="button" class="btn btn-gold" style="flex: 1;" id="btn-reg-save" onclick="saveRegWorker(false)">บันทึก</button>
+                </div>
+            </div>
+        </div>
+        <!-- สร้างรอบ มติ ครม. แล้วเลือกคนเข้ารอบ — openRegRoundModal ใน app.js -->
+        <div id="reg-round-modal" class="modal-backdrop hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3><span class="ico" data-icon="users"></span> สร้างรอบ มติ ครม.</h3>
+                    <button class="close-btn" title="ปิดหน้าต่าง" onclick="closeRegRoundModal()">&times;</button>
+                </div>
+                <div class="modal-body reg-body">
+                    <p class="text-muted reg-sub">ใช้เมื่อรัฐเปิดรับขึ้นทะเบียน · คนที่ไม่ได้เข้ารอบยังค้างอยู่รอรอบถัดไป</p>
+                    <div class="form-group"><label for="reg-round-name">ชื่อรอบ <span class="required">*</span></label><input type="text" id="reg-round-name" placeholder="เช่น มติ ครม. 24 ก.ย. 2567"></div>
+                    <div class="reg-grid">
+                        <div class="form-group"><label for="reg-round-from">เปิดรับ</label><input type="date" id="reg-round-from"></div>
+                        <div class="form-group"><label for="reg-round-to">ปิดรับ</label><input type="date" id="reg-round-to"></div>
+                    </div>
+                    <div class="reg-round-head"><strong id="reg-round-count"></strong>
+                        <label class="rn-book-pick"><input type="checkbox" id="reg-round-all" onchange="regRoundPickComplete(this.checked)"> เลือกทุกคนที่ข้อมูลครบ</label></div>
+                    <div id="reg-round-list" class="reg-round-list"></div>
+                </div>
+                <div class="modal-footer" style="display: flex; gap: 10px;">
+                    <button type="button" class="btn btn-outline" onclick="closeRegRoundModal()">ยกเลิก</button>
+                    <button type="button" class="btn btn-gold" style="flex: 1;" id="btn-reg-round-save" onclick="saveRegRound()">สร้างรอบ</button>
+                </div>
+            </div>
+        </div>
         <div id="ewp-paste-modal" class="modal-backdrop hidden" style="z-index: 1050;">
             <div class="modal-content large">
                 <div class="modal-header">
@@ -3552,7 +3617,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261020v"></script>
+    <script src="supabase-client.js?v=20261020w"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3563,6 +3628,6 @@
     </script>
 
     <!-- Application Script -->
-    <script src="app.js?v=20261020v"></script>
+    <script src="app.js?v=20261020w"></script>
 </body>
 </html>
