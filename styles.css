@@ -6687,7 +6687,14 @@ body.has-camera .upload-hint { display: none; }
 .rn-table .rn-check input, .rn-book-pick input { width: 18px; height: 18px; accent-color: var(--gold-primary); }
 .rn-book-pick { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; cursor: pointer; }
 .rn-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 0 20px 14px; }
-.rn-toolbar .rn-province { min-width: 170px; }
+.rn-toolbar .rn-province { min-width: 260px; }
+/* ถึงรอบ: ทุกตารางนายจ้างกว้างคอลัมน์เท่ากัน (owner 2026-10-20) */
+.rn-due-table { table-layout: fixed; width: 100%; }
+.rn-due-table .rd-check { width: 44px; }
+.rn-due-table .rd-exp, .rn-due-table .rd-pass { width: 170px; }
+.rn-due-table .rd-book { width: 120px; }
+.rn-due-table .rd-act { width: 150px; }
+.rn-due-table td { overflow: hidden; text-overflow: ellipsis; }
 .rn-groups { padding: 0 20px 20px; display: flex; flex-direction: column; gap: 18px; }
 .rn-prov-head { margin: 0 0 8px; font-size: 16px; font-weight: 700; color: var(--text-dark); }
 .rn-prov-head .text-muted { font-size: 13.5px; font-weight: 500; margin-left: 6px; }
@@ -6695,45 +6702,63 @@ body.has-camera .upload-hint { display: none; }
 .rn-emp-head { display: flex; align-items: center; gap: 10px; padding: 6px 4px 8px; font-size: 14.5px; }
 .rn-emp-head input { width: 18px; height: 18px; accent-color: var(--gold-primary); }
 
-/* บอร์ด "กำลังทำ": คอลัมน์ = ขั้นที่รออยู่ ลากการ์ดข้ามคอลัมน์ได้ */
-.rn-board { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(250px, 1fr); gap: 12px; padding: 0 20px 20px; overflow-x: auto; }
-.rn-col {
+/* แท็บ "กำลังทำ" แบบ A (owner 2026-10-20): กลุ่มนายจ้าง แถวละคน แถบความคืบหน้า + แถบคำสั่งลอยด้านล่าง */
+.rn-agroup { border-radius: 18px; overflow: hidden; background-color: var(--dk-card, #ffffff); box-shadow: var(--shadow-sm); }
+.rn-agroup-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--dk-line, #e3e6ec); font-size: 15px; }
+.rn-agroup-head input, .rn-arow input { width: 18px; height: 18px; accent-color: var(--gold-primary); }
+.rn-arow {
+    display: grid;
+    grid-template-columns: 30px minmax(180px, 260px) minmax(0, 1fr) 150px auto;
+    gap: 14px;
+    align-items: center;
+    padding: 11px 16px;
+    border-top: 1px solid var(--dk-line, #eef0f4);
+}
+.rn-agroup-head + .rn-arow { border-top: 0; }
+.rn-arow.is-selected { background-color: color-mix(in srgb, var(--gold-primary) 8%, transparent); }
+.rn-arow-name { display: flex; flex-direction: column; min-width: 0; }
+.rn-arow-name strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rn-arow-progress { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.rn-arow-appt { font-size: 13.5px; }
+.rn-bar { display: flex; gap: 4px; }
+.rn-seg { flex: 1; height: 9px; padding: 0; border: 0; border-radius: 999px; background-color: var(--dk-line, #dde1e8); cursor: pointer; }
+.rn-seg.is-done { background-color: var(--gold-primary); }
+.rn-seg.is-next { background-color: color-mix(in srgb, var(--gold-primary) 40%, transparent); }
+.rn-seg.is-book { flex: .6; }
+.rn-next-btn { background-color: color-mix(in srgb, var(--gold-primary) 12%, transparent); color: var(--gold-primary); border: 0; font-weight: 600; white-space: nowrap; }
+.rn-head-count { font-size: 15px; font-weight: 500; }
+.rn-selbar {
+    position: fixed;
+    left: 50%;
+    bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+    z-index: 900;
+    transform: translateX(-50%);
     display: flex;
-    flex-direction: column;
-    min-height: 220px;
-    border-radius: 18px;
-    background-color: var(--dk-subtle, #eef1f6);
-    transition: box-shadow .15s;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px 10px 20px;
+    border-radius: 999px;
+    background-color: #1b2230;
+    color: #fff;
+    box-shadow: 0 12px 32px rgba(10, 20, 40, .3);
 }
-.rn-col.is-over { box-shadow: inset 0 0 0 2px var(--gold-primary); }
-.rn-col-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 12px 8px; }
-.rn-col-title { display: flex; align-items: center; gap: 8px; font-size: 14.5px; }
-.rn-col-title input { width: 17px; height: 17px; accent-color: var(--gold-primary); }
-.rn-col-body { display: flex; flex-direction: column; gap: 8px; padding: 0 10px 12px; }
-.rn-col-emp { margin-top: 6px; font-size: 13px; font-weight: 600; color: var(--text-dark); }
-.rn-col-empty { margin: 8px 4px; font-size: 13px; color: var(--text-muted); }
-.rn-card {
-    padding: 10px;
-    border-radius: 14px;
-    background-color: var(--dk-card, #ffffff);
-    box-shadow: var(--shadow-sm);
-    cursor: grab;
+.rn-selbar .rn-selbar-btn { background-color: rgba(255, 255, 255, .14); color: #fff; border: 0; }
+.rn-selbar .rn-selbar-clear { background: transparent; color: #c9d0dc; border: 0; }
+.rn-selbar .btn:disabled { opacity: .45; }
+@media (max-width: 760px) {
+    .rn-arow { grid-template-columns: 30px minmax(0, 1fr); }
+    .rn-arow-progress, .rn-arow-appt, .rn-arow .rn-actions { grid-column: 2; }
 }
-.rn-card.is-selected { box-shadow: inset 0 0 0 2px var(--gold-primary), var(--shadow-sm); }
-.rn-card-top { display: flex; align-items: center; gap: 8px; }
-.rn-card-top input { width: 17px; height: 17px; flex-shrink: 0; accent-color: var(--gold-primary); }
-.rn-card-name { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.rn-card-name strong { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rn-card-name small { font-size: 12.5px; }
-.rn-card-x { flex-shrink: 0; }
-.rn-card-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
-.rn-minis { display: flex; gap: 4px; }
-.rn-mini { width: 13px; height: 13px; padding: 0; border: 0; border-radius: 50%; background-color: var(--dk-line, #d5dae3); cursor: pointer; }
-.rn-mini.is-done { background-color: var(--gold-primary); }
 
 /* หน้าออกบิล: แถวของงานต่ออายุ สีเขียวอมฟ้า แยกจากใบงานทั่วไป (owner 2026-10-20) */
 .data-table tr.is-renewal-row > td { background-color: color-mix(in srgb, #0d9488 10%, transparent); }
 .data-table tr.is-renewal-row > td:first-child { box-shadow: inset 3px 0 0 #0d9488; }
+/* แท็บ ใบงานทั่วไป / งานต่ออายุ ในหน้าออกบิลและหน้าต่างรวมบิล */
+.billing-kind-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+/* หน้าต่าง "รวมใบสั่งงานออกบิลชุด" — รายการงานต่ออายุสีเดียวกัน */
+.is-renewal-item { background-color: color-mix(in srgb, #0d9488 10%, transparent); box-shadow: inset 3px 0 0 #0d9488; }
+.is-renewal-item .rn-bill-tag { margin: 0 0 0 6px; }
 .rn-bill-tag {
     display: inline-block;
     margin-top: 4px;

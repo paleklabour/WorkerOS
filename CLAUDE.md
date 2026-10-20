@@ -481,11 +481,13 @@ only, no file) → Smart card; optional ทำเล่ม (`with_book`, suggest
 Billing: starting a round creates hidden billing job(s) "ต่ออายุใบอนุญาตทำงาน" (+ "ต่อเล่ม CI/Passport") with
 `batchId = 'renewal-<id>'` (`createRenewalJobs`) — they show on the billing page as awaiting bill (standard prices, deposits /
 credit, agent commission, portal all unchanged) but `renderJobs` hides them (`isRenewalJob`); closing a round closes them,
-cancelling deletes the unbilled ones. Their billing-page rows are teal (`.is-renewal-row` + "งานต่ออายุ" tag).
+cancelling deletes the unbilled ones. Their billing-page rows are teal (`.is-renewal-row` + "งานต่ออายุ" tag); the billing page and the combine-bills window have
+tabs ใบงานทั่วไป / งานต่ออายุ (`billingKind` / `combineKind`) and a bill never mixes the two (owner).
 UI: ถึงรอบ is grouped province → employer (`renewalGroupByProvince`, province filter `renewalProvince`, start button on the
-left); กำลังทำ is a drag board (`renewalActiveHtml`): columns = the step each round waits for (`RENEWAL_STAGES`), cards
-grouped by employer, tick several and drag / use the column button to do tick or date steps in bulk
-(`moveRenewalsToStage`; file steps are one card at a time). File steps go through `attachDocumentToWorker` into
+left, fixed column widths shared by every employer table); กำลังทำ = owner-picked design A (`renewalActiveHtml`): employer
+groups, one row per worker with a segmented progress bar (`renewalBarHtml`, segment click = open that step), next-step
+button; ticking rows shows a floating dark bar (`.rn-selbar`) to mark ตรวจสุขภาพ / set one appointment date for all selected
+(`renewalBulkStep` → `moveRenewalsToStage`; file steps one row at a time). File steps go through `attachDocumentToWorker` into
 the normal worker doc slots; ใบแทน / card / new passport then ask for the new expiry (`askRenewalNewExpiry`) and set it on
 the worker and the file, so the old file folds into "expired" by the usual rule. Card (+ book if any) closes the round.
 Still to build: old→new worker-data preview, deposit shortcut in the start dialog, bell/calendar for appointments, client portal renewal progress.
