@@ -6274,6 +6274,7 @@ input[type="checkbox"], input[type="radio"], input[type="range"] {
     padding: 0 4px 10px;
 }
 .ios-cal-head strong { font-size: 16px; font-weight: 600; color: var(--navy-dark); }
+.ios-cal-head .ios-cal-be { font-size: 12.5px; font-weight: 400; color: var(--text-muted, #8a8f98); margin-left: 4px; }
 .ios-cal-nav { display: flex; gap: 2px; }
 .ios-cal-nav button {
     width: 28px;

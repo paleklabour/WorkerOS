@@ -20889,6 +20889,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // ใช้กับ <input type="date"> ทุกช่อง (ค่า YYYY-MM-DD) และช่องพิมพ์วันที่ "วัน/เดือน/ปี ค.ศ." (placeholder มี "วัน/เดือน/ปี")
 // ที่ได้ปุ่มปฏิทินเล็ก ๆ ในช่อง (ยังพิมพ์เอง/ให้ AI กรอกได้เหมือนเดิม) — ค่า DD/MM/YYYY
 // ช่อง type="date" ถูกแทนด้วยช่องข้อความ ว/ด/ป + ปุ่มปฏิทินนี้ทุกเครื่อง (proxyDate ใน setupIosDatePickers, 2026-10-15)
+// หัวปฏิทินแสดงปี ค.ศ. ให้ตรงกับที่กรอกในช่อง (พ.ศ. ตัวเล็กข้างหลัง, owner 2026-10-20)
 const IOS_WEEKDAYS_TH = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'];
 let _iosCal = null; // { input, mode: 'iso'|'dmy', box, view: Date }
 
@@ -20946,7 +20947,7 @@ function renderIosCalendar() {
     const monthName = MONTH_NAMES_TH[String(mo + 1).padStart(2, '0')];
     c.box.innerHTML = `
         <div class="ios-cal-head">
-            <strong>${monthName} ${y + 543}</strong>
+            <strong>${monthName} ${y} <small class="ios-cal-be">พ.ศ. ${y + 543}</small></strong>
             <div class="ios-cal-nav">
                 <button type="button" data-nav="-12" aria-label="ปีก่อน">«</button>
                 <button type="button" data-nav="-1" aria-label="เดือนก่อน">‹</button>
