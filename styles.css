@@ -6704,6 +6704,8 @@ body.has-camera .upload-hint { display: none; }
 .rn-dot:hover { transform: scale(1.1); }
 .rn-dot.is-done { background-color: var(--gold-primary); }
 .rn-dot.is-next { background-color: transparent; box-shadow: inset 0 0 0 2px var(--gold-primary); }
+/* ใบคำขอ + ใบเสร็จ ได้มาแล้ว 1 ใน 2 = ครึ่งวง */
+.rn-dot.is-half { background: linear-gradient(90deg, var(--gold-primary) 50%, transparent 50%); box-shadow: inset 0 0 0 2px var(--gold-primary); }
 .rn-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; white-space: nowrap; }
 .rn-empty { text-align: center; padding: 24px !important; color: var(--text-muted); }
 

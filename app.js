@@ -2590,8 +2590,11 @@ function clearRenewalFilters() {
 // ใบแทน / Smart card / เล่มใหม่ ต้องมีวันหมดอายุใหม่ ไฟล์เก่าในช่องเดียวกันจึงพับเป็น "หมดอายุ" เอง (isWorkerDocFileExpired)
 const RENEWAL_STEPS = [
     { key: 'medical', label: 'ตรวจสุขภาพ', kind: 'tick' },                                         // ติ๊กอย่างเดียว ไม่แนบไฟล์ (owner)
-    { key: 'application', label: 'ใบคำขอ', kind: 'file', docType: 'worker-application' },
-    { key: 'receipt', label: 'ใบเสร็จ', kind: 'file', docType: 'worker-receipt' },
+    // ใบคำขอกับใบเสร็จได้มาพร้อมกัน (owner) → ขั้นเดียว เลือกได้ 2 ไฟล์ทีเดียว แยกช่องจากชื่อไฟล์ (classifyRenewalDoc) ไม่แน่ใจค่อยถาม
+    { key: 'docs', label: 'ใบคำขอ + ใบเสร็จ', kind: 'docs', parts: [
+        { key: 'application', label: 'ใบคำขอ', kind: 'file', docType: 'worker-application' },
+        { key: 'receipt', label: 'ใบเสร็จ', kind: 'file', docType: 'worker-receipt' }
+    ] },
     { key: 'replacement', label: 'ใบแทน', kind: 'file', docType: 'worker-wp-doc', hint: 'WP_R', expiryField: 'permitExpiry' },
     { key: 'appointment', label: 'ใบนัดหมาย', kind: 'date' },                                      // กรอกวันนัด ไม่แนบไฟล์ (owner)
     { key: 'card', label: 'Smart card', kind: 'file', docType: 'worker-wp-doc', hint: 'WP', expiryField: 'permitExpiry' }
@@ -2601,7 +2604,7 @@ const RENEWAL_BOOK_STEP = { key: 'book', label: 'ทำเล่ม', kind: 'fil
 const RENEWAL_DUE_DAYS = 60;
 const RENEWAL_CHECK_SVG = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>';
 let renewalList = null; // null = ยังไม่โหลด
-let renewalTab = (() => { try { return localStorage.getItem('mw_renewal_tab') || 'due'; } catch (e) { return 'due'; } })();
+let renewalTab = (() => { try { return localStorage.getItem('mw_renewal_tab') || 'all'; } catch (e) { return 'all'; } })();
 const renewalPicked = new Set();     // คนงานที่ติ๊กไว้ในแท็บ "ถึงรอบ"
 const renewalBookPick = new Map();   // workerId → ทำเล่มด้วยไหม (แก้ค่าที่ระบบแนะนำ)
 
@@ -2646,6 +2649,42 @@ const renewalDaysLeft = (iso) => {
     const t = new Date(); t.setHours(0, 0, 0, 0);
     return Math.ceil((d - t) / 86400000);
 };
+// ใบงานเก็บเงินเบื้องหลัง (owner 2026-10-20): กดเริ่มรอบ → สร้างใบงาน "ต่ออายุใบอนุญาตทำงาน" (+ "ต่อเล่ม CI/Passport" ถ้าทำเล่ม)
+// batchId = 'renewal-<id รอบ>' → ขึ้นหน้าออกบิลเป็นรอออกบิลเหมือนใบงานทั่วไป (ราคามาตรฐาน มัดจำ/เงินฝาก ค่าคอม Agent
+// พอร์ทัลลูกค้า ใช้ของเดิมทั้งหมด) แต่ไม่ขึ้นหน้าแจ้งงาน/Kanban (renderJobs กรองออก) — ปิดรอบ = ปิดใบงานพวกนี้
+const RENEWAL_JOB_TYPE = 'ต่ออายุใบอนุญาตทำงาน';
+const RENEWAL_BOOK_JOB_TYPE = 'ต่อเล่ม CI/Passport';
+const isRenewalJob = (j) => String((j && j.batchId) || '').startsWith('renewal-');
+const renewalJobsOf = (r) => jobs.filter(j => j.batchId === `renewal-${r.id}`);
+
+async function createRenewalJobs(r) {
+    const cust = customers.find(c => c.id === r.customerId);
+    const today = new Date().toISOString().split('T')[0];
+    const types = r.withBook ? [RENEWAL_JOB_TYPE, RENEWAL_BOOK_JOB_TYPE] : [RENEWAL_JOB_TYPE];
+    let seq = 0, failed = 0;
+    for (const t of types) {
+        const jobData = {
+            id: 'job-' + (Date.now() + seq++).toString().slice(-6) + Math.random().toString(36).slice(2, 4),
+            batchId: `renewal-${r.id}`, createdAt: today, customerId: r.customerId, workerId: r.workerId,
+            jobType: t, fee: 0, status: 'กำลังดำเนินการ', notes: '', orderNo: null, updatedAt: today,
+            agentId: (cust && cust.referredByAgentId) || null, openedBy: currentUser.id || null, openedAt: new Date().toISOString(),
+            assignedTo: currentUser.id || null, paymentStatus: 'ยังไม่ออกบิล', attachments: []
+        };
+        const res = await callCloudAPI("saveJob", { jobData });
+        if (res && res.status !== "error") jobs.push(jobData); else failed++;
+    }
+    return failed;
+}
+
+// ปิดรอบ → ปิดใบงานเก็บเงิน (ไม่แตะช่องการเงิน — saveJob ตัดคอลัมน์บิลออกเองเมื่อไม่ได้ส่ง billing: true)
+async function closeRenewalJobs(r) {
+    for (const j of renewalJobsOf(r)) {
+        if (j.status === 'ปิดงานแล้ว') continue;
+        Object.assign(j, { status: 'ปิดงานแล้ว', closedAt: new Date().toISOString(), closedBy: currentUser.id || null, updatedAt: localDateISO(new Date()) });
+        await callCloudAPI("saveJob", { jobData: j });
+    }
+}
+
 const renewalActiveOf = (workerId) => (renewalList || []).find(r => r.workerId === workerId && r.status === 'active');
 const renewalStepsOf = (r) => r.withBook ? [...RENEWAL_STEPS, RENEWAL_BOOK_STEP] : RENEWAL_STEPS;
 
@@ -2767,28 +2806,45 @@ async function startRenewals(ids) {
         rows: list.map(w => ({ workerId: w.id, customerId: w.employerId, oldPermitExpiry: permitExpiryKey(w), withBook: !!renewalBookPick.get(w.id) }))
     });
     if (!res || res.status !== "success") { showToast("❌ เริ่มรอบไม่สำเร็จ: " + (res && res.message ? res.message : "กรุณาลองใหม่"), "danger"); return; }
-    renewalList = [...res.rows.map(renewalFromRow), ...(renewalList || [])];
+    const started = res.rows.map(renewalFromRow);
+    renewalList = [...started, ...(renewalList || [])];
     list.forEach(w => renewalPicked.delete(w.id));
-    showUploadPill('ok', `เริ่มต่ออายุ ${list.length} คนแล้ว`, 'ดูได้ที่แท็บ "กำลังทำ"');
+    let jobFails = 0;
+    for (const r of started) jobFails += await createRenewalJobs(r);
+    saveData();
+    if (jobFails) showToast(`⚠️ เริ่มรอบแล้ว แต่สร้างรายการรอออกบิลไม่สำเร็จ ${jobFails} รายการ`, "warning");
+    else showUploadPill('ok', `เริ่มต่ออายุ ${list.length} คนแล้ว`, 'ขึ้นหน้าออกบิลเป็น "รอออกบิล" แล้ว · ดูความคืบหน้าที่แท็บ "กำลังทำ"');
     renderRenewalCases();
 }
 
 // ---------- แท็บ "กำลังทำ" ----------
+// ขั้น "ใบคำขอ + ใบเสร็จ" เสร็จเมื่อได้ครบทั้ง 2 ไฟล์ (ข้อมูลยังเก็บแยก steps.application / steps.receipt)
+const renewalStepDone = (r, s) => s.kind === 'docs' ? s.parts.every(p => r.steps[p.key]) : !!r.steps[s.key];
+const renewalNextStep = (r) => RENEWAL_STEPS.find(s => !renewalStepDone(r, s)) || (r.withBook && !r.steps.book ? RENEWAL_BOOK_STEP : null);
+
 function renewalDotsHtml(r) {
     const steps = renewalStepsOf(r);
-    const nextKey = (RENEWAL_STEPS.find(s => !r.steps[s.key]) || {}).key;
+    const nextKey = (RENEWAL_STEPS.find(s => !renewalStepDone(r, s)) || {}).key;
     return steps.map(s => {
-        const st = r.steps[s.key];
-        const cls = st ? 'is-done' : s.key === nextKey ? 'is-next' : '';
-        const when = st ? (s.key === 'appointment' && r.appointmentDate ? `นัด ${formatThaiDate(r.appointmentDate)}` : `เสร็จ ${formatThaiDate(st.at)}`) : (s.key === nextKey ? 'ขั้นถัดไป' : 'ยังไม่ถึง');
+        const done = renewalStepDone(r, s);
+        const half = !done && s.kind === 'docs' && s.parts.some(p => r.steps[p.key]);
+        const cls = done ? 'is-done' : half ? 'is-half' : s.key === nextKey ? 'is-next' : '';
+        const st = r.steps[s.key] || (s.kind === 'docs' ? r.steps.receipt || r.steps.application : null);
+        const when = done ? (s.key === 'appointment' && r.appointmentDate ? `นัด ${formatThaiDate(r.appointmentDate)}` : `เสร็จ ${formatThaiDate(st.at)}`)
+            : half ? `ได้แล้ว: ${s.parts.filter(p => r.steps[p.key]).map(p => p.label).join(', ')} · ยังขาด ${s.parts.filter(p => !r.steps[p.key]).map(p => p.label).join(', ')}`
+            : (s.key === nextKey ? 'ขั้นถัดไป' : 'ยังไม่ถึง');
         return `<td class="rn-dot-cell"><button type="button" class="rn-dot ${cls}" onclick="renewalStepClick('${r.id}', '${s.key}')"
-            title="${escapeHtml(s.label)} · ${escapeHtml(when)}" aria-label="${escapeHtml(s.label)} ${escapeHtml(when)}">${st ? RENEWAL_CHECK_SVG : ''}</button></td>`;
+            title="${escapeHtml(s.label)} · ${escapeHtml(when)}" aria-label="${escapeHtml(s.label)} ${escapeHtml(when)}">${done ? RENEWAL_CHECK_SVG : ''}</button></td>`;
     }).join('') + (r.withBook ? '' : '<td class="rn-dot-cell"><span class="text-muted">—</span></td>');
 }
 
 function renewalNextLabel(r) {
-    const s = RENEWAL_STEPS.find(x => !r.steps[x.key]) || (r.withBook && !r.steps.book ? RENEWAL_BOOK_STEP : null);
+    const s = renewalNextStep(r);
     if (!s) return '';
+    if (s.kind === 'docs') {
+        const missing = s.parts.filter(p => !r.steps[p.key]);
+        return missing.length === 1 ? `แนบ${missing[0].label}` : 'แนบใบคำขอ + ใบเสร็จ';
+    }
     return s.kind === 'tick' ? 'ตรวจสุขภาพแล้ว' : s.kind === 'date' ? 'กรอกวันนัด' : `แนบ${s.label}`;
 }
 
@@ -2798,7 +2854,7 @@ function renewalActiveHtml(list) {
     const rows = sorted.map(r => {
         const w = workers.find(x => x.id === r.workerId);
         const next = renewalNextLabel(r);
-        const nextStep = RENEWAL_STEPS.find(x => !r.steps[x.key]) || RENEWAL_BOOK_STEP;
+        const nextStep = renewalNextStep(r) || RENEWAL_BOOK_STEP;
         return `<tr class="clickable-row" data-ctx="worker:${w.id}" ondblclick="handleRowDblClick(event) && openWorkerQuickView('${w.id}', 'renewal')" title="ดับเบิลคลิกเพื่อดูข้อมูลคนงาน">
             <td>${renewalWorkerCell(w)}</td>
             <td>${renewalExpiryCell(r.oldPermitExpiry)}</td>
@@ -2854,6 +2910,7 @@ async function saveRenewalRow(r) {
         return false;
     }
     Object.assign(r, renewalFromRow(res.row));
+    if (r.status === 'done') { await closeRenewalJobs(r); saveData(); }
     return true;
 }
 
@@ -2875,11 +2932,17 @@ async function renewalStepClick(id, key) {
     const step = renewalStepsOf(r).find(s => s.key === key);
     if (!step) return;
     const st = r.steps[key];
+    const openStepFile = (part) => {
+        const list = getAttachments(w, part.docType);
+        const idx = list.findIndex(f => f && f.data === (r.steps[part.key] || {}).url);
+        if (idx >= 0) openWorkerFolderAt(w.id, part.docType, idx); else openWorkerFolderModal(w.id);
+    };
     // ขั้นที่เสร็จแล้ว: ไฟล์ → เปิดไฟล์ในแฟ้มคนงาน, ติ๊ก/วันนัด → แก้หรือยกเลิกได้
-    if (st && step.kind === 'file') {
-        const list = getAttachments(w, step.docType);
-        const idx = list.findIndex(f => f && f.data === st.url);
-        if (idx >= 0) openWorkerFolderAt(w.id, step.docType, idx); else openWorkerFolderModal(w.id);
+    if (st && step.kind === 'file') { openStepFile(step); return; }
+    if (step.kind === 'docs') {
+        if (renewalStepDone(r, step)) { openStepFile(step.parts[0]); return; }
+        if (!can('ops')) return;
+        pickRenewalDocs(r, w, step);
         return;
     }
     if (!can('ops')) return;
@@ -2908,6 +2971,40 @@ function pickRenewalFile(r, w, step) {
     input.type = 'file';
     input.accept = 'image/*,application/pdf';
     input.onchange = () => { if (input.files && input.files[0]) doRenewalFileStep(r, w, step, input.files[0]); };
+    input.click();
+}
+
+// ใบคำขอ + ใบเสร็จ: เลือกได้หลายไฟล์ทีเดียว แยกช่องจากชื่อไฟล์ ไม่แน่ใจ (หรือขาดอยู่ช่องเดียวแต่ชื่อบอกอีกอย่าง) ค่อยถาม
+function classifyRenewalDoc(name) {
+    const n = ` ${String(name || '').toLowerCase().replace(/\.[a-z0-9]{1,5}$/, '').replace(/[_\-.()]+/g, ' ')} `;
+    if (/ rec\d*|receipt|receip|ใบเสร็จ/.test(n)) return 'receipt';
+    if (/ ap | req | wp ?\d{2} |คำขอ|บต/.test(n)) return 'application';
+    return null;
+}
+
+function pickRenewalDocs(r, w, step) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = true;
+    input.accept = 'image/*,application/pdf';
+    input.onchange = async () => {
+        const files = Array.from(input.files || []);
+        if (!files.length) return;
+        const missing = step.parts.filter(p => !r.steps[p.key]);
+        const plan = [];
+        for (const file of files) {
+            let key = classifyRenewalDoc(file.name);
+            if (!key && files.length === 1 && missing.length === 1) key = missing[0].key;
+            if (!key) {
+                const ans = await uiConfirm(`ไฟล์ "${file.name}" เป็นเอกสารไหน`, {
+                    title: 'ใบคำขอ หรือ ใบเสร็จ', okText: 'ใบคำขอ', extraText: 'ใบเสร็จ', cancelText: 'ไม่แนบไฟล์นี้', danger: false
+                });
+                key = ans === true ? 'application' : ans === 'extra' ? 'receipt' : null;
+            }
+            if (key) plan.push({ part: step.parts.find(p => p.key === key), file });
+        }
+        for (const { part, file } of plan) await doRenewalFileStep(r, w, part, file);
+    };
     input.click();
 }
 
@@ -2955,12 +3052,21 @@ async function cancelRenewal(id) {
     const r = (renewalList || []).find(x => x.id === id);
     const w = r && workers.find(x => x.id === r.workerId);
     if (!r || !can('ops')) return;
-    const ok = await uiConfirm(`ยกเลิกรอบต่ออายุของ ${w ? workerFullName(w) : 'คนงานนี้'}? ไฟล์ที่แนบไว้ยังอยู่ในแฟ้มคนงาน`, {
+    const billed = renewalJobsOf(r).filter(j => !jobAwaitingBill(j));
+    const ok = await uiConfirm(`ยกเลิกรอบต่ออายุของ ${w ? workerFullName(w) : 'คนงานนี้'}? ไฟล์ที่แนบไว้ยังอยู่ในแฟ้มคนงาน`
+        + (billed.length ? ' — ออกบิล/ตั้งไม่เรียกเก็บเงินไปแล้ว รายการในบิลยังอยู่ ให้ฝ่ายบัญชีจัดการบิลต่อ' : ' รายการรอออกบิลของรอบนี้จะถูกลบ'), {
         title: 'ยกเลิกรอบต่ออายุ', okText: 'ยกเลิกรอบ', danger: true
     });
     if (!ok) return;
     r.status = 'cancelled';
-    if (await saveRenewalRow(r)) renderRenewalCases();
+    if (!(await saveRenewalRow(r))) return;
+    // รายการที่ยังไม่ออกบิล ลบทิ้ง (ไม่ค้างเป็นรอออกบิล) — ที่ออกบิลแล้วเก็บไว้เป็นหลักฐาน ฝ่ายบัญชียกเลิกบิลเอง
+    for (const j of renewalJobsOf(r).filter(jobAwaitingBill)) {
+        const res = await callCloudAPI("deleteRecord", { sheetName: "Jobs", id: j.id });
+        if (res && res.status !== "error") jobs = jobs.filter(x => x.id !== j.id);
+    }
+    saveData();
+    renderRenewalCases();
 }
 
 // ==================== DASHBOARD ENGINE & CALCULATIONS ====================
@@ -7464,6 +7570,7 @@ function renderJobs() {
 
     // ตัวกรองทุกอย่างยกเว้นเดือน (หน้าสรุปใช้แยก "แจ้งในเดือนนี้" กับ "ปิดในเดือนนี้")
     const baseFiltered = jobs.filter(j => {
+        if (isRenewalJob(j)) return false; // ใบงานเก็บเงินของรอบต่ออายุ — อยู่หน้าต่ออายุ/ทำเล่ม และหน้าออกบิล ไม่ขึ้นหน้าแจ้งงาน
         const cust = customers.find(c => c.id === j.customerId);
         const work = workers.find(w => w.id === j.workerId);
 

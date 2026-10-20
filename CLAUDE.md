@@ -476,11 +476,16 @@ Renewal is separate from jobs: table `renewals` (1 row = 1 round for 1 worker, o
 `20261020062529_renewals.sql`, RLS read `is_internal()`, write `can_ops()`). The renewals page has tabs ถึงรอบ (permit ≤ 60
 days or expired, no active round) / กำลังทำ / เสร็จแล้ว / ทั้งหมด (ตามกลุ่ม = the old cohort list, `renderRenewalGroups`);
 `renderRenewalCases` draws the first three. Staff start rounds themselves (`startRenewals`, never automatic). Fixed steps
-(`RENEWAL_STEPS`): ตรวจสุขภาพ (tick, no file) → ใบคำขอ → ใบเสร็จ → ใบแทน (`WP_R`) → ใบนัดหมาย (date only, no file) → Smart
-card; optional ทำเล่ม (`with_book`, suggested by `renewalSuggestBook`). File steps go through `attachDocumentToWorker` into
+(`RENEWAL_STEPS`): ตรวจสุขภาพ (tick, no file) → ใบคำขอ + ใบเสร็จ (one step, they arrive together — multi-file pick sorted by
+`classifyRenewalDoc`, asks when unsure; data still `steps.application` / `steps.receipt`) → ใบแทน (`WP_R`) → ใบนัดหมาย (date
+only, no file) → Smart card; optional ทำเล่ม (`with_book`, suggested by `renewalSuggestBook`; many workers keep their book).
+Billing: starting a round creates hidden billing job(s) "ต่ออายุใบอนุญาตทำงาน" (+ "ต่อเล่ม CI/Passport") with
+`batchId = 'renewal-<id>'` (`createRenewalJobs`) — they show on the billing page as awaiting bill (standard prices, deposits /
+credit, agent commission, portal all unchanged) but `renderJobs` hides them (`isRenewalJob`); closing a round closes them,
+cancelling deletes the unbilled ones. File steps go through `attachDocumentToWorker` into
 the normal worker doc slots; ใบแทน / card / new passport then ask for the new expiry (`askRenewalNewExpiry`) and set it on
 the worker and the file, so the old file folds into "expired" by the usual rule. Card (+ book if any) closes the round.
-Still to build: old→new worker-data preview, deposit at start + bill at close, bell/calendar for appointments, client portal.
+Still to build: old→new worker-data preview, deposit shortcut in the start dialog, bell/calendar for appointments, client portal renewal progress.
 
 ## No-charge jobs (2026-10-06)
 
