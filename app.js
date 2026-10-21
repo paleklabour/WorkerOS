@@ -7567,7 +7567,7 @@ function openDeliveryLabelModal() {
     document.getElementById("dlv-phone").innerText = info.phone ? `โทร: ${info.phone}` : "-";
     document.getElementById("dlv-date").innerText = formatThaiDate(new Date());
 
-    setPrintPageSize("size: A5; margin: 12mm;");
+    setPrintPageSize("size: A5 portrait; margin: 0;"); // ขอบ 12 มม. อยู่ในแผ่น .delivery-label-sheet (148×210 มม.)
     document.getElementById("delivery-label-modal").classList.remove("hidden");
 }
 

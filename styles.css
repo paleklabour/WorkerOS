@@ -4018,80 +4018,91 @@ tr.is-voided-row td {
     .finance-internal-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-/* ==================== DELIVERY LABEL (ใบปะหน้า A5) ==================== */
+/* ==================== DELIVERY LABEL (ใบปะหน้า A5) ====================
+   แผ่น = กระดาษ A5 จริง 148×210 มม. (ขอบ 12 มม. อยู่ในแผ่น, @page margin 0 — openDeliveryLabelModal)
+   ขนาดตัวอักษรเป็น pt ให้พิมพ์ออกมาเท่าที่เห็นทุกเครื่อง: ผู้ส่งเล็กมุมบน, ผู้รับตัวใหญ่ในกรอบกลางแผ่น */
 .delivery-label-sheet {
-    background-color: var(--dk-card, #ffffff);
+    width: 148mm;
+    min-height: 210mm;
+    box-sizing: border-box;
+    margin: 0 auto;
+    padding: 12mm;
+    display: flex;
+    flex-direction: column;
+    background-color: #ffffff;
     border: 1px solid var(--dk-line, #e2e8f0);
-    border-radius: var(--radius-sm);
-    padding: 30px;
-    color: var(--dk-head, #1e293b);
+    border-radius: 4px;
+    color: #0f172a;
 }
+.delivery-label-sheet p { margin: 0; }
 
 .delivery-label-from {
-    border-bottom: 2px solid #000000;
-    padding-bottom: 16px;
-    margin-bottom: 24px;
-    font-size: 12.5px;
-    line-height: 1.5;
+    padding-bottom: 4mm;
+    border-bottom: 0.4mm solid #0f172a;
+    font-size: 10pt;
+    line-height: 1.45;
 }
 
-.delivery-label-from h5 {
-    font-size: 11px;
-    color: var(--text-muted);
-    margin-bottom: 6px;
-    text-transform: uppercase;
+.delivery-label-from h5,
+.delivery-label-to h5 {
+    margin: 0 0 1.5mm;
+    font-size: 9pt;
+    font-weight: 700;
+    color: #64748b;
     letter-spacing: 0.03em;
 }
 
 .delivery-label-to {
-    margin-bottom: 28px;
+    margin: 14mm 0 10mm;
+    padding: 7mm 8mm;
+    border: 0.5mm solid #0f172a;
+    border-radius: 3mm;
 }
-
-.delivery-label-to h5 {
-    font-size: 12px;
-    color: var(--text-muted);
-    margin-bottom: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-}
+.delivery-label-to h5 { font-size: 11pt; margin-bottom: 3mm; }
 
 .delivery-label-recipient {
-    font-size: 20px;
+    font-size: 20pt;
     font-weight: 700;
-    color: var(--navy-dark);
-    margin-bottom: 4px;
+    line-height: 1.3;
+    color: #0f172a;
 }
 
 .delivery-label-company {
-    font-size: 15px;
+    margin-top: 1mm;
+    font-size: 15pt;
     font-weight: 600;
-    margin-bottom: 10px;
+    line-height: 1.35;
 }
 
 .delivery-label-address {
-    font-size: 15px;
-    line-height: 1.6;
-    margin-bottom: 8px;
+    margin-top: 4mm;
+    font-size: 15pt;
+    line-height: 1.5;
 }
 
 .delivery-label-phone {
-    font-size: 14px;
-    font-weight: 600;
+    margin-top: 3mm;
+    font-size: 15pt;
+    font-weight: 700;
 }
 
 .delivery-label-notes {
-    border-top: 1px dashed var(--dk-line, #cbd5e1);
-    padding-top: 14px;
-    margin-top: 10px;
-    font-size: 12.5px;
-    color: var(--text-muted);
+    flex: 1;
+    padding-top: 4mm;
+    border-top: 0.3mm dashed #94a3b8;
+    font-size: 11pt;
+    line-height: 1.5;
+    color: #334155;
 }
 
 .delivery-label-footer {
-    margin-top: 24px;
     text-align: right;
-    font-size: 11.5px;
-    color: var(--text-muted);
+    font-size: 9pt;
+    color: #64748b;
+}
+/* จอแคบ (มือถือ) — ย่อภาพตัวอย่างให้ทั้งแผ่นอยู่ในจอ ตอนพิมพ์ยังเป็นขนาดจริง */
+@media screen and (max-width: 640px) {
+    .delivery-label-sheet { zoom: 0.6; }
 }
 
 /* ==================== PRINT CSS STYLING ==================== */
@@ -4185,10 +4196,16 @@ tr.is-voided-row td {
         display: none !important;
     }
 
+    /* พอดี 1 แผ่น A5 (@page margin 0) — สูงต่ำกว่า 210 มม. นิดหน่อยกันหน้าว่างหน้าที่ 2 */
     .delivery-label-sheet {
         border: none !important;
-        padding: 0 !important;
+        border-radius: 0 !important;
         box-shadow: none !important;
+        min-height: 0 !important;
+        height: 209mm !important;
+        overflow: hidden !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
     }
 }
 
