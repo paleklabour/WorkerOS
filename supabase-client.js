@@ -70,7 +70,9 @@
         // งานไม่เรียกเก็บเงิน (20261006090000_job_no_charge.sql)
         noChargeReason: "no_charge_reason", noChargeBy: "no_charge_by", noChargeAt: "no_charge_at",
         // หมายเหตุสั้น ≤ 20 ตัวอักษร (20261006140000_job_remark.sql)
-        remark: "remark", tag: "tag", openedAt: "opened_at"
+        remark: "remark", tag: "tag", openedAt: "opened_at",
+        // นายจ้างแจ้งออกเองจากพอร์ทัล (20261021040847_client_exit_requests.sql)
+        openedByClient: "opened_by_client"
     };
     // ช่องการเงินของใบงาน — saveJob เขียนลงแถวที่มีอยู่แล้วเฉพาะเมื่อส่ง { billing: true } มา
     const JOB_BILLING_COLS = ["invoice_id", "payment_status", "payment_method", "paid_at", "paid_by", "fee", "gov_fee",
@@ -968,6 +970,17 @@
                 const { data, error } = await sb.rpc("client_book_external", { p_id: payload.id });
                 if (error) return { status: "error", message: error.message };
                 return { status: "success", row: data };
+            }
+            // พอร์ทัลลูกค้า: แจ้งออก/ยกเลิกคำขอแจ้งออก — ตรวจสิทธิ์และเงื่อนไขในฐานข้อมูล (20261021040847_client_exit_requests.sql)
+            case "clientRequestExit": {
+                const { data, error } = await sb.rpc("client_request_exit", { p_worker_id: payload.workerId });
+                if (error) return { status: "error", message: error.message };
+                return { status: "success", row: toCamel(data, JOB_MAP) };
+            }
+            case "clientCancelExit": {
+                const { error } = await sb.rpc("client_cancel_exit", { p_job_id: payload.jobId });
+                if (error) return { status: "error", message: error.message };
+                return { status: "success" };
             }
             case "clientCancelRenewal": {
                 const { data, error } = await sb.rpc("client_cancel_renewal", { p_id: payload.id });

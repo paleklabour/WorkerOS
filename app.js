@@ -1761,6 +1761,64 @@ function clientWorkerHistoryRows(w) {
     return [{ heading: 'ประวัติงานและค่าบริการ' }, ...totals, ...rows];
 }
 
+// ---------- นายจ้างแจ้งออกคนงานเอง (owner 2026-10-21) — RPC client_request_exit / client_cancel_exit ----------
+// เปิดใบงาน "แจ้งออกคนงานต่างด้าว" สถานะรอดำเนินการทันที ไม่มีช่องเหตุผล (owner) — คนงานยังเป็นปกติจนเจ้าหน้าที่ปิดงาน
+function clientOpenExitJob(w) {
+    return jobs.find(j => j.workerId === w.id && isJobStatusOpen(j.status) && getCleanJobTypeName(j.jobType) === EXIT_JOB_TYPE) || null;
+}
+
+// ยกเลิกเองได้เฉพาะคำขอที่ลูกค้าเปิดเอง ยังรอดำเนินการ และยังไม่ออกบิล (ฐานข้อมูลตรวจซ้ำ)
+function clientExitCancellable(j) {
+    return !!j && j.openedByClient && j.status === 'รอดำเนินการ' && !getJobInvoice(j) && !isJobNoCharge(j);
+}
+
+function clientExitButtonHtml(w) {
+    if (w.status === 'archived' || w.status === 'deleted') return '';
+    const j = clientOpenExitJob(w);
+    if (!j) return `<button type="button" class="btn btn-sm btn-outline cp-exit-btn" onclick="clientRequestExit('${w.id}')" title="แจ้งออกคนงาน">${icon('outbox')} แจ้งออก</button>`;
+    return clientExitCancellable(j)
+        ? `<button type="button" class="btn btn-sm btn-outline" onclick="clientCancelExit('${j.id}')" title="ยกเลิกคำขอแจ้งออก">${icon('bad')} ยกเลิกแจ้งออก</button>` : '';
+}
+
+async function clientRequestExit(workerId) {
+    const w = workers.find(x => x.id === workerId);
+    if (!w) return;
+    const d = (v) => v ? formatThaiDate(v) : '';
+    const ok = await uiConfirm('ตรวจสอบข้อมูลคนงานที่จะแจ้งออก — เจ้าหน้าที่จะได้รับแจ้งทันทีและดำเนินการแจ้งออกกับกรมการจัดหางานให้', {
+        title: 'แจ้งออกคนงาน', okText: 'ยืนยันแจ้งออก', danger: true,
+        card: {
+            image: w.photo || '', imageIcon: 'user', title: workerFullName(w),
+            subtitle: [w.nationality, w.gender ? `เพศ: ${w.gender}` : ''].filter(Boolean).join(' • '),
+            rows: [
+                ['ชื่อไทย (บัตรชมพู)', w.thaiName],
+                ['เลขประจำตัวคนต่างด้าว', w.workerUid],
+                ['เลขที่ใบอนุญาตทำงาน', w.permitNo],
+                ['ใบอนุญาตหมดอายุ', d(w.permitExpiry)],
+                ['เลขพาสปอร์ต', w.passportNo],
+                ['วันเกิด', d(w.dob)],
+                ['ตำแหน่งงาน', w.position],
+            ],
+        }
+    });
+    if (!ok) return;
+    const res = await callCloudAPI("clientRequestExit", { workerId: w.id });
+    if (!res || res.status !== "success") { showToast("❌ แจ้งออกไม่สำเร็จ: " + (res && res.message ? res.message : "กรุณาลองใหม่"), "danger"); return; }
+    await loadData(); // ดึงใบงานที่ฐานข้อมูลสร้างให้
+    showUploadPill('ok', `แจ้งออก ${workerFullName(w)} แล้ว`, 'ดูความคืบหน้าได้ที่แท็บ "งานที่แจ้ง"');
+    renderClientPortal();
+}
+
+async function clientCancelExit(jobId) {
+    const j = jobs.find(x => x.id === jobId);
+    const w = j && workers.find(x => x.id === j.workerId);
+    if (!j || !(await uiConfirm('ยกเลิกคำขอแจ้งออกคนงานคนนี้?', { title: 'ยกเลิกแจ้งออก', okText: 'ยกเลิกคำขอ', danger: true, card: dialogCardForWorker(w) }))) return;
+    const res = await callCloudAPI("clientCancelExit", { jobId });
+    if (!res || res.status !== "success") { showToast("❌ ยกเลิกไม่สำเร็จ: " + (res && res.message ? res.message : "กรุณาลองใหม่"), "danger"); return; }
+    await loadData();
+    showUploadPill('ok', 'ยกเลิกคำขอแจ้งออกแล้ว', w ? workerFullName(w) : '');
+    renderClientPortal();
+}
+
 // แท็บ "คนงานของฉัน" — ตารางแบบเดียวกับหน้าข้อมูลคนงานต่างด้าว (รูป, เลขคนงาน/บัตร, พาสปอร์ต, วันหมดอายุ, สถานะเอกสาร)
 // แบ่งกลุ่มตามวันที่ใบอนุญาตทำงานหมดอายุ (ใกล้หมดก่อน) — ไม่มีวันหมดอายุ / แจ้งออกแล้ว อยู่กลุ่มท้าย
 function renderClientWorkersTab(list) {
@@ -1789,7 +1847,10 @@ function renderClientWorkersTab(list) {
         // ยังแจ้งเข้าไม่เสร็จ → ป้ายเพิ่มใต้สถานะเอกสาร (ลูกค้าเห็นว่าคนนี้ยังรอเจ้าหน้าที่แจ้งเข้า, owner 2026-10-14)
         const notify = workerNeedsNotifyEntry(w)
             ? `<div class="cp-notify-badge"><span class="badge badge-warning" title="เจ้าหน้าที่ยังแจ้งเข้าคนงานคนนี้กับกรมการจัดหางานไม่เสร็จ">${icon('hourglass')} รอแจ้งเข้า</span></div>` : '';
-        return `<span class="badge badge-lg ${s.cls}">${s.label}</span>${notify}`;
+        const exitJob = clientOpenExitJob(w);
+        const exit = exitJob
+            ? `<div class="cp-notify-badge"><span class="badge badge-danger" title="แจ้งออกเมื่อ ${formatThaiDate(String(exitJob.createdAt || '').slice(0, 10))} • ${escapeHtml(exitJob.status)}">${icon('hourglass')} แจ้งออกแล้ว รอเจ้าหน้าที่</span></div>` : '';
+        return `<span class="badge badge-lg ${s.cls}">${s.label}</span>${notify}${exit}`;
     };
 
     const row = (w) => {
@@ -1823,6 +1884,7 @@ function renderClientWorkersTab(list) {
                     <div class="cp-worker-actions">
                         <button type="button" class="btn btn-sm btn-gold btn-open-folder" onclick="openWorkerFolderModal('${w.id}')">${icon('folder')} เปิดแฟ้มเอกสาร</button>
                         <button type="button" class="btn btn-sm btn-outline" onclick="openClientWorkerNote('${w.id}')">${icon('edit')} ${w.clientNote ? 'แก้โน้ต' : 'เขียนโน้ต'}</button>
+                        ${clientExitButtonHtml(w)}
                     </div>
                 </td>
             </tr>`;
@@ -8816,7 +8878,7 @@ function renderJobs() {
         return `
             <tr ${rowClickAttrs} data-ctx="job:${j.id}">
                 <td><strong>${getJobDisplayNo(j)}</strong>${j.status !== 'ปิดงานแล้ว' && Array.isArray(j.attachments) && j.attachments.length
-                    ? ` <span class="job-predocs-flag" title="แนบเอกสารปิดงานไว้แล้ว ${j.attachments.length} ไฟล์ — กดปิดงานได้เลย">${icon('clip')}${j.attachments.length}</span>` : ''}${batchBadge}</td>
+                    ? ` <span class="job-predocs-flag" title="แนบเอกสารปิดงานไว้แล้ว ${j.attachments.length} ไฟล์ — กดปิดงานได้เลย">${icon('clip')}${j.attachments.length}</span>` : ''}${batchBadge}${j.openedByClient ? `<div><span class="rn-client-tag" title="นายจ้างเปิดใบงานนี้เองจากพอร์ทัลลูกค้า">ลูกค้าเปิดงาน</span></div>` : ''}</td>
                 <td><span class="badge badge-gold job-type-badge">${cleanJobType}</span>${siblingPills}</td>
                 <td><div class="employer-name">${custName}</div>${custIdLines}${agentLine}</td>
                 <td>${workName}${work && work.email ? `<div class="job-worker-email">${escapeHtml(work.email)}</div>` : ''}</td>
@@ -17558,6 +17620,7 @@ function renderJobsKanban(filtered) {
                         <span class="badge badge-sm ${badgeClass} kc-badge">${cleanJobType}</span>
                     </div>
                     <div class="kc-worker">${icon("user")} ${workName}</div>
+                    ${j.openedByClient ? `<div><span class="rn-client-tag" title="นายจ้างเปิดใบงานนี้เองจากพอร์ทัลลูกค้า">ลูกค้าเปิดงาน</span></div>` : ''}
                     ${work && work.workerUid ? `<div class="kc-faint kc-uid">เลขประจำตัว: ${work.workerUid}</div>` : ''}
                     <div class="kc-sub" ${custIdTitle ? `title="${custIdTitle}"` : ''}>${icon("building")} ${custName}</div>
                     ${prepaymentBadge}

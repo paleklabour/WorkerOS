@@ -454,6 +454,12 @@ Client portal worker pop-up (`openClientWorkerView`, owner 2026-10-19) adds "ป
 that worker's jobs with date / status / billed fee + bill no + paid or owing, and totals billed / paid / owing counted per job
 (not the whole combined bill). Unbilled jobs show no amount (estimates are internal); never show costs, commissions or expenses.
 
+Client exit requests (owner 2026-10-21): portal "คนงานของฉัน" row button "แจ้งออก" → pop-up of the worker's details (no
+reason field, owner) → RPC `client_request_exit` opens a "แจ้งออกคนงานต่างด้าว" job, status รอดำเนินการ, `jobs.opened_by_client`
+(purple "ลูกค้าเปิดงาน" tag in the jobs table / Kanban; shows in the bell "งานแจ้งใหม่"). The worker stays active until staff close
+the job (`syncWorkerStatusForExitJob`). `client_cancel_exit` only while รอดำเนินการ and unbilled. Clients can no longer insert/update
+`jobs` directly (RLS, migration `20261021040847_client_exit_requests.sql`) — client job writes go through RPCs only.
+
 ## Inactive employers (2026-10-05)
 
 Admin can deactivate an employer (`customers.status` = `active`/`inactive`,
