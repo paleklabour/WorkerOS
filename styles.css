@@ -6933,6 +6933,9 @@ body.has-camera .upload-hint { display: none; }
 .renewal-table .rc-status { width: 9%; }
 .renewal-table .rc-book { width: 13%; }
 .renewal-table .rc-bookexp { width: 9%; }
+/* ครึ่งจอ: คอลัมน์เลขประจำตัวแคบ — ให้หัวข้อขึ้นบรรทัดใหม่ได้ (ตัวเลขไม่ตัดกลาง) แทนการล้นไปทับรูปคนงาน */
+.renewal-table .worker-id-line { white-space: normal; }
+.renewal-table .worker-id-line b { white-space: nowrap; }
 
 /* พอร์ทัลนายจ้าง > คนงานของฉัน — กลุ่มตามวันหมดอายุใบอนุญาต ตารางแบบหน้าข้อมูลคนงาน (renderClientWorkersTab) */
 .cp-worker-group { margin-top: 16px; }
