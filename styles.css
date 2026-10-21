@@ -4054,14 +4054,14 @@ tr.is-voided-row td {
 
 .delivery-label-to {
     margin: 14mm 0 10mm;
-    padding: 7mm 8mm;
+    padding: 5mm 6mm;
     border: 0.5mm solid #0f172a;
     border-radius: 3mm;
 }
-.delivery-label-to h5 { font-size: 11pt; margin-bottom: 3mm; }
+.delivery-label-to h5 { font-size: 9.5pt; margin-bottom: 2mm; }
 
 .delivery-label-recipient {
-    font-size: 16pt;
+    font-size: 13pt;
     font-weight: 700;
     line-height: 1.3;
     color: #0f172a;
@@ -4069,20 +4069,20 @@ tr.is-voided-row td {
 
 .delivery-label-company {
     margin-top: 1mm;
-    font-size: 13pt;
+    font-size: 11pt;
     font-weight: 600;
     line-height: 1.35;
 }
 
 .delivery-label-address {
     margin-top: 4mm;
-    font-size: 12.5pt;
+    font-size: 10.5pt;
     line-height: 1.5;
 }
 
 .delivery-label-phone {
     margin-top: 3mm;
-    font-size: 12.5pt;
+    font-size: 10.5pt;
     font-weight: 700;
 }
 
