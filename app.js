@@ -7341,9 +7341,11 @@ function workerDocCode(docType, hint, p) {
         case 'worker-pink-card': return 'PinkCard';
         // ใบเสร็จ = REC + ยอดเงินบนใบเสร็จ (owner 2026-10-22) — ยอดจากข้อความในไฟล์ (p.receiptAmount / doe) ก่อน ไม่มีค่อยดูชื่อเดิม
         case 'worker-receipt': {
+            const m = h.match(/_REC(?:EIPT?)?_?(\d{2,6})?(_[A-Z]{1,2})?_/);
+            const tail = (m && m[2] && !/^_\d/.test(m[2])) ? m[2] : ''; // ตัวต่อท้ายของออฟฟิศ เช่น _IN / _C คงไว้
             const amt = receiptAmountCode(p && p.receiptAmount);
-            if (amt) return `REC${amt}`;
-            const m = h.match(/_REC(?:EIPT?)?_?(\d{2,6})(_[A-Z]{1,2})?_/); return m ? `REC${m[1]}${m[2] || ''}` : 'REC';
+            if (amt) return `REC${amt}${tail}`;
+            return m && m[1] ? `REC${m[1]}${tail}` : `REC${tail}`;
         }
         // ใบคำขอทุกแบบ (บต.50 / ใบรับคำขอ / บต.52/55/56 ฯลฯ) ชื่อ REQ (owner 2026-10-22) — ซ้ำในช่องเดียวกันต่อท้าย _2, _3
         case 'worker-application': return 'REQ';
@@ -7476,8 +7478,8 @@ function processUploadedFile(file, docType) {
             // เก็บสะสมทุกไฟล์ที่เคยแนบไว้ (เช่น เอกสารต่ออายุรายปี) ไม่ลบของเก่าทิ้งเมื่อแนบไฟล์ใหม่
             // DOE-LINK: ใบเสร็จกรมการจัดหางาน → เก็บเลขที่ใบแจ้งชำระเงินไว้ชนกับสลิป
             const doe = docType === 'worker-receipt' ? await doeReceiptInfoFromFile(fileContent, uploadResult && uploadResult.parsedData) : null;
-            const recAmt = receiptAmountCode(doeAmountTotal(doe)); // ใบเสร็จ: REC + ยอดเงินในไฟล์
-            if (recAmt) fileName = uniqueWorkerDocName(existingList, `REC${recAmt}${ext || ''}`);
+            const recAmt = doeAmountTotal(doe); // ใบเสร็จ: REC + ยอดเงินในไฟล์
+            if (recAmt) fileName = uniqueWorkerDocName(existingList, workerDocFileName('', '', '', docType, '', ext, file.name, { receiptAmount: recAmt }));
             const updatedList = [...(tempWorkerAttachments[docType] || []), Object.assign({ name: fileName, data: serverUrl || fileContent, expiryDate: extractDocExpiryDate(docType, uploadResult && uploadResult.parsedData) }, doe ? { doe } : {})];
             tempWorkerAttachments[docType] = updatedList;
 
@@ -16232,8 +16234,8 @@ async function attachDocumentToWorker(w, docType, fileContent, preParsed = null,
     // DOE-LINK (ทดลอง 2026-10-09): ใบเสร็จกรมการจัดหางาน → เก็บเลขที่ใบแจ้งชำระเงิน/เลขใบเสร็จ/เลข RA ไว้ชนกับสลิปจ่ายบิล
     const doe = docType === 'worker-receipt' ? await doeReceiptInfoFromFile(fileContent, preParsed || (uploadResult && uploadResult.parsedData)) : null;
     // ใบเสร็จ: ชื่อ = REC + ยอดเงินที่อ่านได้จากไฟล์ (ไม่ใช้ AI) — อ่านยอดไม่ได้คงชื่อเดิม
-    const recAmt = receiptAmountCode(doeAmountTotal(doe));
-    if (recAmt) fileName = uniqueWorkerDocName(currentList, `REC${recAmt}${ext || ''}`);
+    const recAmt = doeAmountTotal(doe);
+    if (recAmt) fileName = uniqueWorkerDocName(currentList, workerDocFileName('', '', '', docType, '', ext, opts.hint || fileName, { receiptAmount: recAmt }));
     w.attachments[docType].push(Object.assign({
         name: fileName,
         data: serverUrl || fileContent,
