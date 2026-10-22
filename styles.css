@@ -966,6 +966,18 @@ label.user-avatar:hover { box-shadow: 0 0 0 3px rgba(45, 79, 163, 0.18); }
     font-size: 12.5px; font-weight: 600; color: var(--dk-ok, #15803d); background: var(--dk-ok-bg, #dcfce7);
 }
 .user-online-badge::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #22c55e; }
+/* แทปเด้ง "… ออนไลน์แล้ว" มุมขวาล่าง — Admin เท่านั้น (showOnlineToast) */
+#online-toast-stack { position: fixed; right: 20px; bottom: 20px; z-index: 3000; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+.online-toast {
+    display: flex; align-items: center; gap: 12px; min-width: 230px; max-width: 320px; padding: 11px 16px 11px 12px;
+    border-radius: 18px; background: var(--dk-card, #ffffff); color: var(--text-dark);
+    box-shadow: 0 1px 3px rgba(0,0,0,.08), 0 10px 30px rgba(0,0,0,.18); cursor: pointer; pointer-events: auto;
+    opacity: 0; transform: translateY(14px) scale(.97); transition: opacity .25s ease, transform .25s ease;
+}
+.online-toast.is-in { opacity: 1; transform: none; }
+.online-toast-name { font-weight: 600; font-size: 14px; }
+.online-toast-sub { font-size: 12.5px; color: var(--dk-muted, var(--text-muted)); }
+@media (max-width: 640px) { #online-toast-stack { left: 16px; right: 16px; } .online-toast { max-width: none; } }
 .user-avatar-field { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
 .user-avatar-preview {
     width: 64px;

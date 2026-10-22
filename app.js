@@ -1293,15 +1293,41 @@ function startOnlinePresence() {
     const sb = window.supabaseAdapter && window.supabaseAdapter.client;
     if (!sb || !sb.channel || !currentUser) return;
     const myId = currentUser.id;
+    const amAdmin = currentUser.role === 'admin';
+    let joinedAt = 0; // คนที่ออนไลน์อยู่ก่อนเราเข้า ก็ส่ง join มาตอนต่อช่องใหม่ๆ — ไม่ต้องแจ้ง
     const ch = sb.channel('online-users', { config: { presence: { key: myId } } });
     ch.on('presence', { event: 'sync' }, () => {
         onlineUserIds = new Set(Object.keys(ch.presenceState()));
         const tbody = document.getElementById("users-tbody");
         if (tbody && tbody.offsetParent) renderUsers();
+    }).on('presence', { event: 'join' }, ({ key, currentPresences }) => {
+        // Admin เท่านั้น: มีคนเพิ่งออนไลน์ (แท็บแรกของเขา — เปิดแท็บเพิ่มไม่นับ) → แทปเด้งขึ้นมาแล้วหายไป (owner 2026-10-22)
+        if (!amAdmin || key === myId || !joinedAt || Date.now() - joinedAt < 4000) return;
+        if (currentPresences && currentPresences.length) return;
+        const u = users.find(x => x.id === key);
+        if (u) showOnlineToast(u);
     }).subscribe(status => {
-        if (status === 'SUBSCRIBED') ch.track({ since: new Date().toISOString() });
+        if (status === 'SUBSCRIBED') { joinedAt = Date.now(); ch.track({ since: new Date().toISOString() }); }
     });
     onlineChannel = ch;
+}
+
+function showOnlineToast(u) {
+    let stack = document.getElementById("online-toast-stack");
+    if (!stack) {
+        stack = document.createElement("div");
+        stack.id = "online-toast-stack";
+        document.body.appendChild(stack);
+    }
+    const el = document.createElement("div");
+    el.className = "online-toast";
+    el.title = "เปิดหน้าจัดการบัญชีผู้ใช้งาน";
+    el.innerHTML = `<span class="user-avatar user-avatar-sm is-online">${userAvatarHtml(u)}</span>
+        <div><div class="online-toast-name">${escapeHtml(u.name || '-')}</div><div class="online-toast-sub">ออนไลน์แล้ว · ${escapeHtml(getRoleLabel(u.role))}</div></div>`;
+    el.onclick = () => { switchView('users'); el.remove(); };
+    stack.appendChild(el);
+    requestAnimationFrame(() => el.classList.add("is-in"));
+    setTimeout(() => { el.classList.remove("is-in"); setTimeout(() => el.remove(), 300); }, 4500);
 }
 
 function stopOnlinePresence() {
