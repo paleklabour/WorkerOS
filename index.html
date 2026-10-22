@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261021h">
+    <link rel="stylesheet" href="styles.css?v=20261022a">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -1480,8 +1480,13 @@
                                         </select>
                                     </div>
                                     <div class="form-group hidden" id="user-customer-id-group">
-                                        <label for="user-customer-id">เลือกนายจ้าง (สำหรับบัญชี Client)</label>
-                                        <select id="user-customer-id"></select>
+                                        <label for="user-customer-search">เลือกนายจ้าง (สำหรับบัญชี Client)</label>
+                                        <!-- <select> ซ่อนไว้เป็นแหล่งเก็บค่าจริง — ช่องที่ผู้ใช้พิมพ์ค้นหาคือ user-customer-search (registerSearchSelect ใน app.js) -->
+                                        <select id="user-customer-id" class="hidden"></select>
+                                        <div class="search-box" style="max-width: 100%;">
+                                            <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle class="fl" cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/></svg>
+                                            <input type="text" id="user-customer-search" placeholder="พิมพ์ชื่อบริษัท/นายจ้างเพื่อค้นหา..." autocomplete="off">
+                                        </div>
                                     </div>
                                     <div class="form-group" id="user-pin-group" style="border-top:1px solid #e2e8f0; padding-top:14px; margin-top:6px;">
                                         <label for="user-pin">รหัส PIN ยืนยันสิทธิ์ในการเพิ่มบัญชี <span class="required">*</span></label>
@@ -3616,7 +3621,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261021h"></script>
+    <script src="supabase-client.js?v=20261022a"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3627,6 +3632,6 @@
     </script>
 
     <!-- Application Script -->
-    <script src="app.js?v=20261021h"></script>
+    <script src="app.js?v=20261022a"></script>
 </body>
 </html>

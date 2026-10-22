@@ -1273,11 +1273,44 @@ async function startSessionGuard() {
     if (!window.supabaseAdapter || !currentUser) return;
     if (!localStorage.getItem("mw_session_id")) await claimSingleSession(); // ล็อกอินค้างไว้จากก่อนมีระบบนี้
     sessionGuardTimer = setInterval(checkSingleSession, 20000);
+    startOnlinePresence();
 }
 
 function stopSessionGuard() {
     if (sessionGuardTimer) clearInterval(sessionGuardTimer);
     sessionGuardTimer = null;
+    stopOnlinePresence();
+}
+
+// ==================== ใครออนไลน์อยู่ (หน้าจัดการบัญชีผู้ใช้งาน) ====================
+// Supabase Realtime Presence: ทุกคนที่เปิดแอปอยู่ join ช่อง 'online-users' ด้วย id บัญชีจริง (ไม่ใช่ id ตอน "ดูแบบผู้ใช้")
+// ปิดแท็บ/เน็ตหลุด = หลุดจากรายชื่อเอง ไม่ต้องเก็บอะไรในฐานข้อมูล — renderUsers แสดงจุดเขียว "ออนไลน์"
+let onlineChannel = null;
+let onlineUserIds = new Set();
+
+function startOnlinePresence() {
+    stopOnlinePresence();
+    const sb = window.supabaseAdapter && window.supabaseAdapter.client;
+    if (!sb || !sb.channel || !currentUser) return;
+    const myId = currentUser.id;
+    const ch = sb.channel('online-users', { config: { presence: { key: myId } } });
+    ch.on('presence', { event: 'sync' }, () => {
+        onlineUserIds = new Set(Object.keys(ch.presenceState()));
+        const tbody = document.getElementById("users-tbody");
+        if (tbody && tbody.offsetParent) renderUsers();
+    }).subscribe(status => {
+        if (status === 'SUBSCRIBED') ch.track({ since: new Date().toISOString() });
+    });
+    onlineChannel = ch;
+}
+
+function stopOnlinePresence() {
+    if (onlineChannel) {
+        const sb = window.supabaseAdapter && window.supabaseAdapter.client;
+        try { if (sb) sb.removeChannel(onlineChannel); } catch (e) { /* ช่องปิดไปแล้ว */ }
+    }
+    onlineChannel = null;
+    onlineUserIds = new Set();
 }
 
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && sessionGuardTimer) checkSingleSession(); });
@@ -11787,12 +11820,13 @@ function renderUsers() {
         const a = auth[u.id] || {};
         const safeName = (u.name || '').replace(/'/g, "\\'");
         const isSelf = u.id === currentUser.id;
+        const online = onlineUserIds.has(u.id);
         const status = !userAuthInfo ? '<span class="text-muted">กำลังโหลด...</span>'
             : a.suspended ? '<span class="badge badge-danger">ระงับอยู่</span>'
-            : `<span class="badge badge-success">ใช้งานได้</span><div class="text-muted" style="font-size:12.5px;">${a.lastSignInAt ? 'เข้าล่าสุด ' + formatThaiDate(a.lastSignInAt, true) : 'ยังไม่เคยเข้าระบบ'}</div>`;
+            : `<span class="badge badge-success">ใช้งานได้</span>${online ? ' <span class="user-online-badge" title="เปิดระบบอยู่ตอนนี้">ออนไลน์</span>' : ''}<div class="text-muted" style="font-size:12.5px;">${a.lastSignInAt ? 'เข้าล่าสุด ' + formatThaiDate(a.lastSignInAt, true) : 'ยังไม่เคยเข้าระบบ'}</div>`;
         return `
         <tr>
-            <td><div class="user-name-cell"><span class="user-avatar user-avatar-sm">${userAvatarHtml(u)}</span>${escapeHtml(u.name || '-')}</div></td>
+            <td><div class="user-name-cell"><span class="user-avatar user-avatar-sm${online ? ' is-online' : ''}">${userAvatarHtml(u)}</span>${escapeHtml(u.name || '-')}</div></td>
             <td>${escapeHtml(emailOf(u) || '-')}</td>
             <td><span class="badge">${getRoleLabel(u.role)}</span></td>
             <td>${u.role === 'client' ? (() => {
@@ -11901,6 +11935,7 @@ function toggleUserCustomerField() {
         group.classList.remove('hidden');
         select.innerHTML = '<option value="" disabled selected>--- เลือกนายจ้าง ---</option>' +
             customers.map(c => `<option value="${c.id}">${c.companyName}</option>`).join('');
+        clearSearchSelect('user-customer');
     } else {
         group.classList.add('hidden');
     }
@@ -11946,7 +11981,7 @@ function openUserModal(id = null) {
         document.getElementById("user-role").value = u.role || "staff";
         toggleUserCustomerField();
         if (u.role === 'client') {
-            document.getElementById("user-customer-id").value = u.customer_id || "";
+            if (u.customer_id) selectSearchSelectItem('user-customer', u.customer_id);
         }
     } else {
         editIdInput.value = "";
@@ -12537,6 +12572,18 @@ function setupAllSearchSelects() {
         inputId: 'reg-employer-search',
         getValue: () => regEmployerId,
         setValue: (v) => { regEmployerId = v || null; },
+        getPool: () => customers,
+        getId: c => c.id,
+        getLabel: c => c.companyName,
+        getSub: c => c.taxId ? 'ภาษี ' + c.taxId : '',
+        emptyText: 'ไม่พบนายจ้างที่ตรงกับคำค้นหา'
+    });
+
+    // นายจ้างของบัญชี Client ในหน้าต่างเพิ่ม/แก้ไขผู้ใช้ — <select id="user-customer-id"> ซ่อนไว้เป็นแหล่งเก็บค่าจริง
+    registerSearchSelect('user-customer', {
+        inputId: 'user-customer-search',
+        getValue: () => document.getElementById('user-customer-id').value,
+        setValue: (v) => { document.getElementById('user-customer-id').value = v || ''; },
         getPool: () => customers,
         getId: c => c.id,
         getLabel: c => c.companyName,
