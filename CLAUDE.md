@@ -116,9 +116,12 @@ Owner's rules (2026-10-09):
 - Bulk import has a per-file "AI อ่าน" checkbox (`row.aiRead`, default from
   `bulkAiDefault()`); unticked = attach only (`attachDocumentToWorker(..., { noAi: true })`).
 - Worker document file names are the office abbreviation only (owner, 2026-10-09):
-  WP / WP_FB / CI / PASSPORT / VISA / PinkCard / REC / REC1900 / WP22 / AP / REQ / NTID /
+  WP / WP_FB / CI / PASSPORT / VISA / PinkCard / REC<amount> / REQ / NTID /
   MED / INS / INF / OTHER, plus _2, _3 for duplicates in a slot (`workerDocCode`,
   `uniqueWorkerDocName`). The original file name is the hint for the finer code.
+  Owner 2026-10-22: every ใบคำขอ (`worker-application`: บต.50/บต.52/55/56/ใบรับคำขอ…) is **REQ**; a receipt is **REC + the
+  amount printed on it** (1,900.00 → REC1900; from the PDF text via `doeReceiptInfoFromFile` / `receiptAmount`, no AI —
+  `receiptAmountCode`, `doeAmountTotal`); amount unreadable → REC.
 - OCR may only set `workerUid` if it is exactly 13 digits.
 - `uploadFile` in `supabase-client.js` sniffs the real file type from the bytes
   (`sniffFileMime`) — Drive had JPEGs named `.pdf` that wouldn't open.

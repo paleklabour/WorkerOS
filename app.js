@@ -7339,12 +7339,31 @@ function workerDocCode(docType, hint, p) {
         case 'worker-visa': return 'VISA';
         case 'worker-myanmar-id': return pick(/_((?:NTID|MID)(?:_(?:FB|F|B))?)_/, 'NTID');
         case 'worker-pink-card': return 'PinkCard';
-        case 'worker-receipt': { const m = h.match(/_REC(?:EIPT?)?_?(\d{2,5})(_[A-Z]{1,2})?_/); return m ? `REC${m[1]}${m[2] || ''}` : 'REC'; }
-        case 'worker-application': return pick(/_(WP_?\d{2})_/, '').replace('_', '') || (/_REQ_/.test(h) ? 'REQ' : 'AP');
+        // ใบเสร็จ = REC + ยอดเงินบนใบเสร็จ (owner 2026-10-22) — ยอดจากข้อความในไฟล์ (p.receiptAmount / doe) ก่อน ไม่มีค่อยดูชื่อเดิม
+        case 'worker-receipt': {
+            const amt = receiptAmountCode(p && p.receiptAmount);
+            if (amt) return `REC${amt}`;
+            const m = h.match(/_REC(?:EIPT?)?_?(\d{2,6})(_[A-Z]{1,2})?_/); return m ? `REC${m[1]}${m[2] || ''}` : 'REC';
+        }
+        // ใบคำขอทุกแบบ (บต.50 / ใบรับคำขอ / บต.52/55/56 ฯลฯ) ชื่อ REQ (owner 2026-10-22) — ซ้ำในช่องเดียวกันต่อท้าย _2, _3
+        case 'worker-application': return 'REQ';
         case 'worker-medical': return 'MED';
         case 'worker-insurance-doc': return 'INS';
         default: return /_INF_/.test(h) ? 'INF' : 'OTHER';
     }
+}
+
+// ยอดเงินบนใบเสร็จ → ส่วนท้ายชื่อไฟล์ (1,900.00 → "1900", 950.50 → "950_50"); อ่านไม่ได้ = ''
+function receiptAmountCode(amount) {
+    const n = parseFloat(String(amount ?? '').replace(/,/g, ''));
+    if (!isFinite(n) || n <= 0) return '';
+    return Number.isInteger(n) ? String(n) : n.toFixed(2).replace('.', '_');
+}
+// ยอดรวมจากข้อมูลใบเสร็จกรมการจัดหางานที่เก็บไว้กับไฟล์ (doe = รายการต่อหน้า)
+function doeAmountTotal(doe) {
+    const list = Array.isArray(doe) ? doe : (doe ? [doe] : []);
+    const nums = list.map(d => d && d.amount).filter(a => typeof a === 'number' && a > 0);
+    return nums.length ? nums.reduce((s, a) => s + a, 0) : null;
 }
 
 function workerDocFileName(uid, firstName, lastName, docType, suffix, ext, hint = '', p = null) {
@@ -7386,7 +7405,8 @@ async function renameAllWorkerDocFiles() {
                 if (!f || typeof f !== 'object') { renamed.push(f); return; }
                 const m = String(f.name || '').match(/\.[A-Za-z0-9]{1,5}$/);
                 const ext = m ? m[0] : extFromDataUrl(String(f.data || ''));
-                const name = uniqueWorkerDocName(renamed, workerDocFileName('', '', '', docType, '', ext, f.name));
+                const amt = docType === 'worker-receipt' ? doeAmountTotal(f.doe) : null; // ใบเสร็จ: REC + ยอดที่เก็บไว้ตอนแนบ
+                const name = uniqueWorkerDocName(renamed, workerDocFileName('', '', '', docType, '', ext, f.name, amt ? { receiptAmount: amt } : null));
                 if (name !== f.name) changed++;
                 renamed.push(name === f.name ? f : { ...f, name });
             });
@@ -7396,7 +7416,7 @@ async function renameAllWorkerDocFiles() {
     });
     if (!pending.length) { uiAlert("ชื่อไฟล์เอกสารคนงานทุกไฟล์เป็นรูปแบบใหม่อยู่แล้ว"); return; }
     const files = pending.reduce((s, p) => s + p.changed, 0);
-    if (!(await uiConfirm(`จะเปลี่ยนชื่อไฟล์ ${files} ไฟล์ ของคนงาน ${pending.length} คน\nเป็นตัวย่อของออฟฟิศ (เช่น WP_FB.pdf, CI.pdf, VISA.pdf, PinkCard.pdf, REC1900.pdf, WP22.pdf)\nลิงก์ไฟล์เดิมยังใช้ได้ ไม่ต้องอัปโหลดใหม่`, {
+    if (!(await uiConfirm(`จะเปลี่ยนชื่อไฟล์ ${files} ไฟล์ ของคนงาน ${pending.length} คน\nเป็นตัวย่อของออฟฟิศ (เช่น WP_FB.pdf, CI.pdf, VISA.pdf, PinkCard.pdf, REC1900.pdf = ใบเสร็จยอด 1,900, REQ.pdf = ใบคำขอ)\nลิงก์ไฟล์เดิมยังใช้ได้ ไม่ต้องอัปโหลดใหม่`, {
         title: 'เปลี่ยนชื่อไฟล์เอกสารคนงานย้อนหลัง', okText: 'เปลี่ยนชื่อ', danger: false }))) return;
     let ok = 0, fail = 0;
     for (const { w, next } of pending) {
@@ -7456,6 +7476,8 @@ function processUploadedFile(file, docType) {
             // เก็บสะสมทุกไฟล์ที่เคยแนบไว้ (เช่น เอกสารต่ออายุรายปี) ไม่ลบของเก่าทิ้งเมื่อแนบไฟล์ใหม่
             // DOE-LINK: ใบเสร็จกรมการจัดหางาน → เก็บเลขที่ใบแจ้งชำระเงินไว้ชนกับสลิป
             const doe = docType === 'worker-receipt' ? await doeReceiptInfoFromFile(fileContent, uploadResult && uploadResult.parsedData) : null;
+            const recAmt = receiptAmountCode(doeAmountTotal(doe)); // ใบเสร็จ: REC + ยอดเงินในไฟล์
+            if (recAmt) fileName = uniqueWorkerDocName(existingList, `REC${recAmt}${ext || ''}`);
             const updatedList = [...(tempWorkerAttachments[docType] || []), Object.assign({ name: fileName, data: serverUrl || fileContent, expiryDate: extractDocExpiryDate(docType, uploadResult && uploadResult.parsedData) }, doe ? { doe } : {})];
             tempWorkerAttachments[docType] = updatedList;
 
@@ -15931,7 +15953,7 @@ async function moveWorkerFileToDocType(fromType, idx, toType) {
 
     const m = String(fItem.name || '').match(/\.[A-Za-z0-9]{1,5}$/);
     const ext = m ? m[0] : extFromDataUrl(String(fItem.data || ''));
-    const moved = { ...fItem, name: uniqueWorkerDocName(toList, workerDocFileName('', '', '', toType, '', ext, fItem.name)) };
+    const moved = { ...fItem, name: uniqueWorkerDocName(toList, workerDocFileName('', '', '', toType, '', ext, fItem.name, toType === 'worker-receipt' && doeAmountTotal(fItem.doe) ? { receiptAmount: doeAmountTotal(fItem.doe) } : null)) };
     delete moved.manualExpired; // หมวดใหม่ใช้ตรรกะหมดอายุอัตโนมัติ (วางในรายการปัจจุบัน)
 
     w.attachments = { ...(w.attachments || {}) };
@@ -16209,6 +16231,9 @@ async function attachDocumentToWorker(w, docType, fileContent, preParsed = null,
     w.attachments[docType] = currentList;
     // DOE-LINK (ทดลอง 2026-10-09): ใบเสร็จกรมการจัดหางาน → เก็บเลขที่ใบแจ้งชำระเงิน/เลขใบเสร็จ/เลข RA ไว้ชนกับสลิปจ่ายบิล
     const doe = docType === 'worker-receipt' ? await doeReceiptInfoFromFile(fileContent, preParsed || (uploadResult && uploadResult.parsedData)) : null;
+    // ใบเสร็จ: ชื่อ = REC + ยอดเงินที่อ่านได้จากไฟล์ (ไม่ใช้ AI) — อ่านยอดไม่ได้คงชื่อเดิม
+    const recAmt = receiptAmountCode(doeAmountTotal(doe));
+    if (recAmt) fileName = uniqueWorkerDocName(currentList, `REC${recAmt}${ext || ''}`);
     w.attachments[docType].push(Object.assign({
         name: fileName,
         data: serverUrl || fileContent,
