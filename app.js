@@ -7144,7 +7144,7 @@ function applyGeminiDataToWorkerForm(docType, parsedData) {
     }
     if (parsedData.ewp) applyEwpDataToWorkerForm(parsedData, setPermitVal, wpOverride);
     if (docType === 'worker-wp-doc' || (parsedData.ewp && docType !== 'worker-passport')) applyWpPassportInfoToForm(parsedData);
-    if (!document.getElementById("worker-email").value.trim()) setVal("worker-email", parsedData.email);
+    // อีเมลไม่เติมจากเอกสารใดๆ แล้ว (ใบเสร็จพิมพ์อีเมลบัญชีนายจ้าง ไม่ใช่ของคนงาน — owner 2026-10-22)
 }
 
 // ข้อมูลจาก QR ของกรมการจัดหางาน (parsedData.ewp — ดู ewpCardToParsedData ใน supabase-client.js) เป็นข้อมูลทางการ
@@ -16123,8 +16123,7 @@ function applyOcrDataToWorker(w, docType, p) {
     // ยุบช่องว่างซ้อนในชื่อที่ AI อ่านมา (เช่น "NUN  WIN  AYE") ให้ค้นหาเจอ
     if (w.firstName) w.firstName = String(w.firstName).replace(/\s+/g, ' ').trim();
     if (w.lastName) w.lastName = String(w.lastName).replace(/\s+/g, ' ').trim();
-    // อีเมล (เช่น ช่อง Email บนใบเสร็จ) — เติมเมื่อคนงานยังไม่มีอีเมลเท่านั้น
-    if (p.email && !w.email) w.email = String(p.email).trim();
+    // อีเมลไม่เติมจากเอกสารใดๆ แล้ว (ใบเสร็จพิมพ์อีเมลบัญชีนายจ้าง ไม่ใช่ของคนงาน — owner 2026-10-22)
 }
 
 // วันหมดอายุจริงของเอกสาร (อ่านจากผล OCR ตอนแนบไฟล์) — มีแค่บางประเภทเอกสารที่มีวันหมดอายุพิมพ์อยู่จริง

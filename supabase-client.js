@@ -365,7 +365,7 @@
             billPaymentNo: govPick(text, /Bill Payment No\.\)?\s*(\d{10,20})/i),
             receiptAmount: govPick(text, /รวมเป็นเงินทั้งสิ้น[\s\S]{0,80}?([\d,]+\.\d{2})/),
             paidAt: paid ? govDateToDmy(paid) : undefined,
-            email: govPick(text, /([\w.+-]+@[\w-]+(?:\.[\w-]+)+)/),
+            // ไม่ดึงอีเมลจากใบเสร็จแล้ว — เป็นอีเมลบัญชี e-WorkPermit ของนายจ้าง ไม่ใช่ของคนงาน (owner 2026-10-22)
             nationality: govNationality(govPick(text, /Nationality\)?\s*(\S+)/i) || ""),
             scriptLanguage: "thai"
         };
