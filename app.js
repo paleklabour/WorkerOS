@@ -4554,7 +4554,7 @@ function openJobQuickView(jobId) {
         + group('ใบงาน', [
             ['นายจ้าง', cust ? cust.companyName : '-'],
             ['ผู้รับผิดชอบ', j.assignedTo ? getUserNameById(j.assignedTo) : 'ยังไม่มอบหมาย'],
-            ['เปิดงาน', `${getUserNameById(j.openedBy)}${j.openedAt || j.createdAt ? ` • ${formatThaiDate(j.openedAt || j.createdAt)}` : ''}`],
+            ['เปิดงาน', `${jobOpenerName(j)}${j.openedAt || j.createdAt ? ` • ${formatThaiDate(j.openedAt || j.createdAt)}` : ''}`],
             ['ปิดงาน', jobClosedInfoText(j)],
             ['ป้าย', j.tag],
             ['หมายเหตุสถานะ', j.remark, true],
@@ -8730,7 +8730,7 @@ function jobSortValue(j, key) {
         case 'remark': return j.remark || '';
         case 'status': { const i = JOB_STATUS_SORT_ORDER.indexOf(j.status); return i === -1 ? 99 : i; }
         case 'orderNo': return j.orderNo || '';
-        case 'openedBy': return j.openedBy ? getUserNameById(j.openedBy) : '';
+        case 'openedBy': return j.openedBy ? jobOpenerName(j) : '';
         default: return '';
     }
 }
@@ -8953,7 +8953,7 @@ function renderJobs() {
                     </div>
                 </td>
                 <td>
-                    <span style="font-size:13px;">${getUserNameById(j.openedBy)}</span>
+                    <span style="font-size:13px;">${jobOpenerName(j)}</span>
                     ${j.closedBy ? `<br><span style="font-size:12.5px; color:var(--text-muted);">${icon("lock")} ปิดโดย: ${getUserNameById(j.closedBy)}</span>` : ''}
                     ${jobClosedInfoText(j) ? `<br><span style="font-size:12.5px; color:var(--text-muted);">${icon("calendar")} ${jobClosedInfoText(j)}</span>` : ''}
                 </td>
@@ -9599,7 +9599,7 @@ function openJobModal(id = null) {
         // ผู้เปิดงาน: แสดงอย่างเดียว แก้ไม่ได้ (ล็อกจาก user ที่เปิดงานครั้งแรก)
         if (j.openedBy) {
             openedByInfo.style.display = 'block';
-            openedByInfo.innerText = `เปิดงานโดย: ${getUserNameById(j.openedBy)}`;
+            openedByInfo.innerText = `เปิดงานโดย: ${jobOpenerName(j)}`;
         } else {
             openedByInfo.style.display = 'none';
         }
@@ -9638,7 +9638,20 @@ function openJobModal(id = null) {
 function getUserNameById(id) {
     if (!id) return '-';
     const u = team.find(x => x.id === id) || users.find(x => x.id === id);
-    return u ? u.name : id;
+    // ไม่พบชื่อ (เช่น บัญชีลูกค้า ซึ่งไม่อยู่ในรายชื่อทีม) — ไม่โชว์รหัสบัญชีดิบๆ (owner 2026-10-22)
+    return u ? u.name : 'ไม่ทราบชื่อ';
+}
+
+// "เปิดงานโดย" — งานที่ลูกค้าเปิดจากพอร์ทัล (opened_by = บัญชีลูกค้า) แสดงชื่อนายจ้าง + (ลูกค้า)
+function jobOpenerName(j) {
+    if (!j || !j.openedBy) return '-';
+    const u = team.find(x => x.id === j.openedBy) || users.find(x => x.id === j.openedBy);
+    if (u && u.role !== 'client') return u.name;
+    if (j.openedByClient || (u && u.role === 'client')) {
+        const c = customers.find(x => x.id === j.customerId);
+        return `${(c && c.companyName || '').trim() || (u && u.name) || 'ลูกค้า'} (ลูกค้า)`;
+    }
+    return getUserNameById(j.openedBy);
 }
 
 function closeJobModal() {
@@ -17733,7 +17746,7 @@ function renderJobsKanban(filtered) {
                     <div class="kc-sub" ${custIdTitle ? `title="${custIdTitle}"` : ''}>${icon("building")} ${custName}</div>
                     ${prepaymentBadge}
                     ${jobAgent ? `<div class="kc-sub">${icon("user")} Agent: ${jobAgent.name}</div>` : ''}
-                    <div class="kc-faint">${icon("edit")} เปิดงานโดย: ${getUserNameById(j.openedBy)}${j.closedBy ? ` • ${icon("lock")} ปิดโดย: ${getUserNameById(j.closedBy)}` : ''}</div>
+                    <div class="kc-faint">${icon("edit")} เปิดงานโดย: ${jobOpenerName(j)}${j.closedBy ? ` • ${icon("lock")} ปิดโดย: ${getUserNameById(j.closedBy)}` : ''}</div>
                     ${jobClosedInfoText(j) ? `<div class="kc-faint">${icon("calendar")} ${jobClosedInfoText(j)}</div>` : ''}
                     ${batchTag}
                     <div class="kc-foot">
