@@ -383,6 +383,7 @@ async function loadData() {
             localStorage.setItem("mw_receipts", JSON.stringify(receipts));
             localStorage.setItem("mw_service_prices", JSON.stringify(servicePrices));
 
+            lastDataLoadAt = Date.now();
             showSyncStatus('success', `นายจ้าง ${customers.length} • คนงาน ${workers.length} • ใบงาน ${jobs.length}`);
             // โน้ตปฏิทินทีม: โหลดแยกเบื้องหลัง (ไม่ให้หน่วงการเปิดระบบ) เพื่อเตือนล่วงหน้า 2 วันในกระดิ่ง
             if (currentUser && currentUser.role !== 'client') loadCalendarNotes(true).then(updateNotificationBell).catch(() => {});
@@ -446,6 +447,28 @@ async function refreshAppData() {
         if (btn) btn.classList.remove("spinning");
     }
 }
+
+// รีเฟรชเบื้องหลัง (owner 2026-10-22): เปลี่ยนเมนู/กลับมาที่แท็บ → หน้าขึ้นทันทีด้วยข้อมูลที่มีอยู่ ถ้าข้อมูลเก่ากว่า 1 นาที
+// ดึงใหม่เงียบๆ แล้ววาดหน้าเดิมใหม่ — ข้ามรอบนี้ถ้ามีหน้าต่าง/แผงคนงานเปิดอยู่ (ไม่ทับสิ่งที่กำลังพิมพ์)
+let lastDataLoadAt = 0;
+const BG_REFRESH_AFTER_MS = 60000;
+function hasOpenOverlay() {
+    return !!document.querySelector('.modal-backdrop:not(.hidden), .ui-dialog-backdrop:not(.hidden), .worker-panel.is-open');
+}
+async function backgroundRefresh() {
+    if (!currentUser || _refreshingAppData || document.visibilityState !== 'visible') return;
+    if (!lastDataLoadAt || Date.now() - lastDataLoadAt < BG_REFRESH_AFTER_MS || hasOpenOverlay()) return;
+    _refreshingAppData = true;
+    try {
+        const before = document.querySelector(".content-section:not(.hidden)");
+        await loadData();
+        const now = document.querySelector(".content-section:not(.hidden)");
+        // ระหว่างรอผู้ใช้เปิดหน้าต่าง/เปลี่ยนหน้าไปแล้ว → ข้อมูลใหม่อยู่ในหน่วยความจำแล้ว หน้าถัดไปจะวาดด้วยข้อมูลใหม่เอง
+        if (now && now === before && !hasOpenOverlay()) switchView(now.id.replace(/^view-/, ''));
+    } catch (e) { console.warn('background refresh skipped:', e); }
+    finally { _refreshingAppData = false; }
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') backgroundRefresh(); });
 
 // นายจ้างที่ Admin ปิดใช้งาน (customers.status = 'inactive') → ย้ายคนงานของนายจ้างนั้นไปเก็บใน hiddenWorkers
 // ทุกหน้าที่อ่าน `workers` จึงไม่เห็นคนงานกลุ่มนี้เลย (รายชื่อ แดชบอร์ด กระดิ่ง ต่ออายุ เลือกคนงานในใบงาน ฯลฯ)
@@ -2226,6 +2249,7 @@ function switchView(viewName) {
 
     // บนจอมือถือ/แท็บเล็ต เมนูข้างเป็นลิ้นชักเลื่อนออกมา — เลือกเมนูแล้วปิดลิ้นชักให้อัตโนมัติ
     closeMobileSidebar();
+    setTimeout(backgroundRefresh, 0); // วาดหน้าด้วยข้อมูลที่มีก่อน แล้วค่อยดึงใหม่เบื้องหลังถ้าเก่ากว่า 1 นาที
 }
 
 // ==================== เมนูข้างแบบลิ้นชักบนจอมือถือ/แท็บเล็ต (Responsive Sidebar Drawer) ====================

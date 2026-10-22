@@ -296,6 +296,10 @@ badge count; "แสดงการแจ้งเตือนที่ปิด
 Thai government holidays are hard-coded in `THAI_HOLIDAYS` in `app.js` (from Google's Thai holiday calendar);
 2027 Buddhist holidays + Royal Ploughing Day weren't announced yet on 2026-10-14 — add them when announced.
 
+Background refresh (owner 2026-10-22): switching menu or returning to the browser tab renders at once with the data in memory;
+if it's older than 1 min (`lastDataLoadAt`, `BG_REFRESH_AFTER_MS`) `backgroundRefresh` re-runs `loadData` silently and re-renders
+the same view — skipped while a `.modal-backdrop` / `.ui-dialog-backdrop` / worker panel is open.
+
 "View as user" (Admin, 2026-10-13): eye button in the users table → `startViewAs(id)`
 swaps `currentUser` id/role/customer_id in memory so menus, buttons, home page and
 bell follow that user; data stays admin-loaded (not exact) and `callCloudAPI` /
