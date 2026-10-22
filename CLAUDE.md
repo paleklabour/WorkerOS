@@ -150,6 +150,9 @@ Owner's rules (2026-10-09):
   Upload messages (progress when no host, results, AI-rejected, failures, avatar
   uploads) use a centered frosted capsule `showUploadPill(kind, title, sub)` (owner chose
   style #3, placed mid-screen) instead of `showToast`.
+  When AI can't read a file, `uploadDocumentFile` attaches it anyway without AI — no question, no warning (owner,
+  2026-10-22; the old "กรอกเอง / แนบใหม่" dialog `askAiRejectedChoice` is no longer used there). Workers never get an
+  email from a document (DOE receipts print the employer's e-WP email; owner 2026-10-22).
 - Document folders have an image editor (`openImageEditor`: crop / rotate 90° + fine angle / brightness /
   contrast), images only, saving replaces the original (no copy kept).
 - Document folder layout (owner chose "clean" version 2026-10-15, worker + employer folders): one top row (round

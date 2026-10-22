@@ -14164,7 +14164,11 @@ async function uploadDocumentFile(fileDataUrl, fileName, customerId = "", worker
     options = { ...options, onStage: s => { if (ui) ui.stage(s); else showUploadPill('load', s === 'ocr' ? 'AI กำลังอ่านเอกสาร' : 'กำลังอัปโหลด', fileName); if (typeof userOnStage === 'function') userOnStage(s); } };
     try {
         if (!ui) showUploadPill('load', 'กำลังเตรียมไฟล์', fileName);
-        const resData = await window.supabaseAdapter.uploadFile(fileDataUrl, fileName, customerId, workerId, docType, currentUser, options);
+        let resData = await window.supabaseAdapter.uploadFile(fileDataUrl, fileName, customerId, workerId, docType, currentUser, options);
+        // AI อ่านไม่สำเร็จ → แนบไฟล์ต่อเลยแบบไม่ผ่าน AI ไม่ถาม ไม่แจ้งเตือน (owner 2026-10-22) — เดิมถามว่าจะกรอกเองหรือแนบใหม่
+        if (resData && resData.aiRejected) {
+            resData = await window.supabaseAdapter.uploadFile(fileDataUrl, fileName, customerId, workerId, docType, currentUser, { ...options, skipOcr: true });
+        }
         if (ui && !(resData && resData.status === 'success')) { ui.fail(); ui = null; }
 
         if (resData && resData.status === 'success') {
@@ -14182,27 +14186,6 @@ async function uploadDocumentFile(fileDataUrl, fileName, customerId = "", worker
             // ผู้ใช้กดไม่อัปโหลดหลัง AI อ่าน (options.confirmParsed) — ไม่มีไฟล์ถูกเก็บ
             showUploadPill('warn', 'ไม่ได้อัปโหลดไฟล์', 'คงข้อมูลเดิมไว้');
             return { cancelled: true };
-        } else if (resData && resData.aiRejected) {
-            // เอกสารประเภทที่ใช้ AI แต่ AI อ่านไม่สำเร็จ — ไฟล์ยังไม่ถูกเก็บ ให้ผู้ใช้เลือก:
-            //   manual = อัปโหลดไฟล์เดิมอีกรอบแบบไม่ผ่าน AI แล้วกรอกข้อมูลเอง
-            //   retry  = ไม่เก็บไฟล์ (กันไฟล์ซ้ำซ้อนตอนแนบใหม่) ผู้เรียกต้องเช็ก aiRejected แล้วหยุด
-            //            ห้าม fallback ไปเก็บไฟล์ทางอื่น (uploadFileToServer)
-            hideUploadPill();
-            const choice = await askAiRejectedChoice(fileName, resData.ocrError);
-            if (choice === 'manual') {
-                ui = beginUploadUi(fileName);
-                const manualRes = await window.supabaseAdapter.uploadFile(fileDataUrl, fileName, customerId, workerId, docType, currentUser, { ...options, skipOcr: true });
-                if (ui) { if (manualRes && manualRes.status === "success") ui.done(false); else ui.fail(); ui = null; }
-                if (manualRes && manualRes.status === 'success') {
-                    showUploadPill('ok', 'แนบไฟล์แล้ว (ไม่ผ่าน AI)', 'กรุณากรอกข้อมูลเอง');
-                    // manualEntry: ผู้เรียกเปิด/เลื่อนไปที่ช่องที่ต้องกรอกให้อัตโนมัติ (ดู focusManualEntryFields)
-                    return { fileUrl: manualRes.fileUrl, viewUrl: manualRes.viewUrl, fileId: manualRes.fileId, fileName: manualRes.fileName || fileName, parsedData: null, ocrAttempted: false, manualEntry: true };
-                }
-                showUploadPill('bad', 'อัปโหลดไม่สำเร็จ', (manualRes && manualRes.message) || 'ข้อผิดพลาดระบบ');
-                return null;
-            }
-            showUploadPill('warn', 'AI อ่านไม่ได้', getAiRejectedMessage(resData.ocrError));
-            return { aiRejected: true, ocrError: resData.ocrError };
         } else {
             console.warn("Storage upload failed:", resData && resData.message);
             showUploadPill('bad', 'อัปโหลดไม่สำเร็จ', (resData && resData.message) || 'ข้อผิดพลาดระบบ');
