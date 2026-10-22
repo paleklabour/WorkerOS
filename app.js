@@ -12120,6 +12120,45 @@ async function saveUser(e) {
     renderUsers();
 }
 
+// สร้างบัญชี Client ให้นายจ้างทุกรายที่ยังไม่มีบัญชี (owner 2026-10-22) — แพทเทิร์นเดียวกับบัญชีที่สมัครไว้:
+// อีเมล = เลขภาษี 13 หลัก@gmail.com · รหัสผ่าน = เลขภาษี 13 หลัก · ชื่อบัญชี = ชื่อนายจ้าง/บริษัท
+// สร้างผ่าน create-user ทีละราย (ต้องใช้ PIN เหมือนเพิ่มบัญชีเอง) — ไม่มีเลขภาษี 13 หลัก / อีเมลซ้ำ = ข้าม
+async function bulkCreateClientAccounts() {
+    if (currentUser.role !== 'admin' || isViewingAs()) return;
+    const hasAccount = new Set(users.filter(u => u.role === 'client' && u.customer_id).map(u => u.customer_id));
+    const taxOf = c => String(c.taxId || '').replace(/\D/g, '');
+    const todo = customers.filter(c => c.status !== 'inactive' && !hasAccount.has(c.id) && taxOf(c).length === 13);
+    const noTax = customers.filter(c => c.status !== 'inactive' && !hasAccount.has(c.id) && taxOf(c).length !== 13);
+    if (!todo.length) { uiAlert('นายจ้างทุกรายมีบัญชีแล้ว' + (noTax.length ? `\n(ยังไม่มีบัญชีแต่ไม่มีเลขภาษี 13 หลัก ${noTax.length} ราย: ${noTax.map(c => c.companyName).join(', ')})` : '')); return; }
+    const ok = await uiConfirm(`สร้างบัญชีนายจ้าง (Client) ให้ ${todo.length} รายที่ยังไม่มีบัญชี?\n\nอีเมล = เลขภาษี 13 หลัก@gmail.com\nรหัสผ่าน = เลขภาษี 13 หลัก\nชื่อบัญชี = ชื่อนายจ้าง/บริษัท`
+        + (noTax.length ? `\n\nข้าม ${noTax.length} รายที่ไม่มีเลขภาษี 13 หลัก` : ''), { title: 'สร้างบัญชีนายจ้างทั้งหมด', okText: `สร้าง ${todo.length} บัญชี` });
+    if (!ok) return;
+    const pin = await askAdminPin();
+    if (!pin) return;
+
+    const done = [], failed = [];
+    for (let i = 0; i < todo.length; i++) {
+        const c = todo[i];
+        const tax = taxOf(c);
+        const name = String(c.companyName || '').trim() || tax;
+        showUploadPill('load', `กำลังสร้างบัญชี ${i + 1}/${todo.length}`, name);
+        const res = await callCloudAPI("saveUser", { userData: { name, email: `${tax}@gmail.com`, password: tax, role: 'client', customer_id: c.id }, pin });
+        if (res && res.status === "success") {
+            done.push(name);
+            users.push({ id: res.data && res.data.id, email: `${tax}@gmail.com`, name, role: 'client', customer_id: c.id });
+        } else {
+            const msg = (res && res.message) || 'unknown error';
+            failed.push(`${name} — ${msg}`);
+            if (/PIN/.test(msg)) break; // PIN ผิด = ทุกรายจะไม่ผ่าน หยุดเลย
+        }
+    }
+    localStorage.setItem("mw_users", JSON.stringify(users));
+    await loadUserAuthInfo(true);
+    renderUsers();
+    showUploadPill(failed.length ? 'warn' : 'ok', `สร้างบัญชีแล้ว ${done.length} ราย`, failed.length ? `ไม่สำเร็จ ${failed.length} ราย` : '');
+    if (failed.length) uiAlert(`สร้างแล้ว ${done.length} ราย\n\nไม่สำเร็จ ${failed.length} ราย:\n${failed.join('\n')}`);
+}
+
 async function deleteUserAccountUi(userId, userName) {
     if (currentUser.role !== 'admin') {
         showToast("❌ เฉพาะแอดมิน (Admin) เท่านั้นที่สามารถลบบัญชีผู้ใช้งานได้", "danger");
