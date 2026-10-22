@@ -1540,6 +1540,20 @@ label.user-avatar:hover { box-shadow: 0 0 0 3px rgba(45, 79, 163, 0.18); }
 .action-buttons-group {
     flex-wrap: wrap;
 }
+#view-users .action-buttons-group { display: flex; align-items: center; gap: 10px; }
+
+/* ปุ่ม "สร้างบัญชีนายจ้างที่ยังไม่มี" (หน้าจัดการบัญชีผู้ใช้งาน) — ขอบสีหลัก + ตัวเลขจำนวนที่ยังไม่มีบัญชี */
+.btn-bulk-client {
+    display: inline-flex; align-items: center; gap: 8px; white-space: nowrap;
+    color: var(--gold-primary); border-color: color-mix(in srgb, var(--gold-primary) 45%, transparent);
+    background: color-mix(in srgb, var(--gold-primary) 7%, var(--dk-card, #ffffff));
+}
+.btn-bulk-client:hover { background: color-mix(in srgb, var(--gold-primary) 14%, var(--dk-card, #ffffff)); }
+.bulk-client-count {
+    min-width: 22px; height: 22px; padding: 0 7px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center;
+    font-size: 12.5px; font-weight: 700; color: #ffffff; background: var(--gold-primary);
+}
+.bulk-client-count.hidden { display: none; }
 
 .search-filters-group {
     display: flex;

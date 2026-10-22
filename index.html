@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261022d">
+    <link rel="stylesheet" href="styles.css?v=20261022e">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -1409,13 +1409,18 @@
                                 <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle class="fl" cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/></svg>
                                 <input type="text" id="search-user" placeholder="ค้นหาชื่อ, อีเมล..." oninput="renderUsers()">
                             </div>
-                            <button class="btn btn-outline btn-add" onclick="bulkCreateClientAccounts()" title="สร้างบัญชี Client ให้นายจ้างทุกรายที่ยังไม่มีบัญชี (อีเมล/รหัสผ่าน = เลขภาษี 13 หลัก)">
-                                <span>สร้างบัญชีนายจ้างที่ยังไม่มี</span>
-                            </button>
-                            <button class="btn btn-gold" id="btn-add-user" onclick="openUserModal()">
-                                <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-                                <span>เพิ่มบัญชีผู้ใช้งาน</span>
-                            </button>
+                            <div class="action-buttons-group">
+                                <button class="btn btn-gold" id="btn-add-user" onclick="openUserModal()">
+                                    <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                                    <span>เพิ่มบัญชีผู้ใช้งาน</span>
+                                </button>
+                                <!-- สร้างบัญชี Client ให้นายจ้างที่ยังไม่มีทั้งหมด (bulkCreateClientAccounts) — ตัวเลข = จำนวนที่ยังไม่มีบัญชี (renderUsers) -->
+                                <button class="btn btn-outline btn-bulk-client" id="btn-bulk-client" onclick="bulkCreateClientAccounts()" title="สร้างบัญชี Client ให้นายจ้างทุกรายที่ยังไม่มีบัญชี (อีเมล/รหัสผ่าน = เลขภาษี 13 หลัก)">
+                                    <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path class="fl" d="M4 20V7.5L10 4l6 3.5V20"/><path d="M4 20h12M8 9h4M8 12.5h4M8 16h4"/><path d="M19 12v6M16 15h6"/></svg>
+                                    <span>สร้างบัญชีนายจ้างที่ยังไม่มี</span>
+                                    <span class="bulk-client-count hidden" id="bulk-client-count"></span>
+                                </button>
+                            </div>
                         </div>
 
                         <div class="table-container">
@@ -3624,7 +3629,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261022d"></script>
+    <script src="supabase-client.js?v=20261022e"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3635,6 +3640,6 @@
     </script>
 
     <!-- Application Script -->
-    <script src="app.js?v=20261022d"></script>
+    <script src="app.js?v=20261022e"></script>
 </body>
 </html>

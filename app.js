@@ -11832,6 +11832,14 @@ function renderUsers() {
     // เรียงตามสิทธิ์ใหญ่ → เล็ก (ลำดับใน ROLE_LABELS) แล้วตามชื่อ (owner, 2026-10-15)
     const roleRank = Object.keys(ROLE_LABELS);
     const rankOf = u => { const i = roleRank.indexOf(u.role); return i === -1 ? roleRank.length : i; };
+    // ตัวเลขบนปุ่ม "สร้างบัญชีนายจ้างที่ยังไม่มี" = นายจ้างที่ยังไม่มีบัญชี Client (เงื่อนไขเดียวกับ bulkCreateClientAccounts)
+    const bulkCount = document.getElementById("bulk-client-count");
+    if (bulkCount) {
+        const n = clientAccountTodo().length;
+        bulkCount.textContent = n;
+        bulkCount.classList.toggle("hidden", !n);
+    }
+
     const filtered = users.filter(u => {
         if (!search) return true;
         return (u.name || "").toLowerCase().includes(search) || emailOf(u).toLowerCase().includes(search);
@@ -12123,12 +12131,18 @@ async function saveUser(e) {
 // สร้างบัญชี Client ให้นายจ้างทุกรายที่ยังไม่มีบัญชี (owner 2026-10-22) — แพทเทิร์นเดียวกับบัญชีที่สมัครไว้:
 // อีเมล = เลขภาษี 13 หลัก@gmail.com · รหัสผ่าน = เลขภาษี 13 หลัก · ชื่อบัญชี = ชื่อนายจ้าง/บริษัท
 // สร้างผ่าน create-user ทีละราย (ต้องใช้ PIN เหมือนเพิ่มบัญชีเอง) — ไม่มีเลขภาษี 13 หลัก / อีเมลซ้ำ = ข้าม
+const clientTaxOf = c => String(c.taxId || '').replace(/\D/g, '');
+function clientAccountMissing() {
+    const hasAccount = new Set(users.filter(u => u.role === 'client' && u.customer_id).map(u => u.customer_id));
+    return customers.filter(c => c.status !== 'inactive' && !hasAccount.has(c.id));
+}
+function clientAccountTodo() { return clientAccountMissing().filter(c => clientTaxOf(c).length === 13); }
+
 async function bulkCreateClientAccounts() {
     if (currentUser.role !== 'admin' || isViewingAs()) return;
-    const hasAccount = new Set(users.filter(u => u.role === 'client' && u.customer_id).map(u => u.customer_id));
-    const taxOf = c => String(c.taxId || '').replace(/\D/g, '');
-    const todo = customers.filter(c => c.status !== 'inactive' && !hasAccount.has(c.id) && taxOf(c).length === 13);
-    const noTax = customers.filter(c => c.status !== 'inactive' && !hasAccount.has(c.id) && taxOf(c).length !== 13);
+    const taxOf = clientTaxOf;
+    const todo = clientAccountTodo();
+    const noTax = clientAccountMissing().filter(c => taxOf(c).length !== 13);
     if (!todo.length) { uiAlert('นายจ้างทุกรายมีบัญชีแล้ว' + (noTax.length ? `\n(ยังไม่มีบัญชีแต่ไม่มีเลขภาษี 13 หลัก ${noTax.length} ราย: ${noTax.map(c => c.companyName).join(', ')})` : '')); return; }
     const ok = await uiConfirm(`สร้างบัญชีนายจ้าง (Client) ให้ ${todo.length} รายที่ยังไม่มีบัญชี?\n\nอีเมล = เลขภาษี 13 หลัก@gmail.com\nรหัสผ่าน = เลขภาษี 13 หลัก\nชื่อบัญชี = ชื่อนายจ้าง/บริษัท`
         + (noTax.length ? `\n\nข้าม ${noTax.length} รายที่ไม่มีเลขภาษี 13 หลัก` : ''), { title: 'สร้างบัญชีนายจ้างทั้งหมด', okText: `สร้าง ${todo.length} บัญชี` });
