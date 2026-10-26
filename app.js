@@ -13117,7 +13117,9 @@ function calculateInvoiceTotals() {
     const subtotal = items.reduce((sum, item) => sum + (item.fee || 0), 0);
     const vat = 0; // กิจการไม่ได้จด VAT จริง — ป้าย "ภาษีมูลค่าเพิ่ม" ในใบวางบิลตัดคำว่า "7%" ออกแล้วให้ตรงกับที่นี่
     const grandTotal = subtotal + vat;
-    const govTotal = items.reduce((sum, item) => sum + Math.min(item.govFee || 0, item.fee || 0), 0);
+    // แสดงค่าธรรมเนียมรัฐตามที่ตั้งไว้ (ราคาขายยังไม่กรอกก็เห็น) — ตอนบันทึกบิลตัดไม่ให้เกินยอดของแต่ละรายการ
+    const govTotal = items.reduce((sum, item) => sum + (item.govFee || 0), 0);
+    const govOver = items.some(item => (item.govFee || 0) > (item.fee || 0) + 0.005);
     const fmt = v => v.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
     document.getElementById("inv-subtotal").innerText = fmt(subtotal);
@@ -13144,6 +13146,7 @@ function calculateInvoiceTotals() {
         splitEl.innerHTML = `
             <div class="split-item split-gov"><span>ค่าธรรมเนียมรัฐ (เก็บแทน)</span><strong>${fmt(govTotal)}</strong></div>
             <div class="split-item split-service"><span>ค่าบริการ (รายได้จริง)</span><strong>${fmt(Math.max(0, grandTotal - govTotal))}</strong></div>
+            ${govOver ? `<p class="split-note text-danger">${icon("warn")} บางรายการราคาขายยังไม่ได้กรอก หรือต่ำกว่าค่าธรรมเนียมรัฐ — กรอกราคาขายในช่อง "ราคา/หน่วย" ก่อนบันทึกบิล</p>` : ''}
             <p class="split-note">${icon("lock")} ส่วนนี้เห็นเฉพาะเจ้าหน้าที่ ไม่ถูกพิมพ์ลงบิล — แก้ค่าธรรมเนียมรัฐได้ในคอลัมน์ขวาสุดของตาราง</p>`;
     }
 
@@ -13448,7 +13451,8 @@ function generateCombinedInvoice() {
             const price = ratio * totalFee;
             const name = item.serviceName;
             if (!aggregated[name]) aggregated[name] = { jobs: [] };
-            aggregated[name].jobs.push({ jobId: j.id, workDetails, price, govFee: Math.min(item.govFee, price) });
+            // ไม่ตัด govFee ตามราคา — ราคาขายว่าง (กรอกเองในบิล) ต้องยังเห็นค่าธรรมเนียมรัฐ; ตอนบันทึกค่อยตัดไม่ให้เกินยอดรายการ
+            aggregated[name].jobs.push({ jobId: j.id, workDetails, price, govFee: item.govFee || 0 });
         });
     });
 
