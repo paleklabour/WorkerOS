@@ -18800,6 +18800,7 @@ function renderInvoiceStatusUi() {
     show('btn-void-invoice', !!inv && status !== 'void' && canManage);
     show('btn-delete-void-invoice', !!inv && status === 'void' && currentUser.role === 'admin');
     show('btn-restore-void-invoice', !!inv && status === 'void' && currentUser.role === 'admin');
+    show('btn-reissue-void-invoice', !!inv && status === 'void' && canManage && voidInvoiceReissuable(inv));
 
     // ช่องแก้ไขข้อความบนหัวบิล (ชื่อ/ที่อยู่/กำหนดชำระ/หมายเหตุ) แก้ได้เฉพาะตอนแก้ไขบิลได้
     ['inv-cust-name', 'inv-cust-addr', 'inv-cust-tax', 'inv-due-date', 'inv-notes'].forEach(id => {
@@ -19357,6 +19358,47 @@ async function deleteVoidInvoice(invoiceId) {
     renderBillingTab();
     renderDashboard();
     showToast(`🗑️ ลบบิล ${inv.invoiceNo} ออกจากระบบแล้ว`, "success");
+}
+
+// ออกบิลใหม่แทนบิลที่ยกเลิก (owner 2026-10-26: บัญชียกเลิกบิลแล้วแก้ราคาไม่ได้ เพราะหน้าต่างค้างที่บิลที่ยกเลิก ซึ่งล็อกไว้)
+// ใช้ได้เมื่อใบงานทุกใบในบิลยังไม่ถูกออกบิลใหม่/ไม่เรียกเก็บเงิน — เปิดเป็นร่างที่แก้ได้ รายการ/ราคาตั้งต้นจากบิลเดิม
+function voidInvoiceReissuable(inv) {
+    if (!inv || inv.status !== 'void') return false;
+    return (inv.jobIds || []).every(id => {
+        const j = jobs.find(x => x.id === id);
+        return j && jobAwaitingBill(j);
+    });
+}
+
+function reissueFromVoidInvoice() {
+    const inv = currentInvoiceId ? invoices.find(i => i.id === currentInvoiceId) : null;
+    if (!inv || !can('finance')) return;
+    if (!voidInvoiceReissuable(inv)) {
+        uiAlert('ใบงานบางใบในบิลนี้ถูกออกบิลใหม่ไปแล้ว หรือตั้งไม่เรียกเก็บเงิน — ออกบิลใหม่จากหน้าบิลแทน');
+        return;
+    }
+    currentInvoiceId = null; // ร่างใหม่ — แก้ราคา/รายการได้ กด "ออกบิล" แล้วได้เลขที่ใหม่
+    paymentSlipState.pay = [];
+    currentInvoiceItems = JSON.parse(JSON.stringify(inv.items || []));
+    currentInvoiceItems.forEach(item => { delete item.placeholder; });
+    if (inv.kind === 'free' && freePickerWrapToggle()) {
+        presetSearchSelect('free-invoice-customer', inv.customerId || null);
+        presetSearchSelect('free-invoice-worker', inv.workerId || null);
+        populateFreeInvoiceJobTypeSelect();
+    }
+    document.getElementById("inv-no").innerText = "ร่าง — ยังไม่ออกเลขที่";
+    setInvoiceDate(new Date());
+    document.getElementById("inv-due-date").innerText = defaultDueDateText(new Date());
+    renderInvoiceItemsTable();
+    renderInvoiceStatusUi();
+    showToast(`เปิดร่างบิลใหม่จาก ${inv.invoiceNo} แล้ว — แก้ราคาแล้วกด "ออกบิล"`, "success");
+}
+
+// บิลรายการอิสระ (ไม่ผูกใบงาน): โชว์ช่องเลือกนายจ้าง/คนงานในร่าง — คืน true ถ้ามีช่องนี้
+function freePickerWrapToggle() {
+    const wrap = document.getElementById("invoice-free-picker-wrap");
+    if (wrap) wrap.classList.remove("hidden");
+    return !!wrap;
 }
 
 async function voidCurrentInvoice() {

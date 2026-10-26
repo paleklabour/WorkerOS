@@ -576,7 +576,8 @@ portal); only Admin sees them via the "บิลที่ยกเลิก" fil
 keep voided invoices as evidence — `deleteVoidInvoice` (Admin) is only for
 invoices issued by mistake; `restoreVoidInvoice` (Admin) un-voids one voided by
 mistake after checking none of its jobs were re-billed or set no-charge.
-Document numbers (`next_doc_no`) only count up and
+"ออกบิลใหม่แทนใบนี้" (finance roles, owner 2026-10-26) on a voided bill opens an editable draft from its items (`reissueFromVoidInvoice`,
+only while all its jobs still await a bill) — the voided bill itself stays locked. Document numbers (`next_doc_no`) only count up and
 are never reused, so a deleted invoice leaves a gap.
 
 Job-close folder link (owner 2026-10-26): one no-login link per job (`share-job.html?j=<jobId>&t=<token>`) shows all of that

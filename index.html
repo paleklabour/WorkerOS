@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261026i">
+    <link rel="stylesheet" href="styles.css?v=20261026j">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -2972,6 +2972,9 @@
                         <button class="btn btn-outline hidden" id="btn-restore-void-invoice" onclick="restoreVoidInvoice(currentInvoiceId)">
                             <span class="ico" data-icon="refresh"></span> กู้คืนบิล
                         </button>
+                        <button class="btn btn-gold hidden" id="btn-reissue-void-invoice" onclick="reissueFromVoidInvoice()" title="เปิดร่างบิลใหม่จากรายการของบิลที่ยกเลิก แก้ราคา/รายการได้ แล้วกดออกบิล (ได้เลขที่ใหม่)">
+                            <span class="ico" data-icon="plus"></span> ออกบิลใหม่แทนใบนี้
+                        </button>
                         <button class="btn btn-outline btn-danger-outline hidden" id="btn-delete-void-invoice" onclick="deleteVoidInvoice(currentInvoiceId)">
                             <span class="ico" data-icon="trash"></span> ลบบิลนี้ถาวร
                         </button>
@@ -3629,7 +3632,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261026i"></script>
+    <script src="supabase-client.js?v=20261026j"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3640,6 +3643,6 @@
     </script>
 
     <!-- Application Script -->
-    <script src="app.js?v=20261026i"></script>
+    <script src="app.js?v=20261026j"></script>
 </body>
 </html>
