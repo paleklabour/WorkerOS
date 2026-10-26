@@ -578,3 +578,9 @@ invoices issued by mistake; `restoreVoidInvoice` (Admin) un-voids one voided by
 mistake after checking none of its jobs were re-billed or set no-charge.
 Document numbers (`next_doc_no`) only count up and
 are never reused, so a deleted invoice leaves a gap.
+
+Job-close folder link (owner 2026-10-26): one no-login link per job (`share-job.html?j=<jobId>&t=<token>`) shows all of that
+job's close documents + "ดาวน์โหลดทั้งหมด (ZIP)". Token = `jobs.share_token`, created/reused by RPC `job_share_token` (internal
+users or the job's own client; only when unlocked: no-charge / ชำระเงินแล้ว / `unlock_unpaid_job_docs`). Edge function
+`share-job-docs` (verify_jwt off) re-checks the unlock rule on every open. Staff: "ลิงก์โฟลเดอร์" in the closed-job banner
+copies it (`shareJobCloseFolder`); portal "งานที่แจ้ง" tab: "เปิดโฟลเดอร์" opens it instead of one link per file.
