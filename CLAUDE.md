@@ -221,7 +221,7 @@ because Account Managers are read-only on customers.
 
 `admin` = Admin/GM (everything), `account_manager` (billing, payments,
 deposits, voiding receipts, expenses, banks, standard prices/costs, agent
-commissions; read-only on customers/workers/jobs), `operation_manager`
+commissions; adds/edits employers + employer docs — `PERMS.customers` / RLS `can_edit_customers()`, owner 2026-10-26 — but read-only on workers/jobs), `operation_manager`
 (customers, workers, documents, jobs, assigning jobs; no finance, no
 commissions), `staff` (customers/workers/docs, opens jobs, edits only jobs
 they opened or are assigned to via `jobs.assigned_to`), `client`. Front end:

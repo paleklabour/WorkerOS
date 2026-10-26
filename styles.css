@@ -4561,6 +4561,7 @@ tr.is-voided-row td {
 
 /* ==================== สิทธิ์ตามตำแหน่ง (setupFormPermissions ใน app.js) ====================
    <body class="perm-no-xxx"> เมื่อผู้ใช้ไม่มีสิทธิ์ xxx → ซ่อนองค์ประกอบที่ติด class needs-xxx */
+.perm-no-customers .needs-customers,
 .perm-no-ops .needs-ops,
 .perm-no-finance .needs-finance,
 .perm-no-commission .needs-commission,

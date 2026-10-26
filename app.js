@@ -1159,7 +1159,8 @@ const PERMS = {
     finance:      ['admin', 'account_manager'],                     // บิล รับเงิน มัดจำ รายจ่าย บัญชีธนาคาร ราคามาตรฐาน/ต้นทุน
     voidMoney:    ['admin', 'account_manager'],                     // ยกเลิกใบเสร็จ/การรับเงิน, ถอนยอดออกจากบิล
     commission:   ['admin', 'account_manager'],                     // เห็น/จ่ายค่าคอม Agent
-    ops:          ['admin', 'operation_manager', 'staff'],          // เพิ่ม/แก้นายจ้าง คนงาน เอกสาร, เปิดใบงาน
+    ops:          ['admin', 'operation_manager', 'staff'],          // เพิ่ม/แก้คนงาน เอกสารคนงาน, เปิดใบงาน
+    customers:    ['admin', 'account_manager', 'operation_manager', 'staff'], // เพิ่ม/แก้นายจ้าง + แฟ้มเอกสารนายจ้าง (บัญชีทำได้ แต่คนงานไม่ได้ — owner 2026-10-26)
     assignJobs:   ['admin', 'operation_manager'],                   // มอบหมายผู้รับผิดชอบ + แก้ใบงานทุกใบ
     manageAgents: ['admin', 'account_manager', 'operation_manager'],
     deleteFiles:  ['admin', 'operation_manager'],                   // ลบไฟล์เอกสารในแฟ้ม (Storage)
@@ -1186,7 +1187,7 @@ function setupFormPermissions() {
     Object.keys(PERMS).forEach(p => document.body.classList.toggle(`perm-no-${p}`, !can(p)));
 
     const show = (id, on) => { const el = document.getElementById(id); if (el) el.style.display = on ? 'flex' : 'none'; };
-    show("btn-add-customer", can('ops'));
+    show("btn-add-customer", can('customers'));
     show("btn-add-worker", can('ops'));
     show("btn-add-job", can('ops') || (currentUser && currentUser.role === 'client'));
     show("btn-add-bank", can('finance'));
@@ -5930,7 +5931,7 @@ function renderCustomers() {
 
         // ปุ่มดินสอในแถบปุ่มสไลด์ขวา = เปิดข้อมูล/แก้ไขนายจ้าง; ดับเบิลคลิกแถว = ดูรายชื่อลูกจ้างของนายจ้างนี้ (owner, 2026-10-14)
         // ตำแหน่งที่แก้นายจ้างไม่ได้ (Account Manager) ปุ่มเดิมเปิดดูอย่างเดียว
-        const editBtn = `<button class="action-icon-btn" onclick="openCustomerModal('${c.id}')" title="${can('ops') ? 'แก้ไขข้อมูลนายจ้าง' : 'ดูข้อมูลนายจ้าง'}">${icon("edit")}</button>`;
+        const editBtn = `<button class="action-icon-btn" onclick="openCustomerModal('${c.id}')" title="${can('customers') ? 'แก้ไขข้อมูลนายจ้าง' : 'ดูข้อมูลนายจ้าง'}">${icon("edit")}</button>`;
         const activeWorkersCount = allWorkers().filter(w => w.employerId === c.id && w.status !== 'archived' && w.status !== 'deleted').length;
         const totalWorkersCount = allWorkers().filter(w => w.employerId === c.id && w.status !== 'deleted').length;
 
@@ -13804,7 +13805,7 @@ function imageEditorOwner(kind) {
 }
 
 async function openImageEditor(kind, docType, idx) {
-    if (!can('ops')) return;
+    if (!can(kind === 'worker' ? 'ops' : 'customers')) return;
     const owner = imageEditorOwner(kind);
     const item = owner && getAttachments(owner, docType)[idx];
     const url = item && (kind === 'worker' ? workerFolderFileUrl(item) : item.data);
@@ -14301,7 +14302,7 @@ function renderCustomerFolderTiles() {
     const searchInput = document.getElementById("search-customer-folder");
     const query = searchInput ? searchInput.value.trim().toLowerCase() : "";
 
-    const canAdd = can('ops');
+    const canAdd = can('customers');
     const groups = [];
     const emptyTypes = [];
     const allFiles = [];
@@ -14368,7 +14369,7 @@ function renderCustomerFolderPreview() {
     const fItem = getAttachments(c, sel.key)[sel.idx];
     if (!fItem) { box.innerHTML = ''; return; }
     const url = fItem.data || '';
-    const canEdit = can('ops');
+    const canEdit = can('customers');
     const viewer = isPdfUrl(url)
         ? `<iframe src="${escapeHtml(url)}" title="${escapeHtml(fItem.name || '')}"></iframe>`
         : `<img src="${escapeHtml(url)}" alt="${escapeHtml(fItem.name || '')}" onerror="this.outerHTML = '<iframe src=&quot;' + this.src + '&quot;></iframe>'">`;
@@ -15643,7 +15644,8 @@ function fvFileDrag(e) {
     if (!dt || !Array.from(dt.types || []).includes('Files')) return null; // ลากไฟล์ในรายการ (ย้ายหมดอายุ) ไม่ใช่ไฟล์จากเครื่อง
     const modal = e.target.closest && e.target.closest('#worker-folder-modal, #customer-folder-modal');
     if (!modal || modal.classList.contains('hidden')) return null;
-    return { modal, tile: e.target.closest('.fv-list [data-paste-target]') };
+    // แฟ้มนายจ้างใช้สิทธิ์ customers (บัญชีแนบได้), แฟ้มคนงานใช้ ops
+    return { modal, tile: e.target.closest('.fv-list [data-paste-target]'), canEdit: can(modal.id === 'customer-folder-modal' ? 'customers' : 'ops') };
 }
 function fvClearFileDrag() {
     document.querySelectorAll('.fv-modal.is-file-drag').forEach(el => el.classList.remove('is-file-drag'));
@@ -15653,10 +15655,10 @@ document.addEventListener('dragover', e => {
     const t = fvFileDrag(e);
     if (!t) return;
     e.preventDefault(); // ไม่ให้เบราว์เซอร์เปิดไฟล์แทน
-    const ok = can('ops') && !!t.tile;
+    const ok = t.canEdit && !!t.tile;
     e.dataTransfer.dropEffect = ok ? 'copy' : 'none';
     const box = t.modal.querySelector('.fv-modal');
-    if (box && can('ops')) box.classList.add('is-file-drag');
+    if (box && t.canEdit) box.classList.add('is-file-drag');
     document.querySelectorAll('.fv-list .dragover').forEach(el => { if (el !== t.tile) el.classList.remove('dragover'); });
     if (ok) t.tile.classList.add('dragover');
     clearTimeout(fvDropTimer);
@@ -15667,7 +15669,7 @@ document.addEventListener('drop', async e => {
     if (!t) return;
     e.preventDefault();
     fvClearFileDrag();
-    if (!can('ops')) return;
+    if (!t.canEdit) return;
     const files = Array.from(e.dataTransfer.files || []);
     if (!files.length) return;
     if (!t.tile) {
