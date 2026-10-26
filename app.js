@@ -4760,14 +4760,21 @@ function openWorkerQuickView(workerId, mode, tab) {
                 ? `<div class="wp-list">${expenseRows.join('')}</div><p class="wp-hint">เฉพาะรายจ่ายที่ผูกกับใบงานของคนนี้ — รายจ่ายที่ผูกหลายใบงานแบ่งเท่ากันต่อใบงาน</p>`
                 : '<p class="wp-empty">ยังไม่มีรายจ่ายที่ผูกกับใบงานของคนนี้</p>');
     } else {
-        body = sec('วันหมดอายุ', kv([
+        // สถานะคนงาน + "รอแจ้งเข้า" (owner 2026-10-26) — นอกจากป้ายบนหัวแผงแล้ว ขึ้นเป็นแถวแรกของแท็บข้อมูลด้วย
+        const notify = workerNeedsNotifyEntry(w);
+        body = sec('สถานะ', kv([
+            ['สถานะคนงาน', `${escapeHtml(WORKER_STATUS_LABELS[w.status] || w.status || '-')}${notify ? ` <span class="wp-pill is-warn wp-pill-inline">${icon('hourglass')} รอแจ้งเข้า</span>` : ''}`, true],
+            ['แจ้งเข้า', notify ? 'ยังไม่ได้แจ้งเข้า (ยังไม่ตรวจผ่าน e-WorkPermit และยังไม่มีใบงานที่ปิดงานแล้ว)' : ''],
+        ])) + sec('วันหมดอายุ', kv([
             ['ใบอนุญาตทำงาน', expHtml(w.permitExpiry, 60), true],
             ['พาสปอร์ต / CI', expHtml(w.passportExpiry, 180), true],
             ['บัตรชมพู', expHtml(fileExp('worker-pink-card'), 60), true],
             ['ประกัน', expHtml(fileExp('worker-insurance-doc'), 60), true],
         ])) + sec('ประวัติต่ออายุ', renewalHistoryHtml(w)) + sec('นายจ้าง', kv([
-            ['บริษัท', emp ? emp.companyName : ''],
-            ['เลขผู้เสียภาษี', can('finance') && emp ? emp.taxId : ''],
+            // เลขนายจ้าง + เลขกรรมการ แสดงให้ทุกตำแหน่งภายใน (owner 2026-10-26) — บุคคลธรรมดามีเลขเดียว
+            [emp && isIndividualCustomer(emp) ? 'นายจ้าง' : 'บริษัท', emp ? emp.companyName : ''],
+            [emp && isIndividualCustomer(emp) ? 'เลขประจำตัวประชาชน' : 'เลขนิติบุคคล', emp ? emp.taxId : ''],
+            ['เลขกรรมการ', emp && !isIndividualCustomer(emp) && emp.directorId !== emp.taxId ? emp.directorId : ''],
             ['ตำแหน่งงาน', w.position],
             ['สถานที่ทำงาน', w.workplace],
         ])) + sec('เลขประจำตัว / เอกสาร', kv([
