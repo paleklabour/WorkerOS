@@ -12354,7 +12354,8 @@ function buildInvoiceItemsFromJob(j, workDetails) {
         if (j.govFee > 0 && weightSum > 0) govFee = round2(j.govFee * stdGovWeights[idx] / weightSum);
         else if (j.govFee > 0 && priceSum > 0) govFee = round2(j.govFee * item.price / priceSum);
         else if (std) govFee = std.govFee;
-        govFee = Math.min(govFee, price);
+        // ไม่ตัด govFee ตามราคาตรงนี้ — ราคาขายว่าง (กรอกเองในบิล) ราคาเริ่มที่ 0 แต่ต้องจำค่าธรรมเนียมรัฐไว้;
+        // ยอดรวมตัดไม่ให้เกินยอดรายการอยู่แล้ว (calculateInvoiceTotals / collectInvoiceJobUpdates ใช้ Math.min)
         return {
             id: `${j.id}-${idx}`,
             title: `ค่าบริการ: ${item.name}`,
@@ -12520,7 +12521,7 @@ async function issueCurrentInvoice() {
             items: realItems,
             subtotal: round2(total),
             grandTotal: round2(total),
-            govFeeTotal: round2(realItems.reduce((s, item) => s + (item.govFee || 0), 0)),
+            govFeeTotal: round2(realItems.reduce((s, item) => s + Math.min(item.govFee || 0, item.fee || 0), 0)),
             issueDate: localDateISO(new Date()),
             // กำหนดชำระแบบมาตรฐาน → คำนวณใหม่จากวันออกบิลจริง (เผื่อเปิดร่างไว้ข้ามวัน); ถ้าแก้ข้อความเองใช้ตามที่แก้
             dueDateText: readInvoiceText("inv-due-date").endsWith(DUE_DATE_SUFFIX) ? defaultDueDateText(new Date()) : readInvoiceText("inv-due-date"),
@@ -19851,7 +19852,7 @@ function renderServicePrices() {
         return `
             <tr data-job-type="${escapeHtml(t)}">
                 <td><strong>${escapeHtml(t)}</strong></td>
-                <td class="inv-num"><input type="number" min="0" step="0.01" class="price-input" id="sp-sell-${i}" value="${round2(p.govFee + p.serviceFee)}" ${dis} oninput="updateServicePriceTotal(${i})" title="ราคาที่ขึ้นบนบิลให้ลูกค้า"></td>
+                <td class="inv-num"><input type="number" min="0" step="0.01" class="price-input" id="sp-sell-${i}" value="${round2(p.govFee + p.serviceFee) > 0 ? round2(p.govFee + p.serviceFee) : ''}" placeholder="กรอกเองในบิล" ${dis} oninput="updateServicePriceTotal(${i})" title="ราคาที่ขึ้นบนบิลให้ลูกค้า — เว้นว่าง = บิลขึ้น 0 แล้วกรอกราคาเองตอนออกบิล"></td>
                 <td class="inv-num"><input type="number" min="0" step="0.01" class="price-input price-gov" id="sp-gov-${i}" value="${p.govFee}" ${dis} oninput="updateServicePriceTotal(${i})" title="ข้อมูลภายใน ไม่บวกเพิ่มในราคาขาย และไม่พิมพ์ลงบิล"></td>
                 <td class="inv-num"><strong id="sp-svc-${i}">${fmtMoney(p.serviceFee)}</strong></td>
                 <td class="inv-num">
@@ -19927,18 +19928,20 @@ function updateServicePriceTotal(i) {
     // ราคาขายกรอกเอง, ค่าธรรมเนียมรัฐเป็นข้อมูลภายใน (ส่วนหนึ่งของราคาขาย ไม่บวกเพิ่ม) → ค่าบริการ = ราคาขาย − ค่าธรรมเนียมรัฐ
     const sell = Number(document.getElementById(`sp-sell-${i}`).value) || 0;
     const gov = Number(document.getElementById(`sp-gov-${i}`).value) || 0;
+    // ราคาขายว่าง = กรอกเองในบิล → ยังรู้ค่าบริการ/กำไรไม่ได้
+    const noSell = !(sell > 0);
     const svc = round2(sell - gov);
     const svcEl = document.getElementById(`sp-svc-${i}`);
-    svcEl.innerText = fmtMoney(svc);
-    svcEl.className = svc < 0 ? 'text-danger' : '';
+    svcEl.innerText = noSell ? '—' : fmtMoney(svc);
+    svcEl.className = noSell ? 'text-muted' : svc < 0 ? 'text-danger' : '';
     const costs = readServicePriceCosts(i);
     const cost = costItemsTotal(costs);
     document.getElementById(`sp-cost-total-${i}`).innerText = fmtMoney(cost);
     document.getElementById(`sp-cost-count-${i}`).innerText = `(${costs.length})`;
     const profit = round2(svc - cost);
     const profitEl = document.getElementById(`sp-profit-${i}`);
-    profitEl.innerText = fmtMoney(profit);
-    profitEl.className = profit < 0 ? 'text-danger' : profit > 0 ? 'text-success' : 'text-muted';
+    profitEl.innerText = noSell ? '—' : fmtMoney(profit);
+    profitEl.className = noSell ? 'text-muted' : profit < 0 ? 'text-danger' : profit > 0 ? 'text-success' : 'text-muted';
 }
 
 async function saveServicePriceRow(i, jobType) {
@@ -19946,7 +19949,9 @@ async function saveServicePriceRow(i, jobType) {
     if (costItems.some(c => !c.name)) { uiAlert("กรุณาใส่ชื่อรายการต้นทุนให้ครบทุกบรรทัด (หรือลบบรรทัดที่ไม่ใช้)"); return; }
     const sell = round2(document.getElementById(`sp-sell-${i}`).value);
     const gov = round2(document.getElementById(`sp-gov-${i}`).value);
-    if (gov > sell) { uiAlert("ค่าธรรมเนียมรัฐมากกว่าราคาขาย — ค่าธรรมเนียมรัฐเป็นส่วนหนึ่งของราคาขาย กรุณาตรวจตัวเลขอีกครั้ง"); return; }
+    // ราคาขายว่าง (0) = กรอกเองในบิล: เก็บ serviceFee = −govFee ให้ govFee + serviceFee (ราคาที่เติมลงบิล) = 0
+    // แต่ยังจำค่าธรรมเนียมรัฐไว้แยกยอดในบิล
+    if (sell > 0 && gov > sell) { uiAlert("ค่าธรรมเนียมรัฐมากกว่าราคาขาย — ค่าธรรมเนียมรัฐเป็นส่วนหนึ่งของราคาขาย กรุณาตรวจตัวเลขอีกครั้ง"); return; }
     const priceData = {
         jobType,
         govFee: gov,
@@ -19955,9 +19960,9 @@ async function saveServicePriceRow(i, jobType) {
         updatedAt: new Date().toISOString()
     };
     if (!(await confirmBeforeSave(null, `ตรวจสอบราคามาตรฐาน "${jobType}"`, [
-        { label: "ราคาขาย (บนบิล)", value: `${fmtMoney(sell)} บาท` },
+        { label: "ราคาขาย (บนบิล)", value: sell > 0 ? `${fmtMoney(sell)} บาท` : 'กรอกเองในบิล' },
         { label: "ค่าธรรมเนียมรัฐ (เก็บแทน — ภายใน)", value: `${fmtMoney(priceData.govFee)} บาท` },
-        { label: "ค่าบริการ (ราคาขาย − ค่าธรรมเนียมรัฐ)", value: `${fmtMoney(priceData.serviceFee)} บาท` },
+        ...(sell > 0 ? [{ label: "ค่าบริการ (ราคาขาย − ค่าธรรมเนียมรัฐ)", value: `${fmtMoney(priceData.serviceFee)} บาท` }] : []),
         ...costItems.map(c => ({ label: `ต้นทุน: ${c.name}`, value: `${fmtMoney(c.amount || c.cost || 0)} บาท` }))
     ]))) return;
     const res = await callCloudAPI("saveServicePrice", { priceData });
@@ -19969,7 +19974,7 @@ async function saveServicePriceRow(i, jobType) {
     saveData();
     rerenderServicePriceCosts(i, costItems);
     if (updatedJobs > 0) { renderJobs(); renderBillingTab(); }
-    showToast(`💾 บันทึกราคามาตรฐาน "${jobType}" แล้ว — กำไรต่องานประมาณ ${fmtMoney(priceData.serviceFee - costItemsTotal(costItems))} บาท`
+    showToast(`💾 บันทึกราคามาตรฐาน "${jobType}" แล้ว` + (sell > 0 ? ` — กำไรต่องานประมาณ ${fmtMoney(priceData.serviceFee - costItemsTotal(costItems))} บาท` : ' — ราคาขายกรอกเองในบิล')
         + (updatedJobs > 0 ? ` (อัปเดตราคาใบงานที่ยังไม่ออกบิล ${updatedJobs} ใบ)` : ''), "success");
 }
 
