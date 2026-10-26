@@ -495,7 +495,7 @@ days or expired, no active round) / กำลังดำเนินการ /
 `renderRenewalCases` draws the first three. Staff start rounds themselves (`startRenewals`, never automatic). Fixed steps
 (`RENEWAL_STEPS`): ตรวจสุขภาพ (tick, no file) → ใบคำขอ → ใบเสร็จ (issued together but attached separately) → ใบแทน (`WP_R`) → ใบนัดหมาย (date
 only, no file) → Smart card; optional ทำเล่ม (`with_book`, suggested by `renewalSuggestBook`; many workers keep their book).
-Billing: starting a round creates hidden billing job(s) "ต่ออายุใบอนุญาตทำงาน" (+ "ต่อเล่ม CI/Passport") with
+Billing: starting a round creates hidden billing job(s) "ต่ออายุใบอนุญาตทำงาน" (+ "ทำเล่ม CI/Passport") with
 `batchId = 'renewal-<id>'` (`createRenewalJobs`) — they show on the billing page as awaiting bill (standard prices, deposits /
 credit, agent commission, portal all unchanged) but `renderJobs` hides them (`isRenewalJob`); closing a round closes them,
 cancelling deletes the unbilled ones. Their billing-page rows are teal (`.is-renewal-row` + "งานต่ออายุ" tag); the billing page and the combine-bills window have

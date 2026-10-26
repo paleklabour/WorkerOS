@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261026h">
+    <link rel="stylesheet" href="styles.css?v=20261026i">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -748,7 +748,7 @@
                                     <select id="filter-job-type" onchange="renderJobs()">
                                         <option value="">ทุกประเภทงาน</option>
                                         <option value="ขึ้นทะเบียนแรงงานต่างด้าว">ขึ้นทะเบียนแรงงานต่างด้าว</option>
-                                        <option value="ต่อเล่ม CI/Passport">ต่อเล่ม CI/Passport</option>
+                                        <option value="ทำเล่ม CI/Passport">ทำเล่ม CI/Passport</option>
                                         <option value="ตี VISA">ตี VISA</option>
                                         <option value="ย้ายตรา">ย้ายตรา</option>
                                         <option value="แจ้งเข้าคนงานต่างด้าว">แจ้งเข้าคนงานต่างด้าว</option>
@@ -2529,7 +2529,7 @@
                                 </div>
                                 <div style="display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
                                     <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; user-select: none; margin: 0; font-weight: normal; color: var(--text-dark); flex: 1;">
-                                        <input type="checkbox" name="job-type-checkbox" value="ต่อเล่ม CI/Passport" style="width: 16px; height: 16px;"> ต่อเล่ม CI/Passport
+                                        <input type="checkbox" name="job-type-checkbox" value="ทำเล่ม CI/Passport" style="width: 16px; height: 16px;"> ทำเล่ม CI/Passport
                                     </label>
                                 </div>
                                 <div style="display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: var(--radius-sm);">
@@ -3629,7 +3629,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261026h"></script>
+    <script src="supabase-client.js?v=20261026i"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3640,6 +3640,6 @@
     </script>
 
     <!-- Application Script -->
-    <script src="app.js?v=20261026h"></script>
+    <script src="app.js?v=20261026i"></script>
 </body>
 </html>

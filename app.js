@@ -3052,11 +3052,11 @@ const renewalDaysLeft = (iso) => {
     const t = new Date(); t.setHours(0, 0, 0, 0);
     return Math.ceil((d - t) / 86400000);
 };
-// ใบงานเก็บเงินเบื้องหลัง (owner 2026-10-20): กดเริ่มรอบ → สร้างใบงาน "ต่ออายุใบอนุญาตทำงาน" (+ "ต่อเล่ม CI/Passport" ถ้าทำเล่ม)
+// ใบงานเก็บเงินเบื้องหลัง (owner 2026-10-20): กดเริ่มรอบ → สร้างใบงาน "ต่ออายุใบอนุญาตทำงาน" (+ "ทำเล่ม CI/Passport" ถ้าทำเล่ม)
 // batchId = 'renewal-<id รอบ>' → ขึ้นหน้าออกบิลเป็นรอออกบิลเหมือนใบงานทั่วไป (ราคามาตรฐาน มัดจำ/เงินฝาก ค่าคอม Agent
 // พอร์ทัลลูกค้า ใช้ของเดิมทั้งหมด) แต่ไม่ขึ้นหน้าแจ้งงาน/Kanban (renderJobs กรองออก) — ปิดรอบ = ปิดใบงานพวกนี้
 const RENEWAL_JOB_TYPE = 'ต่ออายุใบอนุญาตทำงาน';
-const RENEWAL_BOOK_JOB_TYPE = 'ต่อเล่ม CI/Passport';
+const RENEWAL_BOOK_JOB_TYPE = 'ทำเล่ม CI/Passport';
 const isRenewalJob = (j) => String((j && j.batchId) || '').startsWith('renewal-');
 // งานขึ้นทะเบียน (owner 2026-10-20): รอบ kind 'registration' ใช้ batch 'register-<id>' — แท็บแยกในหน้าออกบิล
 const isRegisterJob = (j) => String((j && j.batchId) || '').startsWith('register-');
@@ -3658,7 +3658,7 @@ async function renewalNewDataChoice(r, w, step) {
     if (await saveRenewalRow(r)) { renderRenewalCases(); renderWorkers(); }
 }
 
-// ทำเล่มที่อื่น: รายการรอออกบิลค่าต่อเล่มของรอบถูกลบ (ออกบิลแล้ว = ข้าม ให้ฝ่ายบัญชีจัดการก่อน), รอบปิดได้โดยไม่ต้องรอเล่ม
+// ทำเล่มที่อื่น: รายการรอออกบิลค่าทำเล่มของรอบถูกลบ (ออกบิลแล้ว = ข้าม ให้ฝ่ายบัญชีจัดการก่อน), รอบปิดได้โดยไม่ต้องรอเล่ม
 async function markBookExternal(ids) {
     if (!can('ops')) return;
     const rounds = ids.map(id => (renewalList || []).find(x => x.id === id))
