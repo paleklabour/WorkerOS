@@ -21014,7 +21014,12 @@ function setupFloatingHScroll() {
 
 // ==================== คนงานแยกรายจังหวัด (แดชบอร์ด) ====================
 // จังหวัดของคนงาน = จังหวัดสำนักงานใหญ่ของนายจ้าง (ระบบล็อกสถานที่ทำงานของคนงานไว้ตามนี้ — ดู getCustomerHQAddress)
+// จังหวัดของคนงาน: ดูจากที่ทำงานของคนงานก่อน (จ.xxx / จังหวัดxxx / กรุงเทพ) ไม่มีค่อยใช้จังหวัดสำนักงานใหญ่ของนายจ้าง
 function workerProvinceOf(w) {
+    const wp = String(w.workplace || '');
+    if (/กรุงเทพ|กทม/.test(wp)) return 'กรุงเทพมหานคร';
+    const m = wp.match(/(?:จ\.|จังหวัด)\s*([ก-๙]+)/);
+    if (m) return m[1];
     const c = customers.find(item => item.id === w.employerId);
     if (!c || !Array.isArray(c.branches) || !c.branches.length) return '';
     const b = c.branches.find(br => (br.name || '').includes('สำนักงานใหญ่')) || c.branches[0];
