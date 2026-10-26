@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261022k">
+    <link rel="stylesheet" href="styles.css?v=20261026a">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -1378,8 +1378,8 @@
                         <!-- SUB-TAB: ราคามาตรฐาน (ภายใน) — ค่าธรรมเนียมรัฐ + ค่าบริการต่อประเภทงาน ดู renderServicePrices() -->
                         <div id="finpage-tab-prices" class="db-tab-content hidden">
                             <p class="section-desc" style="margin: 0 0 15px;">
-                                ตั้งราคามาตรฐานต่อประเภทงานครั้งเดียว — ตอนออกบิลระบบเติมราคาให้อัตโนมัติ (แก้ในบิลได้)
-                                และแยก <strong>ค่าธรรมเนียมรัฐ (เก็บแทน)</strong> ออกจาก <strong>ค่าบริการ</strong> เพื่อให้หน้าสรุปการเงินแสดงรายได้จริง
+                                ตั้งราคามาตรฐานต่อประเภทงานครั้งเดียว — กรอก <strong>ราคาขาย</strong> เอง (ตอนออกบิลระบบเติมให้อัตโนมัติ แก้ในบิลได้)
+                                ส่วน <strong>ค่าธรรมเนียมรัฐ (เก็บแทน)</strong> เป็นข้อมูลภายใน ไม่บวกเพิ่มในราคาขาย — ใช้แยกออกจากราคาขายเพื่อให้หน้าสรุปการเงินแสดงรายได้ค่าบริการจริง
                                 — ใส่ <strong>ต้นทุน</strong> ต่องาน (ค่าตรวจโรค ค่าแปล ค่าเดินทาง ฯลฯ) เพื่อดูกำไรต่องานโดยประมาณ = ค่าบริการ − ต้นทุน
                                 — ข้อมูลส่วนนี้ใช้ภายใน ไม่ถูกพิมพ์ลงบิลที่ให้ลูกค้า
                             </p>
@@ -1388,9 +1388,9 @@
                                     <thead>
                                         <tr>
                                             <th>ประเภทงาน</th>
-                                            <th class="inv-num" style="width: 190px;">ค่าธรรมเนียมรัฐ (เก็บแทน)</th>
-                                            <th class="inv-num" style="width: 170px;">ค่าบริการ</th>
-                                            <th class="inv-num" style="width: 150px;">ราคารวมบนบิล</th>
+                                            <th class="inv-num" style="width: 170px;">ราคาขาย (บนบิล)</th>
+                                            <th class="inv-num" style="width: 190px;">ค่าธรรมเนียมรัฐ (เก็บแทน — ภายใน)</th>
+                                            <th class="inv-num" style="width: 170px;">ค่าบริการ (ขาย − รัฐ)</th>
                                             <th class="inv-num" style="width: 150px;">ต้นทุน (กดดูรายการ)</th>
                                             <th class="inv-num" style="width: 130px;">กำไรต่องาน</th>
                                             <th class="actions-col"></th>
@@ -3629,7 +3629,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261022k"></script>
+    <script src="supabase-client.js?v=20261026a"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3640,6 +3640,6 @@
     </script>
 
     <!-- Application Script -->
-    <script src="app.js?v=20261022k"></script>
+    <script src="app.js?v=20261026a"></script>
 </body>
 </html>

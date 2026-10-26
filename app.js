@@ -19851,9 +19851,9 @@ function renderServicePrices() {
         return `
             <tr data-job-type="${escapeHtml(t)}">
                 <td><strong>${escapeHtml(t)}</strong></td>
-                <td class="inv-num"><input type="number" min="0" step="0.01" class="price-input price-gov" id="sp-gov-${i}" value="${p.govFee}" ${dis} oninput="updateServicePriceTotal(${i})"></td>
-                <td class="inv-num"><input type="number" min="0" step="0.01" class="price-input" id="sp-svc-${i}" value="${p.serviceFee}" ${dis} oninput="updateServicePriceTotal(${i})"></td>
-                <td class="inv-num"><strong id="sp-total-${i}">${fmtMoney(p.govFee + p.serviceFee)}</strong></td>
+                <td class="inv-num"><input type="number" min="0" step="0.01" class="price-input" id="sp-sell-${i}" value="${round2(p.govFee + p.serviceFee)}" ${dis} oninput="updateServicePriceTotal(${i})" title="ราคาที่ขึ้นบนบิลให้ลูกค้า"></td>
+                <td class="inv-num"><input type="number" min="0" step="0.01" class="price-input price-gov" id="sp-gov-${i}" value="${p.govFee}" ${dis} oninput="updateServicePriceTotal(${i})" title="ข้อมูลภายใน ไม่บวกเพิ่มในราคาขาย และไม่พิมพ์ลงบิล"></td>
+                <td class="inv-num"><strong id="sp-svc-${i}">${fmtMoney(p.serviceFee)}</strong></td>
                 <td class="inv-num">
                     <button type="button" class="btn btn-sm btn-outline price-cost-toggle" id="sp-cost-btn-${i}" onclick="toggleServicePriceCosts(${i})">${icon('cash')} <span id="sp-cost-total-${i}">${fmtMoney(costItemsTotal(costs))}</span> <small id="sp-cost-count-${i}">(${costs.length})</small></button>
                 </td>
@@ -19924,9 +19924,13 @@ function removeServicePriceCost(i, k) {
 }
 
 function updateServicePriceTotal(i) {
+    // ราคาขายกรอกเอง, ค่าธรรมเนียมรัฐเป็นข้อมูลภายใน (ส่วนหนึ่งของราคาขาย ไม่บวกเพิ่ม) → ค่าบริการ = ราคาขาย − ค่าธรรมเนียมรัฐ
+    const sell = Number(document.getElementById(`sp-sell-${i}`).value) || 0;
     const gov = Number(document.getElementById(`sp-gov-${i}`).value) || 0;
-    const svc = Number(document.getElementById(`sp-svc-${i}`).value) || 0;
-    document.getElementById(`sp-total-${i}`).innerText = fmtMoney(gov + svc);
+    const svc = round2(sell - gov);
+    const svcEl = document.getElementById(`sp-svc-${i}`);
+    svcEl.innerText = fmtMoney(svc);
+    svcEl.className = svc < 0 ? 'text-danger' : '';
     const costs = readServicePriceCosts(i);
     const cost = costItemsTotal(costs);
     document.getElementById(`sp-cost-total-${i}`).innerText = fmtMoney(cost);
@@ -19940,16 +19944,20 @@ function updateServicePriceTotal(i) {
 async function saveServicePriceRow(i, jobType) {
     const costItems = readServicePriceCosts(i);
     if (costItems.some(c => !c.name)) { uiAlert("กรุณาใส่ชื่อรายการต้นทุนให้ครบทุกบรรทัด (หรือลบบรรทัดที่ไม่ใช้)"); return; }
+    const sell = round2(document.getElementById(`sp-sell-${i}`).value);
+    const gov = round2(document.getElementById(`sp-gov-${i}`).value);
+    if (gov > sell) { uiAlert("ค่าธรรมเนียมรัฐมากกว่าราคาขาย — ค่าธรรมเนียมรัฐเป็นส่วนหนึ่งของราคาขาย กรุณาตรวจตัวเลขอีกครั้ง"); return; }
     const priceData = {
         jobType,
-        govFee: round2(document.getElementById(`sp-gov-${i}`).value),
-        serviceFee: round2(document.getElementById(`sp-svc-${i}`).value),
+        govFee: gov,
+        serviceFee: round2(sell - gov),
         costItems,
         updatedAt: new Date().toISOString()
     };
     if (!(await confirmBeforeSave(null, `ตรวจสอบราคามาตรฐาน "${jobType}"`, [
-        { label: "ค่าธรรมเนียมรัฐ (เก็บแทน)", value: `${fmtMoney(priceData.govFee)} บาท` },
-        { label: "ค่าบริการ", value: `${fmtMoney(priceData.serviceFee)} บาท` },
+        { label: "ราคาขาย (บนบิล)", value: `${fmtMoney(sell)} บาท` },
+        { label: "ค่าธรรมเนียมรัฐ (เก็บแทน — ภายใน)", value: `${fmtMoney(priceData.govFee)} บาท` },
+        { label: "ค่าบริการ (ราคาขาย − ค่าธรรมเนียมรัฐ)", value: `${fmtMoney(priceData.serviceFee)} บาท` },
         ...costItems.map(c => ({ label: `ต้นทุน: ${c.name}`, value: `${fmtMoney(c.amount || c.cost || 0)} บาท` }))
     ]))) return;
     const res = await callCloudAPI("saveServicePrice", { priceData });
