@@ -9318,7 +9318,7 @@ function jobCloseDocsHtml(j, pre = j.status !== 'ปิดงานแล้ว'
         return `<div class="job-close-docs text-muted">${icon('lock')} ชำระเงินเพื่อดาวน์โหลดเอกสาร (${docs.length} ไฟล์)</div>`;
     const canRename = canEditJob(j);
     const folderBtn = !pre && clientJobDocsUnlocked(j)
-        ? `<button type="button" class="btn btn-sm btn-outline" onclick="shareJobCloseFolder('${j.id}')" title="คัดลอกลิงก์โฟลเดอร์เอกสารปิดงานส่งให้ลูกค้า">${icon('link')} ลิงก์โฟลเดอร์</button>` : '';
+        ? `<button type="button" class="btn btn-sm btn-outline" onclick="shareJobCloseFolder('${j.id}', ${currentUser && currentUser.role === 'client'})" title="${currentUser && currentUser.role === 'client' ? 'เปิดโฟลเดอร์เอกสารปิดงาน' : 'คัดลอกลิงก์โฟลเดอร์เอกสารปิดงานส่งให้ลูกค้า'}">${icon('link')} ${currentUser && currentUser.role === 'client' ? 'เปิดโฟลเดอร์' : 'ลิงก์โฟลเดอร์'}</button>` : '';
     return `<div class="job-close-docs"><strong>เอกสารปิดงาน:</strong>${folderBtn}${docs.map((f, k) =>
         `<span class="job-close-doc"><a href="${escapeHtml(f.url)}" target="_blank" rel="noopener">${icon('clip')} ${escapeHtml(f.name || `ไฟล์ ${k + 1}`)}</a>` +
         `${canRename ? `<button type="button" class="action-icon-btn job-close-rename" onclick="renameJobCloseDoc('${j.id}', ${k})" title="แก้ชื่อไฟล์เอกสารปิดงาน">${icon('edit')}</button>` : ''}</span>`).join('')}${addBtn}` +
@@ -17567,7 +17567,7 @@ async function shareJobCloseFolder(jobId, open = false) {
     if (!j) return;
     const tab = open ? window.open('about:blank', '_blank') : null; // เปิดแท็บก่อน await ไม่ให้เบราว์เซอร์บล็อกป๊อปอัป
     if (!j.shareToken) {
-        const res = await callCloudAPI("jobShareToken", { jobId });
+        const res = await callCloudAPI("getJobShareToken", { jobId });
         if (!res || res.status === "error" || !res.token) {
             if (tab) tab.close();
             showToast("สร้างลิงก์โฟลเดอร์ไม่ได้: " + (res && res.message ? res.message : "unknown error"), "error");
