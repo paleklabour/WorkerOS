@@ -2049,7 +2049,7 @@ function renderClientJobsTab(list) {
             <td>${escapeHtml(w ? workerFullName(w) : '-')}</td>
             <td>${formatThaiDate(String(j.createdAt || j.updatedAt || '').slice(0, 10))}</td>
             <td><span class="badge ${statusCls[j.status] || ''}">${escapeHtml(j.status || '-')}</span>${j.status === 'ปิดงานแล้ว' && j.closedAt ? `<br><small class="text-muted">ปิดเมื่อ ${formatThaiDate(j.closedAt)}</small>` : ''}${j.appointmentDate && isJobStatusOpen(j.status) ? `<br><small class="text-muted">นัด ${formatThaiDate(j.appointmentDate)}${j.appointmentTime ? ` ${escapeHtml(j.appointmentTime)}` : ''}</small>` : ''}${getCleanJobTypeName(j.jobType) === EXIT_JOB_TYPE && clientExitCancellable(j) ? `<div><button type="button" class="btn btn-sm btn-outline" style="margin-top:6px;" onclick="clientCancelExit('${j.id}')" title="ยกเลิกคำขอแจ้งออก">${icon('bad')} ยกเลิกแจ้งออก</button></div>` : ''}</td>
-            <td>${docs.length && !clientJobDocsUnlocked(j) ? `<span class="text-muted" title="เอกสาร ${docs.length} ไฟล์">${icon('lock')} ชำระเงินเพื่อดาวน์โหลดเอกสาร</span>` : docs.length ? docs.map((f, k) => `<a href="${escapeHtml(f.url)}" target="_blank" rel="noopener" title="${escapeHtml(f.note || f.name || '')}">${icon('clip')} ${escapeHtml(f.name || `ไฟล์ ${k + 1}`)}</a>`).join('<br>') : '<span class="text-muted">-</span>'}</td>
+            <td>${docs.length && !clientJobDocsUnlocked(j) ? `<span class="text-muted" title="เอกสาร ${docs.length} ไฟล์">${icon('lock')} ชำระเงินเพื่อดาวน์โหลดเอกสาร</span>` : docs.length ? `<button type="button" class="btn btn-sm btn-outline" onclick="shareJobCloseFolder('${j.id}', true)" title="เปิดโฟลเดอร์เอกสารปิดงาน (ดู/ดาวน์โหลดทั้งหมด)">${icon('folder')} เปิดโฟลเดอร์ (${docs.length} ไฟล์)</button>` : '<span class="text-muted">-</span>'}</td>
         </tr>`;
     };
 
@@ -9316,7 +9316,9 @@ function jobCloseDocsHtml(j, pre = j.status !== 'ปิดงานแล้ว'
     if (currentUser && currentUser.role === 'client' && !clientJobDocsUnlocked(j))
         return `<div class="job-close-docs text-muted">${icon('lock')} ชำระเงินเพื่อดาวน์โหลดเอกสาร (${docs.length} ไฟล์)</div>`;
     const canRename = canEditJob(j);
-    return `<div class="job-close-docs"><strong>เอกสารปิดงาน:</strong>${docs.map((f, k) =>
+    const folderBtn = !pre && clientJobDocsUnlocked(j)
+        ? `<button type="button" class="btn btn-sm btn-outline" onclick="shareJobCloseFolder('${j.id}')" title="คัดลอกลิงก์โฟลเดอร์เอกสารปิดงานส่งให้ลูกค้า">${icon('link')} ลิงก์โฟลเดอร์</button>` : '';
+    return `<div class="job-close-docs"><strong>เอกสารปิดงาน:</strong>${folderBtn}${docs.map((f, k) =>
         `<span class="job-close-doc"><a href="${escapeHtml(f.url)}" target="_blank" rel="noopener">${icon('clip')} ${escapeHtml(f.name || `ไฟล์ ${k + 1}`)}</a>` +
         `${canRename ? `<button type="button" class="action-icon-btn job-close-rename" onclick="renameJobCloseDoc('${j.id}', ${k})" title="แก้ชื่อไฟล์เอกสารปิดงาน">${icon('edit')}</button>` : ''}</span>`).join('')}${addBtn}` +
         `${docs.find(f => f.note) ? `<small class="text-muted">หมายเหตุ: ${escapeHtml(docs.find(f => f.note).note)}</small>` : ''}</div>`;
@@ -17553,6 +17555,29 @@ async function shareWorkerFolder(workerId) {
     }).catch(err => {
         uiAlert("ไม่สามารถคัดลอกได้: " + err);
     });
+}
+
+// ลิงก์โฟลเดอร์เอกสารปิดงานของใบงาน 1 ใบ (owner 2026-10-26) — เปิดดู/โหลดทั้งหมดได้โดยไม่ต้องล็อกอิน (share-job.html)
+// token มาจาก RPC job_share_token (สร้างครั้งแรกแล้วใช้ซ้ำ) ซึ่งให้เฉพาะใบงานที่ชำระเงินแล้ว / ไม่เรียกเก็บเงิน / นายจ้างปลดล็อกไว้
+// พนักงาน = คัดลอกลิงก์ไปส่งลูกค้า, ลูกค้าในพอร์ทัล (open = true) = เปิดโฟลเดอร์ในแท็บใหม่
+async function shareJobCloseFolder(jobId, open = false) {
+    const j = jobs.find(x => x.id === jobId);
+    if (!j) return;
+    const tab = open ? window.open('about:blank', '_blank') : null; // เปิดแท็บก่อน await ไม่ให้เบราว์เซอร์บล็อกป๊อปอัป
+    if (!j.shareToken) {
+        const res = await callCloudAPI("jobShareToken", { jobId });
+        if (!res || res.status === "error" || !res.token) {
+            if (tab) tab.close();
+            showToast("สร้างลิงก์โฟลเดอร์ไม่ได้: " + (res && res.message ? res.message : "unknown error"), "error");
+            return;
+        }
+        j.shareToken = res.token;
+    }
+    const link = new URL(`share-job.html?j=${encodeURIComponent(jobId)}&t=${encodeURIComponent(j.shareToken)}`, location.href).toString();
+    if (tab) { tab.location.href = link; return; }
+    navigator.clipboard.writeText(link).then(() => {
+        showToast("📋 คัดลอกลิงก์โฟลเดอร์เอกสารปิดงานแล้ว — ส่งให้ลูกค้าได้เลย ไม่ต้องล็อกอิน", "success");
+    }).catch(() => uiAlert(`คัดลอกอัตโนมัติไม่ได้ — ลากเลือกลิงก์นี้แล้วคัดลอกส่งให้ลูกค้า:\n\n${link}`));
 }
 
 // ยกเลิกลิงก์แชร์เดิม (ลิงก์ที่เคยส่งไปแล้วจะใช้ไม่ได้อีก — ต้องกด "สร้างลิงก์แชร์" ใหม่ถ้าต้องการอันใหม่)

@@ -874,6 +874,12 @@
                 if (error) return { status: "error", message: error.message };
                 return { status: "success" };
             }
+            case "jobShareToken": {
+                // ลิงก์โฟลเดอร์เอกสารปิดงาน (พนักงาน + ลูกค้าเจ้าของใบงาน) ดู 20261026060000_job_close_docs_share_link.sql
+                const { data, error } = await sb.rpc("job_share_token", { p_job_id: payload.jobId });
+                if (error) return { status: "error", message: error.message };
+                return { status: "success", token: data };
+            }
             case "getLargeFiles": {
                 // ไฟล์ขนาดใหญ่ผิดปกติ (Admin) ดู 20261013055112_admin_large_files.sql
                 const { data, error } = await sb.rpc("admin_large_files", { p_min_bytes: payload.minBytes || 2097152 });
