@@ -1572,7 +1572,7 @@ function renderClientRenewalTab(myWorkers) {
         const canBookExt = r.withBook && !r.steps.book && !r.steps.bookExternal
             && !renewalJobsOf(r).some(j => j.jobType === RENEWAL_BOOK_JOB_TYPE && (getJobInvoice(j) || isJobNoCharge(j)));
         return `<div class="cp-rn-row cp-rn-active">
-            <div class="cp-rn-name"><strong>${escapeHtml(workerFullName(wOf(r)))}</strong><small class="text-muted">เริ่ม ${formatThaiDate(String(r.startedAt || '').slice(0, 10))}${r.withBook && !renewalSplitBook(r) ? (r.steps.bookExternal ? ' · ทำเล่มที่อื่น' : ' · ทำเล่มด้วย') : ''}</small></div>
+            <div class="cp-rn-name"><strong>${escapeHtml(workerFullName(wOf(r)))}</strong><small class="rn-uid">${escapeHtml(wOf(r).workerUid || '')}</small><small class="text-muted">หมด ${r.oldPermitExpiry ? formatThaiDate(r.oldPermitExpiry) : '-'} · เริ่ม ${formatThaiDate(String(r.startedAt || '').slice(0, 10))}${r.withBook && !renewalSplitBook(r) ? (r.steps.bookExternal ? ' · ทำเล่มที่อื่น' : ' · ทำเล่มด้วย') : ''}</small></div>
             <div class="rn-arow-progress"><div class="rn-rings">${renewalRingHtml(r, 'main')}${renewalSplitBook(r) ? renewalRingHtml(r, 'book') : ''}</div></div>
             <span class="text-muted">${r.appointmentDate ? `นัดรับบัตร ${formatThaiDate(r.appointmentDate)}` : 'ยังไม่นัด'}${r.steps.bookAppt && r.steps.bookAppt.date ? `<small class="rn-book-appt">นัดทำเล่ม ${formatThaiDate(r.steps.bookAppt.date)}</small>` : ''}</span>
             <span>${pill}</span>
