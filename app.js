@@ -3418,7 +3418,6 @@ function renewalActiveRowHtml(r, canEdit) {
             ${canEdit && next ? `<button type="button" class="btn btn-sm btn-soft rn-next-btn" onclick="renewalStepClick('${r.id}', '${next.key}')" title="${escapeHtml(renewalNextLabel(r))}">${escapeHtml(renewalNextLabel(r))}</button>` : ''}
             ${canEdit && renewalBookNext(r) ? `<button type="button" class="btn btn-sm rn-next-btn rn-book-btn" onclick="renewalStepClick('${r.id}', '${renewalBookNext(r).key}')" title="ทำเล่ม: ${escapeHtml(renewalNextLabel(r, renewalBookNext(r)))}">${escapeHtml(renewalNextLabel(r, renewalBookNext(r)))}</button>` : ''}
             </div>
-            ${canEdit ? `<button type="button" class="action-icon-btn" onclick="cancelRenewal('${r.id}')" title="${isReg ? 'ยกเลิกการขึ้นทะเบียนของคนนี้' : 'ยกเลิกรอบต่ออายุนี้'}">${icon('xmark')}</button>` : ''}
         </div>
     </div>`;
 }
@@ -3841,7 +3840,6 @@ async function askRenewalNewExpiry(r, w, step, f) {
     if (!res || res.status === "error") showToast("⚠️ แนบไฟล์แล้ว แต่บันทึกวันหมดอายุใหม่ไม่สำเร็จ — แก้ในข้อมูลคนงาน", "warning");
 }
 
-function cancelRenewal(id) { return cancelRenewals([id]); }
 
 // ยกเลิกรอบต่ออายุ 1 คน หรือหลายคนที่เลือกไว้ (แถบคำสั่งด้านล่าง, owner 2026-10-20) — ถามยืนยันครั้งเดียว
 // ไฟล์ที่แนบไว้ยังอยู่ในแฟ้มคนงาน; รายการรอออกบิลถูกลบ ส่วนที่ออกบิล/ตั้งไม่เรียกเก็บเงินแล้วเก็บไว้ให้ฝ่ายบัญชีจัดการบิลเอง
