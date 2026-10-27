@@ -256,6 +256,9 @@
         return [label, [no, exp].filter(Boolean).join(' · '), expired];
     }
 
+    const NAT_TH = { Myanmar: 'เมียนมา', Cambodia: 'กัมพูชา', Laos: 'ลาว', Vietnam: 'เวียดนาม' };
+    const GENDER_TH = { male: 'ชาย', female: 'หญิง', 'ชาย': 'ชาย', 'หญิง': 'หญิง' };
+
     function renderWorker(result) {
         const w = result.workerInfo;
         if (!w) return;
@@ -266,12 +269,12 @@
             <div>
                 <div class="wname">${esc(result.worker || '-')}</div>
                 ${w.thaiName ? `<div class="wsub">${esc(w.thaiName)}</div>` : ''}
-                <div class="wsub">${esc([w.nationality, w.position].filter(Boolean).join(' · '))}</div>
+                <div class="wsub">${esc([NAT_TH[w.nationality] || w.nationality, w.position].filter(Boolean).join(' · '))}</div>
             </div>`;
         card.classList.remove('hidden');
         const rows = [
             w.workerUid ? ['เลขประจำตัว', w.workerUid] : null,
-            w.gender ? ['เพศ', w.gender] : null,
+            w.gender ? ['เพศ', GENDER_TH[String(w.gender).toLowerCase()] || w.gender] : null,
             w.dob ? ['วันเกิด', thaiDate(w.dob)] : null,
             docRow('พาสปอร์ต', w.passportNo, w.passportExpiry),
             docRow('ใบอนุญาตทำงาน', w.permitNo, w.permitExpiry),
