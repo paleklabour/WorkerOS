@@ -609,8 +609,10 @@ job's close documents + "ดาวน์โหลดทั้งหมด (ZIP)"
 users or the job's own client; only when unlocked: no-charge / ชำระเงินแล้ว / `unlock_unpaid_job_docs`). Edge function
 `share-job-docs` (verify_jwt off) re-checks the unlock rule on every open. Staff: "ลิงก์โฟลเดอร์" in the closed-job banner
 copies it (`shareJobCloseFolder`); portal "งานที่แจ้ง" tab: "เปิดโฟลเดอร์" opens it instead of one link per file.
-`share-job.html` (owner 2026-10-27): one screen, no page scroll — top bar (logo, title, file count, ZIP), file list left /
-large preview right (open full screen, download one file), app light-theme colors; on phones the list becomes a horizontal strip.
+`share-job.html` (owner picked mockup "แบบ 2", 2026-10-27): every file visible at once, one screen, no page scroll — left panel
+(logo, job type, worker / employer / close date, note, ZIP button), right = grid of file tiles (head: type tag, name, open
+full screen, download; body: live PDF/image preview). `layoutGrid` picks columns/rows from the file count so all tiles fit
+(only if tiles would get under 160px does the grid scroll inside itself); app light-theme colors; phones stack and scroll.
 
 Per-person invoice layout ("แบบรายคน", owner 2026-10-27): under each worker's row the items it is made of are listed in small
 type with their own amounts (`buildInvoicePerWorkerRows` → `services: [{ name, amount }]`, `.inv-item-breakdown`); the share
