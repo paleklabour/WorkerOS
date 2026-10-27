@@ -23,6 +23,21 @@ function json(body: unknown, status = 200) {
   });
 }
 
+const WORKER_FIELDS = "title, first_name, last_name, thai_name, nationality, gender, dob, worker_uid, passport_no, passport_expiry, " +
+  "permit_no, permit_expiry, pink_card_no, position, photo";
+
+// คำนำหน้านามเป็นภาษาอังกฤษ (ชื่อคนงานเป็นภาษาอังกฤษ) — ตรงกับ englishTitle() ใน app.js / share-invoice
+const TITLE_EN: Record<string, string> = {
+  "นาย": "MR.", "นาง": "MRS.", "นางสาว": "MISS", "น.ส.": "MISS", "เด็กชาย": "MASTER", "ด.ช.": "MASTER", "เด็กหญิง": "MISS", "ด.ญ.": "MISS",
+  "mr": "MR.", "mrs": "MRS.", "miss": "MISS", "ms": "MS.", "master": "MASTER",
+};
+const englishTitle = (t: unknown) => {
+  const s = String(t || "").trim();
+  return s ? (TITLE_EN[s] || TITLE_EN[s.toLowerCase().replace(/\.$/, "")] || s) : "";
+};
+const fullName = (w: any) =>
+  `${englishTitle(w.title) ? englishTitle(w.title) + " " : ""}${w.first_name || ""} ${w.last_name || ""}`.replace(/\s+/g, " ").trim();
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS_HEADERS });
 
@@ -47,7 +62,7 @@ Deno.serve(async (req) => {
     const [{ data: cust }, { data: worker }] = await Promise.all([
       db.from("customers").select("company_name, unlock_unpaid_job_docs").eq("id", job.customer_id).maybeSingle(),
       job.worker_id
-        ? db.from("workers").select("title, first_name, last_name").eq("id", job.worker_id).maybeSingle()
+        ? db.from("workers").select(WORKER_FIELDS).eq("id", job.worker_id).maybeSingle()
         : Promise.resolve({ data: null }),
     ]);
 
@@ -66,7 +81,22 @@ Deno.serve(async (req) => {
       jobStatus: job.status || "",
       closedAt: job.closed_at || "",
       employer: cust ? cust.company_name : "",
-      worker: worker ? [worker.title, worker.first_name, worker.last_name].filter(Boolean).join(" ") : "",
+      worker: worker ? fullName(worker) : "",
+      // ข้อมูลคนงานสำหรับการ์ดคนงานในหน้า share-job.html (owner 2026-10-27) — เฉพาะข้อมูลที่นายจ้างมีอยู่แล้ว ไม่ส่งชื่อพ่อแม่/อีเมล
+      workerInfo: worker ? {
+        photo: /^https?:\/\//.test(worker.photo || "") ? worker.photo : "",
+        thaiName: worker.thai_name || "",
+        nationality: worker.nationality || "",
+        gender: worker.gender || "",
+        dob: worker.dob || "",
+        workerUid: worker.worker_uid || "",
+        passportNo: worker.passport_no || "",
+        passportExpiry: worker.passport_expiry || "",
+        permitNo: worker.permit_no || "",
+        permitExpiry: worker.permit_expiry || "",
+        pinkCardNo: worker.pink_card_no || "",
+        position: worker.position || "",
+      } : null,
       files,
     });
   } catch (error) {

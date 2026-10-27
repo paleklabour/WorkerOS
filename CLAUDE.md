@@ -613,6 +613,9 @@ copies it (`shareJobCloseFolder`); portal "งานที่แจ้ง" tab: 
 (logo, job type, worker / employer / close date, note, ZIP button), right = grid of file tiles (head: type tag, name, open
 full screen, download; body: live PDF/image preview). `layoutGrid` picks columns/rows from the file count so all tiles fit
 (only if tiles would get under 160px does the grid scroll inside itself); app light-theme colors; phones stack and scroll.
+Worker card in the left panel (owner 2026-10-27): photo, English name, Thai name, nationality / position, then 13-digit id,
+gender, birth date, passport no + expiry, WP no + expiry (expired = red, no day count), pink card no — from `workerInfo` in
+`share-job-docs` (never parents' names / email). Deploy that function with `--no-verify-jwt`.
 
 Per-person invoice layout ("แบบรายคน", owner 2026-10-27): under each worker's row the items it is made of are listed in small
 type with their own amounts (`buildInvoicePerWorkerRows` → `services: [{ name, amount }]`, `.inv-item-breakdown`); the share

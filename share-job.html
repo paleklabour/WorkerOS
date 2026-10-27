@@ -41,7 +41,7 @@
     .card { background: var(--card); border-radius: 22px; box-shadow: var(--shadow); }
 
     /* แผงซ้าย */
-    .side { width: 300px; flex-shrink: 0; padding: 22px; display: flex; flex-direction: column; gap: 18px; overflow-y: auto; }
+    .side { width: 330px; flex-shrink: 0; padding: 22px; display: flex; flex-direction: column; gap: 18px; overflow-y: auto; }
     .side img.logo { width: 52px; height: 52px; object-fit: contain; }
     .kicker { font-size: 13px; color: var(--muted); }
     .side h1 { margin: 0; font-size: 21px; line-height: 1.35; font-weight: 700; }
@@ -50,6 +50,14 @@
     .info div:last-child { border-bottom: none; }
     .info span:first-child { color: var(--muted); flex-shrink: 0; }
     .info span:last-child { text-align: right; font-weight: 600; }
+    .info span.is-expired { color: #c0392b; }
+    .info-group { display: flex; flex-direction: column; gap: 6px; }
+    .info-label { font-size: 12.5px; color: var(--muted); padding-left: 14px; }
+    .worker-card { display: flex; align-items: center; gap: 14px; background: #fff; border-radius: 16px; padding: 14px; }
+    .worker-card .avatar { width: 64px; height: 64px; border-radius: 999px; flex-shrink: 0; object-fit: cover; background: #d8dde8; color: #3a4252;
+        display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 700; }
+    .worker-card .wname { font-size: 16px; font-weight: 700; line-height: 1.3; }
+    .worker-card .wsub { font-size: 13.5px; color: var(--muted); margin-top: 2px; }
     .note { background: #fff6e6; border-radius: 14px; padding: 12px 14px; font-size: 13.5px; color: #7a4a00; line-height: 1.5; }
     .side-foot { margin-top: auto; display: flex; flex-direction: column; gap: 8px; }
     .side-foot small { font-size: 12.5px; color: var(--muted); text-align: center; }
@@ -102,7 +110,15 @@
             <div class="kicker">เอกสารปิดงาน</div>
             <h1 id="title">กำลังโหลดเอกสาร...</h1>
         </div>
-        <div class="info hidden" id="info"></div>
+        <div class="worker-card hidden" id="worker-card"></div>
+        <div class="info-group hidden" id="worker-info-group">
+            <div class="info-label">ข้อมูลคนงาน</div>
+            <div class="info" id="worker-info"></div>
+        </div>
+        <div class="info-group hidden" id="info-group">
+            <div class="info-label">ใบงาน</div>
+            <div class="info" id="info"></div>
+        </div>
         <div class="note hidden" id="note"></div>
         <div class="side-foot">
             <button class="btn hidden" id="zip-btn" type="button" onclick="downloadAll()" title="ดาวน์โหลดเอกสารทุกไฟล์รวมเป็น ZIP">
@@ -229,6 +245,44 @@
         }
     }
 
+    // แถว [ป้าย, ค่า, หมดอายุแล้ว?] → รายการซ้าย/ขวาแบบ iOS
+    const infoRowsHtml = (rows) => rows.map(([k, v, bad]) => `<div><span>${esc(k)}</span><span${bad ? ' class="is-expired"' : ''}>${esc(v)}</span></div>`).join('');
+
+    // เลข + วันหมดอายุในแถวเดียว ("AB123456 · หมดอายุ 01/02/2570"); หมดอายุแล้ว = ตัวแดง (ไม่บอกจำนวนวัน ตามกติกาของระบบ)
+    function docRow(label, no, expiry) {
+        if (!no && !expiry) return null;
+        const expired = expiry && new Date(expiry) < new Date(new Date().toDateString());
+        const exp = expiry ? `${expired ? 'หมดอายุแล้ว' : 'หมดอายุ'} ${thaiDate(expiry)}` : '';
+        return [label, [no, exp].filter(Boolean).join(' · '), expired];
+    }
+
+    function renderWorker(result) {
+        const w = result.workerInfo;
+        if (!w) return;
+        const card = document.getElementById('worker-card');
+        const initial = esc((String(result.worker || '').replace(/^(MR\.|MRS\.|MISS|MS\.|MASTER)\s*/i, '')[0] || '?').toUpperCase());
+        card.innerHTML = `
+            ${w.photo ? `<img class="avatar" src="${esc(w.photo)}" alt="">` : `<div class="avatar">${initial}</div>`}
+            <div>
+                <div class="wname">${esc(result.worker || '-')}</div>
+                ${w.thaiName ? `<div class="wsub">${esc(w.thaiName)}</div>` : ''}
+                <div class="wsub">${esc([w.nationality, w.position].filter(Boolean).join(' · '))}</div>
+            </div>`;
+        card.classList.remove('hidden');
+        const rows = [
+            w.workerUid ? ['เลขประจำตัว', w.workerUid] : null,
+            w.gender ? ['เพศ', w.gender] : null,
+            w.dob ? ['วันเกิด', thaiDate(w.dob)] : null,
+            docRow('พาสปอร์ต', w.passportNo, w.passportExpiry),
+            docRow('ใบอนุญาตทำงาน', w.permitNo, w.permitExpiry),
+            w.pinkCardNo ? ['บัตรชมพู', w.pinkCardNo] : null,
+        ].filter(Boolean);
+        if (rows.length) {
+            document.getElementById('worker-info').innerHTML = infoRowsHtml(rows);
+            document.getElementById('worker-info-group').classList.remove('hidden');
+        }
+    }
+
     function showStatus(title, text) {
         document.getElementById('title').textContent = title;
         document.getElementById('status').textContent = text;
@@ -251,12 +305,12 @@
             shared = result;
             document.getElementById('title').textContent = result.jobType || 'ใบงาน';
             document.title = `เอกสารปิดงาน ${result.jobType || ''}`.trim();
-            const rows = [['คนงาน', result.worker], ['นายจ้าง', result.employer], ['ปิดงาน', result.closedAt ? thaiDate(result.closedAt) : '']]
-                .filter(r => r[1]);
+            renderWorker(result);
+            const rows = [['นายจ้าง', result.employer], ['ปิดงาน', result.closedAt ? thaiDate(result.closedAt) : '']].filter(r => r[1]);
+            if (!result.workerInfo && result.worker) rows.unshift(['คนงาน', result.worker]);
             if (rows.length) {
-                const info = document.getElementById('info');
-                info.innerHTML = rows.map(([k, v]) => `<div><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join('');
-                info.classList.remove('hidden');
+                document.getElementById('info').innerHTML = infoRowsHtml(rows);
+                document.getElementById('info-group').classList.remove('hidden');
             }
             const note = result.files.map(f => f.note).find(Boolean);
             if (note) { const el = document.getElementById('note'); el.textContent = `หมายเหตุ: ${note}`; el.classList.remove('hidden'); }
