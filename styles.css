@@ -8170,6 +8170,10 @@ body::before {
 :root[data-theme="dark"] .kanban-board .kc-badge .ico { opacity: 0.8; }
 :root[data-theme="dark"] .kc-batch { color: #9fb2de; }
 :root[data-theme="dark"] .kc-batch span { background-color: rgba(255, 255, 255, 0.05); }
+/* ธีมชมพู: แถบความคืบหน้าสายต่ออายุ / ขึ้นทะเบียน ใช้สีน้ำเงินแบบธีมสว่าง (owner 2026-10-27) — สายทำเล่มคงสีเขียว */
+:root[data-theme="pink"] .rn-bar:not(.is-book-track) .rn-seg.is-done { background-color: #2d6cf6; }
+:root[data-theme="pink"] .rn-bar:not(.is-book-track) .rn-seg.is-next { background-color: color-mix(in srgb, #2d6cf6 40%, transparent); }
+:root[data-theme="pink"] .rn-lane:not(.is-book) .rn-lane-label { color: #2d6cf6; }
 /* สายทำเล่ม (หน้าต่ออายุ): ตัวอักษรเขียวสว่างขึ้นบนพื้นมืด */
 :root[data-theme="dark"] .rn-lane.is-book .rn-lane-label,
 :root[data-theme="dark"] .rn-book-btn,
