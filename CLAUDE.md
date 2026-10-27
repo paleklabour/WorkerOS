@@ -531,6 +531,12 @@ Billing: starting a round creates hidden billing job(s) "ต่ออายุ�
 credit, agent commission, portal all unchanged) but `renderJobs` hides them (`isRenewalJob`); closing a round closes them,
 cancelling deletes the unbilled ones. Their billing-page rows are teal (`.is-renewal-row` + "งานต่ออายุ" tag); the billing page and the combine-bills window have
 tabs ใบงานทั่วไป / งานต่ออายุ (`billingKind` / `combineKind`) and a bill never mixes the two (owner).
+Book as its own track (owner 2026-10-27, picked mockup 1): a renewal round with `with_book` shows two bars in the same row —
+ต่ออายุ (the 6 steps above) and ทำเล่ม (`RENEWAL_BOOK_TRACK`: ยื่นทำเล่ม tick → วันนัดรับเล่ม date in `steps.bookAppt.date` →
+ได้เล่มใหม่ = the old `book` file step → ย้าย visa file `worker-visa`), each with its own next button (`renewalLanesHtml`,
+`renewalBookNext`). The tracks run independently; the round closes when the card is in and the book track is done
+(`renewalBookTrackDone`; ทำเล่มที่อื่น = done). `renewalNextStep` is the renewal track only for these rounds; registration rounds
+keep the single trailing book/visa step.
 UI: ถึงรอบ is grouped province → employer (`renewalGroupByProvince`, province filter `renewalProvince`, start button on the
 left, fixed column widths shared by every employer table); กำลังดำเนินการ = owner-picked design A (`renewalActiveHtml`): employer
 groups, one row per worker with a segmented progress bar (`renewalBarHtml`, segment click = open that step), next-step

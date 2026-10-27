@@ -6825,6 +6825,17 @@ body.has-camera .upload-hint { display: none; }
 .rn-seg.is-done { background-color: var(--gold-primary); }
 .rn-seg.is-next { background-color: color-mix(in srgb, var(--gold-primary) 40%, transparent); }
 .rn-seg.is-book { flex: .6; }
+/* ต่ออายุ + ทำเล่ม 2 แถบในแถวเดียว (owner 2026-10-27, แบบที่ 1) — สายทำเล่มสีส้ม (เหมือนกันทุกธีม เป็นสีสถานะ) */
+.rn-lanes { display: flex; flex-direction: column; gap: 10px; }
+.rn-lane { display: flex; align-items: flex-start; gap: 10px; }
+.rn-lane-label { width: 52px; flex-shrink: 0; font-size: 13px; font-weight: 600; color: var(--gold-primary); line-height: 9px; padding-top: 1px; }
+.rn-lane.is-book .rn-lane-label { color: #b06a0b; }
+.rn-lane-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.rn-bar.is-book-track .rn-seg.is-done { background-color: #d9922b; }
+.rn-bar.is-book-track .rn-seg.is-next { background-color: color-mix(in srgb, #d9922b 40%, transparent); }
+.rn-book-btn { background-color: color-mix(in srgb, #d9922b 14%, transparent); color: #9a5a00; }
+.rn-actions.is-lanes { flex-direction: column; align-items: stretch; }
+.rn-book-appt { display: block; color: #9a5a00; }
 .rn-next-btn { background-color: color-mix(in srgb, var(--gold-primary) 12%, transparent); color: var(--gold-primary); border: 0; font-weight: 600; white-space: nowrap; }
 .rn-head-count { font-size: 15px; font-weight: 500; }
 .rn-selbar {
@@ -8117,6 +8128,10 @@ body::before {
 :root[data-theme="dark"] .kanban-board .kc-badge .ico { opacity: 0.8; }
 :root[data-theme="dark"] .kc-batch { color: #9fb2de; }
 :root[data-theme="dark"] .kc-batch span { background-color: rgba(255, 255, 255, 0.05); }
+/* สายทำเล่ม (หน้าต่ออายุ): ตัวอักษรส้มสว่างขึ้นบนพื้นมืด */
+:root[data-theme="dark"] .rn-lane.is-book .rn-lane-label,
+:root[data-theme="dark"] .rn-book-btn,
+:root[data-theme="dark"] .rn-book-appt { color: #f0b462; }
 
 /* ---------- โหมดสบายตา: ป้ายทั่วไปสีกลาง, ข้อมูลรองจาง, แถวสลับสีจางมาก ---------- */
 :root .badge-success,
