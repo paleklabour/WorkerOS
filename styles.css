@@ -1557,10 +1557,12 @@ label.user-avatar:hover { box-shadow: 0 0 0 3px rgba(45, 79, 163, 0.18); }
 
 /* ตัวกรองช่วงเวลา หน้าบิล / รายจ่าย / บัญชีธนาคาร (2026-10-27) — finPeriodRange / setFinPeriodSummary ใน app.js */
 /* แบบที่ 1 (owner 2026-10-27): แถบปุ่มลัด + "เลือกช่วง" เปิดปฏิทิน 2 เดือน — renderFinRangeUi / openFinRangePicker */
-.fin-range { display: inline-flex; align-items: center; gap: 2px; padding: 4px; border-radius: 999px; background: var(--dk-subtle, #eceef3); }
-.fin-range-chip { border: 0; background: transparent; color: var(--text-dark); font: inherit; font-size: 14px; padding: 7px 14px; border-radius: 999px; cursor: pointer; white-space: nowrap; }
-.fin-range-chip:hover { background: color-mix(in srgb, var(--gold-primary) 8%, transparent); }
-.fin-range-chip.is-on { background: var(--dk-card, #ffffff); font-weight: 600; box-shadow: 0 1px 3px rgba(20, 30, 60, .12); }
+.fin-range { position: relative; display: inline-flex; align-items: center; gap: 2px; padding: 4px; border-radius: 999px; background: var(--dk-subtle, #eceef3); }
+.fin-range > .tab-slider { border-radius: 999px; }
+.fin-range-chip { position: relative; z-index: 1; border: 0; background: transparent; transition: color .2s ease, transform .18s var(--ios-spring, ease); color: var(--text-dark); font: inherit; font-size: 14px; padding: 7px 14px; border-radius: 999px; cursor: pointer; white-space: nowrap; }
+.fin-range-chip:hover:not(.is-on) { opacity: .75; }
+.fin-range-chip:active { transform: scale(.94); }
+.fin-range-chip.is-on { font-weight: 600; } /* พื้นปุ่มที่เลือก = .tab-slider ที่เลื่อนแบบสปริง */
 .fin-range-chip.is-pick { color: var(--gold-primary); font-weight: 600; }
 .fin-range-pop {
     position: fixed; z-index: 1200; padding: 14px; border-radius: 20px;
@@ -1582,6 +1584,20 @@ label.user-avatar:hover { box-shadow: 0 0 0 3px rgba(45, 79, 163, 0.18); }
 .fin-range-day.is-edge { background: var(--gold-primary); color: #fff; font-weight: 700; border-radius: 999px; }
 .fin-range-day.is-today:not(.is-edge) { box-shadow: inset 0 0 0 1.5px var(--gold-primary); }
 .fin-range-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+/* เอฟเฟค (owner 2026-10-27): ปฏิทินเด้งเปิดแบบสปริง, เดือนเลื่อนเข้า, วันที่กด/เลือกยุบ-เด้ง, ช่วงที่เลือกค่อย ๆ ระบาย */
+.fin-range-pop:not(.hidden) { animation: finRangePopIn .32s var(--ios-spring, ease) both; transform-origin: top left; }
+@keyframes finRangePopIn { from { opacity: 0; transform: translateY(-6px) scale(.96); } to { opacity: 1; transform: none; } }
+.fin-range-months.is-slide-next { animation: finRangeSlideNext .28s cubic-bezier(.32, .72, 0, 1) both; }
+.fin-range-months.is-slide-prev { animation: finRangeSlidePrev .28s cubic-bezier(.32, .72, 0, 1) both; }
+@keyframes finRangeSlideNext { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: none; } }
+@keyframes finRangeSlidePrev { from { opacity: 0; transform: translateX(-18px); } to { opacity: 1; transform: none; } }
+.fin-range-day, .fin-range-mtitle, .fin-range-nav { transition: background-color .18s ease, color .18s ease, transform .18s var(--ios-spring, ease); }
+.fin-range-day:active, .fin-range-mtitle:active, .fin-range-nav:active { transform: scale(.88); }
+.fin-range-day.is-edge { animation: finRangeEdgePop .3s var(--ios-spring, ease); }
+@keyframes finRangeEdgePop { from { transform: scale(.7); } to { transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+    .fin-range-pop:not(.hidden), .fin-range-months, .fin-range-day.is-edge { animation: none !important; }
+}
 @media (max-width: 620px) { .fin-range-months { flex-direction: column; gap: 10px; } .fin-range { flex-wrap: wrap; border-radius: 18px; } }
 .fin-period-summary {
     margin: -8px 0 16px;

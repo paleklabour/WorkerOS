@@ -5519,9 +5519,19 @@ function renderFinRangeUi(tab) {
     const v = select.value;
     const quick = FIN_RANGE_QUICK.some(([k]) => k === v);
     const custom = !quick && finPeriodRange(tab);
-    host.innerHTML = FIN_RANGE_QUICK.map(([k, label]) =>
-        `<button type="button" class="fin-range-chip${v === k ? ' is-on' : ''}" onclick="setFinPeriodQuick('${tab}', '${k}')" title="แสดง${label === 'ทั้งหมด' ? 'ทุกช่วงเวลา' : label}">${label}</button>`).join('') +
-        `<button type="button" class="fin-range-chip is-pick${custom ? ' is-on' : ''}" onclick="openFinRangePicker('${tab}', this)" title="เลือกช่วงวันที่เอง (ข้ามเดือนได้)">${custom ? escapeHtml(finRangeShortLabel(custom)) : 'เลือกช่วง'} <span aria-hidden="true">▾</span></button>`;
+    const pickLabel = `${custom ? escapeHtml(finRangeShortLabel(custom)) : 'เลือกช่วง'} <span aria-hidden="true">▾</span>`;
+    // สร้างปุ่มครั้งเดียว แล้วสลับแค่ class/ข้อความ — ตัวเลื่อน (attachTabSlider) จึงเลื่อนแบบสปริงไปปุ่มที่เลือก (owner 2026-10-27: ใส่เอฟเฟค)
+    if (!host._finRangeBuilt) {
+        host.innerHTML = FIN_RANGE_QUICK.map(([k, label]) =>
+            `<button type="button" class="fin-range-chip" data-v="${k}" onclick="setFinPeriodQuick('${tab}', '${k}')" title="แสดง${label === 'ทั้งหมด' ? 'ทุกช่วงเวลา' : label}">${label}</button>`).join('') +
+            `<button type="button" class="fin-range-chip is-pick" onclick="openFinRangePicker('${tab}', this)" title="เลือกช่วงวันที่เอง (ข้ามเดือนได้)"></button>`;
+        host._finRangeBuilt = true;
+        attachTabSlider(host, () => host.querySelector('.fin-range-chip.is-on'));
+    }
+    host.querySelectorAll('.fin-range-chip[data-v]').forEach(b => b.classList.toggle('is-on', b.dataset.v === v));
+    const pick = host.querySelector('.fin-range-chip.is-pick');
+    pick.classList.toggle('is-on', !!custom);
+    if (pick.innerHTML !== pickLabel) pick.innerHTML = pickLabel;
 }
 
 function setFinPeriodQuick(tab, v) {
@@ -5618,6 +5628,8 @@ function shiftFinRangeMonth(n) {
     const d = new Date(p.y, p.m + n, 1);
     p.y = d.getFullYear(); p.m = d.getMonth();
     renderFinRangePicker();
+    const months = document.querySelector('#fin-range-pop .fin-range-months');
+    if (months) months.classList.add(n > 0 ? 'is-slide-next' : 'is-slide-prev'); // เดือนเลื่อนเข้าตามทิศที่กด
 }
 
 function applyFinRangePick() {
