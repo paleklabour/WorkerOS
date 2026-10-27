@@ -3383,7 +3383,7 @@ function renewalBarHtml(r, steps = renewalStepsOf(r), next = renewalNextStep(r),
     }).join('')}</div>`;
 }
 
-// 2 แถบในแถวเดียว (owner 2026-10-27, แบบที่ 1): ต่ออายุ (สีหลัก) + ทำเล่ม (สีส้ม) แต่ละแถบมีข้อความขั้นของตัวเอง
+// 2 แถบในแถวเดียว (owner 2026-10-27, แบบที่ 1): ต่ออายุ (สีหลัก) + ทำเล่ม (สีเขียว) แต่ละแถบมีข้อความขั้นของตัวเอง
 function renewalLanesHtml(r, stepText) {
     const track = renewalBookTrackOf(r);
     const bNext = renewalBookNext(r);
