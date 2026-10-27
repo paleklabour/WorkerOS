@@ -6418,6 +6418,10 @@ function renderWorkers() {
     today.setHours(0,0,0,0);
 
     // ตัวกรองกลุ่ม: มติ ครม. (รอบตามวัน/เดือนใบอนุญาตหมดอายุ) / MOU — กติกาเดียวกับหน้าต่ออายุ (permitCohorts)
+    // ตัวเลือก "รอแจ้งเข้า (N)" — จำนวนตามกติกาเดียวกับป้ายในตาราง (workerNeedsNotifyEntry)
+    const notifyOpt = document.querySelector('#filter-worker-employment-status option[value="notify"]');
+    if (notifyOpt) notifyOpt.textContent = `รอแจ้งเข้า (${workers.filter(workerNeedsNotifyEntry).length})`;
+
     const { cohorts, cohortOf } = permitCohorts();
     const groupFilter = fillWorkerGroupFilter(cohorts);
     const provFilter = fillWorkerProvinceFilter();
@@ -6473,6 +6477,7 @@ function renderWorkers() {
         if (empStatusFilter === 'archived') matchEmpStatus = isGone;
         else if (isGone) matchEmpStatus = false;
         else if (empStatusFilter === 'pending_register') matchEmpStatus = wStatus === 'pending_register';
+        else if (empStatusFilter === 'notify') matchEmpStatus = workerNeedsNotifyEntry(w); // ป้าย "รอแจ้งเข้า" (owner 2026-10-27)
         else if (empStatusFilter === 'active') matchEmpStatus = searchVal ? true : wStatus === 'active'; // ค้นหา = เจอทั้งปกติและรอขึ้นทะเบียน
         else matchEmpStatus = true; // "all" = ทุกคนที่ยังไม่พ้นสภาพ
 
