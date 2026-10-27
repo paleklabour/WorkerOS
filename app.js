@@ -5472,8 +5472,7 @@ function populateFinPeriodSelect(tab) {
         [...years].sort().reverse().map(y => `<option value="${y}">ทั้งปี ${th(y)}</option>`).join('');
     select.value = cur;
     if (select.value !== cur) select.value = '';
-    const custom = document.getElementById(`period-${tab}-custom`);
-    if (custom) custom.classList.toggle('hidden', select.value !== 'custom');
+    renderFinRangeUi(tab); // แถบปุ่ม ทั้งหมด / วันนี้ / เดือนนี้ / ปีนี้ / เลือกช่วง
 }
 
 // ตั้งช่วงวันที่เอง (เช่น หลังนำเข้า statement = ช่วงของไฟล์)
@@ -5485,10 +5484,194 @@ function setFinPeriodCustom(tab, from, to) {
     const f = document.getElementById(`period-${tab}-from`), t = document.getElementById(`period-${tab}-to`);
     if (f) f.value = from || '';
     if (t) t.value = to || '';
-    const custom = document.getElementById(`period-${tab}-custom`);
-    if (custom) custom.classList.remove('hidden');
     saveFinPeriod(tab);
 }
+
+// ---------- หน้าตาตัวกรองช่วงเวลา (owner 2026-10-27, แบบที่ 1) ----------
+// แถบปุ่ม ทั้งหมด / วันนี้ / เดือนนี้ / ปีนี้ / เลือกช่วง ▾ — "เลือกช่วง" เปิดปฏิทิน 2 เดือน (openFinRangePicker)
+// ค่าจริงยังอยู่ใน select ซ่อน period-<tab> + ช่องซ่อน -from / -to (finPeriodRange อ่านจากตรงนั้นเหมือนเดิม)
+const FIN_RANGE_QUICK = [['', 'ทั้งหมด'], ['today', 'วันนี้'], ['thismonth', 'เดือนนี้'], ['thisyear', 'ปีนี้']];
+const TH_MONTH_SHORT = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+const TH_MONTH_FULL = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+
+// ช่วงแบบสั้นบนปุ่ม: "15 ต.ค. – 10 พ.ย. 69" / "ต.ค. 69" (ทั้งเดือน) / "ต.ค. – ธ.ค. 69"
+function finRangeShortLabel(range) {
+    if (!range) return '';
+    const p = iso => { const [y, m, d] = String(iso).split('-').map(Number); return { y, m, d }; };
+    const yy = y => String(y + 543).slice(-2);
+    const lastDay = (y, m) => new Date(y, m, 0).getDate();
+    if (!range.from || !range.to) return finPeriodLabel(range);
+    const a = p(range.from), b = p(range.to);
+    const wholeMonths = a.d === 1 && b.d === lastDay(b.y, b.m);
+    if (wholeMonths) {
+        if (a.y === b.y && a.m === 1 && b.m === 12) return `ทั้งปี ${b.y + 543}`;
+        if (a.y === b.y && a.m === b.m) return `${TH_MONTH_SHORT[a.m - 1]} ${yy(a.y)}`;
+        return `${TH_MONTH_SHORT[a.m - 1]}${a.y !== b.y ? ` ${yy(a.y)}` : ''} – ${TH_MONTH_SHORT[b.m - 1]} ${yy(b.y)}`;
+    }
+    if (range.from === range.to) return `${a.d} ${TH_MONTH_SHORT[a.m - 1]} ${yy(a.y)}`;
+    return `${a.d} ${TH_MONTH_SHORT[a.m - 1]}${a.y !== b.y ? ` ${yy(a.y)}` : ''} – ${b.d} ${TH_MONTH_SHORT[b.m - 1]} ${yy(b.y)}`;
+}
+
+function renderFinRangeUi(tab) {
+    const host = document.getElementById(`period-${tab}-ui`);
+    const select = document.getElementById(`period-${tab}`);
+    if (!host || !select) return;
+    const v = select.value;
+    const quick = FIN_RANGE_QUICK.some(([k]) => k === v);
+    const custom = !quick && finPeriodRange(tab);
+    host.innerHTML = FIN_RANGE_QUICK.map(([k, label]) =>
+        `<button type="button" class="fin-range-chip${v === k ? ' is-on' : ''}" onclick="setFinPeriodQuick('${tab}', '${k}')" title="แสดง${label === 'ทั้งหมด' ? 'ทุกช่วงเวลา' : label}">${label}</button>`).join('') +
+        `<button type="button" class="fin-range-chip is-pick${custom ? ' is-on' : ''}" onclick="openFinRangePicker('${tab}', this)" title="เลือกช่วงวันที่เอง (ข้ามเดือนได้)">${custom ? escapeHtml(finRangeShortLabel(custom)) : 'เลือกช่วง'} <span aria-hidden="true">▾</span></button>`;
+}
+
+function setFinPeriodQuick(tab, v) {
+    const select = document.getElementById(`period-${tab}`);
+    if (!select) return;
+    select.value = v;
+    closeFinRangePicker();
+    onFinPeriodChange(tab);
+}
+
+// ปฏิทิน 2 เดือน: กดวันเริ่ม แล้วกดวันจบ (เลื่อนเดือนด้วย ‹ › ระหว่างนั้นได้) · กดชื่อเดือน = ทั้งเดือน, กดชื่อเดือนที่ 2 = ต่อกันหลายเดือน
+let finRangePick = null; // { tab, anchor, y, m (เดือนซ้าย 0-11), start, end, monthMode }
+
+function openFinRangePicker(tab, anchor) {
+    if (finRangePick && finRangePick.tab === tab) { closeFinRangePicker(); return; }
+    const cur = finPeriodRange(tab);
+    const base = cur && cur.from ? new Date(`${cur.from}T00:00:00`) : new Date();
+    finRangePick = { tab, anchor, y: base.getFullYear(), m: base.getMonth(), start: cur ? cur.from || null : null, end: cur ? cur.to || null : null, monthMode: false };
+    let pop = document.getElementById('fin-range-pop');
+    if (!pop) {
+        pop = document.createElement('div');
+        pop.id = 'fin-range-pop';
+        pop.className = 'fin-range-pop';
+        pop.setAttribute('role', 'dialog');
+        pop.setAttribute('aria-label', 'เลือกช่วงวันที่');
+        document.body.appendChild(pop);
+    }
+    renderFinRangePicker();
+    pop.classList.remove('hidden');
+    positionFinRangePicker();
+}
+
+function positionFinRangePicker() {
+    const pop = document.getElementById('fin-range-pop');
+    if (!pop || !finRangePick) return;
+    const r = finRangePick.anchor.getBoundingClientRect();
+    const w = pop.offsetWidth;
+    pop.style.top = `${Math.round(r.bottom + 8)}px`;
+    pop.style.left = `${Math.round(Math.max(8, Math.min(r.left, window.innerWidth - w - 8)))}px`;
+}
+
+function closeFinRangePicker() {
+    const pop = document.getElementById('fin-range-pop');
+    if (pop) pop.classList.add('hidden');
+    finRangePick = null;
+}
+
+function finRangeMonthHtml(y, m) {
+    const p = finRangePick;
+    const first = new Date(y, m, 1).getDay();
+    const days = new Date(y, m + 1, 0).getDate();
+    const today = calKey(new Date());
+    const lo = p.start, hi = p.end || (p.monthMode ? p.monthEnd : p.start);
+    let cells = '';
+    for (let i = 0; i < first; i++) cells += '<span></span>';
+    for (let d = 1; d <= days; d++) {
+        const k = calKey(new Date(y, m, d));
+        const edge = k === lo || k === hi;
+        const inside = lo && hi && k > lo && k < hi;
+        cells += `<button type="button" class="fin-range-day${edge ? ' is-edge' : ''}${inside ? ' is-in' : ''}${k === today ? ' is-today' : ''}" onclick="pickFinRangeDay('${k}')" aria-label="${d} ${TH_MONTH_FULL[m]} ${y + 543}">${d}</button>`;
+    }
+    return `<div class="fin-range-month">
+        <button type="button" class="fin-range-mtitle" onclick="pickFinRangeMonth(${y}, ${m})" title="เลือกทั้งเดือน${TH_MONTH_FULL[m]} (กดเดือนที่ 2 เพื่อเลือกต่อกันหลายเดือน)">${TH_MONTH_FULL[m]} ${y + 543}</button>
+        <div class="fin-range-dow"><span>อา</span><span>จ</span><span>อ</span><span>พ</span><span>พฤ</span><span>ศ</span><span>ส</span></div>
+        <div class="fin-range-grid">${cells}</div>
+    </div>`;
+}
+
+function renderFinRangePicker() {
+    const pop = document.getElementById('fin-range-pop');
+    const p = finRangePick;
+    if (!pop || !p) return;
+    const m2 = (p.m + 1) % 12, y2 = p.m === 11 ? p.y + 1 : p.y;
+    const hint = !p.start ? 'กดวันเริ่ม หรือกดชื่อเดือนเพื่อเลือกทั้งเดือน'
+        : !p.end ? (p.monthMode ? 'ต่อหลายเดือน: กดชื่อเดือนสุดท้าย' : 'กดวันจบ — เลื่อนเดือนด้วย ‹ › ได้')
+        : finPeriodLabel({ from: p.start, to: p.end });
+    pop.innerHTML = `
+        <div class="fin-range-head">
+            <button type="button" class="fin-range-nav" onclick="shiftFinRangeMonth(-1)" title="เดือนก่อนหน้า" aria-label="เดือนก่อนหน้า">‹</button>
+            <span class="fin-range-hint">${escapeHtml(hint)}</span>
+            <button type="button" class="fin-range-nav" onclick="shiftFinRangeMonth(1)" title="เดือนถัดไป" aria-label="เดือนถัดไป">›</button>
+        </div>
+        <div class="fin-range-months">${finRangeMonthHtml(p.y, p.m)}${finRangeMonthHtml(y2, m2)}</div>
+        <div class="fin-range-foot">
+            <button type="button" class="btn btn-sm btn-outline" onclick="setFinPeriodQuick('${p.tab}', '')" title="ล้างช่วงวันที่ แสดงทุกช่วงเวลา">ล้าง</button>
+            <button type="button" class="btn btn-sm btn-outline" onclick="closeFinRangePicker()" title="ปิดปฏิทิน">ปิด</button>
+            ${p.start && !p.end ? `<button type="button" class="btn btn-sm btn-gold" onclick="applyFinRangePending()" title="ใช้ช่วงที่เลือกไว้">ใช้ช่วงนี้</button>` : ''}
+        </div>`;
+}
+
+function shiftFinRangeMonth(n) {
+    const p = finRangePick;
+    if (!p) return;
+    const d = new Date(p.y, p.m + n, 1);
+    p.y = d.getFullYear(); p.m = d.getMonth();
+    renderFinRangePicker();
+}
+
+function applyFinRangePick() {
+    const p = finRangePick;
+    const [from, to] = p.start <= p.end ? [p.start, p.end] : [p.end, p.start];
+    const tab = p.tab;
+    closeFinRangePicker();
+    setFinPeriodCustom(tab, from, to);
+    onFinPeriodChange(tab);
+}
+
+function pickFinRangeDay(k) {
+    const p = finRangePick;
+    if (!p) return;
+    if (!p.start || p.end || p.monthMode) { p.start = k; p.end = null; p.monthMode = false; renderFinRangePicker(); return; }
+    p.end = k;
+    applyFinRangePick();
+}
+
+function pickFinRangeMonth(y, m) {
+    const p = finRangePick;
+    if (!p) return;
+    const first = calKey(new Date(y, m, 1)), last = calKey(new Date(y, m + 1, 0));
+    if (p.monthMode && p.start && !p.end) {
+        // เดือนที่ 2: ต่อกันตั้งแต่ต้นเดือนแรกถึงสิ้นเดือนนี้ (กดเดือนก่อนหน้าก็ได้ — สลับให้)
+        if (first < p.start) { p.end = calKey(new Date(Number(p.start.slice(0, 4)), Number(p.start.slice(5, 7)), 0)); p.start = first; }
+        else p.end = last;
+        applyFinRangePick();
+        return;
+    }
+    // เดือนแรก: ทั้งเดือนรอไว้ (ไฮไลต์) — กดชื่อเดือนสุดท้ายเพื่อต่อหลายเดือน หรือ "ใช้ช่วงนี้" / กดที่อื่น = ใช้เดือนนี้
+    p.start = first; p.end = null; p.monthMode = true; p.monthEnd = last;
+    renderFinRangePicker();
+}
+
+function applyFinRangePending() {
+    const p = finRangePick;
+    if (!p || !p.start) return;
+    if (!p.end) p.end = p.monthMode ? p.monthEnd : p.start;
+    applyFinRangePick();
+}
+
+document.addEventListener('mousedown', (e) => {
+    if (!finRangePick) return;
+    const pop = document.getElementById('fin-range-pop');
+    if (pop && pop.contains(e.target)) return;
+    if (e.target.closest && e.target.closest('.fin-range-chip.is-pick')) return;
+    // เลือกเดือนเดียวค้างไว้แล้วกดที่อื่น = ใช้เดือนนั้น; เลือกแค่วันเริ่มแล้วกดที่อื่น = ไม่เปลี่ยน
+    if (finRangePick.monthMode && finRangePick.start && !finRangePick.end) applyFinRangePending();
+    else closeFinRangePicker();
+});
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && finRangePick) closeFinRangePicker(); });
+window.addEventListener('resize', () => positionFinRangePicker());
+window.addEventListener('scroll', () => positionFinRangePicker(), true);
 
 // คืน { from, to } (YYYY-MM-DD, ว่าง = ไม่จำกัดฝั่งนั้น) หรือ null = ทุกช่วงเวลา
 function finPeriodRange(tab) {
@@ -5515,8 +5698,6 @@ function inFinPeriod(range, dateStr) {
 }
 
 function onFinPeriodChange(tab) {
-    const custom = document.getElementById(`period-${tab}-custom`);
-    if (custom) custom.classList.toggle('hidden', (document.getElementById(`period-${tab}`) || {}).value !== 'custom');
     saveFinPeriod(tab);
     (FIN_PERIOD_RENDER[tab] || (() => {}))();
     // บัญชีธนาคาร: หน้าต่างเดินบัญชี / statement ใช้ช่วงเดียวกัน

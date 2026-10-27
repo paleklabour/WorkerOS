@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261027f">
+    <link rel="stylesheet" href="styles.css?v=20261027g">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -1290,8 +1290,8 @@
                                     <option value="nocharge">งานที่ไม่เรียกเก็บเงิน</option>
                                     <option value="all">ทั้งหมด</option>
                                 </select>
-                                <select id="period-billing" class="select-filter" onchange="onFinPeriodChange('billing')" title="กรองตามวันที่ออกบิล (งานที่ยังไม่ออกบิล = วันเปิดงาน)"><option value="">ทุกช่วงเวลา</option></select>
-                                <span id="period-billing-custom" class="fin-period-custom hidden"><input type="date" id="period-billing-from" class="fin-period-date" onchange="onFinPeriodChange('billing')" title="ตั้งแต่วันที่"><span>ถึง</span><input type="date" id="period-billing-to" class="fin-period-date" onchange="onFinPeriodChange('billing')" title="ถึงวันที่"></span>
+                                <select id="period-billing" class="hidden" onchange="onFinPeriodChange('billing')"><option value="">ทุกช่วงเวลา</option></select><input type="hidden" id="period-billing-from"><input type="hidden" id="period-billing-to">
+                                <div class="fin-range" id="period-billing-ui"></div>
                                 </div>
                                 <div class="action-buttons-group" style="display: flex; gap: 10px;">
                                     <button class="btn btn-gold" id="btn-receive-money" onclick="openReceiveMoneyModal()">
@@ -1347,8 +1347,8 @@
                                     <option value="all">ทั้งหมด</option>
                                 </select>
                                 <select id="filter-receipts-account" class="select-filter" onchange="renderReceiptsTab()" title="บัญชีที่รับเงิน"><option value="">ทุกบัญชี</option></select>
-                                <select id="period-receipts" class="select-filter" onchange="onFinPeriodChange('receipts')" title="กรองตามวันที่รับเงิน"><option value="">ทุกช่วงเวลา</option></select>
-                                <span id="period-receipts-custom" class="fin-period-custom hidden"><input type="date" id="period-receipts-from" class="fin-period-date" onchange="onFinPeriodChange('receipts')" title="ตั้งแต่วันที่"><span>ถึง</span><input type="date" id="period-receipts-to" class="fin-period-date" onchange="onFinPeriodChange('receipts')" title="ถึงวันที่"></span>
+                                <select id="period-receipts" class="hidden" onchange="onFinPeriodChange('receipts')"><option value="">ทุกช่วงเวลา</option></select><input type="hidden" id="period-receipts-from"><input type="hidden" id="period-receipts-to">
+                                <div class="fin-range" id="period-receipts-ui"></div>
                                 </div>
                                 <button type="button" class="btn btn-outline" onclick="exportReceiptsCsv()" title="ส่งออกใบเสร็จที่แสดงอยู่ (ตามตัวกรอง) เป็นไฟล์ Excel (CSV)"><span class="ico" data-icon="outbox"></span> Excel</button>
                             </div>
@@ -1382,8 +1382,8 @@
                                 <select id="filter-expense-category" class="select-filter" onchange="renderExpenses()">
                                     <option value="">ทุกหมวดหมู่</option>
                                 </select>
-                                <select id="period-expenses" class="select-filter" onchange="onFinPeriodChange('expenses')" title="กรองตามวันที่จ่าย"><option value="">ทุกช่วงเวลา</option></select>
-                                <span id="period-expenses-custom" class="fin-period-custom hidden"><input type="date" id="period-expenses-from" class="fin-period-date" onchange="onFinPeriodChange('expenses')" title="ตั้งแต่วันที่"><span>ถึง</span><input type="date" id="period-expenses-to" class="fin-period-date" onchange="onFinPeriodChange('expenses')" title="ถึงวันที่"></span>
+                                <select id="period-expenses" class="hidden" onchange="onFinPeriodChange('expenses')"><option value="">ทุกช่วงเวลา</option></select><input type="hidden" id="period-expenses-from"><input type="hidden" id="period-expenses-to">
+                                <div class="fin-range" id="period-expenses-ui"></div>
                                 <button class="btn btn-gold btn-add" id="btn-add-expense" onclick="openExpenseModal()">
                                     <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
                                     <span>เพิ่มรายจ่ายใหม่</span>
@@ -1421,8 +1421,8 @@
                                     <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle class="fl" cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/></svg>
                                     <input type="text" id="search-bank" placeholder="ค้นหาชื่อบัญชี, ธนาคาร..." oninput="renderBanks()">
                                 </div>
-                                <select id="period-banks" class="select-filter" onchange="onFinPeriodChange('banks')" title="ดูยอดรับเข้า/จ่ายออกเฉพาะช่วงวันที่"><option value="">ทุกช่วงเวลา</option></select>
-                                <span id="period-banks-custom" class="fin-period-custom hidden"><input type="date" id="period-banks-from" class="fin-period-date" onchange="onFinPeriodChange('banks')" title="ตั้งแต่วันที่"><span>ถึง</span><input type="date" id="period-banks-to" class="fin-period-date" onchange="onFinPeriodChange('banks')" title="ถึงวันที่"></span>
+                                <select id="period-banks" class="hidden" onchange="onFinPeriodChange('banks')"><option value="">ทุกช่วงเวลา</option></select><input type="hidden" id="period-banks-from"><input type="hidden" id="period-banks-to">
+                                <div class="fin-range" id="period-banks-ui"></div>
                                 <button class="btn btn-gold btn-add" id="btn-add-bank" onclick="openBankModal()">
                                     <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
                                     <span>เพิ่มบัญชีธนาคาร</span>
@@ -3785,7 +3785,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261027f"></script>
+    <script src="supabase-client.js?v=20261027g"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3796,6 +3796,6 @@
     </script>
 
     <!-- Application Script -->
-    <script src="app.js?v=20261027f"></script>
+    <script src="app.js?v=20261027g"></script>
 </body>
 </html>

@@ -224,7 +224,11 @@ Period filter (owner 2026-10-27): the billing, expenses and bank-account tabs ea
 `finPeriodRange` / `inFinPeriod`) plus a summary strip (`period-<tab>-summary`). Billing = invoice issue date (unbilled /
 no-charge jobs = date opened); expenses = expense date; banks = `bankAccountBalance(id, range)` / `cashBalance(range)` show
 start-of-period balance + in/out within it = end-of-period balance (no range = current balance, as before).
-The choice is remembered per tab in this browser (localStorage `mw_fin_period_<tab>`). Each tab has an "Excel" button that exports
+The choice is remembered per tab in this browser (localStorage `mw_fin_period_<tab>`).
+Look (owner picked mockup 1, 2026-10-27): chips ทั้งหมด / วันนี้ / เดือนนี้ / ปีนี้ / เลือกช่วง ▾ (`renderFinRangeUi`); "เลือกช่วง"
+opens a 2-month calendar popup (`openFinRangePicker`): click start day then end day (‹ › moves months in between, so ranges can
+span many months), or click a month name = whole month, a second month name = consecutive months. The real value still lives
+in the hidden `<select id="period-<tab>">` + hidden `-from` / `-to` inputs, so `finPeriodRange` is unchanged. Each tab has an "Excel" button that exports
 exactly the rows shown (`exportBillingTabCsv` / `exportExpensesTabCsv` / `exportReceiptsCsv` / `exportLedgerCsv`).
 Same day (owner 2026-10-27, migration `20261027090000_account_transfers_statements.sql`, RLS `can_finance()`):
 - All money per account comes from `accountEntries(accountId)` (bank id or `'cash'`): receipts + old payments in, expenses out,
