@@ -247,10 +247,12 @@ Same day (owner 2026-10-27, migration `20261027090000_account_transfers_statemen
 - Finance tab "ใบเสร็จรับเงิน" (`renderReceiptsTab`): every money-in (receipts + old payments without a receipt), filters
   status / account / period, void from the row (`can('voidMoney')`).
 
-Billing note (`customers.billing_note`, staff-only, never printed): besides the customer
-form, finance and ops roles add/edit it right in the invoice and combine-bills screens
-(`renderBillingNoteBox` → `set_customer_billing_note()` RPC, owner 2026-10-13) — needed
-because Account Managers are read-only on customers.
+Billing note — now titled just "Note" and PRIVATE per account (owner 2026-10-27): table `billing_notes` (customer_id, user_id,
+note; RLS = own rows only, write needs `can_finance() or can_ops()`, migration `20261027100000_private_billing_notes.sql`),
+loaded as `myBillingNotes`, read with `myBillingNote(customerId)`, saved with `saveMyBillingNote` (RPC-free upsert/delete).
+Shown/edited in the invoice and combine-bills screens (`renderBillingNoteBox`), the employer form field `cust-billing-note`, and
+the worker panel's finance tab — each person sees only what they wrote. Never printed. The old shared `customers.billing_note`
+column / `set_customer_billing_note()` are no longer used (no customer had a note when this changed).
 
 ## Roles & permissions (standing rule, confirmed 2026-10-02)
 

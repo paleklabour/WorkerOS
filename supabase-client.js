@@ -216,7 +216,7 @@
     // -------------------- getData --------------------
     async function handleGetData() {
         const [customersRes, workersRes, jobsRes, banksRes, profilesRes, agentsRes, expensesRes, freeInvoicesRes,
-               invoicesRes, paymentsRes, servicePricesRes, receiptsRes, teamRes, settingsRes, transfersRes, statementRes] = await Promise.all([
+               invoicesRes, paymentsRes, servicePricesRes, receiptsRes, teamRes, settingsRes, transfersRes, statementRes, billingNotesRes] = await Promise.all([
             // เรียงตามวันที่สร้าง (+id) เสมอ — ไม่ระบุลำดับ Postgres คืนแถวที่เพิ่งแก้ไขในตำแหน่งใหม่ ทำให้รายการในตารางกระโดด
             sb.from("customers").select("*").order("created_at", { ascending: true }).order("id", { ascending: true }),
             sb.from("workers").select("*").order("created_at", { ascending: true }).order("id", { ascending: true }),
@@ -233,7 +233,8 @@
             sb.rpc("list_team"),
             sb.from("app_settings").select("key, value"),
             sb.from("account_transfers").select("*"),
-            selectAllRows("bank_statement_lines")
+            selectAllRows("bank_statement_lines"),
+            sb.from("billing_notes").select("customer_id, note") // RLS คืนเฉพาะ Note ของบัญชีที่ล็อกอิน
         ]);
         // RLS กรองแถวให้อัตโนมัติตาม role/customer_id ของผู้ใช้ที่ล็อกอินอยู่แล้ว
         // (ไม่ต้อง filter ซ้ำฝั่ง client เหมือนโค้ด Code.gs เดิม)
@@ -265,6 +266,8 @@
             // ยังไม่ได้ใช้ migration / ไม่ใช่ฝ่ายการเงิน → error หรือ RLS คืนว่าง = [] (หน้าอื่นทำงานต่อได้)
             transfers: transfersRes.error ? [] : normalizeNumbers(toCamelList(transfersRes.data, TRANSFER_MAP), ["amount"]),
             statementLines: statementRes.error ? [] : normalizeNumbers(toCamelList(statementRes.data, STATEMENT_LINE_MAP), ["amount", "balance"]),
+            // Note วางบิลส่วนตัว { customerId: note } — เฉพาะของคนที่ล็อกอิน
+            myBillingNotes: billingNotesRes.error ? {} : Object.fromEntries((billingNotesRes.data || []).map((r) => [r.customer_id, r.note])),
             // ทีมงานภายใน (ชื่อ+ตำแหน่ง) สำหรับเลือก/แสดงผู้รับผิดชอบใบงาน — profiles อ่านได้เฉพาะแถวตัวเองถ้าไม่ใช่ admin
             team: teamRes.error ? [] : (teamRes.data || []),
             // ค่าตั้งค่ากลาง { key: value } เช่น cash_card_order
@@ -919,6 +922,19 @@
             case "setMyWorkerNote": {
                 // บัญชีนายจ้างเขียนโน้ตให้คนงานของตัวเอง — ดู 20261002102002_worker_client_note.sql
                 const { error } = await sb.rpc("set_my_worker_note", { p_worker_id: payload.workerId, p_note: payload.note || "" });
+                if (error) return { status: "error", message: error.message };
+                return { status: "success" };
+            }
+            case "setMyBillingNote": {
+                // Note วางบิลส่วนตัว (owner 2026-10-27) — ว่าง = ลบ Note ของตัวเอง
+                const note = String(payload.note || "").trim().slice(0, 2000);
+                const { data: u } = await sb.auth.getUser();
+                const uid = u && u.user ? u.user.id : null;
+                if (!uid) return { status: "error", message: "ไม่พบผู้ใช้ที่ล็อกอิน" };
+                const q = note
+                    ? sb.from("billing_notes").upsert({ customer_id: payload.customerId, user_id: uid, note, updated_at: new Date().toISOString() }, { onConflict: "customer_id,user_id" })
+                    : sb.from("billing_notes").delete().eq("customer_id", payload.customerId).eq("user_id", uid);
+                const { error } = await q;
                 if (error) return { status: "error", message: error.message };
                 return { status: "success" };
             }

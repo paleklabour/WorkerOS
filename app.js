@@ -19,6 +19,7 @@ let payments = [];       // การตัดยอดเข้าบิล (�
 let receipts = [];       // ใบเสร็จ = เงินเข้า 1 ก้อน (ตัดได้หลายบิล ส่วนที่เหลือเป็นมัดจำ) — ยอดแบงค์นับจากตารางนี้
 let transfers = [];      // โอนระหว่างบัญชีของบริษัท / เงินสด (account_transfers) — ย้ายยอดคงเหลือ ไม่ใช่รายรับรายจ่าย
 let statementLines = []; // บรรทัด statement ธนาคารที่นำเข้า + ผลจับคู่ (bank_statement_lines)
+let myBillingNotes = {};  // Note วางบิลส่วนตัว { customerId: note } — เห็นเฉพาะคนเขียน (billing_notes, owner 2026-10-27)
 let servicePrices = [];  // ราคามาตรฐานต่อประเภทงาน (ค่าธรรมเนียมรัฐ + ค่าบริการ) — ใช้ภายในเท่านั้น
 
 // Thai provinces selection constraint
@@ -366,6 +367,7 @@ async function loadData() {
             receipts = res.receipts || [];
             transfers = res.transfers || [];
             statementLines = res.statementLines || [];
+            myBillingNotes = res.myBillingNotes || {};
             servicePrices = res.servicePrices || [];
             hiddenWorkers = [];
             applyInactiveEmployers();
@@ -4818,7 +4820,7 @@ function openWorkerQuickView(workerId, mode, tab) {
             ['ค่าใช้จ่ายรวม', myExpenses.length ? `${fmtMoney(costTotal)} บาท` : ''],
             ['ส่วนต่าง', myExpenses.length && myJobs.length ? `${fmtMoney(round2(charged - costTotal))} บาท` : ''],
         ]) + (anyCombined ? '<p class="wp-hint">บิลรวมแสดงยอดค้างทั้งใบ (รวมคนงานอื่นในบิลเดียวกัน)</p>' : ''))
-            + sec('โน้ตการเงินของนายจ้าง', emp && emp.billingNote ? `<p class="wp-note">${escapeHtml(emp.billingNote)}</p>` : '')
+            + sec('Note (เห็นเฉพาะคุณ)', emp && myBillingNote(emp.id) ? `<p class="wp-note">${escapeHtml(myBillingNote(emp.id))}</p>` : '')
             + sec('ใบงานและบิล', jobRows.length ? `<div class="wp-list">${jobRows.join('')}</div>` : '<p class="wp-empty">ยังไม่มีใบงาน</p>')
             + sec('ค่าใช้จ่าย', expenseRows.length
                 ? `<div class="wp-list">${expenseRows.join('')}</div><p class="wp-hint">เฉพาะรายจ่ายที่ผูกกับใบงานของคนนี้ — รายจ่ายที่ผูกหลายใบงานแบ่งเท่ากันต่อใบงาน</p>`
@@ -7996,7 +7998,7 @@ function openCustomerModal(id = null) {
         setCustomerBusinessTypes(c.businessType);
         document.getElementById("cust-coordinator").value = c.coordinator;
         document.getElementById("cust-phone").value = c.phone;
-        document.getElementById("cust-billing-note").value = c.billingNote || "";
+        document.getElementById("cust-billing-note").value = myBillingNote(c.id); // Note ส่วนตัวของบัญชีที่ล็อกอิน
         document.getElementById("cust-require-prepayment").checked = !!c.requirePrepayment;
         document.getElementById("cust-email").value = c.email || "";
         document.getElementById("cust-drive-share").checked = !!c.driveShare;
@@ -8331,7 +8333,7 @@ async function saveCustomer(e) {
             const oldDriveId = customers[idx].drive_folder_id || "";
             const oldAttachments = JSON.parse(JSON.stringify(customers[idx].attachments || {}));
             customerData = {
-                id: editId, status: customers[idx].status || "active", unlockUnpaidJobDocs: !!customers[idx].unlockUnpaidJobDocs, taxId, companyName, directorId, businessType, coordinator, phone, referredByAgentId, billingNote, requirePrepayment, email, driveShare, certIssueDate, certExpiry, deliveryAddress, branches: customerBranches, createdAt: oldCreatedAt, drive_folder_id: oldDriveId, attachments: oldAttachments
+                id: editId, status: customers[idx].status || "active", unlockUnpaidJobDocs: !!customers[idx].unlockUnpaidJobDocs, taxId, companyName, directorId, businessType, coordinator, phone, referredByAgentId, billingNote: customers[idx].billingNote || "", requirePrepayment, email, driveShare, certIssueDate, certExpiry, deliveryAddress, branches: customerBranches, createdAt: oldCreatedAt, drive_folder_id: oldDriveId, attachments: oldAttachments
             };
         }
     } else {
@@ -8339,7 +8341,7 @@ async function saveCustomer(e) {
         const newId = 'cust-' + Date.now();
         const createdAt = new Date().toISOString().split('T')[0];
         customerData = {
-            id: newId, taxId, companyName, directorId, businessType, coordinator, phone, referredByAgentId, billingNote, requirePrepayment, email, driveShare, certIssueDate, certExpiry, deliveryAddress, branches: customerBranches, createdAt, drive_folder_id: "", attachments: {}
+            id: newId, taxId, companyName, directorId, businessType, coordinator, phone, referredByAgentId, billingNote: "", requirePrepayment, email, driveShare, certIssueDate, certExpiry, deliveryAddress, branches: customerBranches, createdAt, drive_folder_id: "", attachments: {}
         };
     }
 
@@ -8371,6 +8373,8 @@ async function saveCustomer(e) {
         customers.push(customerData);
         showToast("เพิ่มข้อมูลนายจ้าง/ลูกค้าคนใหม่สำเร็จ", "success");
     }
+    // Note เป็นของส่วนตัว (billing_notes) — ไม่เขียนลงข้อมูลนายจ้างที่ทุกคนเห็น
+    await saveMyBillingNote(customerData.id, billingNote);
 
     // ไฟล์แนบถูกอัปโหลดขึ้น Storage ไปแล้วตั้งแต่ตอนเลือกไฟล์ (ดู processCustomerDocFile) — เหลือแค่ผูก
     // reference เข้ากับข้อมูลลูกค้าที่บันทึกสำเร็จแล้ว (รวมกับไฟล์เดิมที่มีอยู่แล้ว ไม่เขียนทับ)
@@ -13334,24 +13338,26 @@ function updateInvoiceBillingNote(cust) {
     renderBillingNoteBox("invoice-billing-note-wrap", cust);
 }
 
-// กล่อง Note วางบิล (ตอนออกบิล / รวมบิล) — เห็นเฉพาะเจ้าหน้าที่ ไม่พิมพ์ลงใบแจ้งหนี้ (.no-print)
-// การเงิน (Account Manager) และฝ่ายปฏิบัติการ เพิ่ม/แก้ได้ตรงนี้เลย (set_customer_billing_note — owner 2026-10-13)
+// กล่อง Note (ตอนออกบิล / รวมบิล) — Note ส่วนตัวของบัญชีที่ล็อกอิน เห็นเฉพาะคนเขียน (owner 2026-10-27, ตาราง billing_notes)
+// ไม่พิมพ์ลงใบแจ้งหนี้ (.no-print) — ฝ่ายการเงินและฝ่ายปฏิบัติการเพิ่ม/แก้ได้
+const myBillingNote = (customerId) => (customerId && myBillingNotes[customerId]) || '';
+
 function renderBillingNoteBox(wrapId, cust, editing = false) {
     const wrap = document.getElementById(wrapId);
     if (!wrap) return;
     const canEdit = can('finance') || can('ops');
-    const note = (cust && cust.billingNote) || '';
+    const note = myBillingNote(cust && cust.id);
     if (!cust || (!note && !canEdit)) { wrap.classList.add('hidden'); wrap.innerHTML = ''; return; }
     wrap.classList.remove('hidden');
     const id = escapeHtml(cust.id);
     if (editing) {
         wrap.innerHTML = `<div class="billing-note-box">
-            <strong>${icon('pin')} Note วางบิลของนายจ้างรายนี้</strong>
+            <strong>${icon('pin')} Note</strong>
             <textarea class="billing-note-input" rows="3" maxlength="2000" placeholder="เช่น ต้องส่งบิลผ่านแผนกบัญชี, วางบิลทุกวันที่ 25, แนบสำเนาใบอนุญาตทุกครั้ง">${escapeHtml(note)}</textarea>
             <div class="billing-note-actions">
-                <small>เห็นเฉพาะเจ้าหน้าที่ ไม่แสดงในใบแจ้งหนี้ที่พิมพ์ให้ลูกค้า</small>
-                <button type="button" class="btn btn-sm btn-outline" onclick="renderBillingNoteBox('${wrapId}', customers.find(c => c.id === '${id}'))" title="ยกเลิกการแก้ไข Note วางบิล">ยกเลิก</button>
-                <button type="button" class="btn btn-sm btn-gold" onclick="saveBillingNoteFromBox('${wrapId}', '${id}')" title="บันทึก Note วางบิลของนายจ้างรายนี้">บันทึก Note</button>
+                <small>เห็นเฉพาะคุณ · ไม่แสดงในใบแจ้งหนี้ที่พิมพ์ให้ลูกค้า</small>
+                <button type="button" class="btn btn-sm btn-outline" onclick="renderBillingNoteBox('${wrapId}', customers.find(c => c.id === '${id}'))" title="ยกเลิกการแก้ไข Note">ยกเลิก</button>
+                <button type="button" class="btn btn-sm btn-gold" onclick="saveBillingNoteFromBox('${wrapId}', '${id}')" title="บันทึก Note ของนายจ้างรายนี้">บันทึก Note</button>
             </div>
         </div>`;
         const ta = wrap.querySelector('textarea');
@@ -13361,11 +13367,24 @@ function renderBillingNoteBox(wrapId, cust, editing = false) {
     }
     wrap.innerHTML = note
         ? `<div class="billing-note-box">
-            <div class="billing-note-head"><strong>${icon('pin')} Note วางบิลของนายจ้างรายนี้:</strong>
-            ${canEdit ? `<button type="button" class="btn btn-sm btn-outline" onclick="renderBillingNoteBox('${wrapId}', customers.find(c => c.id === '${id}'), true)" title="แก้ไข Note วางบิลของนายจ้างรายนี้">${icon('edit')} แก้ไข</button>` : ''}</div>
+            <div class="billing-note-head"><strong>${icon('pin')} Note</strong><small class="text-muted">เห็นเฉพาะคุณ</small>
+            ${canEdit ? `<button type="button" class="btn btn-sm btn-outline" onclick="renderBillingNoteBox('${wrapId}', customers.find(c => c.id === '${id}'), true)" title="แก้ไข Note ของนายจ้างรายนี้">${icon('edit')} แก้ไข</button>` : ''}</div>
             <p>${escapeHtml(note)}</p>
         </div>`
-        : `<button type="button" class="btn btn-sm btn-outline billing-note-add" onclick="renderBillingNoteBox('${wrapId}', customers.find(c => c.id === '${id}'), true)" title="เพิ่ม Note วางบิลให้นายจ้างรายนี้ (เห็นเฉพาะเจ้าหน้าที่)">${icon('plus')} เพิ่ม Note วางบิล</button>`;
+        : `<button type="button" class="btn btn-sm btn-outline billing-note-add" onclick="renderBillingNoteBox('${wrapId}', customers.find(c => c.id === '${id}'), true)" title="เพิ่ม Note ของนายจ้างรายนี้ (เห็นเฉพาะคุณ)">${icon('plus')} เพิ่ม Note</button>`;
+}
+
+// บันทึก Note ส่วนตัว — ว่าง = ลบ; คืน true ถ้าสำเร็จ
+async function saveMyBillingNote(customerId, note) {
+    note = String(note || '').trim();
+    if (note === myBillingNote(customerId)) return true;
+    const res = await callCloudAPI("setMyBillingNote", { customerId, note });
+    if (!res || res.status === "error") {
+        showToast("❌ บันทึก Note ไม่สำเร็จ: " + ((res && res.message) || 'unknown error'), "danger");
+        return false;
+    }
+    if (note) myBillingNotes[customerId] = note; else delete myBillingNotes[customerId];
+    return true;
 }
 
 async function saveBillingNoteFromBox(wrapId, customerId) {
@@ -13373,16 +13392,9 @@ async function saveBillingNoteFromBox(wrapId, customerId) {
     const ta = wrap && wrap.querySelector('textarea');
     if (!ta) return;
     const note = ta.value.trim();
-    const res = await callCloudAPI("setCustomerBillingNote", { customerId, note });
-    if (!res || res.status === "error") {
-        showToast("❌ บันทึก Note วางบิลไม่สำเร็จ: " + ((res && res.message) || 'unknown error'), "danger");
-        return;
-    }
-    const c = customers.find(x => x.id === customerId);
-    if (c) c.billingNote = note;
-    saveData();
-    renderBillingNoteBox(wrapId, c);
-    showToast(note ? "บันทึก Note วางบิลแล้ว" : "ลบ Note วางบิลแล้ว", "success");
+    if (!await saveMyBillingNote(customerId, note)) return;
+    renderBillingNoteBox(wrapId, customers.find(x => x.id === customerId));
+    showToast(note ? "บันทึก Note แล้ว" : "ลบ Note แล้ว", "success");
 }
 
 function closeInvoiceModal() {
