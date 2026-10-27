@@ -1780,6 +1780,11 @@ label.user-avatar:hover { box-shadow: 0 0 0 3px rgba(45, 79, 163, 0.18); }
     gap: 10px;
 }
 
+/* หน้าคนงาน (2026-10-27): ตัวกรอง 6 ตัว + ช่องนายจ้าง + ปุ่มล้าง → ขึ้นบรรทัดใหม่เมื่อไม่พอ */
+#view-workers .filter-box { flex-wrap: wrap; align-items: center; }
+#view-workers .worker-employer-filter { min-width: 220px; flex: 0 1 240px; }
+.worker-filter-summary { margin: -6px 0 12px; font-size: 13.5px; color: var(--dk-muted, #64748b); }
+
 .filter-box select {
     padding: 10px 14px;
     border: 1px solid var(--dk-line, #e2e8f0);

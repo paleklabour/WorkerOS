@@ -131,7 +131,12 @@ Owner's rules (2026-10-09):
   with status "ปิดงานแล้ว" (rule from 2026-10-08, the owner confirmed keeping it). Don't
   auto-clear it anywhere else (the pending_register→active transition used to).
   Workers page filter "สถานะคนงาน" has "รอแจ้งเข้า (N)" (owner 2026-10-27) = exactly `workerNeedsNotifyEntry`, the same rule as
-  the badge.
+  the badge. Toolbar order (owner 2026-10-27): สถานะคนงาน → นายจ้าง (search-select `worker-filter-employer` over the hidden
+  `filter-worker-employer`; "view this employer's workers" links preset it instead of typing the name into the search box) →
+  จังหวัด → สัญชาติ (options + counts from the data, `fillWorkerNationalityFilter`) → เอกสาร (ใบอนุญาตใกล้หมด ≤ 60 /
+  พาสปอร์ตใกล้หมด ≤ 180 / หมดอายุแล้ว) → กลุ่ม, then "ล้างตัวกรอง" (`clearWorkerFilters`, shown only when a filter is set).
+  The search box no longer matches nationality ("la"/"my" pulled whole nationalities). `#worker-filter-summary` shows the count
+  and notes when "คนงานปัจจุบัน" + a search also includes matching รอขึ้นทะเบียน workers (kept on purpose).
   Attaching files never changes an existing worker's status (owner, 2026-10-15): `attachDocumentToWorker` moves
   pending_register → active (WP + receipt) only with `opts.newWorker`, i.e. workers bulk import created in that same run
   (`createBulkNewWorkers` → `created.newIds`). Otherwise the hidden "รอแจ้งเข้า" badge popped up after a bulk attach.

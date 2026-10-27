@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261027c">
+    <link rel="stylesheet" href="styles.css?v=20261027d">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -650,41 +650,46 @@
                             <div class="search-filters-group">
                                 <div class="search-box">
                                     <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle class="fl" cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/></svg>
-                                    <input type="text" id="search-worker" placeholder="ค้นหาชื่อ-นามสกุล, เลขคนงาน, พาสปอร์ต, ชื่อนายจ้าง..." oninput="renderWorkers()">
+                                    <input type="text" id="search-worker" placeholder="ค้นหาชื่อ, เลข 13 หลัก, พาสปอร์ต, เลขใบอนุญาต, ชื่อนายจ้าง..." oninput="renderWorkers()">
                                 </div>
+                                <!-- ตัวกรองเรียงตามที่ใช้บ่อย (owner 2026-10-27): สถานะคนงาน → นายจ้าง → จังหวัด → สัญชาติ → เอกสาร → กลุ่ม -->
                                 <div class="filter-box">
-                                    <select id="filter-worker-nationality" onchange="renderWorkers()">
-                                        <option value="">ทุกสัญชาติ</option>
-                                        <option value="Myanmar">เมียนมา (Myanmar)</option>
-                                        <option value="Cambodia">กัมพูชา (Cambodia)</option>
-                                        <option value="Laos">ลาว (Laos)</option>
-                                        <option value="Vietnam">เวียดนาม (Vietnam)</option>
+                                    <select id="filter-worker-employment-status" onchange="renderWorkers()" title="สถานะคนงาน">
+                                        <option value="active">คนงานปัจจุบัน</option>
+                                        <option value="notify">รอแจ้งเข้า</option>
+                                        <option value="pending_register">รอขึ้นทะเบียน</option>
+                                        <option value="archived">แจ้งออก/พ้นสภาพ</option>
+                                        <option value="all">ทั้งหมด (ยกเว้นพ้นสภาพ)</option>
                                     </select>
+                                    <!-- นายจ้าง: พิมพ์ค้นหาแล้วเลือก (registerSearchSelect 'worker-filter-employer') — select ซ่อนเก็บค่าจริง -->
                                     <select id="filter-worker-employer" class="hidden" onchange="renderWorkers()">
                                         <option value="">ทุกนายจ้าง/บริษัท</option>
                                         <!-- Dynamic employers list -->
                                     </select>
+                                    <div class="search-box worker-employer-filter">
+                                        <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle class="fl" cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/></svg>
+                                        <input type="text" id="worker-filter-employer-search" placeholder="ทุกนายจ้าง (พิมพ์ค้นหา)" autocomplete="off" title="กรองคนงานของนายจ้างรายเดียว">
+                                    </div>
                                     <!-- จังหวัด = จังหวัดสำนักงานใหญ่ของนายจ้าง — ตัวเลือกเติมใน fillWorkerProvinceFilter() -->
                                     <select id="filter-worker-province" onchange="renderWorkers()" title="กรองคนงานตามจังหวัดของนายจ้าง">
                                         <option value="">ทุกจังหวัด</option>
                                     </select>
-                                    <select id="filter-worker-status" onchange="renderWorkers()">
-                                        <option value="">สถานะเอกสารทั้งหมด</option>
-                                        <option value="normal">ปกติ (ไม่หมดอายุ)</option>
-                                        <option value="warning">เตือนหมดอายุ (Passport < 180 วัน / Work Permit < 60 วัน)</option>
+                                    <!-- สัญชาติ: ตัวเลือกจากข้อมูลจริง + จำนวนคน — fillWorkerNationalityFilter() -->
+                                    <select id="filter-worker-nationality" onchange="renderWorkers()" title="สัญชาติ">
+                                        <option value="">ทุกสัญชาติ</option>
+                                    </select>
+                                    <select id="filter-worker-status" onchange="renderWorkers()" title="สถานะเอกสาร (ใบอนุญาตทำงาน / พาสปอร์ต)">
+                                        <option value="">เอกสารทั้งหมด</option>
+                                        <option value="normal">ปกติ (ไม่ใกล้หมด)</option>
+                                        <option value="warn_permit">ใบอนุญาตใกล้หมด (≤ 60 วัน)</option>
+                                        <option value="warn_passport">พาสปอร์ตใกล้หมด (≤ 180 วัน)</option>
                                         <option value="expired">หมดอายุแล้ว</option>
                                     </select>
                                     <!-- กลุ่มมติ ครม. แยกตามวันใบอนุญาตหมดอายุ / MOU — ตัวเลือกเติมใน fillWorkerGroupFilter() -->
                                     <select id="filter-worker-group" onchange="renderWorkers()" title="กรองคนงานตามกลุ่มมติ ครม. (วันใบอนุญาตหมดอายุ) หรือ MOU">
                                         <option value="">ทุกกลุ่ม (ครม./MOU)</option>
                                     </select>
-                                    <select id="filter-worker-employment-status" onchange="renderWorkers()">
-                                        <option value="active">เฉพาะคนงานปัจจุบัน (Active)</option>
-                                        <option value="pending_register">เฉพาะรอขึ้นทะเบียน (Pending Register)</option>
-                                        <option value="notify">รอแจ้งเข้า</option>
-                                        <option value="archived">เฉพาะแจ้งออก/พ้นสภาพ (Archived)</option>
-                                        <option value="all">คนงานทั้งหมด ยกเว้นพ้นสภาพ (Show All)</option>
-                                    </select>
+                                    <button type="button" class="btn btn-sm btn-outline hidden" id="btn-worker-clear-filters" onclick="clearWorkerFilters()" title="ล้างตัวกรองทั้งหมด กลับเป็นคนงานปัจจุบันทุกคน">ล้างตัวกรอง</button>
                                 </div>
                             </div>
                             <button class="btn btn-outline btn-add" id="btn-bulk-import-docs" onclick="openBulkImportModal()">
@@ -702,6 +707,8 @@
                                 <span>เพิ่มคนงานต่างด้าว</span>
                             </button>
                         </div>
+                        <!-- จำนวนคนที่แสดง + คำอธิบายตัวกรองที่อาจทำให้งง (renderWorkers) -->
+                        <p class="worker-filter-summary" id="worker-filter-summary"></p>
 
                         <!-- เปลี่ยน "รอขึ้นทะเบียน" → "ปกติ" ทีละหลายคน: แสดงเฉพาะ admin ตอนกรอง "รอขึ้นทะเบียน" (ดู updateWorkerBulkStatusBar ใน app.js) -->
                         <div id="worker-bulk-status-bar" class="worker-bulk-bar hidden">
@@ -3778,7 +3785,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261027c"></script>
+    <script src="supabase-client.js?v=20261027d"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3789,6 +3796,6 @@
     </script>
 
     <!-- Application Script -->
-    <script src="app.js?v=20261027c"></script>
+    <script src="app.js?v=20261027d"></script>
 </body>
 </html>

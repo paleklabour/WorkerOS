@@ -5934,13 +5934,11 @@ function renderEmployerAlerts() {
 
 function viewEmployerAlertedWorkers(employerId) {
     switchView('workers');
-    const selectEmp = document.getElementById("filter-worker-employer");
-    if (selectEmp) {
-        selectEmp.value = "";
-        const searchWorker = document.getElementById("search-worker");
-        const empRec = customers.find(c => c.id === employerId);
-        if (searchWorker) searchWorker.value = empRec ? empRec.companyName : "";
-    }
+    // ใช้ตัวกรองนายจ้าง (เดิมใส่ชื่อบริษัทในช่องค้นหา ซึ่งดึงคนงานที่ชื่อคล้ายกันมาปนด้วย)
+    const searchWorker = document.getElementById("search-worker");
+    if (searchWorker) searchWorker.value = "";
+    presetSearchSelect('worker-filter-employer', employerId);
+    workersCurrentPage = 1;
     const selectGroup = document.getElementById("filter-worker-group");
     if (selectGroup) selectGroup.value = "";
     const selectStatus = document.getElementById("filter-worker-employment-status");
@@ -6384,6 +6382,36 @@ function fillWorkerProvinceFilter() {
     return sel.value;
 }
 
+// ตัวเลือก dropdown สัญชาติจากข้อมูลจริง + จำนวนคน (owner 2026-10-27; เดิมตายตัว 4 สัญชาติ) — คงค่าที่เลือกไว้เดิม
+const NATIONALITY_TH = { Myanmar: 'เมียนมา', Cambodia: 'กัมพูชา', Laos: 'ลาว', Vietnam: 'เวียดนาม' };
+function fillWorkerNationalityFilter() {
+    const sel = document.getElementById("filter-worker-nationality");
+    if (!sel) return '';
+    const prev = sel.value;
+    const counts = {};
+    workers.filter(w => w.status !== 'deleted' && w.status !== 'archived' && w.nationality).forEach(w => {
+        counts[w.nationality] = (counts[w.nationality] || 0) + 1;
+    });
+    const nats = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+    sel.innerHTML = '<option value="">ทุกสัญชาติ</option>' + nats.map(n =>
+        `<option value="${escapeHtml(n)}">${escapeHtml(NATIONALITY_TH[n] || n)} (${counts[n]})</option>`).join('');
+    sel.value = nats.includes(prev) ? prev : '';
+    return sel.value;
+}
+
+// ปุ่ม "ล้างตัวกรอง" หน้าคนงาน — กลับเป็นคนงานปัจจุบันทุกคน
+function clearWorkerFilters() {
+    document.getElementById('search-worker').value = '';
+    ['filter-worker-nationality', 'filter-worker-province', 'filter-worker-status', 'filter-worker-group'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    presetSearchSelect('worker-filter-employer', '');
+    document.getElementById('filter-worker-employment-status').value = 'active';
+    workersCurrentPage = 1;
+    renderWorkers();
+}
+
 // เติมตัวเลือกกลุ่มมติ ครม. — 1 ตัวเลือกต่อรอบ (วัน/เดือน) + แยกรายปีใต้รอบนั้นถ้ามีทั้งคนที่ต่อแล้วและยังไม่ต่อ
 // ค่า: cohort:MM-DD (ทั้งรอบ) / date:YYYY-MM-DD (ปีเดียว) — คงค่าที่เลือกไว้ ถ้าหายไปแล้วกลับเป็น "ทุกกลุ่ม"
 function fillWorkerGroupFilter(cohorts) {
@@ -6407,7 +6435,7 @@ function fillWorkerGroupFilter(cohorts) {
 
 function renderWorkers() {
     const searchVal = document.getElementById("search-worker").value.toLowerCase();
-    const natFilter = document.getElementById("filter-worker-nationality").value;
+    const natFilter = fillWorkerNationalityFilter();
     const empFilter = document.getElementById("filter-worker-employer").value;
     const statusFilter = document.getElementById("filter-worker-status").value;
     const empStatusFilter = document.getElementById("filter-worker-employment-status") ? 
@@ -6435,7 +6463,7 @@ function renderWorkers() {
             (w.firstName || "").toLowerCase().includes(searchVal) ||
             (w.lastName || "").toLowerCase().includes(searchVal) ||
             (w.workerUid || "").includes(searchVal) ||
-            (w.nationality || "").toLowerCase().includes(searchVal) ||
+            // สัญชาติไม่ค้นจากช่องนี้แล้ว (owner 2026-10-27): พิมพ์ "la"/"my"/"an" เคยดึงคนงานลาว/เมียนมา/กัมพูชามาทั้งหมด — ใช้ dropdown สัญชาติแทน
             (w.passportNo || "").toLowerCase().includes(searchVal) ||
             (w.permitNo && w.permitNo.toLowerCase().includes(searchVal)) ||
             empName.includes(searchVal);
@@ -6463,9 +6491,12 @@ function renderWorkers() {
         const isWarning = (passDaysDiff >= 0 && passDaysDiff <= 180) || (permitDaysDiff >= 0 && permitDaysDiff <= 60);
         const isNormal = !isExpired && !isWarning;
 
+        // ใกล้หมดแยกใบอนุญาต (≤ 60 วัน) กับพาสปอร์ต (≤ 180 วัน) — owner 2026-10-27
         let matchStatus = true;
         if (statusFilter === 'normal') matchStatus = isNormal;
         if (statusFilter === 'warning') matchStatus = isWarning;
+        if (statusFilter === 'warn_permit') matchStatus = permitDaysDiff >= 0 && permitDaysDiff <= 60;
+        if (statusFilter === 'warn_passport') matchStatus = passDaysDiff >= 0 && passDaysDiff <= 180;
         if (statusFilter === 'expired') matchStatus = isExpired;
 
         // Employment status filter (active/pending_register/archived)
@@ -6494,6 +6525,18 @@ function renderWorkers() {
 
         return matchSearch && matchNat && matchEmp && matchStatus && matchEmpStatus && matchGroup && matchProv;
     });
+
+    // ปุ่มล้างตัวกรอง (เห็นเมื่อมีตัวกรองตั้งอยู่) + บรรทัดจำนวนคน — "คนงานปัจจุบัน" ตอนค้นหาจะรวมคนรอขึ้นทะเบียนที่ตรงคำค้นด้วย (บอกไว้ให้รู้)
+    const anyFilter = !!(searchVal || natFilter || empFilter || statusFilter || groupFilter || provFilter || empStatusFilter !== 'active');
+    const clearBtn = document.getElementById('btn-worker-clear-filters');
+    if (clearBtn) clearBtn.classList.toggle('hidden', !anyFilter);
+    const summaryEl = document.getElementById('worker-filter-summary');
+    if (summaryEl) {
+        const pendingShown = empStatusFilter === 'active' && searchVal ? filtered.filter(w => w.status === 'pending_register').length : 0;
+        summaryEl.textContent = `แสดง ${filtered.length.toLocaleString('th-TH')} คน` +
+            (empStatusFilter === 'notify' ? ' · รอแจ้งเข้า = ยังไม่ตรวจผ่าน e-WorkPermit / Admin ยังไม่กด "ผ่าน" / ยังไม่มีใบงานที่ปิดงานแล้ว' : '') +
+            (pendingShown ? ` · รวมคนรอขึ้นทะเบียนที่ตรงคำค้น ${pendingShown} คน` : '');
+    }
 
     // คลิกหัวคอลัมน์เพื่อเรียง (sortWorkersBy) — เรียงก่อนแบ่งหน้า
     sortWorkersList(filtered);
@@ -12954,6 +12997,19 @@ function setupAllSearchSelects() {
     });
 
     // แดชบอร์ด > "สรุปงานที่แจ้งสำเร็จ": กรองตามนายจ้าง / Agent — <select> ซ่อนไว้เก็บค่าจริง, ช่องว่าง = ทั้งหมด
+    // หน้าคนงาน: กรองคนงานของนายจ้างรายเดียว (owner 2026-10-27) — select ซ่อน filter-worker-employer เก็บค่าจริง
+    registerSearchSelect('worker-filter-employer', {
+        inputId: 'worker-filter-employer-search',
+        getValue: () => document.getElementById('filter-worker-employer').value,
+        setValue: (v) => { document.getElementById('filter-worker-employer').value = v || ''; },
+        getPool: () => customers,
+        getId: c => c.id,
+        getLabel: c => c.companyName,
+        getSub: c => c.taxId ? 'ภาษี ' + c.taxId : '',
+        emptyText: 'ไม่พบนายจ้างที่ตรงกับคำค้นหา',
+        onSelect: () => { workersCurrentPage = 1; renderWorkers(); },
+        onClear: () => { workersCurrentPage = 1; renderWorkers(); }
+    });
     registerSearchSelect('db-completed-employer', {
         inputId: 'db-completed-employer-search',
         getValue: () => document.getElementById('db-completed-select-employer').value,
@@ -14911,13 +14967,11 @@ async function revokeCustomerShareLink(customerId) {
 // ==================== ATTACHMENT DOWNLOADS & SHARING HELPERS ====================
 function filterWorkersByEmployer(employerId) {
     switchView('workers');
-    const selectEmp = document.getElementById("filter-worker-employer");
-    if (selectEmp) {
-        selectEmp.value = "";
-        const searchWorker = document.getElementById("search-worker");
-        const empRec = customers.find(c => c.id === employerId);
-        if (searchWorker) searchWorker.value = empRec ? empRec.companyName : "";
-    }
+    // ใช้ตัวกรองนายจ้าง (เดิมใส่ชื่อบริษัทในช่องค้นหา ซึ่งดึงคนงานที่ชื่อคล้ายกันมาปนด้วย)
+    const searchWorker = document.getElementById("search-worker");
+    if (searchWorker) searchWorker.value = "";
+    presetSearchSelect('worker-filter-employer', employerId);
+    workersCurrentPage = 1;
     const selectGroup = document.getElementById("filter-worker-group");
     if (selectGroup) selectGroup.value = "";
     const selectStatus = document.getElementById("filter-worker-employment-status");
