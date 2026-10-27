@@ -3413,9 +3413,11 @@ function renewalActiveRowHtml(r, canEdit) {
         <div class="rn-arow-progress">${renewalSplitBook(r) ? renewalLanesHtml(r, stepText) : `${renewalBarHtml(r)}<small class="text-muted">${escapeHtml(stepText)}</small>`}</div>
         <span class="rn-arow-appt">${r.appointmentDate ? `นัด ${formatThaiDate(r.appointmentDate)}` : '<span class="text-muted" title="ยังไม่ได้กรอกวันนัดรับใบอนุญาต (ขั้นใบนัดหมาย)">ยังไม่นัด</span>'}${r.steps.bookAppt && r.steps.bookAppt.date ? `<small class="rn-book-appt">นัดทำเล่ม ${formatThaiDate(r.steps.bookAppt.date)}</small>` : ''}</span>
         <span class="rn-arow-bill">${renewalBillPillHtml(r)}</span>
-        <div class="rn-actions${renewalSplitBook(r) ? ' is-lanes' : ''}">
+        <div class="rn-actions">
+            <div class="rn-next-stack">
             ${canEdit && next ? `<button type="button" class="btn btn-sm btn-soft rn-next-btn" onclick="renewalStepClick('${r.id}', '${next.key}')" title="${escapeHtml(renewalNextLabel(r))}">${escapeHtml(renewalNextLabel(r))}</button>` : ''}
             ${canEdit && renewalBookNext(r) ? `<button type="button" class="btn btn-sm rn-next-btn rn-book-btn" onclick="renewalStepClick('${r.id}', '${renewalBookNext(r).key}')" title="ทำเล่ม: ${escapeHtml(renewalNextLabel(r, renewalBookNext(r)))}">${escapeHtml(renewalNextLabel(r, renewalBookNext(r)))}</button>` : ''}
+            </div>
             ${canEdit ? `<button type="button" class="action-icon-btn" onclick="cancelRenewal('${r.id}')" title="${isReg ? 'ยกเลิกการขึ้นทะเบียนของคนนี้' : 'ยกเลิกรอบต่ออายุนี้'}">${icon('xmark')}</button>` : ''}
         </div>
     </div>`;

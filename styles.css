@@ -6859,7 +6859,8 @@ body.has-camera .upload-hint { display: none; }
 .rn-bar.is-book-track .rn-seg.is-done { background-color: #2f9a5a; }
 .rn-bar.is-book-track .rn-seg.is-next { background-color: color-mix(in srgb, #2f9a5a 40%, transparent); }
 .rn-book-btn { background-color: color-mix(in srgb, #2f9a5a 14%, transparent); color: #1e6b3a; }
-.rn-actions.is-lanes { flex-direction: column; align-items: stretch; }
+.rn-next-stack { display: flex; flex-direction: column; align-items: stretch; gap: 6px; }
+.rn-next-stack:empty { display: none; }
 .rn-book-appt { display: block; color: #1e6b3a; }
 .rn-next-btn { background-color: color-mix(in srgb, var(--gold-primary) 12%, transparent); color: var(--gold-primary); border: 0; font-weight: 600; white-space: nowrap; }
 .rn-head-count { font-size: 15px; font-weight: 500; }
