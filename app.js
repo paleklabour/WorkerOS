@@ -3370,39 +3370,119 @@ function renewalNextLabel(r, s = renewalNextStep(r)) {
     return `แนบ${s.label}`;
 }
 
-// แถบความคืบหน้า: ช่องละขั้น (ทำแล้ว = สีหลัก, ขั้นถัดไป = สีอ่อน) กดช่องที่ทำแล้วเพื่อเปิดไฟล์ / แก้ติ๊กหรือวันนัด
-// สายต่ออายุ = ค่าเริ่มต้น; สายทำเล่ม = renewalBarHtml(r, renewalBookTrackOf(r), renewalBookNext(r), ' is-book-track')
-function renewalBarHtml(r, steps = renewalStepsOf(r), next = renewalNextStep(r), extraCls = '') {
-    const nextKey = (next || {}).key;
-    return `<div class="rn-bar${extraCls}">${steps.map(s => {
-        const st = r.steps[s.key];
-        const ext = (s.key === 'book' && !st && r.steps.bookExternal) || (st && st.skipped);
-        const cls = st ? 'is-done' : ext ? 'is-ext' : s.key === nextKey ? 'is-next' : '';
-        const doneText = s.key === 'appointment' && r.appointmentDate ? `นัด ${formatThaiDate(r.appointmentDate)}`
-            : st && st.date ? `นัด ${formatThaiDate(st.date)}` : st ? `เสร็จ ${formatThaiDate(st.at)}` : '';
-        const when = st && st.skipped ? 'ไม่มี (ข้าม)' : ext ? `${s.label}ที่อื่น (รอข้อมูลใหม่)` : st ? doneText : (s.key === nextKey ? 'ขั้นถัดไป' : 'ยังไม่ถึง');
-        return `<button type="button" class="rn-seg ${cls}${s.key === 'book' && !extraCls ? ' is-book' : ''}" onclick="renewalStepClick('${r.id}', '${s.key}')" title="${escapeHtml(s.label)} · ${escapeHtml(when)}" aria-label="${escapeHtml(s.label)} ${escapeHtml(when)}"></button>`;
-    }).join('')}</div>`;
+// ความคืบหน้าแบบวงแหวน (owner 2026-10-27, แบบที่ 5): ต่อสาย 1 วงแหวน (x/ทั้งหมด) + "รอ…" + "เสร็จล่าสุด: …"
+// สายต่ออายุ/ขึ้นทะเบียน = 'main' (สีหลัก), สายทำเล่ม = 'book' (สีเขียว) — เอาเมาส์ชี้ = รายการทุกขั้นพร้อมวันที่ (ดูอย่างเดียว),
+// กด = ปักหน้าต่างรายการไว้ กดแต่ละขั้นเพื่อเปิดไฟล์ / แก้ติ๊ก-วันนัด / ทำขั้นถัดไป (renewalStepClick)
+function renewalTrackOf(r, track) {
+    return track === 'book'
+        ? { steps: renewalBookTrackOf(r), next: renewalBookNext(r), name: 'ทำเล่ม', cls: 'is-book' }
+        : { steps: renewalStepsOf(r), next: renewalNextStep(r), name: r.kind === 'registration' ? 'ขึ้นทะเบียน' : 'ต่ออายุ', cls: 'is-main' };
 }
 
-// 2 แถบในแถวเดียว (owner 2026-10-27, แบบที่ 1): ต่ออายุ (สีหลัก) + ทำเล่ม (สีเขียว) แต่ละแถบมีข้อความขั้นของตัวเอง
-function renewalLanesHtml(r, stepText) {
-    const track = renewalBookTrackOf(r);
-    const bNext = renewalBookNext(r);
-    const bText = r.steps.bookExternal ? (r.steps.book ? 'ทำที่อื่น · มีข้อมูลเล่มใหม่แล้ว' : 'ทำเล่มที่อื่น (รอข้อมูลเล่มใหม่)')
-        : bNext ? `ขั้นที่ ${track.indexOf(bNext) + 1}/${track.length} · รอ${bNext.label}` : 'ทำเล่มเสร็จ';
-    return `<div class="rn-lanes">
-        <div class="rn-lane"><span class="rn-lane-label">ต่ออายุ</span><div class="rn-lane-body">${renewalBarHtml(r)}<small class="text-muted">${escapeHtml(stepText)}</small></div></div>
-        <div class="rn-lane is-book"><span class="rn-lane-label">ทำเล่ม</span><div class="rn-lane-body">${renewalBarHtml(r, track, bNext, ' is-book-track')}<small class="text-muted">${escapeHtml(bText)}</small></div></div>
-    </div>`;
+// สถานะของแต่ละขั้น: done / skipped / ext (ทำที่อื่น) / next / todo + ข้อความวันที่
+function renewalStepState(r, s, nextKey) {
+    const st = r.steps[s.key];
+    if (st && st.skipped) return { kind: 'skipped', when: 'ไม่มี (ข้าม)' };
+    if (st) {
+        const when = s.key === 'appointment' && r.appointmentDate ? `นัด ${formatThaiDate(r.appointmentDate)}`
+            : st.date ? `นัด ${formatThaiDate(st.date)}` : formatThaiDate(st.at);
+        return { kind: 'done', when };
+    }
+    if (s.key === 'book' && r.steps.bookExternal) return { kind: 'ext', when: 'ทำที่อื่น (รอข้อมูลใหม่)' };
+    if (s.key === nextKey) return { kind: 'next', when: 'รออยู่' };
+    return { kind: 'todo', when: '' };
 }
+
+function renewalRingHtml(r, track) {
+    const t = renewalTrackOf(r, track);
+    const nextKey = (t.next || {}).key;
+    const states = t.steps.map(s => renewalStepState(r, s, nextKey));
+    const done = states.filter(x => x.kind === 'done' || x.kind === 'skipped' || x.kind === 'ext').length;
+    const total = t.steps.length;
+    const lastIdx = states.map(x => x.kind).lastIndexOf('done');
+    const ext = track === 'book' && r.steps.bookExternal;
+    const head = ext ? 'ทำเล่มที่อื่น' : t.next ? `รอ${t.next.label}` : `${t.name}เสร็จ`;
+    const sub = lastIdx >= 0 ? `เสร็จล่าสุด: ${t.steps[lastIdx].label}` : 'ยังไม่เริ่ม';
+    return `<button type="button" class="rn-ring-btn ${t.cls}" data-rid="${r.id}" data-track="${track}"
+            onmouseenter="showRenewalStepsPop(this, false)" onmouseleave="hideRenewalStepsPop(false)" onclick="event.stopPropagation(); showRenewalStepsPop(this, true)"
+            aria-label="${escapeHtml(`${t.name} ${done}/${total} · ${head}`)}">
+        <span class="rn-ring" style="--deg: ${Math.round(done / Math.max(total, 1) * 360)}deg"><span class="rn-ring-in">${done}/${total}</span></span>
+        <span class="rn-ring-txt"><small class="rn-ring-name">${escapeHtml(t.name)}</small><b>${escapeHtml(head)}</b><small class="text-muted">${escapeHtml(sub)}</small></span>
+    </button>`;
+}
+
+let renewalStepsPopPinned = false;
+function renewalStepsPopHtml(r, track, pinned) {
+    const t = renewalTrackOf(r, track);
+    const nextKey = (t.next || {}).key;
+    const canEdit = pinned && can('ops');
+    const states = t.steps.map(s => renewalStepState(r, s, nextKey));
+    const done = states.filter(x => x.kind !== 'next' && x.kind !== 'todo').length;
+    const rows = t.steps.map((s, i) => {
+        const x = states[i];
+        let act = '';
+        if (canEdit) {
+            if (x.kind === 'done') act = s.kind === 'file' ? 'เปิดไฟล์' : 'แก้ไข';
+            else if (x.kind === 'next') act = renewalNextLabel(r, s);
+            else if (x.kind === 'ext' && s.key === 'book') act = 'ใส่ข้อมูลเล่มใหม่';
+        }
+        return `<div class="rn-sp-row is-${x.kind}">
+            <span class="rn-sp-dot" aria-hidden="true">${x.kind === 'done' ? '✓' : x.kind === 'skipped' || x.kind === 'ext' ? '–' : ''}</span>
+            <span class="rn-sp-label">${escapeHtml(s.label)}</span>
+            <span class="rn-sp-when">${escapeHtml(x.when)}</span>
+            ${act ? `<button type="button" class="btn btn-sm rn-sp-act${x.kind === 'next' ? ' is-primary' : ''}" onclick="hideRenewalStepsPop(true); renewalStepClick('${r.id}', '${s.key}')" title="${escapeHtml(`${act}: ${s.label}`)}">${escapeHtml(act)}</button>` : ''}
+        </div>`;
+    }).join('');
+    const w = workers.find(x => x.id === r.workerId);
+    return `<div class="rn-sp-head ${t.cls}"><div><b>${escapeHtml(t.name)}</b> · ${done}/${t.steps.length}${pinned && w ? `<small>${escapeHtml(workerFullName(w))}</small>` : ''}</div>
+        ${pinned ? `<button type="button" class="rn-sp-close" onclick="hideRenewalStepsPop(true)" title="ปิดรายการขั้นตอน" aria-label="ปิดรายการขั้นตอน">&times;</button>` : ''}</div>${rows}`;
+}
+
+function showRenewalStepsPop(btn, pin) {
+    if (renewalStepsPopPinned && !pin) return; // ปักไว้อยู่ — ชี้ที่อื่นไม่เปลี่ยน
+    const r = (renewalList || []).find(x => x.id === btn.dataset.rid);
+    if (!r) return;
+    let pop = document.getElementById('rn-steps-pop');
+    if (!pop) {
+        pop = document.createElement('div');
+        pop.id = 'rn-steps-pop';
+        pop.className = 'rn-steps-pop hidden';
+        pop.setAttribute('role', 'dialog');
+        document.body.appendChild(pop);
+    }
+    renewalStepsPopPinned = !!pin;
+    pop.classList.toggle('is-pinned', !!pin);
+    pop.classList.toggle('is-book', btn.dataset.track === 'book'); // สีของสาย (CSS --rn-c)
+    pop.setAttribute('aria-label', 'ขั้นตอน');
+    pop.innerHTML = renewalStepsPopHtml(r, btn.dataset.track, !!pin);
+    pop.classList.remove('hidden');
+    const rect = btn.getBoundingClientRect();
+    const h = pop.offsetHeight, w = pop.offsetWidth;
+    const below = rect.bottom + 8 + h <= window.innerHeight;
+    pop.style.top = `${Math.round(below ? rect.bottom + 8 : Math.max(8, rect.top - h - 8))}px`;
+    pop.style.left = `${Math.round(Math.max(8, Math.min(rect.left, window.innerWidth - w - 8)))}px`;
+}
+
+function hideRenewalStepsPop(force) {
+    if (renewalStepsPopPinned && !force) return;
+    renewalStepsPopPinned = false;
+    const pop = document.getElementById('rn-steps-pop');
+    if (pop) pop.classList.add('hidden');
+}
+
+document.addEventListener('mousedown', (e) => {
+    if (!renewalStepsPopPinned) return;
+    const pop = document.getElementById('rn-steps-pop');
+    if (pop && pop.contains(e.target)) return;
+    if (e.target.closest && e.target.closest('.rn-ring-btn')) return;
+    hideRenewalStepsPop(true);
+});
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && renewalStepsPopPinned) hideRenewalStepsPop(true); });
+window.addEventListener('scroll', () => hideRenewalStepsPop(true), true);
 
 function renewalActiveRowHtml(r, canEdit) {
     const w = workers.find(x => x.id === r.workerId);
     const next = renewalNextStep(r);
-    const i = renewalStageIndex(r);
-    const total = renewalStepsOf(r).length;
-    const stepText = next ? `ขั้นที่ ${Math.min(i + 1, total)}/${total} · รอ${next.label}` : renewalSplitBook(r) ? 'ต่ออายุเสร็จ (รอสายทำเล่ม)' : 'ครบทุกขั้น';
     const isReg = r.kind === 'registration';
     const regRound = isReg ? (registrationRounds || []).find(x => x.id === r.registrationRoundId) : null;
     const sub = isReg ? `${regRound ? regRoundLabel(regRound) : 'ขึ้นทะเบียน'} · ${r.steps.bookExternal ? 'เล่ม/visa ทำที่อื่น' : r.withBook ? 'ทำเล่มใหม่' : 'ตี visa'}`
@@ -3412,7 +3492,7 @@ function renewalActiveRowHtml(r, canEdit) {
         <div class="rn-arow-name"><strong>${escapeHtml(workerFullName(w))}</strong><small class="rn-uid">${escapeHtml(w.workerUid || 'ยังไม่มีเลข 13 หลัก')}</small><small class="text-muted">${escapeHtml(sub)}</small>
             ${r.openedByClient ? `<span class="rn-client-tag" title="นายจ้างเปิดรอบนี้เองจากพอร์ทัลลูกค้า">ลูกค้าเปิดงาน · ${formatThaiDate(String(r.startedAt || '').slice(0, 10))}</span>` : ''}
             ${r.clientNote ? `<small class="rn-client-note">"${escapeHtml(r.clientNote)}"</small>` : ''}</div>
-        <div class="rn-arow-progress">${renewalSplitBook(r) ? renewalLanesHtml(r, stepText) : `${renewalBarHtml(r)}<small class="text-muted">${escapeHtml(stepText)}</small>`}</div>
+        <div class="rn-arow-progress"><div class="rn-rings">${renewalRingHtml(r, 'main')}${renewalSplitBook(r) ? renewalRingHtml(r, 'book') : ''}</div></div>
         <span class="rn-arow-appt">${r.appointmentDate ? `นัด ${formatThaiDate(r.appointmentDate)}` : '<span class="text-muted" title="ยังไม่ได้กรอกวันนัดรับใบอนุญาต (ขั้นใบนัดหมาย)">ยังไม่นัด</span>'}${r.steps.bookAppt && r.steps.bookAppt.date ? `<small class="rn-book-appt">นัดทำเล่ม ${formatThaiDate(r.steps.bookAppt.date)}</small>` : ''}</span>
         <span class="rn-arow-bill">${renewalBillPillHtml(r)}</span>
         <div class="rn-actions">
