@@ -1564,7 +1564,6 @@ function renderClientRenewalTab(myWorkers) {
     </div>`).join('');
 
     const activeRows = active.map(r => {
-        const next = renewalNextStep(r);
         const owe = renewalJobsOf(r).map(getJobInvoice).filter(Boolean).reduce((s, inv) => s + invoiceBalance(inv), 0);
         const pill = owe > 0 ? `<span class="badge badge-danger">ค้างชำระ ${fmtMoney(owe)}</span>`
             : !Object.keys(r.steps).length ? '<span class="badge badge-gold">เริ่มแล้ว</span>' : '<span class="badge badge-warning">กำลังดำเนินการ</span>';
@@ -1572,12 +1571,10 @@ function renderClientRenewalTab(myWorkers) {
         // ทำเล่มที่อื่น: รอบนี้ติ๊กทำเล่มไว้ เล่มยังไม่ได้ทำ และค่าทำเล่มยังไม่ออกบิล
         const canBookExt = r.withBook && !r.steps.book && !r.steps.bookExternal
             && !renewalJobsOf(r).some(j => j.jobType === RENEWAL_BOOK_JOB_TYPE && (getJobInvoice(j) || isJobNoCharge(j)));
-        const nextKey = (next || {}).key;
-        const bar = renewalAllStepsOf(r).map(s => `<span class="rn-seg ${r.steps[s.key] ? 'is-done' : s.key === nextKey ? 'is-next' : ''}${s.key.startsWith('book') ? ' is-book' : ''}" title="${escapeHtml(s.label)}${r.steps[s.key] ? ' · เสร็จแล้ว' : ''}"></span>`).join('');
         return `<div class="cp-rn-row cp-rn-active">
-            <div class="cp-rn-name"><strong>${escapeHtml(workerFullName(wOf(r)))}</strong><small class="text-muted">เริ่ม ${formatThaiDate(String(r.startedAt || '').slice(0, 10))}${r.withBook ? (r.steps.bookExternal ? ' · ทำเล่มที่อื่น' : ' · ทำเล่มด้วย') : ''}</small></div>
-            <div class="rn-arow-progress"><div class="rn-bar">${bar}</div><small class="text-muted">${next ? `รอ${escapeHtml(next.label)}` : 'ครบทุกขั้น'}</small></div>
-            <span class="text-muted">${r.appointmentDate ? `นัดรับบัตร ${formatThaiDate(r.appointmentDate)}` : '—'}</span>
+            <div class="cp-rn-name"><strong>${escapeHtml(workerFullName(wOf(r)))}</strong><small class="text-muted">เริ่ม ${formatThaiDate(String(r.startedAt || '').slice(0, 10))}${r.withBook && !renewalSplitBook(r) ? (r.steps.bookExternal ? ' · ทำเล่มที่อื่น' : ' · ทำเล่มด้วย') : ''}</small></div>
+            <div class="rn-arow-progress"><div class="rn-rings">${renewalRingHtml(r, 'main')}${renewalSplitBook(r) ? renewalRingHtml(r, 'book') : ''}</div></div>
+            <span class="text-muted">${r.appointmentDate ? `นัดรับบัตร ${formatThaiDate(r.appointmentDate)}` : 'ยังไม่นัด'}${r.steps.bookAppt && r.steps.bookAppt.date ? `<small class="rn-book-appt">นัดทำเล่ม ${formatThaiDate(r.steps.bookAppt.date)}</small>` : ''}</span>
             <span>${pill}</span>
             <span class="cp-rn-btns">${canBookExt ? `<button type="button" class="btn btn-sm btn-outline" onclick="clientBookExternal('${r.id}')" title="เล่มทำที่อื่น (ไม่คิดค่าทำเล่ม)">ทำเล่มที่อื่น</button>` : ''}
                 ${canCancel ? `<button type="button" class="btn btn-sm btn-outline" onclick="clientMarkExternal(['${r.workerId}'])" title="แจ้งว่าไปต่อใบอนุญาตที่อื่น (ได้เฉพาะก่อนตรวจสุขภาพ)">ต่อที่อื่นแล้ว</button>
