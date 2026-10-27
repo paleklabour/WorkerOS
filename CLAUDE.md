@@ -544,7 +544,7 @@ Book as its own track (owner 2026-10-27, picked mockup 1): a renewal round with 
 ต่ออายุ (the 6 steps above) and ทำเล่ม (`RENEWAL_BOOK_TRACK`, the office's real steps per owner 2026-10-27: บัตรประชาชน
 หน้า-หลัง `worker-myanmar-id` (1 file NTID_FB / 2 files NTID_F + NTID_B; can reuse a card already in the folder) → ใบเสร็จจอง
 เซเว่น `worker-receipt` REC, no AI → วันนัดทำเล่ม date in `steps.bookAppt.date` → รับเล่ม = the old `book` file step (asks new
-expiry) → ตี Visa `worker-visa`), each with its own next button (`renewalLanesHtml`,
+expiry) → ตี Visa `worker-visa`), each with its own ring and next button (`renewalRingHtml`,
 `renewalBookNext`). The tracks run independently; the round closes when the card is in and the book track is done
 (`renewalBookTrackDone`; ทำเล่มที่อื่น = done). `renewalNextStep` is the renewal track only for these rounds; registration rounds
 keep the single trailing book/visa step.
