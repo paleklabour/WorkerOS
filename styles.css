@@ -1555,6 +1555,34 @@ label.user-avatar:hover { box-shadow: 0 0 0 3px rgba(45, 79, 163, 0.18); }
 }
 .bulk-client-count.hidden { display: none; }
 
+/* ตัวกรองช่วงเวลา หน้าบิล / รายจ่าย / บัญชีธนาคาร (2026-10-27) — finPeriodRange / setFinPeriodSummary ใน app.js */
+.fin-period-custom { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--dk-muted, #64748b); }
+.fin-period-custom .fin-period-date { width: 150px; min-height: 44px; }
+.fin-period-summary {
+    margin: -8px 0 16px;
+    padding: 10px 14px;
+    border-radius: 14px;
+    background: var(--dk-subtle, #eef2f8);
+    color: var(--text-dark);
+    font-size: 14px;
+    line-height: 1.7;
+}
+
+/* รายการเดินบัญชี / โอนระหว่างบัญชี / เทียบ statement (2026-10-27) */
+.modal-header-actions { display: flex; align-items: center; gap: 10px; }
+.bank-card-tools { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.ledger-start-row td { background: var(--dk-subtle, #f3f5f9); color: var(--dk-muted, #64748b); }
+.ledger-stmt-ok { color: var(--success, #16a34a); }
+.stmt-upload { cursor: pointer; }
+.stmt-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.stmt-table td:last-child { min-width: 280px; }
+.stmt-sysonly { margin: 0 0 14px; font-size: 14px; }
+.stmt-sysonly summary { cursor: pointer; color: var(--danger, #dc2626); font-weight: 600; }
+.stmt-sysonly ul { margin: 8px 0 0; padding-left: 20px; line-height: 1.8; }
+.stmt-rules { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 14px; font-size: 14px; }
+.stmt-rule { display: inline-flex; align-items: center; gap: 4px; padding: 3px 6px 3px 12px; border-radius: 999px; background: var(--dk-subtle, #eef2f8); }
+.stmt-rule button { border: none; background: none; color: var(--dk-muted, #64748b); font-size: 16px; line-height: 1; cursor: pointer; padding: 0 4px; }
+
 .search-filters-group {
     display: flex;
     gap: 16px;
@@ -3222,6 +3250,11 @@ td > .ico {
     color: var(--navy-dark);
     line-height: 1.35;
 }
+
+/* บิลแบบรายคน: ยอดของแต่ละรายการตัวเล็กใต้ชื่อคนงาน (buildInvoicePerWorkerRows, owner 2026-10-27) */
+.inv-item-breakdown { margin-top: 3px; font-size: 11.5px; line-height: 1.45; color: #6b7280; max-width: 420px; }
+.inv-item-breakdown > div { display: flex; justify-content: space-between; gap: 16px; }
+.inv-item-breakdown > div > span:last-child { font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 .inv-item-desc {
     font-size: 12px;

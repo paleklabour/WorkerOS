@@ -78,9 +78,12 @@ Deno.serve(async (req) => {
       const wById = new Map((workers || []).map((w: any) => [w.id, w]));
       const out = new Map<string, any>();
       const add = (key: string, title: string, desc: string, service: string | null, amount: number) => {
-        if (!out.has(key)) out.set(key, { title, desc, services: [] as string[], fee: 0 });
+        if (!out.has(key)) out.set(key, { title, desc, services: [] as { name: string; amount: number }[], fee: 0 });
         const r = out.get(key);
-        if (service && !r.services.includes(service)) r.services.push(service);
+        if (service) {
+          const s = r.services.find((x: any) => x.name === service);
+          if (s) s.amount += amount; else r.services.push({ name: service, amount });
+        }
         r.fee += amount;
       };
       items.forEach((it: any) => {
@@ -104,7 +107,8 @@ Deno.serve(async (req) => {
       });
       rows = [...out.values()].map((r) => ({
         title: r.title,
-        desc: [r.desc, r.services.length ? `ค่าบริการ: ${r.services.join(", ")}` : ""].filter(Boolean).join("\n"),
+        // ยอดของแต่ละรายการในแถวของคนงาน 1 บรรทัดต่อรายการ (owner 2026-10-27)
+        desc: [r.desc, ...r.services.map((s: any) => `• ${s.name} ${round2(s.amount).toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`)].filter(Boolean).join("\n"),
         qty: 1, unitPrice: round2(r.fee), fee: round2(r.fee),
       }));
     }

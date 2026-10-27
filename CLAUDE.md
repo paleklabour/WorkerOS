@@ -212,6 +212,30 @@ or credit (`customerCredit()`), and it can be applied to later invoices
 customer; the real account is the one picked when recording the money. Schema:
 `supabase/migrations/20261002032303_receipts_and_customer_credit.sql`.
 
+Period filter (owner 2026-10-27): the billing, expenses and bank-account tabs each have a "ทุกช่วงเวลา / วันนี้ / เดือนนี้ /
+ปีนี้ / month / year / กำหนดช่วงวันที่เอง" select next to the search box (`period-<tab>`, `populateFinPeriodSelect` /
+`finPeriodRange` / `inFinPeriod`) plus a summary strip (`period-<tab>-summary`). Billing = invoice issue date (unbilled /
+no-charge jobs = date opened); expenses = expense date; banks = `bankAccountBalance(id, range)` / `cashBalance(range)` show
+start-of-period balance + in/out within it = end-of-period balance (no range = current balance, as before).
+The choice is remembered per tab in this browser (localStorage `mw_fin_period_<tab>`). Each tab has an "Excel" button that exports
+exactly the rows shown (`exportBillingTabCsv` / `exportExpensesTabCsv` / `exportReceiptsCsv` / `exportLedgerCsv`).
+Same day (owner 2026-10-27, migration `20261027090000_account_transfers_statements.sql`, RLS `can_finance()`):
+- All money per account comes from `accountEntries(accountId)` (bank id or `'cash'`): receipts + old payments in, expenses out,
+  `account_transfers` in/out; `accountBalance(id, range)` sums it. Transfers between the company's own accounts (deposit cash,
+  withdraw, move between banks — `openTransferModal`) move balance only, never revenue/expense, and are left out of the
+  bank-tab totals.
+- Bank card buttons "รายการเดินบัญชี" (`openAccountLedger`: running balance, double-click a row opens the receipt / expense /
+  transfer) and "เทียบ statement" (`openStatementModal`).
+- Statement matching: PDF statements read with pdf.js, no AI (`stmtPdfLines` → `stmtParseLines`: line starts with a date
+  DD-MM-YY / DD/MM/YY / D ม.ค. YY, last money figure = balance, direction from the balance change, every line checked against it;
+  password PDFs ask for the password). Lines go to `bank_statement_lines` (id = bank|date|amount|balance, re-import is safe),
+  matched to an entry of the same account with the same amount within ±3 days (`stmtCandidates`; exactly one = auto). Unmatched
+  lines: pick a candidate / + รับเงิน / + รายจ่าย / + โอนระหว่างบัญชี (forms prefilled) / ข้าม / ข้ามทุกครั้ง (keyword in
+  `app_settings.statement_skip_rules`). The parser was written without real sample files — check it on the first real
+  KBank / ttb / KTB statement.
+- Finance tab "ใบเสร็จรับเงิน" (`renderReceiptsTab`): every money-in (receipts + old payments without a receipt), filters
+  status / account / period, void from the row (`can('voidMoney')`).
+
 Billing note (`customers.billing_note`, staff-only, never printed): besides the customer
 form, finance and ops roles add/edit it right in the invoice and combine-bills screens
 (`renderBillingNoteBox` → `set_customer_billing_note()` RPC, owner 2026-10-13) — needed
@@ -585,3 +609,9 @@ job's close documents + "ดาวน์โหลดทั้งหมด (ZIP)"
 users or the job's own client; only when unlocked: no-charge / ชำระเงินแล้ว / `unlock_unpaid_job_docs`). Edge function
 `share-job-docs` (verify_jwt off) re-checks the unlock rule on every open. Staff: "ลิงก์โฟลเดอร์" in the closed-job banner
 copies it (`shareJobCloseFolder`); portal "งานที่แจ้ง" tab: "เปิดโฟลเดอร์" opens it instead of one link per file.
+`share-job.html` (owner 2026-10-27): one screen, no page scroll — top bar (logo, title, file count, ZIP), file list left /
+large preview right (open full screen, download one file), app light-theme colors; on phones the list becomes a horizontal strip.
+
+Per-person invoice layout ("แบบรายคน", owner 2026-10-27): under each worker's row the items it is made of are listed in small
+type with their own amounts (`buildInvoicePerWorkerRows` → `services: [{ name, amount }]`, `.inv-item-breakdown`); the share
+link (`share-invoice` Edge Function) prints the same as "• item amount" lines.

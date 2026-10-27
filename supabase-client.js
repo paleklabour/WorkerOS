@@ -107,6 +107,15 @@
         voided: "voided", voidReason: "void_reason", voidedAt: "voided_at", voidedBy: "voided_by",
         recordedBy: "recorded_by", createdAt: "created_at"
     };
+    // โอนระหว่างบัญชีของบริษัท + บรรทัด statement ธนาคาร — ดู 20261027090000_account_transfers_statements.sql
+    const TRANSFER_MAP = {
+        id: "id", transferDate: "transfer_date", fromAccount: "from_account", toAccount: "to_account",
+        amount: "amount", note: "note", createdBy: "created_by", createdAt: "created_at"
+    };
+    const STATEMENT_LINE_MAP = {
+        id: "id", bankId: "bank_id", lineDate: "line_date", description: "description", amount: "amount", balance: "balance",
+        matchKind: "match_kind", matchId: "match_id", note: "note", importedBy: "imported_by", createdAt: "created_at"
+    };
     const SERVICE_PRICE_MAP = { jobType: "job_type", govFee: "gov_fee", serviceFee: "service_fee", updatedAt: "updated_at", costItems: "cost_items" };
     // numeric ของ Postgres กลับมาเป็นสตริง ("1500.00") — แปลงเป็นตัวเลขให้ app.js คำนวณได้ตรง ๆ
     const num = (v) => (v === null || v === undefined || v === "") ? 0 : Number(v);
@@ -193,10 +202,21 @@
         return { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
     }
 
+    // ดึงทั้งตารางทีละ 1000 แถวจนครบ (PostgREST คืนได้ครั้งละไม่เกิน 1000) — คืนรูปแบบเดียวกับ query ปกติ { data, error }
+    async function selectAllRows(table) {
+        const out = [];
+        for (let from = 0; ; from += 1000) {
+            const { data, error } = await sb.from(table).select("*").order("id").range(from, from + 999);
+            if (error) return { data: null, error };
+            out.push(...(data || []));
+            if (!data || data.length < 1000) return { data: out, error: null };
+        }
+    }
+
     // -------------------- getData --------------------
     async function handleGetData() {
         const [customersRes, workersRes, jobsRes, banksRes, profilesRes, agentsRes, expensesRes, freeInvoicesRes,
-               invoicesRes, paymentsRes, servicePricesRes, receiptsRes, teamRes, settingsRes] = await Promise.all([
+               invoicesRes, paymentsRes, servicePricesRes, receiptsRes, teamRes, settingsRes, transfersRes, statementRes] = await Promise.all([
             // เรียงตามวันที่สร้าง (+id) เสมอ — ไม่ระบุลำดับ Postgres คืนแถวที่เพิ่งแก้ไขในตำแหน่งใหม่ ทำให้รายการในตารางกระโดด
             sb.from("customers").select("*").order("created_at", { ascending: true }).order("id", { ascending: true }),
             sb.from("workers").select("*").order("created_at", { ascending: true }).order("id", { ascending: true }),
@@ -211,7 +231,9 @@
             sb.from("service_prices").select("*"),
             sb.from("receipts").select("*"),
             sb.rpc("list_team"),
-            sb.from("app_settings").select("key, value")
+            sb.from("app_settings").select("key, value"),
+            sb.from("account_transfers").select("*"),
+            selectAllRows("bank_statement_lines")
         ]);
         // RLS กรองแถวให้อัตโนมัติตาม role/customer_id ของผู้ใช้ที่ล็อกอินอยู่แล้ว
         // (ไม่ต้อง filter ซ้ำฝั่ง client เหมือนโค้ด Code.gs เดิม)
@@ -240,6 +262,9 @@
             invoices: invoicesRes.error ? [] : normalizeNumbers(toCamelList(invoicesRes.data, INVOICE_MAP), ["subtotal", "grandTotal", "govFeeTotal"]),
             payments: paymentsRes.error ? [] : normalizeNumbers(toCamelList(paymentsRes.data, PAYMENT_MAP), ["amount"]),
             receipts: receiptsRes.error ? [] : normalizeNumbers(toCamelList(receiptsRes.data, RECEIPT_MAP), ["amount"]),
+            // ยังไม่ได้ใช้ migration / ไม่ใช่ฝ่ายการเงิน → error หรือ RLS คืนว่าง = [] (หน้าอื่นทำงานต่อได้)
+            transfers: transfersRes.error ? [] : normalizeNumbers(toCamelList(transfersRes.data, TRANSFER_MAP), ["amount"]),
+            statementLines: statementRes.error ? [] : normalizeNumbers(toCamelList(statementRes.data, STATEMENT_LINE_MAP), ["amount", "balance"]),
             // ทีมงานภายใน (ชื่อ+ตำแหน่ง) สำหรับเลือก/แสดงผู้รับผิดชอบใบงาน — profiles อ่านได้เฉพาะแถวตัวเองถ้าไม่ใช่ admin
             team: teamRes.error ? [] : (teamRes.data || []),
             // ค่าตั้งค่ากลาง { key: value } เช่น cash_card_order
@@ -832,6 +857,35 @@
             }
             case "saveAgent":
                 return await upsertOne("agents", AGENT_MAP, payload.agentData);
+            case "saveTransfer":
+                return await upsertOne("account_transfers", TRANSFER_MAP, payload.transferData);
+            case "deleteTransfer": {
+                const { error, count } = await sb.from("account_transfers").delete({ count: "exact" }).eq("id", payload.id);
+                if (error) return { status: "error", message: error.message };
+                if (!count) return { status: "error", message: "ไม่พบรายการโอน หรือไม่มีสิทธิ์ลบ" };
+                return { status: "success" };
+            }
+            case "importStatementLines": {
+                // บรรทัดที่เคยนำเข้าแล้ว (id เดิม) ข้าม — ไม่ทับผลจับคู่ที่ทำไว้
+                const rows = (payload.lines || []).map((l) => toRow(l, STATEMENT_LINE_MAP));
+                for (let i = 0; i < rows.length; i += 500) {
+                    const { error } = await sb.from("bank_statement_lines").upsert(rows.slice(i, i + 500), { onConflict: "id", ignoreDuplicates: true });
+                    if (error) return { status: "error", message: error.message };
+                }
+                return { status: "success" };
+            }
+            case "setStatementMatch": {
+                const { error } = await sb.from("bank_statement_lines")
+                    .update({ match_kind: payload.matchKind || null, match_id: payload.matchId || null, note: payload.note ?? null })
+                    .in("id", payload.ids || []);
+                if (error) return { status: "error", message: error.message };
+                return { status: "success" };
+            }
+            case "deleteStatementLines": {
+                const { error } = await sb.from("bank_statement_lines").delete().in("id", payload.ids || []);
+                if (error) return { status: "error", message: error.message };
+                return { status: "success" };
+            }
             case "saveBank":
                 return await upsertOne("banks", BANK_MAP, payload.bankData);
             case "saveExpense":

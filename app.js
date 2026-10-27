@@ -17,6 +17,8 @@ let freeInvoices = [];   // ตารางเดิม (เลิกใช้�
 let invoices = [];       // บิลทุกใบ (งานเดียว/บิลรวม/บิลอิสระ) — ดู ACCOUNTING MODULE
 let payments = [];       // การตัดยอดเข้าบิล (หลายงวดต่อบิล) — รายรับนับตาม paidDate
 let receipts = [];       // ใบเสร็จ = เงินเข้า 1 ก้อน (ตัดได้หลายบิล ส่วนที่เหลือเป็นมัดจำ) — ยอดแบงค์นับจากตารางนี้
+let transfers = [];      // โอนระหว่างบัญชีของบริษัท / เงินสด (account_transfers) — ย้ายยอดคงเหลือ ไม่ใช่รายรับรายจ่าย
+let statementLines = []; // บรรทัด statement ธนาคารที่นำเข้า + ผลจับคู่ (bank_statement_lines)
 let servicePrices = [];  // ราคามาตรฐานต่อประเภทงาน (ค่าธรรมเนียมรัฐ + ค่าบริการ) — ใช้ภายในเท่านั้น
 
 // Thai provinces selection constraint
@@ -362,6 +364,8 @@ async function loadData() {
             invoices = res.invoices || [];
             payments = res.payments || [];
             receipts = res.receipts || [];
+            transfers = res.transfers || [];
+            statementLines = res.statementLines || [];
             servicePrices = res.servicePrices || [];
             hiddenWorkers = [];
             applyInactiveEmployers();
@@ -5361,9 +5365,121 @@ function switchDashboardTab(tabName) {
     }
 }
 
+// ---------- ตัวกรองช่วงเวลา หน้าบิล / รายจ่าย / บัญชีธนาคาร (owner 2026-10-27) ----------
+// <select id="period-<tab>"> ค่า: '' ทั้งหมด / today / thismonth / thisyear / 'YYYY' / 'YYYY-MM' / custom (ช่อง period-<tab>-from / -to)
+// บิล = วันที่ออกบิล (ใบงานที่ยังไม่ออกบิล / ไม่เรียกเก็บเงิน = วันเปิดงาน), รายจ่าย = วันที่จ่าย, บัญชี = วันที่รับเงิน / จ่ายเงิน
+const FIN_PERIOD_RENDER = { billing: () => renderBillingTab(), expenses: () => renderExpenses(), banks: () => renderBanks(), receipts: () => renderReceiptsTab() };
+// จำช่วงเวลาที่เลือกไว้ต่อแท็บในเครื่องนี้ (localStorage mw_fin_period_<tab> = { v, from, to })
+const finPeriodKey = tab => `mw_fin_period_${tab}`;
+
+function saveFinPeriod(tab) {
+    const v = (document.getElementById(`period-${tab}`) || {}).value || '';
+    const from = (document.getElementById(`period-${tab}-from`) || {}).value || '';
+    const to = (document.getElementById(`period-${tab}-to`) || {}).value || '';
+    try { localStorage.setItem(finPeriodKey(tab), JSON.stringify({ v, from, to })); } catch (e) { /* ไม่มีที่เก็บ ไม่จำ */ }
+}
+
+function populateFinPeriodSelect(tab) {
+    const select = document.getElementById(`period-${tab}`);
+    if (!select) return;
+    let cur = select.value;
+    if (!select.dataset.restored) {
+        select.dataset.restored = '1';
+        try {
+            const saved = JSON.parse(localStorage.getItem(finPeriodKey(tab)) || 'null');
+            if (saved && typeof saved.v === 'string') {
+                cur = saved.v;
+                const f = document.getElementById(`period-${tab}-from`), t = document.getElementById(`period-${tab}-to`);
+                if (f) f.value = saved.from || '';
+                if (t) t.value = saved.to || '';
+            }
+        } catch (e) { /* ค่าที่จำไว้เสีย ใช้ค่าเริ่มต้น */ }
+    }
+    const dates = tab === 'billing' ? [...invoices.map(i => i.issueDate), ...jobs.map(j => j.createdAt || j.updatedAt)]
+        : tab === 'expenses' ? expenses.map(x => x.expenseDate)
+        : tab === 'receipts' ? [...receipts.map(r => r.paidDate), ...payments.filter(p => !p.receiptId).map(p => p.paidDate)]
+        : [...moneyInEntries().map(p => p.paidDate), ...expenses.map(x => x.expenseDate), ...transfers.map(t => t.transferDate)];
+    const months = new Set(), years = new Set();
+    dates.forEach(d => { const m = String(d || '').match(/^(\d{4})-(\d{2})/); if (m) { months.add(`${m[1]}-${m[2]}`); years.add(m[1]); } });
+    // เดือน/ปีที่จำไว้แต่ยังไม่มีข้อมูลก็ยังเลือกค้างไว้ได้
+    if (/^\d{4}-\d{2}$/.test(cur)) months.add(cur);
+    if (/^\d{4}$/.test(cur)) years.add(cur);
+    const th = y => parseInt(y, 10) + 543;
+    select.innerHTML = '<option value="">ทุกช่วงเวลา</option><option value="today">วันนี้</option>' +
+        '<option value="thismonth">เดือนนี้</option><option value="thisyear">ปีนี้</option>' +
+        '<option value="custom">กำหนดช่วงวันที่เอง…</option>' +
+        [...months].sort().reverse().map(k => { const [y, m] = k.split('-'); return `<option value="${k}">${MONTH_NAMES_TH[m] || m} ${th(y)}</option>`; }).join('') +
+        [...years].sort().reverse().map(y => `<option value="${y}">ทั้งปี ${th(y)}</option>`).join('');
+    select.value = cur;
+    if (select.value !== cur) select.value = '';
+    const custom = document.getElementById(`period-${tab}-custom`);
+    if (custom) custom.classList.toggle('hidden', select.value !== 'custom');
+}
+
+// ตั้งช่วงวันที่เอง (เช่น หลังนำเข้า statement = ช่วงของไฟล์)
+function setFinPeriodCustom(tab, from, to) {
+    const select = document.getElementById(`period-${tab}`);
+    if (!select) return;
+    populateFinPeriodSelect(tab);
+    select.value = 'custom';
+    const f = document.getElementById(`period-${tab}-from`), t = document.getElementById(`period-${tab}-to`);
+    if (f) f.value = from || '';
+    if (t) t.value = to || '';
+    const custom = document.getElementById(`period-${tab}-custom`);
+    if (custom) custom.classList.remove('hidden');
+    saveFinPeriod(tab);
+}
+
+// คืน { from, to } (YYYY-MM-DD, ว่าง = ไม่จำกัดฝั่งนั้น) หรือ null = ทุกช่วงเวลา
+function finPeriodRange(tab) {
+    const v = (document.getElementById(`period-${tab}`) || {}).value || '';
+    if (!v) return null;
+    const now = new Date();
+    const lastDay = (y, m) => calKey(new Date(y, m, 0));
+    if (v === 'today') { const k = calKey(now); return { from: k, to: k }; }
+    if (v === 'thismonth') return { from: calKey(new Date(now.getFullYear(), now.getMonth(), 1)), to: lastDay(now.getFullYear(), now.getMonth() + 1) };
+    if (v === 'thisyear') return { from: `${now.getFullYear()}-01-01`, to: `${now.getFullYear()}-12-31` };
+    if (/^\d{4}$/.test(v)) return { from: `${v}-01-01`, to: `${v}-12-31` };
+    if (/^\d{4}-\d{2}$/.test(v)) { const [y, m] = v.split('-').map(Number); return { from: `${v}-01`, to: lastDay(y, m) }; }
+    const from = (document.getElementById(`period-${tab}-from`) || {}).value || '';
+    const to = (document.getElementById(`period-${tab}-to`) || {}).value || '';
+    if (!from && !to) return null;
+    return from && to && from > to ? { from: to, to: from } : { from, to };
+}
+
+function inFinPeriod(range, dateStr) {
+    if (!range) return true;
+    const d = String(dateStr || '').slice(0, 10);
+    if (!d) return false;
+    return (!range.from || d >= range.from) && (!range.to || d <= range.to);
+}
+
+function onFinPeriodChange(tab) {
+    const custom = document.getElementById(`period-${tab}-custom`);
+    if (custom) custom.classList.toggle('hidden', (document.getElementById(`period-${tab}`) || {}).value !== 'custom');
+    saveFinPeriod(tab);
+    (FIN_PERIOD_RENDER[tab] || (() => {}))();
+    // บัญชีธนาคาร: หน้าต่างเดินบัญชี / statement ใช้ช่วงเดียวกัน
+    if (tab === 'banks') { if (ledgerAccountId) renderAccountLedger(); if (stmtBankId) renderStatementModal(); }
+}
+
+// แถบสรุปใต้แถบเครื่องมือ (จำนวน / ยอดรวมของสิ่งที่กรองอยู่)
+function setFinPeriodSummary(tab, html) {
+    const el = document.getElementById(`period-${tab}-summary`);
+    if (!el) return;
+    el.innerHTML = html || '';
+    el.classList.toggle('hidden', !html);
+}
+
+function finPeriodLabel(range) {
+    if (!range) return '';
+    if (range.from && range.to) return range.from === range.to ? formatThaiDate(range.from) : `${formatThaiDate(range.from)} – ${formatThaiDate(range.to)}`;
+    return range.from ? `ตั้งแต่ ${formatThaiDate(range.from)}` : `ถึง ${formatThaiDate(range.to)}`;
+}
+
 function switchFinancePageTab(tabName) {
     writeSessionValue('mw_last_fin_tab', tabName);
-    const tabs = ['overview', 'billing', 'expenses', 'banks', 'prices'];
+    const tabs = ['overview', 'billing', 'receipts', 'expenses', 'banks', 'prices'];
     tabs.forEach(t => {
         const pane = document.getElementById(`finpage-tab-${t}`);
         const btn = document.getElementById(`btn-finpage-tab-${t}`);
@@ -5395,6 +5511,8 @@ function switchFinancePageTab(tabName) {
         renderServicePrices();
     } else if (tabName === 'banks') {
         renderBanks();
+    } else if (tabName === 'receipts') {
+        renderReceiptsTab();
     }
 }
 
@@ -5469,6 +5587,15 @@ function renderBillingTab() {
         shownInvoices = shownInvoices.filter(inv => invoiceKindOf(inv) === billingKind);
     }
 
+    // ตัวกรองช่วงเวลา: บิล = วันที่ออกบิล, ใบงานที่ยังไม่ออกบิล / ไม่เรียกเก็บเงิน = วันเปิดงาน
+    populateFinPeriodSelect('billing');
+    const period = finPeriodRange('billing');
+    if (period) {
+        unbilledJobs = unbilledJobs.filter(j => inFinPeriod(period, j.createdAt || j.updatedAt));
+        noChargeJobs = noChargeJobs.filter(j => inFinPeriod(period, j.createdAt || j.updatedAt));
+        shownInvoices = shownInvoices.filter(inv => inFinPeriod(period, inv.issueDate));
+    }
+
     // มาจากหัวหมวดในกระดิ่ง → เฉพาะงาน/บิลในหมวดนั้น (บิลของงานในหมวดก็นับ) จนกด "แสดงทั้งหมด"
     if (bellFilter && bellFilter.view === 'billing') {
         const bf = bellFilter;
@@ -5477,6 +5604,16 @@ function renderBillingTab() {
         shownInvoices = shownInvoices.filter(inv => bf.invoiceIds.has(inv.id) || (inv.jobIds || []).some(id => bf.jobIds.has(id)));
     }
     renderBellFilterBar('billing', 'finpage-tab-billing', unbilledJobs.length + shownInvoices.length);
+
+    const liveInvoices = shownInvoices.filter(inv => inv.status !== 'void');
+    const sumOf = (arr, f) => round2(arr.reduce((s, x) => s + (Number(f(x)) || 0), 0));
+    setFinPeriodSummary('billing', [
+        period ? `<b>${finPeriodLabel(period)}</b>` : '',
+        `บิล ${liveInvoices.length} ใบ ยอด <b>${fmtMoney(sumOf(liveInvoices, i => i.grandTotal))}</b>`,
+        `รับแล้ว <b class="text-success">${fmtMoney(sumOf(liveInvoices, invoicePaidAmount))}</b>`,
+        `ค้าง <b class="text-danger">${fmtMoney(sumOf(liveInvoices, invoiceBalance))}</b>`,
+        unbilledJobs.length ? `ยังไม่ออกบิล ${unbilledJobs.length} งาน (ประมาณ ${fmtMoney(sumOf(unbilledJobs, jobBillEstimate))})` : ''
+    ].filter(Boolean).join(' · '));
 
     if (unbilledJobs.length === 0 && shownInvoices.length === 0 && noChargeJobs.length === 0) {
         const emptyMsg = statusFilter === 'pending' ? `${icon("ok")} ไม่มีงานที่ค้างออกบิลหรือค้างรับเงิน` : `${icon("search")} ไม่พบรายการ`;
@@ -10325,15 +10462,29 @@ function renderExpenses() {
         categorySelect.value = currentFilter;
     }
 
+    populateFinPeriodSelect('expenses');
+    const period = finPeriodRange('expenses');
     const filtered = expenses.filter(e => {
         const matchSearch = !query || (e.description || "").toLowerCase().includes(query) || (e.category || "").toLowerCase().includes(query)
             || expenseWorkers(e).some(w => workerFullName(w).toLowerCase().includes(query) || String(w.workerUid || '').includes(query));
         const matchCategory = !categoryFilter || e.category === categoryFilter;
-        return matchSearch && matchCategory;
+        return matchSearch && matchCategory && inFinPeriod(period, e.expenseDate);
     }).sort((a, b) => (b.expenseDate || "").localeCompare(a.expenseDate || ""));
 
+    // ยอดรวมของที่กรองอยู่ + แยกตามหมวด (3 หมวดที่มากที่สุด)
+    const total = round2(filtered.reduce((s, e) => s + (Number(e.amount) || 0), 0));
+    const byCat = {};
+    filtered.forEach(e => { const c = e.category || 'ไม่ระบุหมวด'; byCat[c] = (byCat[c] || 0) + (Number(e.amount) || 0); });
+    const topCats = Object.entries(byCat).sort((a, b) => b[1] - a[1]).slice(0, 3)
+        .map(([c, v]) => `${escapeHtml(c)} ${fmtMoney(round2(v))}`).join(', ');
+    setFinPeriodSummary('expenses', filtered.length ? [
+        period ? `<b>${finPeriodLabel(period)}</b>` : '',
+        `${filtered.length} รายการ รวม <b class="text-danger">${fmtMoney(total)}</b>`,
+        topCats ? `มากสุด: ${topCats}` : ''
+    ].filter(Boolean).join(' · ') : '');
+
     if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="text-muted" style="text-align:center; padding:30px;">${icon("bad")} ยังไม่มีรายการรายจ่าย${query || categoryFilter ? "ตามตัวกรอง" : "ในระบบ"}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="text-muted" style="text-align:center; padding:30px;">${icon("bad")} ยังไม่มีรายการรายจ่าย${query || categoryFilter || period ? "ตามตัวกรอง" : "ในระบบ"}</td></tr>`;
         return;
     }
 
@@ -10346,7 +10497,7 @@ function renderExpenses() {
             ? ` <a href="${e.attachment.data}" target="_blank" rel="noopener" title="ดูสลิป/ใบเสร็จที่แนบไว้">${icon("receipt")}</a>`
             : '';
         return `
-            <tr>
+            <tr data-expense-id="${e.id}">
                 <td>${dateLabel}</td>
                 <td><span class="badge badge-gold">${e.category || '-'}</span></td>
                 <td>${e.description || '<span class="text-muted">-</span>'}${slipLink}${expenseWorkersLine(e)}</td>
@@ -10592,6 +10743,7 @@ function openExpenseModal(id = null) {
 
 function closeExpenseModal() {
     document.getElementById("expense-modal").classList.add("hidden");
+    refreshOpenMoneyWindows();
 }
 
 async function saveExpense(e) {
@@ -10952,8 +11104,35 @@ function renderBanks() {
     const grid = document.getElementById("banks-list-grid");
     // ลากสลับได้เฉพาะ admin/manager และตอนไม่ได้ค้นหา (รายการที่กรองแล้วจัดลำดับไม่ได้ชัดเจน)
     const canReorder = can('finance') && !query && banks.length > 0;
+    // ตัวกรองช่วงเวลา: ยอดต้นช่วง + รับ/จ่ายในช่วง = ยอดสิ้นช่วง (ไม่เลือก = ยอดปัจจุบันเหมือนเดิม)
+    populateFinPeriodSelect('banks');
+    const period = finPeriodRange('banks');
+    const endLabel = period ? (period.to ? `ยอดคงเหลือ ณ ${formatThaiDate(period.to)}` : 'ยอดคงเหลือสิ้นช่วง') : 'ยอดคงเหลือ (คำนวณจากระบบ)';
+    const startLabel = b => period && period.from ? `ยอดต้นช่วง (${formatThaiDate(period.from)})` : `ยอดยกมา${b.openingDate ? ` (${formatThaiDate(b.openingDate)})` : ''}`;
+    // ยอดรวมทุกบัญชีไม่นับการโอนระหว่างบัญชีของบริษัทเอง (เงินแค่ย้ายที่ ไม่ได้เข้า/ออกจริง)
+    const allIn = [...banks.map(b => b.id), 'cash'].flatMap(id => accountEntries(id)).filter(e => e.kind !== 'transfer' && inFinPeriod(period, e.d));
+    const sumIn = round2(allIn.filter(e => e.amt > 0).reduce((s, e) => s + e.amt, 0));
+    const sumOut = round2(allIn.filter(e => e.amt < 0).reduce((s, e) => s - e.amt, 0));
+    setFinPeriodSummary('banks', period ? [
+        `<b>${finPeriodLabel(period)}</b>`,
+        `รับเข้ารวม <b class="text-success">${fmtMoney(sumIn)}</b>`,
+        `จ่ายออกรวม <b class="text-danger">${fmtMoney(sumOut)}</b>`,
+        `สุทธิ <b>${fmtMoney(round2(sumIn - sumOut))}</b>`,
+        'ไม่นับการโอนระหว่างบัญชี'
+    ].join(' · ') : '');
+    const transferBtn = document.getElementById('btn-account-transfer');
+    if (transferBtn) transferBtn.classList.toggle('hidden', !can('finance'));
+    // ปุ่มบนการ์ด: รายการเดินบัญชี (+ เทียบ statement เฉพาะบัญชีธนาคาร) — ฝ่ายการเงินเท่านั้น
+    const cardBtns = (accountId) => !can('finance') ? '' : `
+        <div class="bank-card-tools">
+            <button type="button" class="btn btn-sm btn-outline" onclick="openAccountLedger('${accountId}')" title="ดูรายการเงินเข้า-ออกของบัญชีนี้">${icon('clipboard')} รายการเดินบัญชี</button>
+            ${accountId === 'cash' ? '' : (() => {
+                const open = statementLines.filter(l => l.bankId === accountId && !l.matchKind && inFinPeriod(period, l.lineDate)).length;
+                return `<button type="button" class="btn btn-sm btn-outline" onclick="openStatementModal('${accountId}')" title="นำเข้า statement ธนาคารแล้วเทียบกับรายการในระบบ">${icon('search')} เทียบ statement${open ? ` <span class="badge badge-danger">${open}</span>` : ''}</button>`;
+            })()}
+        </div>`;
 
-    const filtered = banks.filter(b => 
+    const filtered = banks.filter(b =>
         b.bankName.toLowerCase().includes(query) ||
         b.accountName.toLowerCase().includes(query) ||
         b.accountNumber.includes(query)
@@ -11006,12 +11185,12 @@ function renderBanks() {
                 </div>
                 ${(() => {
                     // ยอดคงเหลือ = ยอดยกมา + เงินรับเข้า − รายจ่ายที่จ่ายจากบัญชีนี้ (ดู bankAccountBalance)
-                    const bal = bankAccountBalance(b.id);
+                    const bal = bankAccountBalance(b.id, period);
                     return `
                 <div class="bank-balance">
-                    <div class="bank-balance-main"><span>ยอดคงเหลือ (คำนวณจากระบบ)</span><strong class="${bal.balance < 0 ? 'text-danger' : ''}">${fmtMoney(bal.balance)}</strong></div>
+                    <div class="bank-balance-main"><span>${endLabel}</span><strong class="${bal.balance < 0 ? 'text-danger' : ''}">${fmtMoney(bal.balance)}</strong></div>
                     <div class="bank-balance-rows">
-                        <div><span>ยอดยกมา${b.openingDate ? ` (${formatThaiDate(b.openingDate)})` : ''}</span><b>${fmtMoney(bal.opening)}</b></div>
+                        <div><span>${startLabel(b)}</span><b>${fmtMoney(bal.opening)}</b></div>
                         <div class="is-in"><span>+ รับเข้า</span><b>${fmtMoney(bal.inflow)}</b></div>
                         <div class="is-out"><span>− จ่ายออก</span><b>${fmtMoney(bal.outflow)}</b></div>
                     </div>
@@ -11020,10 +11199,11 @@ function renderBanks() {
                 <div class="bank-card-meta">
                     <div>${icon("chat")} พร้อมเพย์ ID: <strong>${b.promptPayId || '-'}</strong></div>
                 </div>
+                ${cardBtns(b.id)}
             </div>
         `;
     }).join('') + (() => {
-        const cash = cashBalance();
+        const cash = cashBalance(period);
         return `
             <div class="bank-card cash-card" data-cash-card="1">
                 ${canReorder ? `<button type="button" class="bank-drag-handle" title="ลากเพื่อสลับลำดับ" aria-label="ลากเพื่อสลับลำดับ">${icon('grip')}</button>` : ''}
@@ -11034,12 +11214,14 @@ function renderBanks() {
                     <h4>เงินสดในมือ</h4>
                 </div>
                 <div class="bank-balance">
-                    <div class="bank-balance-main"><span>ยอดคงเหลือ (คำนวณจากระบบ)</span><strong class="${cash.balance < 0 ? 'text-danger' : ''}">${fmtMoney(cash.balance)}</strong></div>
+                    <div class="bank-balance-main"><span>${endLabel}</span><strong class="${cash.balance < 0 ? 'text-danger' : ''}">${fmtMoney(cash.balance)}</strong></div>
                     <div class="bank-balance-rows">
+                        ${period && period.from ? `<div><span>${startLabel({})}</span><b>${fmtMoney(cash.opening)}</b></div>` : ''}
                         <div class="is-in"><span>+ รับเงินสด</span><b>${fmtMoney(cash.inflow)}</b></div>
                         <div class="is-out"><span>− จ่ายเงินสด</span><b>${fmtMoney(cash.outflow)}</b></div>
                     </div>
                 </div>
+                ${cardBtns('cash')}
             </div>`;
     })();
     // การ์ดเงินสดไม่ใช่แถวใน banks — ตำแหน่งเก็บใน app_settings.cash_card_order (เทียบกับ sortOrder ของบัญชี)
@@ -12946,10 +13128,14 @@ function setInvoiceLayout(layout, remember = true) {
 // รายการที่ไม่ผูกคนงานเลยคงเป็นแถวเดิม
 function buildInvoicePerWorkerRows(items) {
     const rows = new Map();
+    // services = [{ name, amount }] ยอดของแต่ละรายการในแถวของคนงาน — แสดงตัวเล็กใต้ชื่อ (owner 2026-10-27)
     const add = (key, title, desc, service, amount) => {
         if (!rows.has(key)) rows.set(key, { id: key, title, desc, services: [], fee: 0 });
         const r = rows.get(key);
-        if (service && !r.services.includes(service)) r.services.push(service);
+        if (service) {
+            const s = r.services.find(x => x.name === service);
+            if (s) s.amount += amount; else r.services.push({ name: service, amount });
+        }
         r.fee += amount;
     };
     const findWorker = id => allWorkers().find(w => w.id === id);
@@ -12975,7 +13161,7 @@ function buildInvoicePerWorkerRows(items) {
             add(`i-${item.id}`, item.title || '', item.desc || '', null, item.fee || 0);
         }
     });
-    return [...rows.values()].map(r => ({ ...r, fee: round2(r.fee) }));
+    return [...rows.values()].map(r => ({ ...r, fee: round2(r.fee), services: r.services.map(s => ({ ...s, amount: round2(s.amount) })) }));
 }
 
 function renderInvoiceItemsTable() {
@@ -12989,7 +13175,8 @@ function renderInvoiceItemsTable() {
                 <td style="text-align: center;">${index + 1}</td>
                 <td class="inv-item-desc-cell">
                     <div class="inv-item-title">${escapeHtml(r.title)}</div>
-                    <div class="inv-item-desc">${escapeHtml([r.desc, r.services.length ? `ค่าบริการ: ${r.services.join(', ')}` : ''].filter(Boolean).join('\n'))}</div>
+                    ${r.desc ? `<div class="inv-item-desc">${escapeHtml(r.desc)}</div>` : ''}
+                    ${r.services.length ? `<div class="inv-item-breakdown">${r.services.map(s => `<div><span>${escapeHtml(s.name)}</span><span>${fmtW(s.amount)}</span></div>`).join('')}</div>` : ''}
                 </td>
                 <td style="text-align: center;">1</td>
                 <td class="inv-num">${fmtW(r.fee)}</td>
@@ -13510,6 +13697,7 @@ const BACKUP_COLLECTIONS = [
     { key: 'receipts', label: 'ใบเสร็จ/มัดจำ', save: 'saveReceipt', payloadKey: 'receiptData', get: () => receipts, set: v => { receipts = v; } },
     { key: 'payments', label: 'การรับเงิน', save: 'savePayment', payloadKey: 'paymentData', get: () => payments, set: v => { payments = v; } },
     { key: 'expenses', label: 'รายจ่าย', save: 'saveExpense', payloadKey: 'expenseData', get: () => expenses, set: v => { expenses = v; } },
+    { key: 'transfers', label: 'โอนระหว่างบัญชี', save: 'saveTransfer', payloadKey: 'transferData', get: () => transfers, set: v => { transfers = v; } },
     { key: 'servicePrices', label: 'ราคามาตรฐาน', save: 'saveServicePrice', payloadKey: 'priceData', get: () => servicePrices, set: v => { servicePrices = v; } },
     { key: 'freeInvoices', label: 'บิลอิสระ (เดิม)', save: 'saveFreeInvoice', payloadKey: 'invoiceData', get: () => freeInvoices, set: v => { freeInvoices = v; } }
 ];
@@ -19103,6 +19291,7 @@ function openReceiveMoneyModal(customerId, invoiceId) {
 function closeReceiveMoneyModal() {
     document.getElementById("receive-money-modal").classList.add("hidden");
     receiveCustomerId = null;
+    refreshOpenMoneyWindows();
 }
 
 function renderReceiveInvoiceList() {
@@ -19855,20 +20044,669 @@ function expenseBankId(x) {
     return same.length === 1 ? same[0].id : null;
 }
 
-function bankAccountBalance(bankId) {
-    const b = banks.find(x => x.id === bankId);
-    const since = b && b.openingDate ? b.openingDate : '';
-    const after = d => !since || (d || '') >= since;
-    const opening = b ? Number(b.openingBalance) || 0 : 0;
-    const inflow = moneyInEntries().filter(p => p.method === 'bank' && p.bankId === bankId && after(p.paidDate)).reduce((s, p) => s + Number(p.amount || 0), 0);
-    const outflow = expenses.filter(x => expenseBankId(x) === bankId && after(x.expenseDate)).reduce((s, x) => s + Number(x.amount || 0), 0);
-    return { opening, inflow, outflow, balance: round2(opening + inflow - outflow) };
+// ---------- รายการเดินบัญชี (owner 2026-10-27) ----------
+// accountId = id ในตาราง banks หรือ 'cash'. เงินเข้า = ใบเสร็จ + payments แบบเก่า (moneyInEntries) + โอนเข้า,
+// เงินออก = รายจ่าย + โอนออก. บัญชีที่ตั้ง "ยอดยกมา ณ วันที่" ไว้ ไม่นับรายการก่อนวันนั้น (รวมอยู่ในยอดยกมาแล้ว)
+function accountLabel(accountId) {
+    if (accountId === 'cash') return 'เงินสด';
+    const b = banks.find(x => x.id === accountId);
+    return b ? `${b.bankName} ${b.accountNumber || ''}`.trim() : 'บัญชีที่ถูกลบ';
 }
 
-function cashBalance() {
-    const inflow = moneyInEntries().filter(p => p.method === 'cash').reduce((s, p) => s + Number(p.amount || 0), 0);
-    const outflow = expenses.filter(x => x.paymentMethod === 'เงินสด' && !x.bankId).reduce((s, x) => s + Number(x.amount || 0), 0);
-    return { inflow, outflow, balance: round2(inflow - outflow) };
+function accountEntries(accountId) {
+    const isCash = accountId === 'cash';
+    const b = isCash ? null : banks.find(x => x.id === accountId);
+    const since = b && b.openingDate ? b.openingDate : '';
+    const out = [];
+    const receiptIds = new Set(receipts.map(r => r.id));
+    moneyInEntries().filter(p => isCash ? p.method === 'cash' : (p.method === 'bank' && p.bankId === accountId)).forEach(p => {
+        const isReceipt = receiptIds.has(p.id);
+        const inv = isReceipt ? null : invoices.find(i => i.id === p.invoiceId) || {};
+        out.push({ d: p.paidDate, amt: Number(p.amount) || 0, kind: isReceipt ? 'receipt' : 'payment', id: p.id, at: p.createdAt || '',
+            no: isReceipt ? p.receiptNo : paymentReceiptNo(p),
+            label: isReceipt ? (p.customerName || '-') : `${inv.customerName || '-'} (บิล ${inv.invoiceNo || '-'})` });
+    });
+    expenses.filter(x => isCash ? (x.paymentMethod === 'เงินสด' && !x.bankId) : expenseBankId(x) === accountId).forEach(x => {
+        out.push({ d: x.expenseDate, amt: -(Number(x.amount) || 0), kind: 'expense', id: x.id, at: x.createdAt || '', no: '',
+            label: [x.category, x.description].filter(Boolean).join(' · ') || 'รายจ่าย' });
+    });
+    transfers.forEach(t => {
+        if (t.toAccount === accountId) out.push({ d: t.transferDate, amt: Number(t.amount) || 0, kind: 'transfer', id: t.id, at: t.createdAt || '', no: '',
+            label: `โอนเข้าจาก ${accountLabel(t.fromAccount)}${t.note ? ` · ${t.note}` : ''}` });
+        if (t.fromAccount === accountId) out.push({ d: t.transferDate, amt: -(Number(t.amount) || 0), kind: 'transfer', id: t.id, at: t.createdAt || '', no: '',
+            label: `โอนออกไป ${accountLabel(t.toAccount)}${t.note ? ` · ${t.note}` : ''}` });
+    });
+    return out.filter(e => !since || (e.d || '') >= since)
+        .sort((a, b) => String(a.d || '').localeCompare(String(b.d || '')) || String(a.at).localeCompare(String(b.at)));
+}
+
+// range ({ from, to } จาก finPeriodRange) = opening เป็นยอดต้นช่วง, inflow/outflow เฉพาะในช่วง, balance = ยอดสิ้นช่วง
+function accountBalance(accountId, range = null) {
+    const b = accountId === 'cash' ? null : banks.find(x => x.id === accountId);
+    let start = b ? Number(b.openingBalance) || 0 : 0, inflow = 0, outflow = 0;
+    accountEntries(accountId).forEach(e => {
+        if (range && range.from && (e.d || '') < range.from) start += e.amt;
+        else if (inFinPeriod(range, e.d)) { if (e.amt >= 0) inflow += e.amt; else outflow -= e.amt; }
+    });
+    return { opening: round2(start), inflow: round2(inflow), outflow: round2(outflow), balance: round2(start + inflow - outflow) };
+}
+
+function bankAccountBalance(bankId, range = null) { return accountBalance(bankId, range); }
+function cashBalance(range = null) { return accountBalance('cash', range); }
+
+// ---------- หน้าต่าง "รายการเดินบัญชี" ของบัญชีธนาคาร / เงินสด (owner 2026-10-27) ----------
+// ใช้ช่วงเวลาเดียวกับตัวกรองในแท็บบัญชีธนาคาร (period-banks) — แถวแรก = ยอดต้นช่วง, คอลัมน์สุดท้าย = ยอดคงเหลือสะสม
+let ledgerAccountId = null;
+const LEDGER_KIND_LABEL = { receipt: 'ใบเสร็จ', payment: 'รับเงิน (แบบเก่า)', expense: 'รายจ่าย', transfer: 'โอนระหว่างบัญชี' };
+
+function openAccountLedger(accountId) {
+    if (!can('finance')) return;
+    ledgerAccountId = accountId;
+    renderAccountLedger();
+    document.getElementById('ledger-modal').classList.remove('hidden');
+}
+
+function closeAccountLedger() {
+    document.getElementById('ledger-modal').classList.add('hidden');
+    ledgerAccountId = null;
+}
+
+function ledgerRows(accountId, range) {
+    const bal = accountBalance(accountId, range);
+    let run = bal.opening;
+    const rows = accountEntries(accountId).filter(e => inFinPeriod(range, e.d)).map(e => { run = round2(run + e.amt); return { ...e, run }; });
+    return { bal, rows };
+}
+
+function renderAccountLedger() {
+    const body = document.getElementById('ledger-body');
+    if (!body || !ledgerAccountId) return;
+    const range = finPeriodRange('banks');
+    const { bal, rows } = ledgerRows(ledgerAccountId, range);
+    document.getElementById('ledger-title').textContent = `รายการเดินบัญชี — ${accountLabel(ledgerAccountId)}`;
+    const matched = new Set(statementLines.filter(l => l.matchId).map(l => `${l.matchKind}:${l.matchId}`));
+    const b = banks.find(x => x.id === ledgerAccountId);
+    const startText = range && range.from ? `ยอดต้นช่วง (${formatThaiDate(range.from)})` : `ยอดยกมา${b && b.openingDate ? ` (${formatThaiDate(b.openingDate)})` : ''}`;
+    body.innerHTML = `
+        <div class="fin-period-summary">
+            ${range ? `<b>${finPeriodLabel(range)}</b> · ` : ''}${startText} <b>${fmtMoney(bal.opening)}</b>
+            · รับเข้า <b class="text-success">${fmtMoney(bal.inflow)}</b> · จ่ายออก <b class="text-danger">${fmtMoney(bal.outflow)}</b>
+            · คงเหลือ <b>${fmtMoney(bal.balance)}</b>
+        </div>
+        <div class="table-container">
+            <table class="data-table">
+                <thead><tr><th>วันที่</th><th>ประเภท</th><th>เลขที่</th><th>รายการ</th><th class="inv-num">เข้า</th><th class="inv-num">ออก</th><th class="inv-num">คงเหลือ</th></tr></thead>
+                <tbody>
+                    <tr class="ledger-start-row"><td colspan="6">${startText}</td><td class="inv-num"><b>${fmtMoney(bal.opening)}</b></td></tr>
+                    ${rows.map(e => `
+                    <tr class="clickable-row" ondblclick="handleRowDblClick(event) && openLedgerEntry('${e.kind}', '${e.id}')" title="ดับเบิลคลิกเพื่อเปิดรายการนี้">
+                        <td>${formatThaiDate(e.d)}</td>
+                        <td>${LEDGER_KIND_LABEL[e.kind] || e.kind}${matched.has(`${e.kind}:${e.id}`) ? ` <span class="ledger-stmt-ok" title="ตรงกับ statement ธนาคารแล้ว">${icon('ok')}</span>` : ''}</td>
+                        <td>${escapeHtml(e.no || '-')}</td>
+                        <td>${escapeHtml(e.label)}</td>
+                        <td class="inv-num text-success">${e.amt > 0 ? fmtMoney(e.amt) : ''}</td>
+                        <td class="inv-num text-danger">${e.amt < 0 ? fmtMoney(-e.amt) : ''}</td>
+                        <td class="inv-num">${fmtMoney(e.run)}</td>
+                    </tr>`).join('') || `<tr><td colspan="7" class="text-muted" style="text-align:center; padding:30px;">ไม่มีรายการในช่วงนี้</td></tr>`}
+                </tbody>
+            </table>
+        </div>`;
+}
+
+function openLedgerEntry(kind, id) {
+    if (kind === 'receipt') openReceiptDoc(id);
+    else if (kind === 'payment') openReceiptModal(id);
+    else if (kind === 'expense') openExpenseModal(id);
+    else if (kind === 'transfer') openTransferModal(id);
+}
+
+function exportLedgerCsv() {
+    if (!ledgerAccountId) return;
+    const range = finPeriodRange('banks');
+    const { bal, rows } = ledgerRows(ledgerAccountId, range);
+    downloadCsv(`เดินบัญชี_${accountLabel(ledgerAccountId).replace(/\s+/g, '_')}_${finPeriodFileTag('banks')}.csv`,
+        ['วันที่', 'ประเภท', 'เลขที่', 'รายการ', 'เข้า', 'ออก', 'คงเหลือ'],
+        [['', '', '', range && range.from ? 'ยอดต้นช่วง' : 'ยอดยกมา', '', '', bal.opening],
+         ...rows.map(e => [formatThaiDate(e.d), LEDGER_KIND_LABEL[e.kind] || e.kind, e.no, e.label, e.amt > 0 ? e.amt : '', e.amt < 0 ? -e.amt : '', e.run])]);
+}
+
+// ---------- โอนเงินระหว่างบัญชีของบริษัท (ฝากเงินสด / ถอนเงินสด / โอนข้ามบัญชี) ----------
+function accountOptionsHtml() {
+    return BANK_SELECT_HEAD + cashOptionHtml() + banks.map(b => bankOptionHtml(b)).join('');
+}
+
+function openTransferModal(id = null, preset = {}) {
+    if (!can('finance')) return;
+    const t = id ? transfers.find(x => x.id === id) : null;
+    document.getElementById('transfer-edit-id').value = t ? t.id : '';
+    document.getElementById('transfer-modal-title').textContent = t ? 'แก้ไขรายการโอนระหว่างบัญชี' : 'โอนเงินระหว่างบัญชี';
+    ['transfer-from', 'transfer-to'].forEach(sid => { document.getElementById(sid).innerHTML = accountOptionsHtml(); });
+    document.getElementById('transfer-date').value = t ? t.transferDate : (preset.date || localDateISO(new Date()));
+    document.getElementById('transfer-from').value = t ? t.fromAccount : (preset.from || 'cash');
+    document.getElementById('transfer-to').value = t ? t.toAccount : (preset.to || (banks[0] ? banks[0].id : 'cash'));
+    document.getElementById('transfer-amount').value = t ? t.amount : (preset.amount || '');
+    document.getElementById('transfer-note').value = t ? (t.note || '') : (preset.note || '');
+    document.getElementById('btn-delete-transfer').classList.toggle('hidden', !t);
+    document.getElementById('transfer-modal').classList.remove('hidden');
+}
+
+function closeTransferModal() {
+    document.getElementById('transfer-modal').classList.add('hidden');
+}
+
+// ปิดหน้าต่างรายจ่าย / รับเงิน (มักเปิดจากบรรทัด statement หรือรายการเดินบัญชี) → วาดหน้าต่างที่ค้างอยู่ใหม่
+// รอสั้น ๆ เพราะบางทางบันทึกข้อมูลลง array หลังปิดหน้าต่าง
+function refreshOpenMoneyWindows() {
+    if (!ledgerAccountId && !stmtBankId) return;
+    setTimeout(() => { if (ledgerAccountId || stmtBankId) refreshMoneyViews(); }, 400);
+}
+
+// หลังบันทึกเงินเข้า/ออก/โอน → วาดหน้าที่เกี่ยวข้องที่เปิดอยู่ใหม่
+function refreshMoneyViews() {
+    renderBanks();
+    if (ledgerAccountId) renderAccountLedger();
+    if (stmtBankId) { autoMatchStatement(true); renderStatementModal(); }
+}
+
+async function saveTransfer(e) {
+    if (e) e.preventDefault();
+    const id = document.getElementById('transfer-edit-id').value;
+    const data = {
+        id: id || `trf-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+        transferDate: document.getElementById('transfer-date').value,
+        fromAccount: document.getElementById('transfer-from').value,
+        toAccount: document.getElementById('transfer-to').value,
+        amount: round2(document.getElementById('transfer-amount').value),
+        note: document.getElementById('transfer-note').value.trim()
+    };
+    if (!data.transferDate) { showToast('❌ ใส่วันที่โอน', 'danger'); return; }
+    if (data.fromAccount === data.toAccount) { showToast('❌ บัญชีต้นทางกับปลายทางต้องไม่ใช่บัญชีเดียวกัน', 'danger'); return; }
+    if (!(data.amount > 0)) { showToast('❌ ใส่จำนวนเงินมากกว่า 0', 'danger'); return; }
+    const res = await callCloudAPI('saveTransfer', { transferData: data });
+    if (!res || res.status === 'error') { showToast(`❌ บันทึกไม่สำเร็จ: ${(res && res.message) || ''}`, 'danger'); return; }
+    const saved = res.data ? { ...data, ...res.data, amount: Number(res.data.amount) || data.amount } : data;
+    const i = transfers.findIndex(x => x.id === saved.id);
+    if (i >= 0) transfers[i] = saved; else transfers.push(saved);
+    closeTransferModal();
+    showToast('✅ บันทึกการโอนระหว่างบัญชีแล้ว', 'success');
+    refreshMoneyViews();
+}
+
+async function deleteTransfer() {
+    const id = document.getElementById('transfer-edit-id').value;
+    const t = transfers.find(x => x.id === id);
+    if (!t) return;
+    if (!await uiConfirm(`ลบรายการโอน ${fmtMoney(t.amount)} บาท จาก ${accountLabel(t.fromAccount)} ไป ${accountLabel(t.toAccount)} ?`, { title: 'ลบรายการโอน', okText: 'ลบ' })) return;
+    const res = await callCloudAPI('deleteTransfer', { id });
+    if (!res || res.status === 'error') { showToast(`❌ ลบไม่สำเร็จ: ${(res && res.message) || ''}`, 'danger'); return; }
+    transfers = transfers.filter(x => x.id !== id);
+    const linked = statementLines.filter(l => l.matchKind === 'transfer' && l.matchId === id);
+    if (linked.length) await setStatementMatch(linked.map(l => l.id), null, null);
+    closeTransferModal();
+    refreshMoneyViews();
+}
+
+// ---------- แท็บ "ใบเสร็จรับเงิน" — เงินเข้าทุกก้อน (ใบเสร็จ + การรับเงินแบบเก่าที่ไม่มีใบเสร็จแยก) ----------
+function receiptListItems() {
+    const items = receipts.map(r => {
+        const allocs = liveAllocationsOf(r.id);
+        return { kind: 'receipt', id: r.id, no: r.receiptNo || '', date: r.paidDate, customer: r.customerName || '', amount: Number(r.amount) || 0,
+            invoiceNos: [...new Set(allocs.map(p => (invoices.find(i => i.id === p.invoiceId) || {}).invoiceNo).filter(Boolean))],
+            unapplied: receiptUnapplied(r), account: r.method === 'cash' ? 'cash' : r.bankId, voided: !!r.voided, note: r.note || '', voidReason: r.voidReason || '' };
+    });
+    payments.filter(p => !p.receiptId).forEach(p => {
+        const inv = invoices.find(i => i.id === p.invoiceId) || {};
+        items.push({ kind: 'payment', id: p.id, no: paymentReceiptNo(p) || '', date: p.paidDate, customer: inv.customerName || '', amount: Number(p.amount) || 0,
+            invoiceNos: inv.invoiceNo ? [inv.invoiceNo] : [], unapplied: 0, account: p.method === 'cash' ? 'cash' : p.bankId, voided: !!p.voided, note: p.note || '', voidReason: p.voidReason || '' });
+    });
+    return items;
+}
+
+function filteredReceiptItems() {
+    const q = String((document.getElementById('search-receipts') || {}).value || '').toLowerCase().trim();
+    const status = (document.getElementById('filter-receipts-status') || {}).value || 'active';
+    const acc = (document.getElementById('filter-receipts-account') || {}).value || '';
+    const range = finPeriodRange('receipts');
+    return receiptListItems().filter(r =>
+        (status === 'all' || (status === 'void' ? r.voided : !r.voided)) &&
+        (status !== 'credit' || r.unapplied > 0) &&
+        (!acc || r.account === acc) &&
+        inFinPeriod(range, r.date) &&
+        (!q || [r.no, r.customer, ...r.invoiceNos, r.note].join(' ').toLowerCase().includes(q))
+    ).sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')) || String(b.no).localeCompare(String(a.no), undefined, { numeric: true }));
+}
+
+function renderReceiptsTab() {
+    const tbody = document.getElementById('receipts-tbody');
+    if (!tbody) return;
+    populateFinPeriodSelect('receipts');
+    const accSel = document.getElementById('filter-receipts-account');
+    if (accSel) {
+        const cur = accSel.value;
+        accSel.innerHTML = '<option value="">ทุกบัญชี</option><option value="cash">เงินสด</option>' +
+            banks.map(b => `<option value="${b.id}">${escapeHtml(b.bankName)} ${escapeHtml(b.accountNumber || '')}</option>`).join('');
+        accSel.value = cur;
+        if (accSel.value !== cur) accSel.value = '';
+    }
+    const list = filteredReceiptItems();
+    const range = finPeriodRange('receipts');
+    const live = list.filter(r => !r.voided);
+    setFinPeriodSummary('receipts', [
+        range ? `<b>${finPeriodLabel(range)}</b>` : '',
+        `${live.length} ใบ รับรวม <b class="text-success">${fmtMoney(round2(live.reduce((s, r) => s + r.amount, 0)))}</b>`,
+        `มัดจำคงเหลือ <b>${fmtMoney(round2(live.reduce((s, r) => s + r.unapplied, 0)))}</b>`
+    ].filter(Boolean).join(' · '));
+    if (!list.length) {
+        tbody.innerHTML = `<tr><td colspan="8" class="text-muted" style="text-align:center; padding:30px;">${icon('search')} ไม่พบใบเสร็จตามตัวกรอง</td></tr>`;
+        return;
+    }
+    tbody.innerHTML = list.map(r => `
+        <tr class="clickable-row${r.voided ? ' is-voided-row' : ''}" ondblclick="handleRowDblClick(event) && openLedgerEntry('${r.kind}', '${r.id}')" title="ดับเบิลคลิกเพื่อดูใบเสร็จ">
+            <td>${formatThaiDate(r.date)}</td>
+            <td><strong>${escapeHtml(r.no || '-')}</strong>${r.voided ? `<div><span class="badge badge-danger" title="${escapeHtml(r.voidReason)}">ยกเลิกแล้ว</span></div>` : ''}</td>
+            <td><div class="employer-name">${escapeHtml(r.customer || '-')}</div>${r.note ? `<small class="text-muted">${escapeHtml(r.note)}</small>` : ''}</td>
+            <td class="inv-num"><strong>${fmtMoney(r.amount)}</strong></td>
+            <td>${r.invoiceNos.length ? r.invoiceNos.map(escapeHtml).join(', ') : '<span class="text-muted">-</span>'}</td>
+            <td class="inv-num">${r.unapplied > 0 ? fmtMoney(r.unapplied) : '<span class="text-muted">-</span>'}</td>
+            <td>${escapeHtml(accountLabel(r.account || 'cash'))}</td>
+            <td class="actions-col">
+                <div class="actions-cell">
+                    <button class="action-icon-btn" onclick="openLedgerEntry('${r.kind}', '${r.id}')" title="ดูใบเสร็จ">${icon('receipt')}</button>
+                    ${!r.voided && r.kind === 'receipt' && can('voidMoney') ? `<button class="action-icon-btn delete-btn" onclick="voidReceipt('${r.id}').then(renderReceiptsTab)" title="ยกเลิกใบเสร็จ">${icon('trash')}</button>` : ''}
+                </div>
+            </td>
+        </tr>`).join('');
+}
+
+// ---------- ส่งออก Excel (CSV) ตามตัวกรองที่เลือกอยู่ในแต่ละแท็บ ----------
+function finPeriodFileTag(tab) {
+    const r = finPeriodRange(tab);
+    return r ? `${r.from || ''}_${r.to || ''}` : 'ทั้งหมด';
+}
+
+function exportReceiptsCsv() {
+    downloadCsv(`ใบเสร็จรับเงิน_${finPeriodFileTag('receipts')}.csv`,
+        ['วันที่รับเงิน', 'เลขที่ใบเสร็จ', 'นายจ้าง/ลูกค้า', 'ยอดรับ', 'ตัดเข้าบิล', 'มัดจำคงเหลือ', 'รับทาง', 'สถานะ', 'หมายเหตุ'],
+        filteredReceiptItems().map(r => [formatThaiDate(r.date), r.no, r.customer, r.amount, r.invoiceNos.join(' '), r.unapplied,
+            accountLabel(r.account || 'cash'), r.voided ? `ยกเลิก: ${r.voidReason}` : 'ใช้งาน', r.note]));
+}
+
+// ส่งออกตามแถวที่แสดงอยู่จริงในตาราง (ผ่านทุกตัวกรองแล้ว)
+function exportExpensesTabCsv() {
+    const rows = [];
+    document.querySelectorAll('#expenses-tbody tr[data-expense-id]').forEach(tr => {
+        const x = expenses.find(e => e.id === tr.dataset.expenseId);
+        if (x) rows.push([formatThaiDate(x.expenseDate), x.category, x.description, round2(x.amount), expenseSourceLabel(x),
+            expenseWorkers(x).map(w => workerFullName(w)).join(' / ')]);
+    });
+    downloadCsv(`รายจ่าย_${finPeriodFileTag('expenses')}.csv`, ['วันที่', 'หมวดหมู่', 'รายละเอียด', 'จำนวนเงิน', 'จ่ายจาก', 'คนงาน'], rows);
+}
+
+function exportBillingTabCsv() {
+    const rows = [];
+    document.querySelectorAll('#billing-list-tbody tr[data-ctx]').forEach(tr => {
+        const [kind, id] = String(tr.dataset.ctx).split(':');
+        if (kind === 'invoice') {
+            const i = invoices.find(x => x.id === id);
+            if (i) rows.push([i.invoiceNo, formatThaiDate(i.issueDate), 'บิล', i.customerName, (i.items || []).map(x => x.serviceName || x.title).filter(Boolean).join(', '),
+                round2(i.grandTotal), invoicePaidAmount(i), i.status === 'void' ? 0 : invoiceBalance(i), (INVOICE_STATUS_META[i.status] || {}).label || i.status]);
+        } else if (kind === 'job') {
+            const j = jobs.find(x => x.id === id);
+            if (!j) return;
+            const c = customers.find(x => x.id === j.customerId) || {};
+            const w = workers.find(x => x.id === j.workerId);
+            rows.push([getJobDisplayNo(j), formatThaiDate(String(j.createdAt || '').slice(0, 10)), isJobNoCharge(j) ? JOB_NO_CHARGE : 'ยังไม่ออกบิล', c.companyName || '',
+                `${getCleanJobTypeName(j.jobType)}${w ? ` · ${workerFullName(w)}` : ''}`, isJobNoCharge(j) ? 0 : jobBillEstimate(j), 0, 0, j.status || '']);
+        }
+    });
+    downloadCsv(`บิล_${finPeriodFileTag('billing')}.csv`,
+        ['เลขที่บิล/ใบงาน', 'วันที่ (ออกบิล / เปิดงาน)', 'ประเภท', 'นายจ้าง/ลูกค้า', 'รายละเอียด', 'ยอดเงิน', 'รับแล้ว', 'คงเหลือ', 'สถานะ'], rows);
+}
+
+// ---------- เทียบ statement ธนาคาร (owner 2026-10-27) ----------
+// นำเข้า PDF statement (มีตัวหนังสือจริง — อ่านด้วย pdf.js ไม่ใช้ AI) → แยกบรรทัดที่ขึ้นต้นด้วยวันที่ → ตัวเลขเงินตัวสุดท้าย = ยอดคงเหลือ
+// ทิศทางเงินเข้า/ออกดูจากยอดคงเหลือที่เปลี่ยน (ตรวจทุกบรรทัดกับยอดคงเหลือ) → เก็บใน bank_statement_lines
+// จับคู่กับรายการในระบบของบัญชีเดียวกัน (ใบเสร็จ / รับเงินแบบเก่า / รายจ่าย / โอนระหว่างบัญชี): ยอดเท่ากัน วันที่ห่างไม่เกิน 3 วัน
+// มีตัวเดียว = จับคู่อัตโนมัติ, หลายตัว = ให้เลือก, ไม่มี = บันทึกรายการใหม่จากบรรทัดนั้น หรือ "ข้าม" (จำคำในรายการไว้ข้ามครั้งต่อไปได้)
+// รูปแบบที่รองรับ: วันที่ DD-MM-YY / DD/MM/YY / D ม.ค. YY (ปี 2 หลัก ≥ 50 = พ.ศ.) — ยังไม่เคยทดสอบกับไฟล์จริงทุกธนาคาร
+let stmtBankId = null;
+let stmtLastImport = null; // { lines, checked, mismatched } ของการนำเข้าครั้งล่าสุด
+const STMT_TH_MONTHS = { 'ม.ค.': 1, 'ก.พ.': 2, 'มี.ค.': 3, 'เม.ย.': 4, 'พ.ค.': 5, 'มิ.ย.': 6, 'ก.ค.': 7, 'ส.ค.': 8, 'ก.ย.': 9, 'ต.ค.': 10, 'พ.ย.': 11, 'ธ.ค.': 12 };
+const STMT_MONEY_RE = /-?\d{1,3}(?:,\d{3})*\.\d{2}(?!\d)/g;
+const STMT_OPENING_RE = /ยอดยกมา|ยอดคงเหลือยกมา|ยกมา|beginning balance|balance brought forward|brought forward|b\/f/i;
+const STMT_OUT_HINT_RE = /ถอน|โอนออก|ชำระ|หัก|จ่าย|withdraw|debit|payment|fee|transfer to/i;
+
+function stmtYear(y) {
+    const n = parseInt(y, 10);
+    if (y.length >= 4) return n > 2400 ? n - 543 : n;
+    return n >= 50 ? 2500 + n - 543 : 2000 + n;
+}
+
+// วันที่ที่ต้นบรรทัด → { iso, rest } หรือ null
+function stmtParseDate(text) {
+    const t = text.trim();
+    let m = t.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})\b/);
+    if (m) {
+        const y = stmtYear(m[3]), mo = parseInt(m[2], 10), d = parseInt(m[1], 10);
+        if (mo >= 1 && mo <= 12 && d >= 1 && d <= 31) return { iso: `${y}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`, rest: t.slice(m[0].length) };
+    }
+    m = t.match(/^(\d{1,2})\s*(ม\.ค\.|ก\.พ\.|มี\.ค\.|เม\.ย\.|พ\.ค\.|มิ\.ย\.|ก\.ค\.|ส\.ค\.|ก\.ย\.|ต\.ค\.|พ\.ย\.|ธ\.ค\.)\s*(\d{2,4})\b/);
+    if (m) {
+        const y = stmtYear(m[3]), d = parseInt(m[1], 10);
+        return { iso: `${y}-${String(STMT_TH_MONTHS[m[2]]).padStart(2, '0')}-${String(d).padStart(2, '0')}`, rest: t.slice(m[0].length) };
+    }
+    return null;
+}
+
+// ข้อความใน PDF → บรรทัด (จัดกลุ่มตามแนว y, เรียงตาม x)
+async function stmtPdfLines(file) {
+    if (!window.pdfjsLib) throw new Error('ตัวอ่าน PDF ยังโหลดไม่เสร็จ ลองใหม่อีกครั้ง');
+    const data = new Uint8Array(await file.arrayBuffer());
+    let pdf = null, password;
+    for (let tries = 0; !pdf && tries < 3; tries++) {
+        try {
+            pdf = await window.pdfjsLib.getDocument({ data: data.slice(), password }).promise;
+        } catch (err) {
+            if (!err || err.name !== 'PasswordException') throw err;
+            password = await uiPrompt(`ไฟล์ ${file.name} มีรหัสผ่าน${tries ? ' (รหัสไม่ถูก)' : ''} — ใส่รหัสเพื่อเปิดไฟล์`, { title: 'รหัสผ่าน statement', okText: 'เปิดไฟล์' });
+            if (!password) return null;
+        }
+    }
+    if (!pdf) throw new Error('รหัสผ่านไม่ถูกต้อง');
+    const lines = [];
+    for (let p = 1; p <= pdf.numPages; p++) {
+        const page = await pdf.getPage(p);
+        const tc = await page.getTextContent();
+        const rows = [];
+        tc.items.forEach(it => {
+            if (!it.str || !it.str.trim()) return;
+            const x = it.transform[4], y = it.transform[5];
+            let row = rows.find(r => Math.abs(r.y - y) <= 2.5);
+            if (!row) rows.push(row = { y, parts: [] });
+            row.parts.push({ x, s: it.str });
+        });
+        rows.sort((a, b) => b.y - a.y).forEach(r => lines.push(r.parts.sort((a, b) => a.x - b.x).map(q => q.s.trim()).join('  ')));
+    }
+    return lines;
+}
+
+// บรรทัดข้อความ → รายการเดินบัญชี { lineDate, description, amount (+เข้า −ออก), balance, ok }
+function stmtParseLines(textLines) {
+    const out = [];
+    let prevBal = null, checked = 0, mismatched = 0;
+    textLines.forEach(raw => {
+        const text = raw.replace(/\s+/g, ' ').trim();
+        const dt = stmtParseDate(text);
+        const tokens = (text.match(STMT_MONEY_RE) || []);
+        if (!dt) {
+            if (STMT_OPENING_RE.test(text) && tokens.length) { prevBal = parseFloat(tokens[tokens.length - 1].replace(/,/g, '')); return; }
+            // บรรทัดต่อของรายการก่อนหน้า (เช่น ชื่อผู้โอน) — ไม่มีตัวเลขเงิน
+            if (out.length && !tokens.length && text.length < 120 && !/หน้า|page|ยอดรวม|total/i.test(text)) out[out.length - 1].description += ` ${text}`;
+            return;
+        }
+        if (STMT_OPENING_RE.test(dt.rest) && tokens.length) { prevBal = parseFloat(tokens[tokens.length - 1].replace(/,/g, '')); return; }
+        if (tokens.length < 2) return;
+        const nums = tokens.map(s => parseFloat(s.replace(/,/g, '')));
+        const balance = nums[nums.length - 1];
+        const cands = nums.slice(0, -1);
+        let amount = null, ok = false;
+        if (prevBal !== null) {
+            const delta = round2(balance - prevBal);
+            if (cands.some(c => Math.abs(Math.abs(c) - Math.abs(delta)) < 0.005)) { amount = delta; ok = true; checked++; }
+            else mismatched++;
+        }
+        if (amount === null) {
+            const c = cands.find(v => v !== 0) || cands[0];
+            amount = c < 0 || STMT_OUT_HINT_RE.test(dt.rest) ? -Math.abs(c) : Math.abs(c);
+        }
+        if (!amount) { prevBal = balance; return; }
+        let desc = dt.rest;
+        tokens.forEach(s => { desc = desc.replace(s, ' '); });
+        desc = desc.replace(/^\s*\d{1,2}:\d{2}(:\d{2})?/, '').replace(/\s+/g, ' ').trim();
+        out.push({ lineDate: dt.iso, description: desc, amount: round2(amount), balance, ok });
+        prevBal = balance;
+    });
+    return { lines: out, checked, mismatched };
+}
+
+function stmtLineId(bankId, l, seen) {
+    const base = `${bankId}|${l.lineDate}|${l.amount.toFixed(2)}|${l.balance != null ? l.balance.toFixed(2) : ''}`;
+    const n = (seen[base] = (seen[base] || 0) + 1);
+    return n > 1 ? `${base}#${n}` : base;
+}
+
+function stmtSkipRules() {
+    const v = appSettings.statement_skip_rules;
+    return Array.isArray(v) ? v.filter(s => typeof s === 'string' && s.trim()) : [];
+}
+
+function openStatementModal(bankId) {
+    if (!can('finance')) return;
+    stmtBankId = bankId;
+    stmtLastImport = null;
+    const f = document.getElementById('stmt-file');
+    if (f) f.value = '';
+    renderStatementModal();
+    document.getElementById('statement-modal').classList.remove('hidden');
+}
+
+function closeStatementModal() {
+    document.getElementById('statement-modal').classList.add('hidden');
+    stmtBankId = null;
+}
+
+async function importStatementFiles(input) {
+    const files = Array.from((input && input.files) || []);
+    if (!files.length || !stmtBankId) return;
+    const bankId = stmtBankId;
+    let all = [], checked = 0, mismatched = 0;
+    try {
+        for (const file of files) {
+            const textLines = await stmtPdfLines(file);
+            if (!textLines) continue;
+            const r = stmtParseLines(textLines);
+            all = all.concat(r.lines);
+            checked += r.checked;
+            mismatched += r.mismatched;
+        }
+    } catch (err) {
+        showUploadPill('error', 'อ่าน statement ไม่สำเร็จ', String(err && err.message || err));
+        input.value = '';
+        return;
+    }
+    input.value = '';
+    if (!all.length) { showUploadPill('error', 'ไม่พบรายการเดินบัญชีในไฟล์', 'ไฟล์ต้องเป็น PDF จากธนาคารที่มีตัวหนังสือ (ไม่ใช่ภาพสแกน)'); return; }
+    const seen = {};
+    const rows = all.map(l => ({ id: stmtLineId(bankId, l, seen), bankId, lineDate: l.lineDate, description: l.description, amount: l.amount, balance: l.balance }));
+    const res = await callCloudAPI('importStatementLines', { lines: rows });
+    if (!res || res.status === 'error') { showUploadPill('error', 'บันทึกรายการ statement ไม่สำเร็จ', (res && res.message) || ''); return; }
+    const have = new Set(statementLines.map(l => l.id));
+    const added = rows.filter(r => !have.has(r.id));
+    statementLines.push(...added.map(r => ({ ...r, matchKind: null, matchId: null, note: null })));
+    stmtLastImport = { lines: rows.length, added: added.length, checked, mismatched };
+    await autoMatchStatement(false);
+    // ตั้งช่วงเวลาของแท็บบัญชีเป็นช่วงของไฟล์ที่นำเข้า (เห็นรายการที่เพิ่งนำเข้าทันที)
+    const dates = rows.map(r => r.lineDate).sort();
+    setFinPeriodCustom('banks', dates[0], dates[dates.length - 1]);
+    renderStatementModal();
+    renderBanks();
+}
+
+// candidates = รายการในระบบของบัญชีเดียวกัน ยอดเท่ากัน วันที่ห่าง ≤ 3 วัน ที่ยังไม่ถูกจับคู่กับบรรทัดอื่น
+function stmtCandidates(line, used) {
+    const day = d => new Date(`${String(d).slice(0, 10)}T00:00:00`).getTime();
+    const t = day(line.lineDate);
+    return accountEntries(line.bankId)
+        .filter(e => Math.abs(e.amt - line.amount) < 0.005 && Math.abs(day(e.d) - t) <= 3 * 86400000 && !used.has(`${e.kind}:${e.id}`))
+        .sort((a, b) => Math.abs(day(a.d) - t) - Math.abs(day(b.d) - t));
+}
+
+function stmtUsedSet(exceptLineId) {
+    return new Set(statementLines.filter(l => l.matchId && l.id !== exceptLineId).map(l => `${l.matchKind}:${l.matchId}`));
+}
+
+async function setStatementMatch(ids, matchKind, matchId, note) {
+    const res = await callCloudAPI('setStatementMatch', { ids, matchKind, matchId, note: note === undefined ? null : note });
+    if (!res || res.status === 'error') { showToast(`❌ บันทึกการจับคู่ไม่สำเร็จ: ${(res && res.message) || ''}`, 'danger'); return false; }
+    statementLines.forEach(l => { if (ids.includes(l.id)) { l.matchKind = matchKind; l.matchId = matchId; l.note = note === undefined ? null : note; } });
+    return true;
+}
+
+// จับคู่อัตโนมัติ: บรรทัดที่ตรงกฎข้าม → ข้าม, มีรายการในระบบตรงตัวเดียว → จับคู่ (silent = ไม่แจ้งผล)
+async function autoMatchStatement(silent) {
+    if (!stmtBankId) return;
+    const rules = stmtSkipRules().map(s => s.toLowerCase());
+    const used = stmtUsedSet(null);
+    const skipIds = [], pairs = [];
+    statementLines.filter(l => l.bankId === stmtBankId && !l.matchKind).forEach(l => {
+        const desc = String(l.description || '').toLowerCase();
+        if (rules.some(r => desc.includes(r))) { skipIds.push(l.id); return; }
+        const c = stmtCandidates(l, used);
+        if (c.length === 1) { used.add(`${c[0].kind}:${c[0].id}`); pairs.push([l.id, c[0]]); }
+    });
+    if (skipIds.length) await setStatementMatch(skipIds, 'ignored', null, 'ข้ามตามกฎ');
+    for (const [id, e] of pairs) await setStatementMatch([id], e.kind, e.id);
+    if (!silent) showToast(`✅ จับคู่อัตโนมัติ ${pairs.length} รายการ${skipIds.length ? `, ข้ามตามกฎ ${skipIds.length}` : ''}`, 'success');
+    renderStatementModal();
+}
+
+async function stmtMatchTo(lineId, kind, id) {
+    if (await setStatementMatch([lineId], kind, id)) { renderStatementModal(); if (ledgerAccountId) renderAccountLedger(); }
+}
+
+async function stmtUnmatch(lineId) {
+    if (await setStatementMatch([lineId], null, null)) { renderStatementModal(); if (ledgerAccountId) renderAccountLedger(); }
+}
+
+async function stmtSkip(lineId, remember) {
+    const l = statementLines.find(x => x.id === lineId);
+    if (!l) return;
+    if (remember) {
+        const word = await uiPrompt('ข้ามรายการที่มีคำนี้ในรายละเอียดทุกครั้ง (แก้ให้สั้นลงเหลือคำที่ซ้ำทุกเดือนได้)', {
+            title: 'จำไว้ข้ามทุกครั้ง', okText: 'บันทึก', value: String(l.description || '').slice(0, 40)
+        });
+        if (!word || !word.trim()) return;
+        const rules = [...new Set([...stmtSkipRules(), word.trim()])];
+        const res = await callCloudAPI('saveSetting', { key: 'statement_skip_rules', value: rules });
+        if (!res || res.status === 'error') { showToast(`❌ บันทึกกฎไม่สำเร็จ: ${(res && res.message) || ''}`, 'danger'); return; }
+        appSettings.statement_skip_rules = rules;
+        await autoMatchStatement(true);
+    }
+    if (!l.matchKind && await setStatementMatch([lineId], 'ignored', null, 'ข้าม (ไม่เกี่ยวกับงาน)')) renderStatementModal();
+}
+
+async function stmtRemoveRule(i) {
+    const rules = stmtSkipRules();
+    rules.splice(i, 1);
+    const res = await callCloudAPI('saveSetting', { key: 'statement_skip_rules', value: rules });
+    if (!res || res.status === 'error') return;
+    appSettings.statement_skip_rules = rules;
+    renderStatementModal();
+}
+
+// บรรทัดที่ยังไม่มีในระบบ → เปิดฟอร์มบันทึกใหม่ (เติมวันที่/ยอด/บัญชีให้) แล้วกด "จับคู่อัตโนมัติ" หลังบันทึก
+function stmtCreateFrom(lineId, what) {
+    const l = statementLines.find(x => x.id === lineId);
+    if (!l) return;
+    const amt = Math.abs(l.amount);
+    if (what === 'expense') {
+        openExpenseModal();
+        document.getElementById('expense-date').value = l.lineDate;
+        document.getElementById('expense-amount').value = amt;
+        document.getElementById('expense-description').value = l.description || '';
+        populateExpensePaymentMethodOptions(`bank:${l.bankId}`);
+    } else if (what === 'receive') {
+        openReceiveMoneyModal();
+        document.getElementById('receive-amount').value = amt;
+        document.getElementById('receive-date').value = l.lineDate;
+        document.getElementById('receive-method').value = l.bankId;
+        document.getElementById('receive-note').value = l.description || '';
+    } else if (what === 'transfer') {
+        openTransferModal(null, l.amount > 0
+            ? { date: l.lineDate, to: l.bankId, from: 'cash', amount: amt, note: l.description || '' }
+            : { date: l.lineDate, from: l.bankId, to: 'cash', amount: amt, note: l.description || '' });
+    }
+}
+
+async function stmtDeleteShown() {
+    const ids = stmtShownLines().map(l => l.id);
+    if (!ids.length) return;
+    if (!await uiConfirm(`ลบบรรทัด statement ที่แสดงอยู่ ${ids.length} บรรทัด (เช่น นำเข้าไฟล์ผิดบัญชี)? รายการในระบบไม่ถูกลบ`, { title: 'ลบบรรทัด statement', okText: 'ลบ' })) return;
+    const res = await callCloudAPI('deleteStatementLines', { ids });
+    if (!res || res.status === 'error') { showToast(`❌ ลบไม่สำเร็จ: ${(res && res.message) || ''}`, 'danger'); return; }
+    const del = new Set(ids);
+    statementLines = statementLines.filter(l => !del.has(l.id));
+    renderStatementModal();
+}
+
+function stmtShownLines() {
+    const range = finPeriodRange('banks');
+    const status = (document.getElementById('stmt-filter') || {}).value || 'open';
+    return statementLines.filter(l => l.bankId === stmtBankId && inFinPeriod(range, l.lineDate) &&
+        (status === 'all' || (status === 'open' ? !l.matchKind : status === 'ignored' ? l.matchKind === 'ignored' : (l.matchKind && l.matchKind !== 'ignored'))))
+        .sort((a, b) => String(a.lineDate).localeCompare(String(b.lineDate)) || String(a.id).localeCompare(String(b.id)));
+}
+
+function renderStatementModal() {
+    const body = document.getElementById('statement-body');
+    if (!body || !stmtBankId) return;
+    document.getElementById('statement-title').textContent = `เทียบ statement — ${accountLabel(stmtBankId)}`;
+    const range = finPeriodRange('banks');
+    const mine = statementLines.filter(l => l.bankId === stmtBankId && inFinPeriod(range, l.lineDate));
+    const open = mine.filter(l => !l.matchKind).length;
+    const ignored = mine.filter(l => l.matchKind === 'ignored').length;
+    const done = mine.length - open - ignored;
+    // รายการในระบบช่วงเดียวกันที่ยังไม่มีบรรทัด statement ตรง (อาจบันทึกผิดบัญชี / ผิดวันที่ / ยังไม่เข้าแบงค์)
+    const usedAll = stmtUsedSet(null);
+    const sysOnly = mine.length ? accountEntries(stmtBankId).filter(e => inFinPeriod(range, e.d) && !usedAll.has(`${e.kind}:${e.id}`)) : [];
+    const shown = stmtShownLines();
+    const usedFor = id => stmtUsedSet(id);
+    const imp = stmtLastImport;
+    const rules = stmtSkipRules();
+    body.innerHTML = `
+        ${imp ? `<div class="fin-period-summary">นำเข้า ${imp.lines} บรรทัด (ใหม่ ${imp.added}) · ตรวจกับยอดคงเหลือผ่าน ${imp.checked}${imp.mismatched ? ` · <b class="text-danger">ไม่ตรง ${imp.mismatched} บรรทัด — ตรวจไฟล์</b>` : ''}</div>` : ''}
+        <div class="fin-period-summary">
+            ${range ? `<b>${finPeriodLabel(range)}</b> · ` : ''}บรรทัด statement ${mine.length} · จับคู่แล้ว <b class="text-success">${done}</b>
+            · ยังไม่จับคู่ <b class="${open ? 'text-danger' : ''}">${open}</b> · ข้าม ${ignored}
+            ${sysOnly.length ? ` · <b class="text-danger">รายการในระบบที่ไม่พบใน statement ${sysOnly.length}</b>` : ''}
+        </div>
+        ${sysOnly.length ? `<details class="stmt-sysonly"><summary>รายการในระบบที่ไม่พบใน statement (${sysOnly.length}) — อาจบันทึกผิดบัญชี / ผิดวันที่</summary>
+            <ul>${sysOnly.map(e => `<li><a href="#" onclick="openLedgerEntry('${e.kind}', '${e.id}'); return false;">${formatThaiDate(e.d)} · ${LEDGER_KIND_LABEL[e.kind]} ${escapeHtml(e.no || '')} · ${escapeHtml(e.label)} · ${fmtMoney(e.amt)}</a></li>`).join('')}</ul></details>` : ''}
+        <div class="table-container">
+            <table class="data-table stmt-table">
+                <thead><tr><th>วันที่</th><th>รายการใน statement</th><th class="inv-num">เข้า</th><th class="inv-num">ออก</th><th class="inv-num">คงเหลือ</th><th>ในระบบ</th></tr></thead>
+                <tbody>${shown.map(l => {
+                    let cell;
+                    if (l.matchKind === 'ignored') {
+                        cell = `<span class="text-muted">ข้าม${l.note ? ` (${escapeHtml(l.note)})` : ''}</span> <button type="button" class="btn btn-sm btn-outline" onclick="stmtUnmatch('${l.id}')" title="ยกเลิกการข้าม">เลิกข้าม</button>`;
+                    } else if (l.matchKind) {
+                        const e = accountEntries(l.bankId).find(x => x.kind === l.matchKind && x.id === l.matchId);
+                        cell = e ? `<span class="text-success">${icon('ok')} ${LEDGER_KIND_LABEL[e.kind]} ${escapeHtml(e.no || '')}</span> <small>${escapeHtml(e.label)}</small>
+                                    <button type="button" class="action-icon-btn" onclick="stmtUnmatch('${l.id}')" title="ยกเลิกการจับคู่">${icon('xmark')}</button>`
+                                 : `<span class="text-danger">รายการที่จับคู่ไว้ถูกลบ/ย้ายบัญชีแล้ว</span> <button type="button" class="btn btn-sm btn-outline" onclick="stmtUnmatch('${l.id}')">ยกเลิกการจับคู่</button>`;
+                    } else {
+                        const c = stmtCandidates(l, usedFor(l.id)).slice(0, 3);
+                        cell = `<div class="stmt-actions">
+                            ${c.map(e => `<button type="button" class="btn btn-sm btn-gold" onclick="stmtMatchTo('${l.id}', '${e.kind}', '${e.id}')" title="จับคู่กับ ${escapeHtml(e.label)}">จับคู่ ${LEDGER_KIND_LABEL[e.kind]} ${escapeHtml(e.no || formatThaiDate(e.d))}</button>`).join('')}
+                            ${l.amount > 0 ? `<button type="button" class="btn btn-sm btn-outline" onclick="stmtCreateFrom('${l.id}', 'receive')" title="บันทึกรับเงินจากบรรทัดนี้">+ รับเงิน</button>`
+                                           : `<button type="button" class="btn btn-sm btn-outline" onclick="stmtCreateFrom('${l.id}', 'expense')" title="บันทึกรายจ่ายจากบรรทัดนี้">+ รายจ่าย</button>`}
+                            <button type="button" class="btn btn-sm btn-outline" onclick="stmtCreateFrom('${l.id}', 'transfer')" title="บันทึกเป็นการโอนระหว่างบัญชีของบริษัท">+ โอนระหว่างบัญชี</button>
+                            <button type="button" class="btn btn-sm btn-outline" onclick="stmtSkip('${l.id}', false)" title="ไม่เกี่ยวกับงาน ไม่ต้องมีในระบบ">ข้าม</button>
+                            <button type="button" class="btn btn-sm btn-outline" onclick="stmtSkip('${l.id}', true)" title="ข้ามรายการที่มีคำนี้ทุกครั้ง">ข้ามทุกครั้ง</button>
+                        </div>`;
+                    }
+                    return `<tr>
+                        <td>${formatThaiDate(l.lineDate)}</td>
+                        <td>${escapeHtml(l.description || '-')}</td>
+                        <td class="inv-num text-success">${l.amount > 0 ? fmtMoney(l.amount) : ''}</td>
+                        <td class="inv-num text-danger">${l.amount < 0 ? fmtMoney(-l.amount) : ''}</td>
+                        <td class="inv-num">${l.balance != null ? fmtMoney(l.balance) : '-'}</td>
+                        <td>${cell}</td>
+                    </tr>`;
+                }).join('') || `<tr><td colspan="6" class="text-muted" style="text-align:center; padding:30px;">${mine.length ? 'ไม่มีบรรทัดตามตัวกรอง' : 'ยังไม่มี statement ในช่วงนี้ — กด "นำเข้า statement (PDF)"'}</td></tr>`}</tbody>
+            </table>
+        </div>
+        ${rules.length ? `<div class="stmt-rules"><span class="text-muted">ข้ามอัตโนมัติเมื่อมีคำว่า:</span> ${rules.map((r, i) => `<span class="stmt-rule">${escapeHtml(r)} <button type="button" onclick="stmtRemoveRule(${i})" title="ลบกฎข้ามนี้" aria-label="ลบกฎข้ามนี้">&times;</button></span>`).join('')}</div>` : ''}`;
 }
 
 // ---------- ราคามาตรฐาน (ภายใน): ค่าธรรมเนียมรัฐ + ค่าบริการ + ต้นทุน ต่อประเภทงาน ----------

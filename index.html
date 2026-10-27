@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261026j">
+    <link rel="stylesheet" href="styles.css?v=20261027b">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -1009,6 +1009,7 @@
                         <div class="dashboard-tabs" style="margin-bottom: 18px;">
                             <button type="button" class="btn btn-gold" id="btn-finpage-tab-overview" onclick="switchFinancePageTab('overview')"><span class="ico" data-icon="chart"></span> สรุปการเงิน</button>
                             <button type="button" class="btn btn-outline" id="btn-finpage-tab-billing" onclick="switchFinancePageTab('billing')"><span class="ico" data-icon="receipt"></span> ออกบิล / รับเงิน</button>
+                            <button type="button" class="btn btn-outline needs-finance" id="btn-finpage-tab-receipts" onclick="switchFinancePageTab('receipts')"><span class="ico" data-icon="receipt"></span> ใบเสร็จรับเงิน</button>
                             <button type="button" class="btn btn-outline" id="btn-finpage-tab-expenses" onclick="switchFinancePageTab('expenses')"><span class="ico" data-icon="cash"></span> จัดการรายจ่าย</button>
                             <button type="button" class="btn btn-outline" id="btn-finpage-tab-banks" onclick="switchFinancePageTab('banks')"><span class="ico" data-icon="bank"></span> บัญชีธนาคาร</button>
                             <button type="button" class="btn btn-outline" id="btn-finpage-tab-prices" onclick="switchFinancePageTab('prices')"><span class="ico" data-icon="settings"></span> ราคามาตรฐาน</button>
@@ -1281,6 +1282,8 @@
                                     <option value="nocharge">งานที่ไม่เรียกเก็บเงิน</option>
                                     <option value="all">ทั้งหมด</option>
                                 </select>
+                                <select id="period-billing" class="select-filter" onchange="onFinPeriodChange('billing')" title="กรองตามวันที่ออกบิล (งานที่ยังไม่ออกบิล = วันเปิดงาน)"><option value="">ทุกช่วงเวลา</option></select>
+                                <span id="period-billing-custom" class="fin-period-custom hidden"><input type="date" id="period-billing-from" class="fin-period-date" onchange="onFinPeriodChange('billing')" title="ตั้งแต่วันที่"><span>ถึง</span><input type="date" id="period-billing-to" class="fin-period-date" onchange="onFinPeriodChange('billing')" title="ถึงวันที่"></span>
                                 </div>
                                 <div class="action-buttons-group" style="display: flex; gap: 10px;">
                                     <button class="btn btn-gold" id="btn-receive-money" onclick="openReceiveMoneyModal()">
@@ -1292,8 +1295,10 @@
                                     <button class="btn btn-outline" id="btn-quick-invoice" onclick="openInvoiceModal(null)" style="border-color: var(--gold-primary); color: var(--gold-primary);">
                                         <span>สร้างบิลอิสระ (Quick Invoice)</span>
                                     </button>
+                                    <button type="button" class="btn btn-outline" onclick="exportBillingTabCsv()" title="ส่งออกรายการที่แสดงอยู่ (ตามตัวกรอง) เป็นไฟล์ Excel (CSV)"><span class="ico" data-icon="outbox"></span> Excel</button>
                                 </div>
                             </div>
+                            <div id="period-billing-summary" class="fin-period-summary hidden"></div>
                             <p class="section-desc" style="margin: -8px 0 15px;">
                                 ใบงานที่ยังไม่ออกบิล กด <strong>ออกบิล</strong> เพื่อดูร่างและรับเลขที่บิล — บิลที่ออกแล้วกด <strong>ดูบิล</strong> เพื่อรับเงิน (รับหลายงวดได้) พิมพ์ใบเสร็จ หรือยกเลิกบิล — ลูกค้าโอนก้อนเดียวจ่ายหลายบิล หรือจ่ายมัดจำก่อนออกบิล กด <strong>รับเงิน / มัดจำ</strong>
                             </p>
@@ -1319,6 +1324,46 @@
                             </div>
                         </div>
 
+                        <!-- SUB-TAB: ใบเสร็จรับเงิน — เงินเข้าทุกก้อน ดู renderReceiptsTab() (owner 2026-10-27) -->
+                        <div id="finpage-tab-receipts" class="db-tab-content hidden">
+                            <div class="table-actions">
+                                <div class="search-filters-group">
+                                <div class="search-box">
+                                    <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle class="fl" cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/></svg>
+                                    <input type="text" id="search-receipts" placeholder="ค้นหาเลขที่ใบเสร็จ, นายจ้าง, เลขที่บิล..." oninput="renderReceiptsTab()">
+                                </div>
+                                <select id="filter-receipts-status" class="select-filter" onchange="renderReceiptsTab()" title="สถานะใบเสร็จ">
+                                    <option value="active" selected>ใช้งานอยู่</option>
+                                    <option value="credit">มีมัดจำคงเหลือ</option>
+                                    <option value="void">ยกเลิกแล้ว</option>
+                                    <option value="all">ทั้งหมด</option>
+                                </select>
+                                <select id="filter-receipts-account" class="select-filter" onchange="renderReceiptsTab()" title="บัญชีที่รับเงิน"><option value="">ทุกบัญชี</option></select>
+                                <select id="period-receipts" class="select-filter" onchange="onFinPeriodChange('receipts')" title="กรองตามวันที่รับเงิน"><option value="">ทุกช่วงเวลา</option></select>
+                                <span id="period-receipts-custom" class="fin-period-custom hidden"><input type="date" id="period-receipts-from" class="fin-period-date" onchange="onFinPeriodChange('receipts')" title="ตั้งแต่วันที่"><span>ถึง</span><input type="date" id="period-receipts-to" class="fin-period-date" onchange="onFinPeriodChange('receipts')" title="ถึงวันที่"></span>
+                                </div>
+                                <button type="button" class="btn btn-outline" onclick="exportReceiptsCsv()" title="ส่งออกใบเสร็จที่แสดงอยู่ (ตามตัวกรอง) เป็นไฟล์ Excel (CSV)"><span class="ico" data-icon="outbox"></span> Excel</button>
+                            </div>
+                            <div id="period-receipts-summary" class="fin-period-summary hidden"></div>
+                            <div class="table-container">
+                                <table class="data-table" id="receipts-table">
+                                    <thead>
+                                        <tr>
+                                            <th>วันที่รับเงิน</th>
+                                            <th>เลขที่ใบเสร็จ</th>
+                                            <th>นายจ้าง/ลูกค้า</th>
+                                            <th class="inv-num">ยอดรับ</th>
+                                            <th>ตัดเข้าบิล</th>
+                                            <th class="inv-num">มัดจำคงเหลือ</th>
+                                            <th>รับทาง</th>
+                                            <th class="actions-col">จัดการ</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="receipts-tbody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
                         <!-- SUB-TAB: EXPENSE MANAGEMENT -->
                         <div id="finpage-tab-expenses" class="db-tab-content hidden">
                             <div class="table-actions">
@@ -1329,11 +1374,15 @@
                                 <select id="filter-expense-category" class="select-filter" onchange="renderExpenses()">
                                     <option value="">ทุกหมวดหมู่</option>
                                 </select>
+                                <select id="period-expenses" class="select-filter" onchange="onFinPeriodChange('expenses')" title="กรองตามวันที่จ่าย"><option value="">ทุกช่วงเวลา</option></select>
+                                <span id="period-expenses-custom" class="fin-period-custom hidden"><input type="date" id="period-expenses-from" class="fin-period-date" onchange="onFinPeriodChange('expenses')" title="ตั้งแต่วันที่"><span>ถึง</span><input type="date" id="period-expenses-to" class="fin-period-date" onchange="onFinPeriodChange('expenses')" title="ถึงวันที่"></span>
                                 <button class="btn btn-gold btn-add" id="btn-add-expense" onclick="openExpenseModal()">
                                     <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
                                     <span>เพิ่มรายจ่ายใหม่</span>
                                 </button>
+                                <button type="button" class="btn btn-outline" onclick="exportExpensesTabCsv()" title="ส่งออกรายจ่ายที่แสดงอยู่ (ตามตัวกรอง) เป็นไฟล์ Excel (CSV)"><span class="ico" data-icon="outbox"></span> Excel</button>
                             </div>
+                            <div id="period-expenses-summary" class="fin-period-summary hidden"></div>
                             <p class="section-desc" style="margin: -8px 0 15px;">
                                 บันทึกค่าใช้จ่ายของกิจการ (ค่าเช่า, เงินเดือน, ค่าธรรมเนียมราชการ ฯลฯ) — ใช้คำนวณกำไรสุทธิและสรุปรายจ่ายแยกหมวดหมู่ในแท็บสรุปการเงิน
                             </p>
@@ -1364,12 +1413,16 @@
                                     <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle class="fl" cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/></svg>
                                     <input type="text" id="search-bank" placeholder="ค้นหาชื่อบัญชี, ธนาคาร..." oninput="renderBanks()">
                                 </div>
+                                <select id="period-banks" class="select-filter" onchange="onFinPeriodChange('banks')" title="ดูยอดรับเข้า/จ่ายออกเฉพาะช่วงวันที่"><option value="">ทุกช่วงเวลา</option></select>
+                                <span id="period-banks-custom" class="fin-period-custom hidden"><input type="date" id="period-banks-from" class="fin-period-date" onchange="onFinPeriodChange('banks')" title="ตั้งแต่วันที่"><span>ถึง</span><input type="date" id="period-banks-to" class="fin-period-date" onchange="onFinPeriodChange('banks')" title="ถึงวันที่"></span>
                                 <button class="btn btn-gold btn-add" id="btn-add-bank" onclick="openBankModal()">
                                     <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
                                     <span>เพิ่มบัญชีธนาคาร</span>
                                 </button>
+                                <button type="button" class="btn btn-outline hidden" id="btn-account-transfer" onclick="openTransferModal()" title="บันทึกเงินที่ย้ายระหว่างบัญชีของบริษัท เช่น ฝากเงินสดเข้าธนาคาร ถอนเงินสด โอนข้ามบัญชี"><span class="ico" data-icon="refresh"></span> โอนระหว่างบัญชี</button>
                             </div>
 
+                            <div id="period-banks-summary" class="fin-period-summary hidden"></div>
                             <div class="bank-accounts-grid" id="banks-list-grid">
                                 <!-- Dynamic Bank Cards -->
                             </div>
@@ -2674,6 +2727,98 @@
             </div>
         </div>
 
+        <!-- ==================== MODAL: รายการเดินบัญชี (renderAccountLedger) ==================== -->
+        <div id="ledger-modal" class="modal-backdrop hidden">
+            <div class="modal-content large">
+                <div class="modal-header">
+                    <h3><span class="ico" data-icon="clipboard"></span> <span id="ledger-title">รายการเดินบัญชี</span></h3>
+                    <div class="modal-header-actions">
+                        <button type="button" class="btn btn-sm btn-outline" onclick="exportLedgerCsv()" title="ส่งออกรายการเดินบัญชีเป็นไฟล์ Excel (CSV)"><span class="ico" data-icon="outbox"></span> Excel</button>
+                        <button class="close-btn" title="ปิดหน้าต่าง" onclick="closeAccountLedger()">&times;</button>
+                    </div>
+                </div>
+                <div class="modal-body">
+                    <p class="section-desc">ช่วงเวลาตามตัวกรองในแท็บบัญชีธนาคาร — ดับเบิลคลิกแถวเพื่อเปิดใบเสร็จ / รายจ่าย / รายการโอน</p>
+                    <div id="ledger-body"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== MODAL: โอนระหว่างบัญชี (saveTransfer) ==================== -->
+        <div id="transfer-modal" class="modal-backdrop hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3><span class="ico" data-icon="refresh"></span> <span id="transfer-modal-title">โอนเงินระหว่างบัญชี</span></h3>
+                    <button class="close-btn" title="ปิดหน้าต่าง" onclick="closeTransferModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="transfer-form" onsubmit="saveTransfer(event)">
+                        <input type="hidden" id="transfer-edit-id">
+                        <p class="section-desc">เงินที่ย้ายระหว่างบัญชีของบริษัทเอง เช่น ฝากเงินสดเข้าธนาคาร ถอนเงินสด โอนข้ามบัญชี — ไม่นับเป็นรายรับ/รายจ่าย</p>
+                        <div class="form-row">
+                            <div class="form-group col-6">
+                                <label for="transfer-from">จากบัญชี <span class="required">*</span></label>
+                                <select id="transfer-from"></select>
+                            </div>
+                            <div class="form-group col-6">
+                                <label for="transfer-to">เข้าบัญชี <span class="required">*</span></label>
+                                <select id="transfer-to"></select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group col-6">
+                                <label for="transfer-date">วันที่ <span class="required">*</span></label>
+                                <input type="date" id="transfer-date" required>
+                            </div>
+                            <div class="form-group col-6">
+                                <label for="transfer-amount">จำนวนเงิน (บาท) <span class="required">*</span></label>
+                                <input type="number" id="transfer-amount" min="0.01" step="0.01" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="transfer-note">หมายเหตุ</label>
+                            <input type="text" id="transfer-note" placeholder="เช่น ฝากเงินสดที่รับหน้าร้าน">
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline btn-danger-outline hidden" id="btn-delete-transfer" onclick="deleteTransfer()" title="ลบรายการโอนนี้">ลบ</button>
+                            <button type="button" class="btn btn-outline" onclick="closeTransferModal()">ยกเลิก</button>
+                            <button type="submit" class="btn btn-gold">บันทึก</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== MODAL: เทียบ statement ธนาคาร (renderStatementModal) ==================== -->
+        <div id="statement-modal" class="modal-backdrop hidden">
+            <div class="modal-content large">
+                <div class="modal-header">
+                    <h3><span class="ico" data-icon="search"></span> <span id="statement-title">เทียบ statement</span></h3>
+                    <button class="close-btn" title="ปิดหน้าต่าง" onclick="closeStatementModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="table-actions">
+                        <div class="search-filters-group">
+                            <label class="btn btn-gold stmt-upload" title="เลือกไฟล์ statement PDF จากธนาคาร (เลือกหลายเดือนพร้อมกันได้)">
+                                <span class="ico" data-icon="inbox"></span> นำเข้า statement (PDF)
+                                <input type="file" id="stmt-file" accept="application/pdf,.pdf" multiple class="hidden" onchange="importStatementFiles(this)">
+                            </label>
+                            <select id="stmt-filter" class="select-filter" onchange="renderStatementModal()" title="แสดงบรรทัดตามสถานะการจับคู่">
+                                <option value="open" selected>ยังไม่จับคู่</option>
+                                <option value="matched">จับคู่แล้ว</option>
+                                <option value="ignored">ข้าม</option>
+                                <option value="all">ทั้งหมด</option>
+                            </select>
+                        </div>
+                        <button type="button" class="btn btn-outline" onclick="autoMatchStatement(false)" title="จับคู่บรรทัดที่มีรายการในระบบตรงกันตัวเดียว">จับคู่อัตโนมัติ</button>
+                        <button type="button" class="btn btn-outline btn-danger-outline" onclick="stmtDeleteShown()" title="ลบบรรทัด statement ที่แสดงอยู่ (เช่น นำเข้าผิดบัญชี)">ลบบรรทัดที่แสดง</button>
+                    </div>
+                    <p class="section-desc">ใช้ช่วงเวลาตามตัวกรองในแท็บบัญชีธนาคาร (นำเข้าแล้วตั้งเป็นช่วงของไฟล์ให้) — อ่านจากตัวหนังสือใน PDF ไม่ใช้ AI; ไฟล์ที่มีรหัสผ่านจะถามรหัส</p>
+                    <div id="statement-body"></div>
+                </div>
+            </div>
+        </div>
+
         <!-- ==================== MODAL: ADD/EDIT BANK ACCOUNT ==================== -->
         <div id="bank-modal" class="modal-backdrop hidden">
             <div class="modal-content">
@@ -3632,7 +3777,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261026j"></script>
+    <script src="supabase-client.js?v=20261027b"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3643,6 +3788,6 @@
     </script>
 
     <!-- Application Script -->
-    <script src="app.js?v=20261026j"></script>
+    <script src="app.js?v=20261027b"></script>
 </body>
 </html>
