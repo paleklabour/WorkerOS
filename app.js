@@ -3411,7 +3411,7 @@ function renewalActiveRowHtml(r, canEdit) {
             ${r.openedByClient ? `<span class="rn-client-tag" title="นายจ้างเปิดรอบนี้เองจากพอร์ทัลลูกค้า">ลูกค้าเปิดงาน · ${formatThaiDate(String(r.startedAt || '').slice(0, 10))}</span>` : ''}
             ${r.clientNote ? `<small class="rn-client-note">"${escapeHtml(r.clientNote)}"</small>` : ''}</div>
         <div class="rn-arow-progress">${renewalSplitBook(r) ? renewalLanesHtml(r, stepText) : `${renewalBarHtml(r)}<small class="text-muted">${escapeHtml(stepText)}</small>`}</div>
-        <span class="rn-arow-appt">${r.appointmentDate ? `นัด ${formatThaiDate(r.appointmentDate)}` : '<span class="text-muted">—</span>'}${r.steps.bookAppt && r.steps.bookAppt.date ? `<small class="rn-book-appt">รับเล่ม ${formatThaiDate(r.steps.bookAppt.date)}</small>` : ''}</span>
+        <span class="rn-arow-appt">${r.appointmentDate ? `นัด ${formatThaiDate(r.appointmentDate)}` : '<span class="text-muted" title="ยังไม่ได้กรอกวันนัดรับใบอนุญาต (ขั้นใบนัดหมาย)">ยังไม่นัด</span>'}${r.steps.bookAppt && r.steps.bookAppt.date ? `<small class="rn-book-appt">นัดทำเล่ม ${formatThaiDate(r.steps.bookAppt.date)}</small>` : ''}</span>
         <span class="rn-arow-bill">${renewalBillPillHtml(r)}</span>
         <div class="rn-actions${renewalSplitBook(r) ? ' is-lanes' : ''}">
             ${canEdit && next ? `<button type="button" class="btn btn-sm btn-soft rn-next-btn" onclick="renewalStepClick('${r.id}', '${next.key}')" title="${escapeHtml(renewalNextLabel(r))}">${escapeHtml(renewalNextLabel(r))}</button>` : ''}
