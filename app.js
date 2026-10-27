@@ -3404,7 +3404,7 @@ function renewalActiveRowHtml(r, canEdit) {
     const isReg = r.kind === 'registration';
     const regRound = isReg ? (registrationRounds || []).find(x => x.id === r.registrationRoundId) : null;
     const sub = isReg ? `${regRound ? regRoundLabel(regRound) : 'ขึ้นทะเบียน'} · ${r.steps.bookExternal ? 'เล่ม/visa ทำที่อื่น' : r.withBook ? 'ทำเล่มใหม่' : 'ตี visa'}`
-        : `หมด ${r.oldPermitExpiry ? formatThaiDate(r.oldPermitExpiry) : '-'}${r.withBook ? (r.steps.bookExternal ? ' · ทำเล่มที่อื่น' : ' · ทำเล่มด้วย') : ''}`;
+        : `หมด ${r.oldPermitExpiry ? formatThaiDate(r.oldPermitExpiry) : '-'}${r.withBook && !renewalSplitBook(r) ? (r.steps.bookExternal ? ' · ทำเล่มที่อื่น' : ' · ทำเล่มด้วย') : ''}`;
     return `<div class="rn-arow${renewalSel.has(r.id) ? ' is-selected' : ''}" data-ctx="worker:${w.id}" ondblclick="handleRowDblClick(event) && openWorkerQuickView('${w.id}', 'renewal')" title="ดับเบิลคลิกเพื่อดูข้อมูลคนงาน">
         ${canEdit ? `<input type="checkbox" ${renewalSel.has(r.id) ? 'checked' : ''} onchange="toggleRenewalSel(['${r.id}'], this.checked)" title="เลือกคนงานคนนี้">` : '<span></span>'}
         <div class="rn-arow-name"><strong>${escapeHtml(workerFullName(w))}</strong><small class="rn-uid">${escapeHtml(w.workerUid || 'ยังไม่มีเลข 13 หลัก')}</small><small class="text-muted">${escapeHtml(sub)}</small>
