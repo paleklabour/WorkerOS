@@ -2965,11 +2965,14 @@ const RENEWAL_BOOK_STEP = { key: 'book', label: 'ทำเล่ม', kind: 'fil
 // รอบต่ออายุที่ทำเล่มด้วย: ทำเล่มเป็นอีกสายแยกจากต่ออายุ (owner 2026-10-27, แบบที่ 1) — แถบ + ปุ่มขั้นถัดไปของตัวเอง
 // สองสายเดินอิสระไม่ต้องรอกัน, ปิดรอบเมื่อเสร็จทั้งคู่ (renewalBookTrackDone); 'book' ใช้คีย์เดิมจึงอ่านรอบเก่าได้
 // ทำเล่มที่อื่น (steps.bookExternal) = สายทำเล่มจบ; งานขึ้นทะเบียนยังเป็นขั้นเดียวต่อท้ายเหมือนเดิม
+// ขั้นตอนจริงของออฟฟิศ (owner 2026-10-27): บัตรประชาชนหน้า-หลัง → จ่ายเงินจองที่เซเว่น (แนบใบเสร็จ) → นัดวันทำ → รับเล่ม → ตี Visa
+// บัตร/ใบเสร็จจองแนบอย่างเดียว ไม่ผ่าน AI (noAi — ช่องใบเสร็จ AI อ่านเป็นใบเสร็จกรมการจัดหางาน); บัตรแนบ 1 ไฟล์ = NTID_FB, 2 ไฟล์ = NTID_F + NTID_B
 const RENEWAL_BOOK_TRACK = [
-    { key: 'bookSubmit', label: 'ยื่นทำเล่ม', kind: 'tick' },
-    { key: 'bookAppt', label: 'วันนัดรับเล่ม', kind: 'date' },
-    { ...RENEWAL_BOOK_STEP, label: 'ได้เล่มใหม่' },
-    { key: 'bookVisa', label: 'ย้าย visa', kind: 'file', docType: 'worker-visa', hint: 'VISA' }
+    { key: 'bookId', label: 'บัตรประชาชน หน้า-หลัง', kind: 'file', docType: 'worker-myanmar-id', multi: true, noAi: true },
+    { key: 'bookPay', label: 'ใบเสร็จจอง (เซเว่น)', kind: 'file', docType: 'worker-receipt', hint: 'REC', noAi: true },
+    { key: 'bookAppt', label: 'วันนัดทำเล่ม', kind: 'date' },
+    { ...RENEWAL_BOOK_STEP, label: 'รับเล่ม' },
+    { key: 'bookVisa', label: 'ตี Visa', kind: 'file', docType: 'worker-visa', hint: 'VISA' }
 ];
 // งานขึ้นทะเบียน (owner 2026-10-20, แบบที่ 4) — ลำดับตายตัว: ยื่นพร้อมจ่ายเงิน (ใบคำขอ + ใบเสร็จ แนบแยก) → ตรวจสุขภาพ
 // (ใบรับรองแพทย์) → ซื้อประกัน (กรมธรรม์) → ค่าธรรมเนียมรอบ 2 (ถ้ามี ข้ามได้) → ใบแทน → ใบนัด → Smart card → บัตรชมพู
@@ -3666,6 +3669,16 @@ async function renewalStepClick(id, key) {
     } else if (step.key === 'book') {
         renewalBookChoice(r, w, step);
         return;
+    } else if (step.key === 'bookId' && getAttachments(w, step.docType).length) {
+        // มีบัตรในแฟ้มคนงานอยู่แล้ว → ใช้ไฟล์เดิมได้ ไม่ต้องแนบซ้ำ
+        const files = getAttachments(w, step.docType);
+        const ans = await uiConfirm(`แฟ้มของ ${workerFullName(w)} มีบัตรประชาชนอยู่แล้ว ${files.length} ไฟล์`, {
+            title: step.label, okText: 'ใช้ไฟล์ที่มีอยู่', extraText: 'แนบใหม่', danger: false
+        });
+        if (ans === 'extra') { pickRenewalFile(r, w, step); return; }
+        if (ans !== true) return;
+        const f = files[files.length - 1];
+        renewalMarkStep(r, step.key, { url: f.data, name: f.name, existing: true });
     } else {
         pickRenewalFile(r, w, step);
         return;
@@ -3775,15 +3788,20 @@ function pickRenewalFile(r, w, step) {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*,application/pdf';
-    input.onchange = () => { if (input.files && input.files[0]) doRenewalFileStep(r, w, step, input.files[0]); };
+    input.multiple = !!step.multi; // บัตรประชาชนหน้า-หลัง เลือก 2 ไฟล์ได้
+    input.onchange = () => { if (input.files && input.files[0]) doRenewalFileStep(r, w, step, input.files[0], [...input.files].slice(1, 2)); };
     input.click();
 }
 
-async function doRenewalFileStep(r, w, step, file) {
+async function doRenewalFileStep(r, w, step, file, more = []) {
     try {
-        const content = await readFileAsDataUrl(file);
         // ใบแทนต้องชื่อ WP_R เสมอ; ขั้นอื่นใช้ชื่อไฟล์ต้นฉบับเป็นตัวช่วยตั้งชื่อ (REC1900 / WP46 / CI ฯลฯ)
-        await attachDocumentToWorker(w, step.docType, content, null, { hint: step.hint || file.name });
+        // บัตรหน้า-หลัง: 1 ไฟล์ = NTID_FB, 2 ไฟล์ = NTID_F + NTID_B
+        const parts = step.multi ? (more.length ? [[file, 'NTID_F'], [more[0], 'NTID_B']] : [[file, 'NTID_FB']]) : [[file, step.hint || file.name]];
+        for (const [f, hint] of parts) {
+            const content = await readFileAsDataUrl(f);
+            await attachDocumentToWorker(w, step.docType, content, null, { hint, ...(step.noAi ? { noAi: true } : {}) });
+        }
     } catch (err) {
         if (err && err.cancelled) return;
         showUploadPill('bad', 'แนบไฟล์ไม่สำเร็จ', err && err.message ? err.message : 'กรุณาลองใหม่');
