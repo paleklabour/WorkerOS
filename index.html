@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261028h">
+    <link rel="stylesheet" href="styles.css?v=20261028i">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -1545,6 +1545,7 @@
                                             <option value="account_manager">Account Manager (บิล/การเงิน/ค่าคอม)</option>
                                             <option value="operation_manager">Operation Manager (งาน/เอกสาร/มอบหมายงาน)</option>
                                             <option value="staff">Staff (นายจ้าง/คนงาน/งานที่ได้รับมอบหมาย)</option>
+                                            <option value="tester">ทดสอบ (ดูได้ทุกหน้า บันทึกไม่ได้)</option>
                                             <option value="client">Client (เฉพาะข้อมูลนายจ้างตนเอง)</option>
                                         </select>
                                     </div>
@@ -3795,6 +3796,6 @@
     </script>
 
     <!-- ตัวเปิดระบบ: หน้าล็อกอินใช้แค่ boot.js — supabase-client.js + app.js (เลข v เดียวกัน) โหลดหลังล็อกอินเท่านั้น -->
-    <script src="boot.js?v=20261028h"></script>
+    <script src="boot.js?v=20261028i"></script>
 </body>
 </html>

@@ -224,6 +224,11 @@ async function callCloudAPI(action, payload = {}, options = {}) {
         showToast("👁 กำลังดูหน้าจอแบบผู้ใช้อื่น — บันทึกไม่ได้ กด \"กลับเป็น Admin\" ก่อน", "warning");
         return null;
     }
+    // บัญชีทดสอบ: อ่านได้อย่างเดียว (claimSession = จองเซสชันตอนล็อกอิน, setMyTheme = ธีมของตัวเอง ยังให้ทำ)
+    if (isTesterUser() && !/^(get|load|list|fetch|claimSession$|setMyTheme$)/i.test(action) && !(action === "manageUser" && payload.action === "list")) {
+        showToast("🧪 บัญชีทดสอบ — ดูได้อย่างเดียว ไม่ได้บันทึก", "warning");
+        return null;
+    }
     try {
         const result = await window.supabaseAdapter.callCloudAPI(action, payload, currentUser);
         if (result && result.status === "success") {
@@ -1169,6 +1174,7 @@ const ROLE_LABELS = {
     account_manager: 'Account Manager (บิล/การเงิน)',
     operation_manager: 'Operation Manager (งาน/เอกสาร)',
     staff: 'Staff (ทำงานที่ได้รับมอบหมาย)',
+    tester: 'ทดสอบ (ดูอย่างเดียว)',
     client: 'ลูกค้า/นายจ้าง (เฉพาะข้อมูลตนเอง)'
 };
 const PERMS = {
@@ -1184,9 +1190,14 @@ const PERMS = {
     admin:        ['admin']                                         // ลบข้อมูล จัดการผู้ใช้ สำรอง/กู้คืน
 };
 
+// บัญชีทดสอบ (role tester, owner 2026-10-28): เห็นทุกเมนู/ปุ่มเหมือน Admin แต่บันทึก/อัปโหลดไม่ได้
+// (callCloudAPI / uploadDocumentFile กันไว้ และฐานข้อมูลบล็อกการเขียนซ้ำอีกชั้น — migration 20261028100000_tester_role.sql)
 function can(perm) {
-    return !!currentUser && (PERMS[perm] || []).includes(currentUser.role);
+    if (!currentUser) return false;
+    if (currentUser.role === 'tester') return true;
+    return (PERMS[perm] || []).includes(currentUser.role);
 }
+function isTesterUser() { return !!currentUser && currentUser.role === 'tester'; }
 
 // Staff แก้ได้เฉพาะใบงานที่ตัวเองเปิดหรือได้รับมอบหมาย
 function canEditJob(j) {
@@ -3854,7 +3865,7 @@ function renewalAutoSteps(r, w) {
 
 let renewalAutoBusy = false; // กันโหลดซ้อน (กลับมาที่แท็บ) แล้วบันทึกรอบเดียวกันสองครั้ง
 async function renewalAutoFill(rounds) {
-    if (!can('ops') || isViewingAs() || renewalAutoBusy) return 0;
+    if (!can('ops') || isViewingAs() || isTesterUser() || renewalAutoBusy) return 0;
     renewalAutoBusy = true;
     try { return await renewalAutoFillRun(rounds); } finally { renewalAutoBusy = false; }
 }
@@ -12545,7 +12556,7 @@ function squareAvatarDataUrl(file, size = 256) {
 }
 
 async function uploadAvatarFile(file, ownerId) {
-    if (isViewingAs()) { showToast("👁 กำลังดูหน้าจอแบบผู้ใช้อื่น — บันทึกไม่ได้", "warning"); return null; }
+    if (isViewingAs() || isTesterUser()) { showToast("ดูอย่างเดียว — บันทึกไม่ได้", "warning"); return null; }
     if (!file || !/^image\//.test(file.type)) { showToast("⚠️ กรุณาเลือกไฟล์รูปภาพ", "warning"); return null; }
     if (!window.supabaseAdapter) return null;
     try {
@@ -14962,6 +14973,7 @@ function beginUploadUi(fileName) {
 async function uploadDocumentFile(fileDataUrl, fileName, customerId = "", workerId = "", docType = "", options = {}) {
     if (!window.supabaseAdapter) return null; // ยังไม่ได้ตั้งค่า Supabase
     if (isViewingAs()) { showToast("👁 กำลังดูหน้าจอแบบผู้ใช้อื่น — อัปโหลดไม่ได้", "warning"); return null; }
+    if (isTesterUser()) { showToast("🧪 บัญชีทดสอบ — อัปโหลดไม่ได้", "warning"); return null; }
 
     let ui = beginUploadUi(fileName);
     // ย่อไฟล์ใหญ่ผิดปกติก่อนอัปโหลด (owner, 2026-10-13): PDF / รูป เกิน 5 MB → ย่อในเบราว์เซอร์ (shrinkPdfBlob / shrinkImageBlob)

@@ -269,6 +269,10 @@ change permissions only in `PERMS` in `app.js` and check with `can('…')` /
 `body.perm-no-<perm>`. The database enforces the same rules with RLS helpers
 `is_internal()` / `can_finance()` / `can_ops()` (migration
 `20261002042034_roles_gm_am_om_staff.sql`) — update both sides together.
+`tester` (owner 2026-10-28, `tua@paleklabour.com`) = sees every page like Admin but can't save anything: `can()` returns true
+for every perm, `callCloudAPI` / `uploadDocumentFile` refuse writes (`isTesterUser`), and the DB blocks writes with RESTRICTIVE
+policies `tester_no_*` on every table + Storage, plus `tester_read` select policies on finance/profile tables
+(`is_tester()`, migration `20261028100000_tester_role.sql`). A new table needs those three restrictive policies too.
 The bell is per role (`buildNotificationGroups`); clicking a job item opens a read-only job summary pop-up
 (`openJobQuickView`, iOS grouped-list style — owner picked design #3 on 2026-10-19: centered head with job no / type /
 status pill, worker card (click = open worker folder), grouped rows label-left value-right (`.jq-*` in `styles.css`),
