@@ -2415,7 +2415,7 @@ function showUiDialog({ kind, message, title, okText, cancelText, extraText, dan
         const close = (result) => {
             document.removeEventListener('keydown', onKey, true);
             backdrop.remove();
-            if (prevFocus && typeof prevFocus.focus === 'function') prevFocus.focus();
+            if (prevFocus && typeof prevFocus.focus === 'function') prevFocus.focus({ preventScroll: true }); // ปิดหน้าต่างแล้วหน้าไม่เลื่อน
             resolve(result);
         };
         const ok = () => close(kind === 'prompt' ? input.value : kind === 'confirm' ? true : undefined);
@@ -3221,12 +3221,17 @@ function renderRenewalCases() {
         loadRenewals(true);
         return;
     }
+    // วาดใหม่หลังแนบไฟล์/ติ๊กขั้น — หน้าต้องอยู่ที่เดิม ไม่เลื่อนไปไหน (owner 2026-10-28)
+    const keepY = window.scrollY;
     if (renewalTab === 'due') box.innerHTML = renewalDueHtml(renewalDueVisible(due), due);
     else if (renewalTab === 'active') {
         const searched = active.filter(r => renewalMatchesSearch(workers.find(w => w.id === r.workerId)));
         box.innerHTML = renewalActiveHtml(searched.filter(r => renewalProvinceOk(workers.find(w => w.id === r.workerId))), searched);
     }
     else box.innerHTML = renewalDoneHtml(done.filter(r => renewalMatchesSearch(workers.find(w => w.id === r.workerId))));
+    const restore = () => { if (Math.abs(window.scrollY - keepY) > 1) window.scrollTo({ top: keepY, behavior: 'instant' }); };
+    restore();
+    requestAnimationFrame(restore);
 }
 
 // ---------- ตัวกรองจังหวัด (ใช้ทั้ง "ถึงรอบ" และ "กำลังดำเนินการ") ----------
