@@ -588,6 +588,13 @@ itself on `loadRenewals` and right after `startRenewals` — ใบแทน = a
 Never auto: ใบนัด and Smart card (owner 2026-10-28 — new WP files were ใบแทน, nobody had an appointment yet), book track,
 registration rounds. A done step can be edited (open file / pick another file / un-tick); a file taken off a step gets
 `noRenewalAuto: [roundId]` so auto-fill won't put it back.
+ตี Visa in the existing book (owner 2026-10-28, picked the ring mockup): a renewal round without `with_book` has its own second
+ring "ตี Visa" (`RENEWAL_VISA_TRACK`, one step `visa` → `worker-visa`, allowed only after ใบแทน; `renewalHasVisa`, only active
+rounds or ones that already have visa data). Start choice per worker in the ถึงรอบ tab is a select ทำเล่มใหม่ / ตี Visa เล่มเดิม /
+Visa ที่อื่น (`renewalBookPick` values `book|visa|ext`, `renewalBookPickOf`). Billing item "ตี visa" (`REG_VISA_JOB_TYPE`, also
+from `client_start_renewals`); Visa ที่อื่น = `steps.visaExternal` via `markBookExternal` (deletes the unbilled visa item), undo from
+the ring ("ตีเองแทน"). The round closes on card + visa (`renewalBookTrackDone`). Visa files uploaded before the round started
+aren't offered as "ใช้ไฟล์ที่มีอยู่".
 Still to build: old→new worker-data preview, deposit shortcut in the start dialog, bell/calendar for appointments, client portal renewal progress.
 
 ## Registration pool — รอขึ้นทะเบียน (owner, 2026-10-20)

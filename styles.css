@@ -6833,7 +6833,8 @@ body.has-camera .upload-hint { display: none; }
 .rn-due-table { table-layout: fixed; width: 100%; }
 .rn-due-table .rd-check { width: 52px; }
 .rn-due-table .rd-exp, .rn-due-table .rd-pass { width: 170px; }
-.rn-due-table .rd-book { width: 120px; }
+.rn-due-table .rd-book { width: 170px; }
+.rn-visa-pick { width: 100%; max-width: 160px; font-size: 13.5px; padding: 5px 8px; }
 .rn-due-table .rd-act { width: 150px; }
 .rn-due-table td { overflow: hidden; text-overflow: ellipsis; }
 /* ช่องติ๊กไม่ต้องมี padding/จุดไข่ปลา (เคยขึ้น ".." หลังช่องติ๊ก) */

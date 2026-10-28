@@ -1581,7 +1581,7 @@ function renderClientRenewalTab(myWorkers) {
             && !renewalJobsOf(r).some(j => j.jobType === RENEWAL_BOOK_JOB_TYPE && (getJobInvoice(j) || isJobNoCharge(j)));
         return `<div class="cp-rn-row cp-rn-active">
             <div class="cp-rn-name"><strong>${escapeHtml(workerFullName(wOf(r)))}</strong><small class="rn-uid">${escapeHtml(wOf(r).workerUid || '')}</small><small class="text-muted">หมด ${r.oldPermitExpiry ? formatThaiDate(r.oldPermitExpiry) : '-'}${r.withBook && !renewalSplitBook(r) ? (r.steps.bookExternal ? ' · ทำเล่มที่อื่น' : ' · ทำเล่มด้วย') : ''}</small></div>
-            <div class="rn-arow-progress"><div class="rn-rings">${renewalRingHtml(r, 'main')}${renewalSplitBook(r) ? renewalRingHtml(r, 'book') : ''}</div></div>
+            <div class="rn-arow-progress"><div class="rn-rings">${renewalRingHtml(r, 'main')}${renewalBookTrackOf(r).length ? renewalRingHtml(r, 'book') : ''}</div></div>
             <span class="text-muted">${r.appointmentDate ? `นัดรับบัตร ${formatThaiDate(r.appointmentDate)}` : 'ยังไม่นัด'}${r.steps.bookAppt && r.steps.bookAppt.date ? `<small class="rn-book-appt">นัดทำเล่ม ${formatThaiDate(r.steps.bookAppt.date)}</small>` : ''}</span>
             <span>${pill}</span>
             <span class="cp-rn-btns">${canBookExt ? `<button type="button" class="btn btn-sm btn-outline" onclick="clientBookExternal('${r.id}')" title="เล่มทำที่อื่น (ไม่คิดค่าทำเล่ม)">ทำเล่มที่อื่น</button>` : ''}
@@ -1642,7 +1642,7 @@ function renderClientRegisterTab(myWorkers) {
         if (!r) return row(w, `<span class="badge badge-warning">อยู่ในรอบ ${escapeHtml(roundName(w.registrationRoundId))} · เจ้าหน้าที่กำลังดำเนินการ</span>`);
         const next = renewalNextStep(r);
         const nextKey = (next || {}).key;
-        const bar = renewalAllStepsOf(r).map(s => `<span class="rn-seg ${r.steps[s.key] ? (r.steps[s.key].skipped ? 'is-ext' : 'is-done') : s.key === nextKey ? 'is-next' : ''}${s.key.startsWith('book') ? ' is-book' : ''}" title="${escapeHtml(s.label)}"></span>`).join('');
+        const bar = renewalAllStepsOf(r).map(s => `<span class="rn-seg ${r.steps[s.key] ? (r.steps[s.key].skipped ? 'is-ext' : 'is-done') : s.key === nextKey ? 'is-next' : ''}${s.key.startsWith('book') || s.key === 'visa' ? ' is-book' : ''}" title="${escapeHtml(s.label)}"></span>`).join('');
         const owe = renewalJobsOf(r).map(getJobInvoice).filter(Boolean).reduce((sum, inv) => sum + invoiceBalance(inv), 0);
         return row(w, `<div class="rn-arow-progress cp-reg-progress"><div class="rn-bar">${bar}</div><small class="text-muted">${escapeHtml(roundName(r.registrationRoundId))} · ${next ? `รอ${escapeHtml(next.label)}` : 'ครบทุกขั้น'}${r.appointmentDate ? ` · นัด ${formatThaiDate(r.appointmentDate)}` : ''}</small></div>
             ${owe > 0 ? `<span class="badge badge-danger">ค้างชำระ ${fmtMoney(owe)}</span>` : ''}`);
@@ -2981,6 +2981,9 @@ const RENEWAL_BOOK_TRACK = [
     { ...RENEWAL_BOOK_STEP, label: 'รับเล่ม' },
     { key: 'bookVisa', label: 'ตี Visa', kind: 'file', docType: 'worker-visa', hint: 'VISA' }
 ];
+// ตี Visa ในเล่มเดิม (owner 2026-10-28, เลือกแบบวงแหวน): รอบต่ออายุที่ไม่ทำเล่มมีสาย "ตี Visa" ของตัวเอง (วงแหวนที่สอง)
+// ทำได้หลังได้ใบแทน (ต้องใช้ใบอนุญาตใหม่), แนบหน้า Visa ลงช่อง VISA; Visa ทำที่อื่น = steps.visaExternal; ปิดรอบเมื่อได้บัตร + Visa
+const RENEWAL_VISA_TRACK = [{ key: 'visa', label: 'ตี Visa', kind: 'file', docType: 'worker-visa', hint: 'VISA' }];
 // งานขึ้นทะเบียน (owner 2026-10-20, แบบที่ 4) — ลำดับตายตัว: ยื่นพร้อมจ่ายเงิน (ใบคำขอ + ใบเสร็จ แนบแยก) → ตรวจสุขภาพ
 // (ใบรับรองแพทย์) → ซื้อประกัน (กรมธรรม์) → ค่าธรรมเนียมรอบ 2 (ถ้ามี ข้ามได้) → ใบแทน → ใบนัด → Smart card → บัตรชมพู
 // แล้วขั้นสุดท้าย ทำเล่มใหม่ (ไม่มีเล่ม) หรือ ตี visa ในเล่มเดิม (renewalBookStepOf) — ได้บัตรชมพู + เล่ม/visa = ขึ้นทะเบียนเสร็จ
@@ -3001,7 +3004,7 @@ const RENEWAL_CHECK_SVG = '<svg viewBox="0 0 24 24" width="15" height="15" fill=
 let renewalList = null; // null = ยังไม่โหลด
 let renewalTab = (() => { try { return localStorage.getItem('mw_renewal_tab') || 'all'; } catch (e) { return 'all'; } })();
 const renewalPicked = new Set();     // คนงานที่ติ๊กไว้ในแท็บ "ถึงรอบ"
-const renewalBookPick = new Map();   // workerId → ทำเล่มด้วยไหม (แก้ค่าที่ระบบแนะนำ)
+const renewalBookPick = new Map();   // workerId → 'book' ทำเล่มใหม่ / 'visa' ตี Visa เล่มเดิม / 'ext' Visa ที่อื่น (แก้ค่าที่ระบบแนะนำ)
 
 function renewalFromRow(r) {
     return {
@@ -3101,11 +3104,12 @@ const renewalJobsOf = (r) => jobs.filter(j => j.batchId === roundBatchId(r));
 const REG_JOB_TYPES = ['ขึ้นทะเบียนแรงงานต่างด้าว'];
 const REG_VISA_JOB_TYPE = 'ตี visa';
 
-async function createRenewalJobs(r) {
+// onlyTypes = สร้างเฉพาะรายการที่ระบุ (เช่น กลับมาตี Visa เอง)
+async function createRenewalJobs(r, onlyTypes = null) {
     const cust = customers.find(c => c.id === r.customerId);
     const today = new Date().toISOString().split('T')[0];
-    const types = r.kind === 'registration' ? [...REG_JOB_TYPES, ...(r.withBook ? [] : [REG_VISA_JOB_TYPE])]
-        : r.withBook ? [RENEWAL_JOB_TYPE, RENEWAL_BOOK_JOB_TYPE] : [RENEWAL_JOB_TYPE];
+    const types = onlyTypes || (r.kind === 'registration' ? [...REG_JOB_TYPES, ...(r.withBook ? [] : [REG_VISA_JOB_TYPE])]
+        : r.withBook ? [RENEWAL_JOB_TYPE, RENEWAL_BOOK_JOB_TYPE] : [RENEWAL_JOB_TYPE, ...(r.steps.visaExternal ? [] : [REG_VISA_JOB_TYPE])]);
     let seq = 0, failed = 0;
     for (const t of types) {
         const jobData = {
@@ -3137,9 +3141,14 @@ const renewalBookStepOf = (r) => r.kind === 'registration' && !r.withBook ? REG_
 const renewalHasBook = (r) => r.kind === 'registration' || r.withBook;
 const renewalSplitBook = (r) => r.kind !== 'registration' && r.withBook; // ทำเล่มเป็นสายแยก (RENEWAL_BOOK_TRACK)
 const renewalStepsOf = (r) => renewalHasBook(r) && !renewalSplitBook(r) ? [...renewalMainSteps(r), renewalBookStepOf(r)] : renewalMainSteps(r);
-const renewalBookTrackOf = (r) => renewalSplitBook(r) ? RENEWAL_BOOK_TRACK : [];
-const renewalBookNext = (r) => r.steps.bookExternal ? null : renewalBookTrackOf(r).find(s => !r.steps[s.key]) || null;
-const renewalBookTrackDone = (r) => !renewalHasBook(r) || !!r.steps.bookExternal || (renewalSplitBook(r) ? !renewalBookNext(r) : !!r.steps.book);
+// สายตี Visa ในเล่มเดิม (RENEWAL_VISA_TRACK) — รอบที่ปิดไปก่อนมีสายนี้ไม่นับ
+const renewalHasVisa = (r) => r.kind !== 'registration' && !r.withBook && (r.status === 'active' || !!r.steps.visa || !!r.steps.visaExternal);
+// สายที่สองของรอบต่ออายุ: ทำเล่ม หรือ ตี Visa — "ทำที่อื่น" ของสายนั้น = สายจบ
+const renewalBookTrackOf = (r) => renewalSplitBook(r) ? RENEWAL_BOOK_TRACK : renewalHasVisa(r) ? RENEWAL_VISA_TRACK : [];
+const renewalSideExternal = (r) => !!(renewalHasVisa(r) ? r.steps.visaExternal : r.steps.bookExternal);
+const renewalBookNext = (r) => renewalSideExternal(r) ? null : renewalBookTrackOf(r).find(s => !r.steps[s.key]) || null;
+const renewalBookTrackDone = (r) => renewalHasVisa(r) ? !renewalBookNext(r)
+    : !renewalHasBook(r) || !!r.steps.bookExternal || (renewalSplitBook(r) ? !renewalBookNext(r) : !!r.steps.book);
 const renewalAllStepsOf = (r) => [...renewalStepsOf(r), ...renewalBookTrackOf(r)];
 
 // แนะนำ "ทำเล่มด้วย" เมื่อพาสปอร์ต/CI หมดก่อนใบอนุญาตใหม่จะหมด (ประมาณใบอนุญาตเดิม + 1 ปี) หรือไม่มีวันหมดอายุเล่ม
@@ -3151,6 +3160,8 @@ function renewalSuggestBook(w) {
     const until = new Date(wp); until.setFullYear(until.getFullYear() + 1);
     return pass < until;
 }
+const RENEWAL_BOOK_PICKS = [['book', 'ทำเล่มใหม่'], ['visa', 'ตี Visa เล่มเดิม'], ['ext', 'Visa ที่อื่น']];
+const renewalBookPickOf = (w) => renewalBookPick.get(w.id) || (renewalSuggestBook(w) ? 'book' : 'visa');
 
 // ต่อที่อื่น (owner 2026-10-20): รอบ status 'external' ที่วันหมดอายุเดิมยังเท่ากับของคนงาน = ยังไม่มีข้อมูลใบอนุญาตใหม่
 // ระหว่างนั้นคนงานไม่ขึ้นรายการถึงรอบ — ใส่ข้อมูลใหม่แล้ว (วันหมดอายุเปลี่ยน) รอบนี้ถือว่าจบ
@@ -3285,7 +3296,7 @@ function renewalGroupByProvince(items, workerOf) {
 // ---------- แท็บ "ถึงรอบ" (กลุ่มจังหวัด → นายจ้าง, ปุ่มเริ่มต่ออายุชิดซ้าย) ----------
 function renewalDueHtml(list, due = list) {
     const canStart = can('ops');
-    list.forEach(w => { if (!renewalBookPick.has(w.id)) renewalBookPick.set(w.id, renewalSuggestBook(w)); });
+    list.forEach(w => { if (!renewalBookPick.has(w.id)) renewalBookPick.set(w.id, renewalBookPickOf(w)); });
     [...renewalPicked].forEach(id => { if (!list.some(w => w.id === id)) renewalPicked.delete(id); });
     const allPicked = list.length > 0 && list.every(w => renewalPicked.has(w.id));
     const groups = renewalGroupByProvince(list, w => w);
@@ -3295,8 +3306,8 @@ function renewalDueHtml(list, due = list) {
             <td>${renewalWorkerCell(w, false)}</td>
             <td>${renewalExpiryCell(w.permitExpiry)}</td>
             <td>${w.passportExpiry ? formatThaiDate(w.passportExpiry) : '<span class="text-muted">-</span>'}</td>
-            <td><label class="rn-book-pick" title="ทำพาสปอร์ต/CI เล่มใหม่ในรอบนี้ด้วย (ระบบติ๊กให้เมื่อเล่มหมดก่อนใบอนุญาตใหม่ — คนที่เล่มเดิมยังใช้ได้ไม่ต้องทำ)">
-                <input type="checkbox" ${renewalBookPick.get(w.id) ? 'checked' : ''} ${canStart ? '' : 'disabled'} onchange="renewalBookPick.set('${w.id}', this.checked)"> ทำเล่ม</label></td>
+            <td><select class="rn-visa-pick" ${canStart ? '' : 'disabled'} onchange="renewalBookPick.set('${w.id}', this.value)" title="ทำเล่มใหม่ / ตี Visa ในเล่มเดิม / Visa ทำที่อื่น (ระบบเลือกทำเล่มให้เมื่อเล่มหมดก่อนใบอนุญาตใหม่)">
+                ${RENEWAL_BOOK_PICKS.map(([v, label]) => `<option value="${v}" ${renewalBookPickOf(w) === v ? 'selected' : ''}>${label}</option>`).join('')}</select></td>
             ${canStart ? `<td class="rn-act-cell"><button type="button" class="btn btn-sm btn-gold" onclick="startRenewals(['${w.id}'])" title="เริ่มรอบต่ออายุของคนงานคนนี้">เริ่มต่ออายุ</button></td>` : ''}
         </tr>`;
     const empHtml = (g) => {
@@ -3310,7 +3321,7 @@ function renewalDueHtml(list, due = list) {
             </div>
             <div class="table-container"><table class="data-table rn-table rn-due-table">
                 <colgroup>${canStart ? '<col class="rd-check">' : ''}<col class="rd-worker"><col class="rd-exp"><col class="rd-pass"><col class="rd-book">${canStart ? '<col class="rd-act">' : ''}</colgroup>
-                <thead><tr>${canStart ? '<th class="rn-check"></th>' : ''}<th>คนงาน</th><th>ใบอนุญาตหมด</th><th>พาสปอร์ต/CI หมด</th><th>ทำเล่ม</th>${canStart ? '<th class="rn-act-cell"></th>' : ''}</tr></thead>
+                <thead><tr>${canStart ? '<th class="rn-check"></th>' : ''}<th>คนงาน</th><th>ใบอนุญาตหมด</th><th>พาสปอร์ต/CI หมด</th><th>เล่ม / Visa</th>${canStart ? '<th class="rn-act-cell"></th>' : ''}</tr></thead>
                 <tbody>${sorted.map(rowHtml).join('')}</tbody>
             </table></div>
         </div>`;
@@ -3352,16 +3363,23 @@ async function startRenewals(ids) {
     const ok = await uiConfirm(`เริ่มรอบต่ออายุใบอนุญาตทำงาน ${list.length} คน`, {
         title: 'เริ่มต่ออายุ',
         okText: `เริ่มต่ออายุ ${list.length} คน`,
-        summary: list.map(w => ({ label: workerFullName(w), value: `หมด ${formatThaiDate(w.permitExpiry)}${renewalBookPick.get(w.id) ? ' · ทำเล่มด้วย' : ''}` }))
+        summary: list.map(w => ({ label: workerFullName(w), value: `หมด ${formatThaiDate(w.permitExpiry)} · ${RENEWAL_BOOK_PICKS.find(([v]) => v === renewalBookPickOf(w))[1]}` }))
     });
     if (!ok) return;
     const res = await callCloudAPI("startRenewals", {
-        rows: list.map(w => ({ workerId: w.id, customerId: w.employerId, oldPermitExpiry: permitExpiryKey(w), withBook: !!renewalBookPick.get(w.id) }))
+        rows: list.map(w => ({ workerId: w.id, customerId: w.employerId, oldPermitExpiry: permitExpiryKey(w), withBook: renewalBookPickOf(w) === 'book' }))
     });
     if (!res || res.status !== "success") { showToast("❌ เริ่มรอบไม่สำเร็จ: " + (res && res.message ? res.message : "กรุณาลองใหม่"), "danger"); return; }
     const started = res.rows.map(renewalFromRow);
     renewalList = [...started, ...(renewalList || [])];
     list.forEach(w => renewalPicked.delete(w.id));
+    // Visa ทำที่อื่น: บันทึกก่อนสร้างรายการรอออกบิล (ไม่มีรายการ "ตี visa")
+    for (const r of started) {
+        const w = workers.find(x => x.id === r.workerId);
+        if (!w || renewalBookPickOf(w) !== 'ext') continue;
+        r.steps = { ...r.steps, visaExternal: { at: localDateISO(new Date()), by: currentUser.id } };
+        await saveRenewalRow(r);
+    }
     let jobFails = 0;
     for (const r of started) jobFails += await createRenewalJobs(r);
     const auto = await renewalAutoFill(started); // ไฟล์ที่แนบไว้แล้วตอนสร้างคนงาน → ติ๊กขั้นให้เลย
@@ -3394,7 +3412,7 @@ function renewalNextLabel(r, s = renewalNextStep(r)) {
 // กด = ปักหน้าต่างรายการไว้ กดแต่ละขั้นเพื่อเปิดไฟล์ / แก้ติ๊ก-วันนัด / ทำขั้นถัดไป (renewalStepClick)
 function renewalTrackOf(r, track) {
     return track === 'book'
-        ? { steps: renewalBookTrackOf(r), next: renewalBookNext(r), name: 'ทำเล่ม', cls: 'is-book' }
+        ? { steps: renewalBookTrackOf(r), next: renewalBookNext(r), name: renewalHasVisa(r) ? 'ตี Visa' : 'ทำเล่ม', cls: 'is-book' }
         : { steps: renewalStepsOf(r), next: renewalNextStep(r), name: r.kind === 'registration' ? 'ขึ้นทะเบียน' : 'ต่ออายุ', cls: 'is-main' };
 }
 
@@ -3408,6 +3426,8 @@ function renewalStepState(r, s, nextKey) {
         return { kind: 'done', when };
     }
     if (s.key === 'book' && r.steps.bookExternal) return { kind: 'ext', when: 'ทำที่อื่น (รอข้อมูลใหม่)' };
+    if (s.key === 'visa' && r.steps.visaExternal) return { kind: 'ext', when: 'ทำที่อื่น' };
+    if (s.key === 'visa' && s.key === nextKey && !r.steps.replacement) return { kind: 'next', when: 'รอใบแทนก่อน' };
     if (s.key === nextKey) return { kind: 'next', when: 'รออยู่' };
     return { kind: 'todo', when: '' };
 }
@@ -3419,8 +3439,8 @@ function renewalRingHtml(r, track) {
     const done = states.filter(x => x.kind === 'done' || x.kind === 'skipped' || x.kind === 'ext').length;
     const total = t.steps.length;
     const lastIdx = states.map(x => x.kind).lastIndexOf('done');
-    const ext = track === 'book' && r.steps.bookExternal;
-    const head = ext ? 'ทำเล่มที่อื่น' : t.next ? `รอ${t.next.label}` : `${t.name}เสร็จ`;
+    const ext = track === 'book' && renewalSideExternal(r);
+    const head = ext ? `${t.name}ที่อื่น` : t.next ? (t.next.key === 'visa' && !r.steps.replacement ? 'รอใบแทนก่อน' : `รอ${t.next.label}`) : `${t.name}เสร็จ`;
     const sub = lastIdx >= 0 ? `เสร็จล่าสุด: ${t.steps[lastIdx].label}` : 'ยังไม่เริ่ม';
     return `<button type="button" class="rn-ring-btn ${t.cls}" data-rid="${r.id}" data-track="${track}"
             onmouseenter="showRenewalStepsPop(this, false)" onmouseleave="hideRenewalStepsPop(false)" onclick="event.stopPropagation(); showRenewalStepsPop(this, true)"
@@ -3444,6 +3464,7 @@ function renewalStepsPopHtml(r, track, pinned) {
             if (x.kind === 'done') act = 'แก้ไข';
             else if (x.kind === 'next') act = renewalNextLabel(r, s);
             else if (x.kind === 'ext' && s.key === 'book') act = 'ใส่ข้อมูลเล่มใหม่';
+            else if (x.kind === 'ext' && s.key === 'visa' && r.status === 'active') act = 'ตีเองแทน';
         }
         return `<div class="rn-sp-row is-${x.kind}">
             <span class="rn-sp-dot" aria-hidden="true">${x.kind === 'done' ? '✓' : x.kind === 'skipped' || x.kind === 'ext' ? '–' : ''}</span>
@@ -3511,7 +3532,7 @@ function renewalActiveRowHtml(r, canEdit) {
         <div class="rn-arow-name"><strong>${escapeHtml(workerFullName(w))}</strong><small class="rn-uid">${escapeHtml(w.workerUid || 'ยังไม่มีเลข 13 หลัก')}</small><small class="text-muted">${escapeHtml(sub)}</small>
             ${r.openedByClient ? `<span class="rn-client-tag" title="นายจ้างเปิดรอบนี้เองจากพอร์ทัลลูกค้า">ลูกค้าเปิดงาน · ${formatThaiDate(String(r.startedAt || '').slice(0, 10))}</span>` : ''}
             ${r.clientNote ? `<small class="rn-client-note">"${escapeHtml(r.clientNote)}"</small>` : ''}</div>
-        <div class="rn-arow-progress"><div class="rn-rings">${renewalRingHtml(r, 'main')}${renewalSplitBook(r) ? renewalRingHtml(r, 'book') : ''}</div></div>
+        <div class="rn-arow-progress"><div class="rn-rings">${renewalRingHtml(r, 'main')}${renewalBookTrackOf(r).length ? renewalRingHtml(r, 'book') : ''}</div></div>
         <span class="rn-arow-appt">${r.appointmentDate ? `นัด ${formatThaiDate(r.appointmentDate)}` : '<span class="text-muted" title="ยังไม่ได้กรอกวันนัดรับใบอนุญาต (ขั้นใบนัดหมาย)">ยังไม่นัด</span>'}${r.steps.bookAppt && r.steps.bookAppt.date ? `<small class="rn-book-appt">นัดทำเล่ม ${formatThaiDate(r.steps.bookAppt.date)}</small>` : ''}</span>
         <span class="rn-arow-bill">${renewalBillPillHtml(r)}</span>
         <div class="rn-actions">
@@ -3794,6 +3815,22 @@ async function renewalStepClick(id, key) {
     } else if (step.key === 'book') {
         renewalBookChoice(r, w, step);
         return;
+    } else if (step.key === 'visa') {
+        if (r.steps.visaExternal) {
+            // ตั้ง "Visa ทำที่อื่น" ไว้ → กลับมาตีเอง (สร้างรายการรอออกบิล "ตี visa" คืน)
+            if (!(await uiConfirm(`${workerFullName(w)}: กลับมาตี Visa เอง? จะมีรายการรอออกบิล "ตี visa" อีกครั้ง`, { title: step.label, okText: 'ตีเองแทน', danger: false }))) return;
+            const s = { ...r.steps }; delete s.visaExternal; r.steps = s;
+            if (!(await saveRenewalRow(r))) return;
+            if (!renewalJobsOf(r).some(j => j.jobType === REG_VISA_JOB_TYPE)) await createRenewalJobs(r, [REG_VISA_JOB_TYPE]);
+            saveData();
+            renderRenewalCases();
+            return;
+        }
+        if (!r.steps.replacement) { uiAlert('ตี Visa ได้หลังได้ใบแทนใบอนุญาตทำงานแล้ว — แนบใบแทนในสายต่ออายุก่อน'); return; }
+        const ans = await uiConfirm(`ตี Visa ในเล่มเดิมของ ${workerFullName(w)}`, { title: step.label, okText: 'แนบหน้า Visa', extraText: 'Visa ทำที่อื่น', danger: false });
+        if (ans === true) renewalFileOrExisting(r, w, step);
+        else if (ans === 'extra') await markBookExternal([r.id]);
+        return;
     } else {
         renewalFileOrExisting(r, w, step);
         return;
@@ -3808,6 +3845,8 @@ function renewalExistingFiles(r, w, step) {
     return getAttachments(w, step.docType).filter(f => {
         if (!f || !f.data || used.has(f.data)) return false;
         if (step.expiryField === 'permitExpiry' && f.expiryDate && r.oldPermitExpiry && String(f.expiryDate).slice(0, 10) <= r.oldPermitExpiry) return false;
+        // หน้า Visa ในแฟ้มก่อนเริ่มรอบ = Visa เก่า (ผูกกับใบอนุญาตเดิม) ใช้ไม่ได้
+        if (step.docType === 'worker-visa') return !!f.uploadedAt && ymd10(f.uploadedAt) >= ymd10(r.startedAt);
         if (step.hint === 'WP_R') return isWpRFile(f);
         if (step.key === 'card') return !isWpRFile(f);
         return true;
@@ -3936,8 +3975,9 @@ async function renewalNewDataChoice(r, w, step) {
 // ทำเล่มที่อื่น: รายการรอออกบิลค่าทำเล่มของรอบถูกลบ (ออกบิลแล้ว = ข้าม ให้ฝ่ายบัญชีจัดการก่อน), รอบปิดได้โดยไม่ต้องรอเล่ม
 async function markBookExternal(ids) {
     if (!can('ops')) return;
+    // สายตี Visa (เล่มเดิม) ใช้ทางเดียวกัน: ลบรายการ "ตี visa" ที่ยังไม่ออกบิล แล้วตั้ง steps.visaExternal
     const rounds = ids.map(id => (renewalList || []).find(x => x.id === id))
-        .filter(r => r && r.status === 'active' && renewalHasBook(r) && !r.steps.book && !r.steps.bookExternal);
+        .filter(r => r && r.status === 'active' && (renewalHasVisa(r) ? !!renewalBookNext(r) : renewalHasBook(r) && !r.steps.book && !r.steps.bookExternal));
     if (!rounds.length) return;
     const billed = rounds.filter(r => renewalJobsOf(r).some(j => [RENEWAL_BOOK_JOB_TYPE, REG_VISA_JOB_TYPE].includes(j.jobType) && !jobAwaitingBill(j)));
     if (billed.length === rounds.length) { uiAlert('ค่าทำเล่มออกบิล/ตั้งไม่เรียกเก็บเงินไปแล้ว — ให้ฝ่ายบัญชีจัดการบิลก่อน'); return; }
@@ -3949,13 +3989,14 @@ async function markBookExternal(ids) {
         }
         const w = workers.find(x => x.id === r.workerId);
         const pass = w && safeParseDate(w.passportExpiry) ? localDateISO(safeParseDate(w.passportExpiry)) : null;
-        r.steps = { ...r.steps, bookExternal: { at: localDateISO(new Date()), by: currentUser.id, oldPassportExpiry: pass } };
+        r.steps = renewalHasVisa(r) ? { ...r.steps, visaExternal: { at: localDateISO(new Date()), by: currentUser.id } }
+            : { ...r.steps, bookExternal: { at: localDateISO(new Date()), by: currentUser.id, oldPassportExpiry: pass } };
         const ck = r.kind === 'registration' ? 'pinkcard' : 'card';
         if (r.steps[ck]) renewalMarkStep(r, ck, r.steps[ck]); // ขั้นสุดท้ายเสร็จแล้ว → ปิดรอบได้เลย
         if (await saveRenewalRow(r)) ok++;
     }
     saveData();
-    showUploadPill('ok', `บันทึก "ทำเล่มที่อื่น" ${ok} คนแล้ว`, billed.length ? `ข้าม ${billed.length} คน (ค่าทำเล่มออกบิลแล้ว)` : 'ใส่ข้อมูลเล่มใหม่ได้ภายหลังที่แถบทำเล่ม');
+    showUploadPill('ok', `บันทึก "เล่ม/Visa ทำที่อื่น" ${ok} คนแล้ว`, billed.length ? `ข้าม ${billed.length} คน (ค่าทำเล่ม/Visa ออกบิลแล้ว)` : 'แก้ได้ภายหลังจากวงแหวนสายนั้น');
     renderRenewalCases();
 }
 
@@ -4200,7 +4241,7 @@ function regStepSelBarHtml(list) {
     if (!sel.length) return '';
     const n = (key) => sel.filter(r => (renewalNextStep(r) || {}).key === key).length;
     const nAppt = n('appointment'), nSkip = n('receipt2');
-    const nExt = sel.filter(r => !r.steps.book && !r.steps.bookExternal).length;
+    const nExt = sel.filter(r => renewalHasVisa(r) ? renewalBookNext(r) : !r.steps.book && !r.steps.bookExternal).length;
     return `<div class="rn-selbar" role="toolbar" aria-label="คำสั่งสำหรับคนงานที่เลือก">
         <span>เลือก ${sel.length} คน</span>
         <button type="button" class="btn rn-selbar-btn" ${nAppt ? '' : 'disabled'} onclick="renewalBulkStep('appointment')" title="ใส่วันนัดเดียวกันให้คนที่เลือกที่รอวันนัด">ใส่วันนัด${nAppt ? ` ${nAppt} คน` : ''}</button>
