@@ -6018,6 +6018,12 @@ input[type="checkbox"], input[type="radio"], input[type="range"] {
 @media (max-width: 480px) {
     .widget[data-kind="pill"] { grid-column: span 12; }
 }
+/* ครึ่งจอ (901–1280px, owner 2026-10-28): แคปซูลเล็ก 6 ตัวต่อแถวแคบจนตัวเลข/ชื่อซ้อน → 3 ตัวต่อแถว,
+   การ์ดเล็ก (กราฟวงกลม) 3 ใบต่อแถว → 2 ใบ */
+@media (min-width: 901px) and (max-width: 1280px) {
+    .widget[data-kind="pill"][data-size="s"] { grid-column: span 4; }
+    .widget[data-kind="block"][data-size="s"] { grid-column: span 6; }
+}
 
 /* ==================== ปรับแต่งเพิ่ม (2026-10-02) ==================== */
 #login-view .login-logo,
@@ -6939,8 +6945,21 @@ body.has-camera .upload-hint { display: none; }
 .rn-selbar .rn-selbar-clear { background: transparent; color: #c9d0dc; border: 0; }
 .rn-selbar .rn-selbar-danger { background-color: rgba(255, 107, 94, .18); color: #ff9b91; border: 0; }
 .rn-selbar .btn:disabled { opacity: .45; }
+/* ครึ่งจอ (owner 2026-10-28: สถานะซ้อนกัน) — 2 บรรทัดต่อคน: ชื่อ | วงแหวน | ปุ่ม / วันนัด | บิล ใต้วงแหวนและปุ่ม,
+   วงแหวนต่ออายุ/ทำเล่มเรียงบนลงล่าง (ยังตรงกันทุกแถว) */
+@media (max-width: 1400px) {
+    .rn-arow { grid-template-columns: 30px minmax(150px, 210px) minmax(0, 1fr) 170px; row-gap: 6px; }
+    .rn-arow > input, .rn-arow > span:first-child { grid-row: 1 / span 2; }
+    .rn-arow-name { grid-column: 2; grid-row: 1 / span 2; }
+    .rn-arow-progress { grid-column: 3; grid-row: 1; }
+    .rn-arow .rn-actions { grid-column: 4; grid-row: 1; }
+    .rn-arow-appt { grid-column: 3; grid-row: 2; }
+    .rn-arow-bill { grid-column: 4; grid-row: 2; }
+    .rn-rings { grid-template-columns: minmax(0, 1fr); }
+}
 @media (max-width: 760px) {
     .rn-arow { grid-template-columns: 30px minmax(0, 1fr); }
+    .rn-arow-name, .rn-arow-progress, .rn-arow-appt, .rn-arow-bill, .rn-arow .rn-actions { grid-row: auto; }
     .rn-arow-progress, .rn-arow-appt, .rn-arow-bill, .rn-arow .rn-actions { grid-column: 2; }
 }
 
@@ -7004,9 +7023,12 @@ body.has-camera .upload-hint { display: none; }
 .reg-round-row > span:nth-child(2) { flex: 1; display: flex; flex-direction: column; }
 .cp-reg-row { grid-template-columns: 40px minmax(160px, 1fr) minmax(0, 2fr); }
 .cp-reg-progress { flex: 1 1 260px; min-width: 200px; }
-@media (max-width: 760px) {
+/* ครึ่งจอ (owner 2026-10-28): แถวรอขึ้นทะเบียนกว้างขั้นต่ำ ~650px — เรียงลงล่างตั้งแต่จอ ≤ 1100px */
+@media (max-width: 1100px) {
     .reg-row { grid-template-columns: 26px 46px minmax(0, 1fr); }
     .reg-row > :nth-child(n+4) { grid-column: 3; }
+}
+@media (max-width: 760px) {
     .reg-slots { grid-template-columns: 1fr 1fr; }
 }
 
@@ -7055,7 +7077,8 @@ body.has-camera .upload-hint { display: none; }
 .cp-rn-done { grid-template-columns: minmax(160px, 1fr) 160px 220px 140px; }
 .cp-rn-name { display: flex; flex-direction: column; min-width: 0; }
 .cp-rn-name strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-@media (max-width: 760px) {
+/* พอร์ทัลลูกค้า แท็บต่ออายุ: แถวกว้างขั้นต่ำ ~700–770px — ครึ่งจอ (≤ 1000px) เรียงลงล่าง (owner 2026-10-28) */
+@media (max-width: 1000px) {
     .cp-rn-row, .cp-rn-active, .cp-rn-done { grid-template-columns: 26px minmax(0, 1fr); }
     .cp-rn-row > :nth-child(n+3) { grid-column: 2; }
     .cp-rn-active > *, .cp-rn-done > * { grid-column: 1 / -1; }
