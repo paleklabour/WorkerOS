@@ -6845,7 +6845,7 @@ body.has-camera .upload-hint { display: none; }
 .rn-agroup-head input, .rn-arow input { width: 18px; height: 18px; accent-color: var(--gold-primary); }
 .rn-arow {
     display: grid;
-    grid-template-columns: 30px minmax(180px, 260px) minmax(0, 1fr) 140px 170px auto;
+    grid-template-columns: 30px 260px minmax(0, 1fr) 140px 170px 200px; /* ทุกคอลัมน์กว้างคงที่ ทุกแถวจึงตรงกัน (owner 2026-10-28) */
     gap: 14px;
     align-items: center;
     padding: 11px 16px;
@@ -6868,7 +6868,9 @@ body.has-camera .upload-hint { display: none; }
 .rn-seg.is-book { flex: .6; }
 /* ความคืบหน้าแบบวงแหวน (owner 2026-10-27, แบบที่ 5) — renewalRingHtml / showRenewalStepsPop
    สายต่ออายุ/ขึ้นทะเบียน = สีหลักของธีม (ธีมชมพูใช้น้ำเงินแบบธีมสว่าง), สายทำเล่ม = เขียว (สีสถานะ เหมือนกันทุกธีม) */
-.rn-rings { display: flex; flex-wrap: wrap; gap: 10px 24px; }
+/* 2 ช่องคงที่: ต่ออายุ | ทำเล่ม — แถวที่ไม่มีทำเล่มเว้นช่องขวาว่าง วงแหวนต่ออายุจึงตรงกันทุกแถว */
+.rn-rings { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; }
+.rn-rings > .rn-ring-btn { justify-self: start; max-width: 100%; }
 .rn-ring-btn {
     --rn-c: var(--gold-primary);
     display: inline-flex; align-items: center; gap: 10px; min-width: 0; padding: 4px 10px 4px 4px;
