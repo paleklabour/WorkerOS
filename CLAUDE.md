@@ -600,6 +600,10 @@ workers are ticked in the "รอขึ้นทะเบียน" sub-tab and 
 completeness chips via `regChecks`. Employers submit/edit their own pool workers in the portal tab
 "ขึ้นทะเบียน" through RPC `client_save_pending_worker` (they can't write `workers` directly; files upload to Storage first);
 `submitted_by_client` shows a purple tag. Migration `20261020092027_registration_pool.sql`.
+Storage writes for clients (owner 2026-10-28, migration `20261028090000_storage_client_write_registration_only.sql`): a client
+may insert/update in `worker-documents` only under `<own customer id>/<work-id>/` while that worker is new or still in their
+own pool (same rule as `client_save_pending_worker`, `client_can_write_storage()`), plus `avatars/<own user id>/`. Any other
+client upload path will be refused — give it an RPC / its own rule first. Internal users unchanged.
 Steps (phase 2, owner picked mockup 4; migration `20261020094803_registration_steps.sql`): putting workers in a round creates a
 `renewals` row with `kind = 'registration'` + `registration_round_id` per worker and bills once with 2 headings (owner) — hidden jobs
 "ขึ้นทะเบียนแรงงานต่างด้าว" + "ตี visa" only when the worker already has an old passport (no passport = registration only), `batchId = 'register-<id>'` (`roundBatchId`, `isRegisterJob`, own billing/combine tab "งานขึ้นทะเบียน",
@@ -618,6 +622,16 @@ Admin/Account Manager can set or undo it (`markJobNoCharge` /
 `unmarkJobNoCharge`; DB trigger `guard_job_no_charge`). Use
 `jobAwaitingBill(j)` — not `!getJobInvoice(j)` — anywhere you mean "still
 needs a bill". No-charge jobs carry no agent commission.
+
+## Code hidden until login (owner 2026-10-28, moving to Cloudflare Pages)
+
+Owner doesn't want anyone to get the system's code. `index.html` loads only `boot.js` (login form, sets cookie `wos_at` =
+Supabase access token); `supabase-client.js` + `app.js` are loaded by `boot.js` after a session exists (same `?v=` as
+`boot.js`), then it re-fires `DOMContentLoaded` so app.js start-up runs. A login done in boot.js sets `__bootFreshLogin` →
+app.js calls `supabaseAdapter.sessionLogin()` → `finishLogin()`. On Cloudflare Pages `functions/_middleware.js` returns 401
+for those two files unless the cookie's token is valid (`/auth/v1/user`). `build.sh` (Build command `sh build.sh`, output
+`dist`) copies only the served files and runs terser (comments stripped, locals mangled; top-level names kept because
+inline `onclick` calls them). Plan: repo private, GitHub Pages off; old github.io share links need a redirect stub.
 
 ## Cache-busting on deploy (2026-10-06)
 

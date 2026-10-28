@@ -258,7 +258,17 @@ document.addEventListener("DOMContentLoaded", async () => {
             const cachedUser = localStorage.getItem("mw_current_user");
             // จำผู้ใช้ไว้แต่เซสชัน Supabase หลุดแล้ว = ต้อง login ใหม่ (ไม่งั้นทุกการบันทึกโดนปฏิเสธ)
             const sessionOk = !window.supabaseAdapter || !window.supabaseAdapter.hasSession || await window.supabaseAdapter.hasSession();
-            if (cachedUser && cachedUser !== "undefined" && !sessionOk) {
+            if (window.__bootFreshLogin && window.supabaseAdapter && window.supabaseAdapter.sessionLogin) {
+                // เพิ่งล็อกอินที่ boot.js — ดึงสิทธิ์ผู้ใช้แล้วเปิดระบบ (เหมือน handleLogin)
+                window.__bootFreshLogin = false;
+                const result = await window.supabaseAdapter.sessionLogin();
+                if (result && result.status === "success") await finishLogin(result.user);
+                else {
+                    showLoginView();
+                    const errorEl = document.getElementById("login-error");
+                    if (errorEl) { errorEl.style.display = 'block'; errorEl.innerText = (result && result.message) || "เข้าสู่ระบบไม่สำเร็จ"; }
+                }
+            } else if (cachedUser && cachedUser !== "undefined" && !sessionOk) {
                 localStorage.removeItem("mw_current_user");
                 showLoginView();
             } else if (cachedUser && cachedUser !== "undefined") {
@@ -1233,21 +1243,7 @@ async function handleLogin(e) {
             const result = await window.supabaseAdapter.login(email, password);
             if (result && result.status === "success") {
                 errorEl.style.display = 'none';
-                // หมายเหตุ: ไม่เก็บรหัสผ่านไว้ในเครื่องอีกต่อไป — Supabase Auth จัดการ
-                // session/token ให้เองผ่าน supabase-js (ปลอดภัยกว่าระบบเดิม)
-                currentUser = {
-                    id: result.user.id,
-                    email: result.user.email,
-                    name: result.user.name,
-                    role: result.user.role,
-                    customer_id: result.user.customer_id,
-                    theme: result.user.theme || null,
-                    avatarUrl: result.user.avatarUrl || null
-                };
-                localStorage.setItem("mw_current_user", JSON.stringify(currentUser));
-                syncThemeFromAccount(result.user.theme);
-                await claimSingleSession(); // ห้ามล็อกอินซ้อน: เครื่องอื่นที่ล็อกอินบัญชีนี้อยู่จะถูกออกจากระบบ
-                await initApp();
+                await finishLogin(result.user);
             } else {
                 errorEl.style.display = 'block';
                 errorEl.innerText = (result && result.message) || "อีเมลหรือรหัสผ่านไม่ถูกต้อง";
@@ -1268,6 +1264,25 @@ async function handleLogin(e) {
     // ไม่มี Supabase (โหลด supabase-js ไม่ขึ้น) — เดิมมีบัญชีทดลองแบบออฟไลน์ ถอดออกแล้ว (2026-10-13)
     errorEl.style.display = 'block';
     errorEl.innerText = "ไม่สามารถเชื่อมต่อ Supabase ได้ กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองใหม่";
+}
+
+// หลังยืนยันรหัสผ่านแล้ว (handleLogin หรือ boot.js) — ตั้งผู้ใช้ จองเซสชัน แล้วเปิดระบบ
+async function finishLogin(user) {
+    // หมายเหตุ: ไม่เก็บรหัสผ่านไว้ในเครื่องอีกต่อไป — Supabase Auth จัดการ
+    // session/token ให้เองผ่าน supabase-js (ปลอดภัยกว่าระบบเดิม)
+    currentUser = {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        customer_id: user.customer_id,
+        theme: user.theme || null,
+        avatarUrl: user.avatarUrl || null
+    };
+    localStorage.setItem("mw_current_user", JSON.stringify(currentUser));
+    syncThemeFromAccount(user.theme);
+    await claimSingleSession(); // ห้ามล็อกอินซ้อน: เครื่องอื่นที่ล็อกอินบัญชีนี้อยู่จะถูกออกจากระบบ
+    await initApp();
 }
 
 // ==================== ห้ามล็อกอินซ้อน (owner, 2026-10-13) ====================

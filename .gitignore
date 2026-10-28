@@ -7,3 +7,4 @@ Thumbs.db
 .DS_Store
 _inspect-*/
 supabase/.temp/
+dist/

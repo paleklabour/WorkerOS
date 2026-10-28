@@ -18,7 +18,8 @@
         return;
     }
 
-    const sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+    // boot.js สร้าง client ไว้แล้ว (ล็อกอินก่อนโหลดไฟล์นี้) — ใช้ตัวเดิม ไม่สร้างซ้ำ
+    const sb = window.__bootSb || window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
 
     // Edge Function สำหรับงานที่ต้องใช้ service role / secret key ฝั่งเซิร์ฟเวอร์
     // (สร้าง user ใหม่ + OCR เอกสารด้วย Gemini) — ดู /supabase/functions/*
@@ -158,10 +159,14 @@
         if (error || !data.session) {
             return { status: "error", message: error ? error.message : "อีเมลหรือรหัสผ่านไม่ถูกต้อง" };
         }
+        return profileResult(data.user);
+    }
+
+    async function profileResult(user) {
         const { data: profile, error: profErr } = await sb
             .from("profiles")
             .select("name, role, customer_id, theme, avatar_url")
-            .eq("id", data.user.id)
+            .eq("id", user.id)
             .single();
         if (profErr || !profile) {
             await sb.auth.signOut();
@@ -169,8 +174,15 @@
         }
         return {
             status: "success",
-            user: { id: data.user.id, email: data.user.email, name: profile.name, role: profile.role, customer_id: profile.customer_id, theme: profile.theme || null, avatarUrl: profile.avatar_url || null }
+            user: { id: user.id, email: user.email, name: profile.name, role: profile.role, customer_id: profile.customer_id, theme: profile.theme || null, avatarUrl: profile.avatar_url || null }
         };
+    }
+
+    // ล็อกอินจาก boot.js แล้ว (มีเซสชันแต่ app.js ยังไม่รู้จักผู้ใช้) — ดึงสิทธิ์จาก profiles แบบเดียวกับ login()
+    async function sessionLogin() {
+        const { data } = await sb.auth.getSession();
+        if (!data || !data.session) return { status: "error", message: "เซสชันหลุด กรุณาเข้าสู่ระบบใหม่" };
+        return profileResult(data.session.user);
     }
 
     // Supabase Auth redirects a "reset password" email link back here with
@@ -178,7 +190,7 @@
     // that hash and opens a session (detectSessionInUrl), so app.js must check
     // this *before* falling back to any cached-user localStorage login.
     function isPasswordRecovery() {
-        return window.location.hash.indexOf("type=recovery") > -1;
+        return !!window.__bootRecovery || window.location.hash.indexOf("type=recovery") > -1;
     }
 
     async function updatePassword(newPassword) {
@@ -1164,6 +1176,6 @@
 
     window.supabaseAdapter = {
         login, callCloudAPI, uploadFile, ocrDocument, client: sb,
-        isPasswordRecovery, updatePassword, signOut, hasSession
+        isPasswordRecovery, updatePassword, signOut, hasSession, sessionLogin
     };
 })();
