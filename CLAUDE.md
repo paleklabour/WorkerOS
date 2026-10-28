@@ -574,6 +574,11 @@ still pending; full history lives in the worker side panel (`renewalHistoryHtml`
 without new data. File steps go through `attachDocumentToWorker` into
 the normal worker doc slots; ใบแทน / card / new passport then ask for the new expiry (`askRenewalNewExpiry`) and set it on
 the worker and the file, so the old file folds into "expired" by the usual rule. Card (+ book if any) closes the round.
+Files already in the worker folder (e.g. attached when the worker was created, before the round; owner 2026-10-28): a file step
+offers "ใช้ไฟล์ที่มีอยู่" (`renewalFileOrExisting` / `renewalExistingFiles`), and `renewalAutoFill` ticks renewal-track steps by
+itself on `loadRenewals` and right after `startRenewals` — WP_R / WP with expiry after the round's old expiry, REQ / REC<amount>
+uploaded ≤ 180 days before the old expiry (or undated once the permit is renewed); a new WP_R/card also ticks medical +
+appointment (`auto: true`), card closes the round as usual. Not the book track or registration rounds.
 Still to build: old→new worker-data preview, deposit shortcut in the start dialog, bell/calendar for appointments, client portal renewal progress.
 
 ## Registration pool — รอขึ้นทะเบียน (owner, 2026-10-20)

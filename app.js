@@ -3018,6 +3018,14 @@ function loadRenewals(silent = false) {
             if (!document.getElementById('view-client-portal')?.classList.contains('hidden')) renderClientPortal();
         } else {
             if (!document.getElementById('view-renewals')?.classList.contains('hidden')) renderRenewalGroups();
+            // ไฟล์ที่แนบเข้าแฟ้มคนงานไว้แล้ว (ก่อน/นอกรอบ) → ติ๊กขั้นให้เอง — ทำหลังโหลดเสร็จ
+            // (saveRenewalRow ที่ล้มจะเรียก loadRenewals ซ้ำ ถ้าทำข้างในนี้จะรอตัวเองไม่จบ)
+            setTimeout(async () => {
+                const auto = await renewalAutoFill((renewalList || []).filter(r => r.status === 'active'));
+                if (!auto) return;
+                showUploadPill('ok', `ติ๊กขั้นต่ออายุให้ ${auto} คน`, 'จากไฟล์ที่แนบไว้ในแฟ้มคนงานแล้ว');
+                if (!document.getElementById('view-renewals')?.classList.contains('hidden')) renderRenewalGroups();
+            }, 0);
             updateNotificationBell(); // หมวด "ลูกค้าขอต่ออายุ"
         }
     })().finally(() => { renewalLoading = null; });
@@ -3343,9 +3351,10 @@ async function startRenewals(ids) {
     list.forEach(w => renewalPicked.delete(w.id));
     let jobFails = 0;
     for (const r of started) jobFails += await createRenewalJobs(r);
+    const auto = await renewalAutoFill(started); // ไฟล์ที่แนบไว้แล้วตอนสร้างคนงาน → ติ๊กขั้นให้เลย
     saveData();
     if (jobFails) showToast(`⚠️ เริ่มรอบแล้ว แต่สร้างรายการรอออกบิลไม่สำเร็จ ${jobFails} รายการ`, "warning");
-    else showUploadPill('ok', `เริ่มต่ออายุ ${list.length} คนแล้ว`, 'ขึ้นหน้าออกบิลเป็น "รอออกบิล" แล้ว · ดูความคืบหน้าที่แท็บ "กำลังดำเนินการ"');
+    else showUploadPill('ok', `เริ่มต่ออายุ ${list.length} คนแล้ว`, auto ? `ติ๊กขั้นให้ ${auto} คนจากไฟล์ที่มีในแฟ้มแล้ว · ขึ้นหน้าออกบิลเป็น "รอออกบิล"` : 'ขึ้นหน้าออกบิลเป็น "รอออกบิล" แล้ว · ดูความคืบหน้าที่แท็บ "กำลังดำเนินการ"');
     renderRenewalCases();
 }
 
@@ -3743,27 +3752,113 @@ async function renewalStepClick(id, key) {
     } else if (step.optional) {
         // ค่าธรรมเนียมรอบ 2 (ถ้ามี): แนบใบเสร็จ หรือ กด "ไม่มี" เพื่อข้าม
         const ans = await uiConfirm(`${step.label} ของ ${workerFullName(w)}`, { title: step.label, okText: 'แนบใบเสร็จ', extraText: 'ไม่มี (ข้าม)', danger: false });
-        if (ans === true) { pickRenewalFile(r, w, step); return; }
+        if (ans === true) { renewalFileOrExisting(r, w, step); return; }
         if (ans !== 'extra') return;
         renewalMarkStep(r, step.key, { skipped: true });
     } else if (step.key === 'book') {
         renewalBookChoice(r, w, step);
         return;
-    } else if (step.key === 'bookId' && getAttachments(w, step.docType).length) {
-        // มีบัตรในแฟ้มคนงานอยู่แล้ว → ใช้ไฟล์เดิมได้ ไม่ต้องแนบซ้ำ
-        const files = getAttachments(w, step.docType);
-        const ans = await uiConfirm(`แฟ้มของ ${workerFullName(w)} มีบัตรประชาชนอยู่แล้ว ${files.length} ไฟล์`, {
-            title: step.label, okText: 'ใช้ไฟล์ที่มีอยู่', extraText: 'แนบใหม่', danger: false
-        });
-        if (ans === 'extra') { pickRenewalFile(r, w, step); return; }
-        if (ans !== true) return;
-        const f = files[files.length - 1];
-        renewalMarkStep(r, step.key, { url: f.data, name: f.name, existing: true });
     } else {
-        pickRenewalFile(r, w, step);
+        renewalFileOrExisting(r, w, step);
         return;
     }
     if (await saveRenewalRow(r)) renderRenewalCases();
+}
+
+// ไฟล์ในแฟ้มคนงานที่ใช้เป็นขั้นนี้ได้ (แนบไว้ก่อนแล้ว เช่น ตอนสร้างคนงาน) — ใหม่สุดก่อน
+// ไม่เอาไฟล์ที่ขั้นอื่นของรอบนี้ใช้ไปแล้ว, ใบอนุญาตที่หมดไม่เกินวันเดิมของรอบ (= ใบเก่า), และแยกใบแทน (WP_R) กับ Smart card (WP)
+function renewalExistingFiles(r, w, step) {
+    const used = new Set(Object.values(r.steps || {}).map(s => s && s.url).filter(Boolean));
+    const isWpR = f => /^WP_R/i.test(String(f.name || ''));
+    return getAttachments(w, step.docType).filter(f => {
+        if (!f || !f.data || used.has(f.data)) return false;
+        if (step.expiryField === 'permitExpiry' && f.expiryDate && r.oldPermitExpiry && String(f.expiryDate).slice(0, 10) <= r.oldPermitExpiry) return false;
+        if (step.hint === 'WP_R') return isWpR(f);
+        if (step.key === 'card') return !isWpR(f);
+        return true;
+    }).reverse();
+}
+
+// ระบบติ๊กขั้นให้เองจากไฟล์ที่อยู่ในแฟ้มคนงานแล้ว (owner 2026-10-28: แนบไว้ตอนสร้างคนงาน ก่อนเปิดรอบ)
+// เฉพาะรอบต่ออายุที่กำลังดำเนินการ สายต่ออายุ (ไม่รวมสายทำเล่ม / งานขึ้นทะเบียน) — ไฟล์ต้องเป็นของรอบนี้แน่ ๆ:
+// ใบแทน / Smart card = ไฟล์ WP_R / WP ที่หมดอายุหลังวันเดิมของรอบ; ใบคำขอ (REQ) / ใบเสร็จ (REC<ยอด>) = แนบไม่เกิน 180 วันก่อนวันหมดเดิม
+// หรือไม่มีวันที่แนบแต่ใบอนุญาตต่อแล้วจริง; ได้ใบแทน/บัตรแล้ว = ตรวจสุขภาพ + ใบนัดผ่านไปแล้ว ติ๊กให้ด้วย (auto: true)
+// ได้ Smart card = ปิดรอบตามปกติ (รายการรอออกบิลยังอยู่ให้ฝ่ายบัญชีออกบิล)
+function renewalAutoSteps(r, w) {
+    if (!r || !w || r.status !== 'active' || r.kind === 'registration' || !r.oldPermitExpiry) return null;
+    const old = r.oldPermitExpiry;
+    const since = localDateISO(new Date(new Date(old).getTime() - 180 * 86400000));
+    const newWp = f => ymd10(f.expiryDate) > old;
+    const renewed = getAttachments(w, 'worker-wp-doc').some(f => f && newWp(f)) || (permitExpiryKey(w) || '') > old;
+    const fresh = f => f.uploadedAt ? ymd10(f.uploadedAt) >= since : renewed;
+    const name = f => String(f.name || '');
+    const found = {};
+    const used = new Set(Object.values(r.steps || {}).map(s => s && s.url).filter(Boolean));
+    for (const step of RENEWAL_STEPS) {
+        if (r.steps[step.key] || step.kind !== 'file') continue;
+        const f = renewalExistingFiles(r, w, step).find(f => !used.has(f.data) && (
+            step.expiryField ? newWp(f)
+                : step.key === 'application' ? /^REQ/i.test(name(f)) && fresh(f)
+                : step.key === 'receipt' ? /^REC\d/i.test(name(f)) && fresh(f) : false));
+        if (f) { found[step.key] = f; used.add(f.data); }
+    }
+    return Object.keys(found).length ? found : null;
+}
+
+let renewalAutoBusy = false; // กันโหลดซ้อน (กลับมาที่แท็บ) แล้วบันทึกรอบเดียวกันสองครั้ง
+async function renewalAutoFill(rounds) {
+    if (!can('ops') || isViewingAs() || renewalAutoBusy) return 0;
+    renewalAutoBusy = true;
+    try { return await renewalAutoFillRun(rounds); } finally { renewalAutoBusy = false; }
+}
+async function renewalAutoFillRun(rounds) {
+    let n = 0;
+    for (const r of rounds) {
+        const w = workers.find(x => x.id === r.workerId);
+        const found = renewalAutoSteps(r, w);
+        if (!found) continue;
+        const wp = found.card || found.replacement;
+        // บัตร/ใบแทนใหม่ → วันหมดอายุใบอนุญาตของคนงานตามไฟล์ (ถ้ายังเป็นของเดิม)
+        if (wp && ymd10(wp.expiryDate) > (permitExpiryKey(w) || '')) {
+            w.permitExpiry = ymd10(wp.expiryDate);
+            await callCloudAPI("saveWorker", { workerData: w });
+        }
+        const today = localDateISO(new Date());
+        for (const step of RENEWAL_STEPS) {
+            if (r.steps[step.key]) continue;
+            const f = found[step.key];
+            if (f) renewalMarkStep(r, step.key, { url: f.data, name: f.name, existing: true, auto: true });
+            else if (wp && (step.key === 'medical' || step.key === 'appointment')) r.steps = { ...r.steps, [step.key]: { at: today, by: currentUser.id, auto: true } };
+        }
+        if (await saveRenewalRow(r)) n++;
+    }
+    if (n) { saveData(); renderWorkers(); }
+    return n;
+}
+// วันที่ใด ๆ (ISO / ว/ด/ป) → YYYY-MM-DD, อ่านไม่ได้ = ''
+const ymd10 = v => { const d = v ? safeParseDate(v) : null; return d ? localDateISO(d) : ''; };
+
+// ขั้นแนบไฟล์: ถ้าแฟ้มมีไฟล์ที่ใช้ได้อยู่แล้ว ถามว่าจะใช้ไฟล์นั้น (ไม่แนบซ้ำ) หรือแนบใหม่
+async function renewalFileOrExisting(r, w, step) {
+    const f = step.multi ? null : renewalExistingFiles(r, w, step)[0];
+    const ids = step.multi ? renewalExistingFiles(r, w, step) : [];
+    if (!f && !ids.length) { pickRenewalFile(r, w, step); return; }
+    const d = v => v ? formatThaiDate(String(v).slice(0, 10)) : '';
+    const info = f ? [f.name, f.uploadedAt ? `แนบ ${d(f.uploadedAt)}` : '', f.expiryDate ? `หมด ${d(f.expiryDate)}` : ''].filter(Boolean).join(' · ') : `${ids.length} ไฟล์`;
+    const ans = await uiConfirm(`แฟ้มของ ${workerFullName(w)} มี${step.label}อยู่แล้ว: ${info}`, {
+        title: step.label, okText: 'ใช้ไฟล์ที่มีอยู่', extraText: 'แนบใหม่', danger: false
+    });
+    if (ans === 'extra') { pickRenewalFile(r, w, step); return; }
+    if (ans !== true) return;
+    const use = f || ids[0];
+    if (step.expiryField) await askRenewalNewExpiry(r, w, step, use);
+    renewalMarkStep(r, step.key, { url: use.data, name: use.name, existing: true });
+    saveData();
+    if (await saveRenewalRow(r)) {
+        if (r.status === 'done') showUploadPill('ok', `${r.kind === 'registration' ? 'ขึ้นทะเบียน' : 'ต่ออายุ'} ${workerFullName(w)} เสร็จแล้ว`, `ใบอนุญาตใหม่หมด ${formatThaiDate(r.newPermitExpiry)}`);
+        renderRenewalCases();
+        renderWorkers();
+    }
 }
 
 // ---------- ต่อที่อื่น / ทำเล่มที่อื่น (owner 2026-10-20) ----------
@@ -3777,7 +3872,7 @@ async function renewalBookChoice(r, w, step) {
     const ans = await uiConfirm(visa ? `ตี visa ในเล่มเดิมของ ${workerFullName(w)}` : `ทำเล่ม (พาสปอร์ต/CI) ของ ${workerFullName(w)}`, {
         title: step.label, okText: visa ? 'แนบหน้า visa' : 'แนบเล่มใหม่', extraText: visa ? 'ตี visa ที่อื่น' : 'ทำเล่มที่อื่น', danger: false
     });
-    if (ans === true) pickRenewalFile(r, w, step);
+    if (ans === true) renewalFileOrExisting(r, w, step);
     else if (ans === 'extra') await markBookExternal([r.id]);
 }
 
