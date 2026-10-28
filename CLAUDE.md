@@ -576,9 +576,11 @@ the normal worker doc slots; ใบแทน / card / new passport then ask for 
 the worker and the file, so the old file folds into "expired" by the usual rule. Card (+ book if any) closes the round.
 Files already in the worker folder (e.g. attached when the worker was created, before the round; owner 2026-10-28): a file step
 offers "ใช้ไฟล์ที่มีอยู่" (`renewalFileOrExisting` / `renewalExistingFiles`), and `renewalAutoFill` ticks renewal-track steps by
-itself on `loadRenewals` and right after `startRenewals` — WP_R / WP with expiry after the round's old expiry, REQ / REC<amount>
-uploaded ≤ 180 days before the old expiry (or undated once the permit is renewed); a new WP_R/card also ticks medical +
-appointment (`auto: true`), card closes the round as usual. Not the book track or registration rounds.
+itself on `loadRenewals` and right after `startRenewals` — ใบแทน = a WP_R / WP file with expiry after the round's old expiry
+(also ticks medical), REQ / REC<amount> uploaded ≤ 180 days before the old expiry (or undated once the permit is renewed).
+Never auto: ใบนัด and Smart card (owner 2026-10-28 — new WP files were ใบแทน, nobody had an appointment yet), book track,
+registration rounds. A done step can be edited (open file / pick another file / un-tick); a file taken off a step gets
+`noRenewalAuto: [roundId]` so auto-fill won't put it back.
 Still to build: old→new worker-data preview, deposit shortcut in the start dialog, bell/calendar for appointments, client portal renewal progress.
 
 ## Registration pool — รอขึ้นทะเบียน (owner, 2026-10-20)

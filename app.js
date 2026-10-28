@@ -3433,7 +3433,7 @@ function renewalStepsPopHtml(r, track, pinned) {
         const x = states[i];
         let act = '';
         if (canEdit) {
-            if (x.kind === 'done') act = s.kind === 'file' ? 'เปิดไฟล์' : 'แก้ไข';
+            if (x.kind === 'done') act = 'แก้ไข';
             else if (x.kind === 'next') act = renewalNextLabel(r, s);
             else if (x.kind === 'ext' && s.key === 'book') act = 'ใส่ข้อมูลเล่มใหม่';
         }
@@ -3728,10 +3728,34 @@ async function renewalStepClick(id, key) {
         const idx = list.findIndex(f => f && f.data === (r.steps[part.key] || {}).url);
         if (idx >= 0) openWorkerFolderAt(w.id, part.docType, idx); else openWorkerFolderModal(w.id);
     };
-    // ขั้นที่เสร็จแล้ว: ไฟล์ → เปิดไฟล์ในแฟ้มคนงาน, ติ๊ก/วันนัด → แก้หรือยกเลิกได้
-    if (st && step.kind === 'file') { openStepFile(step); return; }
-    if (!can('ops')) return;
+    // ขั้นที่เสร็จแล้ว: ไฟล์ → เปิดไฟล์ / เปลี่ยนไฟล์ / ยกเลิกขั้น (owner 2026-10-28: แก้ขั้นที่ติ๊กผ่านไปแล้ว เช่นระบบติ๊กให้ผิดไฟล์),
+    // ติ๊ก/วันนัด → แก้หรือยกเลิกได้; ไฟล์เดิมยังอยู่ในแฟ้มคนงานเสมอ
     const unmark = () => { const s = { ...r.steps }; delete s[step.key]; r.steps = s; };
+    if (st && step.kind === 'file') {
+        if (!can('ops') || r.status !== 'active') { if (st.url) openStepFile(step); return; }
+        const what = st.name ? `ไฟล์ ${st.name}` : st.skipped ? 'ข้ามขั้นนี้ไว้' : 'ไม่มีไฟล์';
+        const ans = await uiConfirm(`${step.label} ของ ${workerFullName(w)}: ${what}${st.auto ? ' (ระบบติ๊กให้จากไฟล์ในแฟ้ม)' : ''}`, {
+            title: step.label, okText: st.url ? 'เปิดไฟล์' : 'ปิด', extraText: 'แก้ไขขั้นนี้', danger: false
+        });
+        if (ans === true) { if (st.url) openStepFile(step); return; }
+        if (ans !== 'extra') return;
+        const how = await uiConfirm(`แก้ "${step.label}" ของ ${workerFullName(w)} — ไฟล์เดิมยังอยู่ในแฟ้มคนงาน ไม่ถูกลบ`, {
+            title: step.label, okText: 'เลือกไฟล์ใหม่', extraText: 'ยกเลิกขั้นนี้', danger: false
+        });
+        if (how !== true && how !== 'extra') return;
+        // ไฟล์ที่ผู้ใช้เอาออกจากขั้นนี้ ระบบจะไม่ติ๊กให้เองอีกในรอบนี้ (renewalAutoSteps)
+        const old = st.url && getAttachments(w, step.docType).find(f => f && f.data === st.url);
+        if (old) {
+            old.noRenewalAuto = [...new Set([...(old.noRenewalAuto || []), r.id])];
+            await callCloudAPI("saveWorker", { workerData: w });
+        }
+        unmark();
+        if (!(await saveRenewalRow(r))) return;
+        renderRenewalCases();
+        if (how === true) renewalFileOrExisting(r, w, step);
+        return;
+    }
+    if (!can('ops')) return;
     if (step.kind === 'tick') {
         // ตรวจสุขภาพ (ต่ออายุ) / ยื่นทำเล่ม (สายทำเล่ม)
         const doneLabel = step.key === 'medical' ? 'ตรวจสุขภาพแล้ว' : `${step.label}แล้ว`;
@@ -3799,11 +3823,15 @@ function renewalAutoSteps(r, w) {
     const name = f => String(f.name || '');
     const found = {};
     const used = new Set(Object.values(r.steps || {}).map(s => s && s.url).filter(Boolean));
+    // Smart card ไม่ติ๊กให้เอง: ไฟล์ WP ใบใหม่ในแฟ้มส่วนใหญ่คือใบแทน (owner 2026-10-28: ยังไม่มีใครได้ใบนัด/บัตร)
+    // ไฟล์ WP / WP_R ที่หมดอายุหลังวันเดิม = ใบแทน (WP_R มาก่อน); ใบนัดเป็นวันที่ ต้องกรอกเองเสมอ
     for (const step of RENEWAL_STEPS) {
-        if (r.steps[step.key] || step.kind !== 'file') continue;
-        const f = renewalExistingFiles(r, w, step).find(f => !used.has(f.data) && (
-            step.expiryField ? newWp(f)
-                : step.key === 'application' ? /^REQ/i.test(name(f)) && fresh(f)
+        if (r.steps[step.key] || step.kind !== 'file' || step.key === 'card') continue;
+        const ok = f => f && f.data && !used.has(f.data) && !(f.noRenewalAuto || []).includes(r.id);
+        const f = step.key === 'replacement'
+            ? getAttachments(w, step.docType).filter(f => ok(f) && newWp(f)).sort((a, b) => /^WP_R/i.test(name(b)) - /^WP_R/i.test(name(a)))[0]
+            : renewalExistingFiles(r, w, step).find(f => ok(f) && (
+                step.key === 'application' ? /^REQ/i.test(name(f)) && fresh(f)
                 : step.key === 'receipt' ? /^REC\d/i.test(name(f)) && fresh(f) : false));
         if (f) { found[step.key] = f; used.add(f.data); }
     }
@@ -3822,8 +3850,8 @@ async function renewalAutoFillRun(rounds) {
         const w = workers.find(x => x.id === r.workerId);
         const found = renewalAutoSteps(r, w);
         if (!found) continue;
-        const wp = found.card || found.replacement;
-        // บัตร/ใบแทนใหม่ → วันหมดอายุใบอนุญาตของคนงานตามไฟล์ (ถ้ายังเป็นของเดิม)
+        const wp = found.replacement;
+        // ใบแทนใหม่ → วันหมดอายุใบอนุญาตของคนงานตามไฟล์ (ถ้ายังเป็นของเดิม)
         if (wp && ymd10(wp.expiryDate) > (permitExpiryKey(w) || '')) {
             w.permitExpiry = ymd10(wp.expiryDate);
             await callCloudAPI("saveWorker", { workerData: w });
@@ -3833,7 +3861,8 @@ async function renewalAutoFillRun(rounds) {
             if (r.steps[step.key]) continue;
             const f = found[step.key];
             if (f) renewalMarkStep(r, step.key, { url: f.data, name: f.name, existing: true, auto: true });
-            else if (wp && (step.key === 'medical' || step.key === 'appointment')) r.steps = { ...r.steps, [step.key]: { at: today, by: currentUser.id, auto: true } };
+            // ได้ใบแทน = ตรวจสุขภาพผ่านแล้ว (ใบนัดออกหลังใบแทน — ไม่ติ๊กให้)
+            else if (step.key === 'medical' && wp) r.steps = { ...r.steps, [step.key]: { at: today, by: currentUser.id, auto: true } };
         }
         if (await saveRenewalRow(r)) n++;
     }
