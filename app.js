@@ -3509,7 +3509,6 @@ function renewalActiveRowHtml(r, canEdit) {
         <div class="rn-actions">
             <div class="rn-next-stack">
             ${canEdit && next ? `<button type="button" class="btn btn-sm btn-soft rn-next-btn" onclick="renewalStepClick('${r.id}', '${next.key}')" title="${escapeHtml(renewalNextLabel(r))}">${escapeHtml(renewalNextLabel(r))}</button>` : ''}
-            ${canEdit && renewalBookNext(r) ? `<button type="button" class="btn btn-sm rn-next-btn rn-book-btn" onclick="renewalStepClick('${r.id}', '${renewalBookNext(r).key}')" title="ทำเล่ม: ${escapeHtml(renewalNextLabel(r, renewalBookNext(r)))}">${escapeHtml(renewalNextLabel(r, renewalBookNext(r)))}</button>` : ''}
             </div>
         </div>
     </div>`;
