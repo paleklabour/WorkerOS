@@ -178,6 +178,8 @@ Owner's rules (2026-10-09):
   Worker folder files can be dragged onto another doc group / its + / an empty "+ type" chip to move them to that
   type (owner 2026-10-18, `moveWorkerFileToDocType`): same Storage link, renamed to the new type's code
   (`workerDocFileName` + `uniqueWorkerDocName`), no AI. Dropping elsewhere in the list still means "not expired".
+  A moved file goes to the front of the target list with its own `manualExpired` (expired only if its own date passed), so
+  the files already in that slot never fold into "expired" because of it (owner 2026-10-28).
 
 ## Search-to-select fields (standing rule)
 

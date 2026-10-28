@@ -16690,12 +16690,17 @@ async function moveWorkerFileToDocType(fromType, idx, toType) {
     const m = String(fItem.name || '').match(/\.[A-Za-z0-9]{1,5}$/);
     const ext = m ? m[0] : extFromDataUrl(String(fItem.data || ''));
     const moved = { ...fItem, name: uniqueWorkerDocName(toList, workerDocFileName('', '', '', toType, '', ext, fItem.name, toType === 'worker-receipt' && doeAmountTotal(fItem.doe) ? { receiptAmount: doeAmountTotal(fItem.doe) } : null)) };
-    delete moved.manualExpired; // หมวดใหม่ใช้ตรรกะหมดอายุอัตโนมัติ (วางในรายการปัจจุบัน)
+    // ไฟล์ที่อยู่ในหมวดปลายทางเดิมต้องไม่ถูกพับเป็น "หมดอายุ" เพราะมีไฟล์ลากเข้ามา (owner 2026-10-28):
+    // ใส่ไฟล์ที่ย้ายไว้หน้าสุดของรายการ (ตรรกะอัตโนมัติดูแค่ไฟล์ที่อยู่ "หลัง") แล้วตั้งสถานะของไฟล์นี้เอง —
+    // อยู่ในเอกสารปัจจุบัน เว้นแต่วันหมดอายุของมันเองผ่านไปแล้ว
+    const exp = moved.expiryDate ? safeParseDate(moved.expiryDate) : null;
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+    moved.manualExpired = !!(exp && exp < todayStart);
 
     w.attachments = { ...(w.attachments || {}) };
     w.attachments[fromType] = fromList.filter((_, i) => i !== idx);
-    w.attachments[toType] = [...toList, moved];
-    activeFolderSel = { kind: 'file', key: toType, idx: w.attachments[toType].length - 1 };
+    w.attachments[toType] = [moved, ...toList];
+    activeFolderSel = { kind: 'file', key: toType, idx: 0 };
     renderWorkerFolderTiles();
 
     const toLabel = (WORKER_FOLDER_DOC_TYPES.find(t => t.key === toType) || {}).label || toType;
