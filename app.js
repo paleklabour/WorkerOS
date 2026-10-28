@@ -219,14 +219,11 @@ async function callCloudAPI(action, payload = {}, options = {}) {
     }
     // ทุกทางที่บันทึกคนงาน (ฟอร์ม, แนบไฟล์จากแฟ้ม, Bulk Import, ฯลฯ) ผ่านตรงนี้ — เพศว่างแต่มีคำนำหน้าให้เติมจากคำนำหน้าเสมอ
     if (action === "saveWorker" && payload.workerData) fillGenderFromTitle(payload.workerData);
-    // โหมดดูหน้าจอแบบผู้ใช้อื่น (startViewAs): อ่านได้อย่างเดียว ห้ามบันทึก
-    if (isViewingAs() && !/^(get|load|list|fetch)/i.test(action) && !(action === "manageUser" && payload.action === "list")) {
-        showToast("👁 กำลังดูหน้าจอแบบผู้ใช้อื่น — บันทึกไม่ได้ กด \"กลับเป็น Admin\" ก่อน", "warning");
-        return null;
-    }
-    // บัญชีทดสอบ: อ่านได้อย่างเดียว (claimSession = จองเซสชันตอนล็อกอิน, setMyTheme = ธีมของตัวเอง ยังให้ทำ)
-    if (isTesterUser() && !/^(get|load|list|fetch|claimSession$|setMyTheme$)/i.test(action) && !(action === "manageUser" && payload.action === "list")) {
-        showToast("🧪 บัญชีทดสอบ — ดูได้อย่างเดียว ไม่ได้บันทึก", "warning");
+    // อ่านได้อย่างเดียว (ดูหน้าจอแบบผู้ใช้อื่น / บัญชีทดสอบ) — บัญชีทดสอบยังจองเซสชันตอนล็อกอินและเปลี่ยนธีมตัวเองได้
+    const readAction = /^(get|load|list|fetch)/i.test(action) || (action === "manageUser" && payload.action === "list")
+        || (isTesterUser() && /^(claimSession|setMyTheme)$/.test(action));
+    if (isReadOnlySession() && !readAction) {
+        showToast(readOnlyMessage("บันทึก"), "warning");
         return null;
     }
     try {
@@ -1018,11 +1015,6 @@ function setupAllSearchSuggestions() {
 
     registerSearchSuggest('search-dashboard-employer-alerts', () => customers,
         c => c.companyName, c => c.taxId, renderEmployerAlerts);
-
-    registerSearchSuggest('search-dashboard-missing-docs', () => workers.filter(isWorkerMissingDocs),
-        w => `${w.firstName || ''} ${w.lastName || ''}`.trim(),
-        w => { const emp = customers.find(c => c.id === w.employerId); return [w.workerUid, emp ? emp.companyName : ''].filter(Boolean).join(' · '); },
-        renderMissingDocsOverview);
 }
 
 // ==================== SEARCH-SELECT (ค้นหาเพื่อ "เลือกข้อมูล 1 รายการ" จากระบบ — นายจ้าง, ลูกจ้าง, Agent ฯลฯ) ====================
@@ -1198,6 +1190,11 @@ function can(perm) {
     return (PERMS[perm] || []).includes(currentUser.role);
 }
 function isTesterUser() { return !!currentUser && currentUser.role === 'tester'; }
+// โหมดอ่านอย่างเดียว: Admin ดูหน้าจอแบบผู้ใช้อื่น หรือบัญชีทดสอบ — ใช้กันทุกการบันทึก/อัปโหลด
+function isReadOnlySession() { return isViewingAs() || isTesterUser(); }
+function readOnlyMessage(verb) {
+    return isViewingAs() ? `👁 กำลังดูหน้าจอแบบผู้ใช้อื่น — ${verb}ไม่ได้ กด "กลับเป็น Admin" ก่อน` : `🧪 บัญชีทดสอบ — ดูได้อย่างเดียว ${verb}ไม่ได้`;
+}
 
 // Staff แก้ได้เฉพาะใบงานที่ตัวเองเปิดหรือได้รับมอบหมาย
 function canEditJob(j) {
@@ -3822,16 +3819,17 @@ async function renewalStepClick(id, key) {
 // ไฟล์ในแฟ้มคนงานที่ใช้เป็นขั้นนี้ได้ (แนบไว้ก่อนแล้ว เช่น ตอนสร้างคนงาน) — ใหม่สุดก่อน
 // ไม่เอาไฟล์ที่ขั้นอื่นของรอบนี้ใช้ไปแล้ว, ใบอนุญาตที่หมดไม่เกินวันเดิมของรอบ (= ใบเก่า), และแยกใบแทน (WP_R) กับ Smart card (WP)
 function renewalExistingFiles(r, w, step) {
-    const used = new Set(Object.values(r.steps || {}).map(s => s && s.url).filter(Boolean));
-    const isWpR = f => /^WP_R/i.test(String(f.name || ''));
+    const used = renewalUsedUrls(r);
     return getAttachments(w, step.docType).filter(f => {
         if (!f || !f.data || used.has(f.data)) return false;
         if (step.expiryField === 'permitExpiry' && f.expiryDate && r.oldPermitExpiry && String(f.expiryDate).slice(0, 10) <= r.oldPermitExpiry) return false;
-        if (step.hint === 'WP_R') return isWpR(f);
-        if (step.key === 'card') return !isWpR(f);
+        if (step.hint === 'WP_R') return isWpRFile(f);
+        if (step.key === 'card') return !isWpRFile(f);
         return true;
     }).reverse();
 }
+const renewalUsedUrls = r => new Set(Object.values(r.steps || {}).map(s => s && s.url).filter(Boolean)); // ไฟล์ที่ขั้นอื่นของรอบใช้แล้ว
+const isWpRFile = f => /^WP_R/i.test(String((f && f.name) || '')); // ใบแทนใบอนุญาต
 
 // ระบบติ๊กขั้นให้เองจากไฟล์ที่อยู่ในแฟ้มคนงานแล้ว (owner 2026-10-28: แนบไว้ตอนสร้างคนงาน ก่อนเปิดรอบ)
 // เฉพาะรอบต่ออายุที่กำลังดำเนินการ สายต่ออายุ (ไม่รวมสายทำเล่ม / งานขึ้นทะเบียน) — ไฟล์ต้องเป็นของรอบนี้แน่ ๆ:
@@ -3847,14 +3845,14 @@ function renewalAutoSteps(r, w) {
     const fresh = f => f.uploadedAt ? ymd10(f.uploadedAt) >= since : renewed;
     const name = f => String(f.name || '');
     const found = {};
-    const used = new Set(Object.values(r.steps || {}).map(s => s && s.url).filter(Boolean));
+    const used = renewalUsedUrls(r);
     // Smart card ไม่ติ๊กให้เอง: ไฟล์ WP ใบใหม่ในแฟ้มส่วนใหญ่คือใบแทน (owner 2026-10-28: ยังไม่มีใครได้ใบนัด/บัตร)
     // ไฟล์ WP / WP_R ที่หมดอายุหลังวันเดิม = ใบแทน (WP_R มาก่อน); ใบนัดเป็นวันที่ ต้องกรอกเองเสมอ
     for (const step of RENEWAL_STEPS) {
         if (r.steps[step.key] || step.kind !== 'file' || step.key === 'card') continue;
         const ok = f => f && f.data && !used.has(f.data) && !(f.noRenewalAuto || []).includes(r.id);
         const f = step.key === 'replacement'
-            ? getAttachments(w, step.docType).filter(f => ok(f) && newWp(f)).sort((a, b) => /^WP_R/i.test(name(b)) - /^WP_R/i.test(name(a)))[0]
+            ? getAttachments(w, step.docType).filter(f => ok(f) && newWp(f)).sort((a, b) => isWpRFile(b) - isWpRFile(a))[0]
             : renewalExistingFiles(r, w, step).find(f => ok(f) && (
                 step.key === 'application' ? /^REQ/i.test(name(f)) && fresh(f)
                 : step.key === 'receipt' ? /^REC\d/i.test(name(f)) && fresh(f) : false));
@@ -3865,7 +3863,7 @@ function renewalAutoSteps(r, w) {
 
 let renewalAutoBusy = false; // กันโหลดซ้อน (กลับมาที่แท็บ) แล้วบันทึกรอบเดียวกันสองครั้ง
 async function renewalAutoFill(rounds) {
-    if (!can('ops') || isViewingAs() || isTesterUser() || renewalAutoBusy) return 0;
+    if (!can('ops') || isReadOnlySession() || renewalAutoBusy) return 0;
     renewalAutoBusy = true;
     try { return await renewalAutoFillRun(rounds); } finally { renewalAutoBusy = false; }
 }
@@ -3899,17 +3897,16 @@ const ymd10 = v => { const d = v ? safeParseDate(v) : null; return d ? localDate
 
 // ขั้นแนบไฟล์: ถ้าแฟ้มมีไฟล์ที่ใช้ได้อยู่แล้ว ถามว่าจะใช้ไฟล์นั้น (ไม่แนบซ้ำ) หรือแนบใหม่
 async function renewalFileOrExisting(r, w, step) {
-    const f = step.multi ? null : renewalExistingFiles(r, w, step)[0];
-    const ids = step.multi ? renewalExistingFiles(r, w, step) : [];
-    if (!f && !ids.length) { pickRenewalFile(r, w, step); return; }
+    const files = renewalExistingFiles(r, w, step);
+    if (!files.length) { pickRenewalFile(r, w, step); return; }
+    const use = files[0];
     const d = v => v ? formatThaiDate(String(v).slice(0, 10)) : '';
-    const info = f ? [f.name, f.uploadedAt ? `แนบ ${d(f.uploadedAt)}` : '', f.expiryDate ? `หมด ${d(f.expiryDate)}` : ''].filter(Boolean).join(' · ') : `${ids.length} ไฟล์`;
+    const info = step.multi ? `${files.length} ไฟล์` : [use.name, use.uploadedAt ? `แนบ ${d(use.uploadedAt)}` : '', use.expiryDate ? `หมด ${d(use.expiryDate)}` : ''].filter(Boolean).join(' · ');
     const ans = await uiConfirm(`แฟ้มของ ${workerFullName(w)} มี${step.label}อยู่แล้ว: ${info}`, {
         title: step.label, okText: 'ใช้ไฟล์ที่มีอยู่', extraText: 'แนบใหม่', danger: false
     });
     if (ans === 'extra') { pickRenewalFile(r, w, step); return; }
     if (ans !== true) return;
-    const use = f || ids[0];
     if (step.expiryField) await askRenewalNewExpiry(r, w, step, use);
     renewalMarkStep(r, step.key, { url: use.data, name: use.name, existing: true });
     saveData();
@@ -5603,15 +5600,12 @@ function renderDashboard() {
     const alerts = calculateDeadlines();
     const expiryWarnings = alerts.length;
     
-    const missingWorkersCount = workers.filter(w => isWorkerMissingDocs(w)).length;
 
     // Update Stats Card Numbers
     document.getElementById("stat-total-customers").innerText = totalCustomers;
     document.getElementById("stat-total-workers").innerText = totalWorkers;
     document.getElementById("stat-expiry-warnings").innerText = expiryWarnings;
     
-    const statMissingEl = document.getElementById("stat-missing-docs");
-    if (statMissingEl) statMissingEl.innerText = missingWorkersCount;
 
     // แคปซูลเพิ่ม: งานที่ยังไม่ปิด + บิลค้างเกินกำหนด (แคปซูลบิลซ่อนจากคนที่ไม่มีสิทธิ์การเงินด้วย needs-finance)
     const openJobsEl = document.getElementById("stat-open-jobs");
@@ -6303,7 +6297,6 @@ function renderDashboardOverview() {
     renderDashboardPies(nationalityCounts);
     
     // Render missing docs list
-    renderMissingDocsOverview();
 }
 
 function renderEmployerAlerts() {
@@ -12556,7 +12549,7 @@ function squareAvatarDataUrl(file, size = 256) {
 }
 
 async function uploadAvatarFile(file, ownerId) {
-    if (isViewingAs() || isTesterUser()) { showToast("ดูอย่างเดียว — บันทึกไม่ได้", "warning"); return null; }
+    if (isReadOnlySession()) { showToast(readOnlyMessage("บันทึก"), "warning"); return null; }
     if (!file || !/^image\//.test(file.type)) { showToast("⚠️ กรุณาเลือกไฟล์รูปภาพ", "warning"); return null; }
     if (!window.supabaseAdapter) return null;
     try {
@@ -14184,11 +14177,8 @@ async function markCombineSelectedNoCharge() {
     if (!String(reason).trim()) { uiAlert('กรุณาระบุเหตุผลที่ไม่เรียกเก็บเงิน'); return; }
     let ok = 0, failed = 0;
     for (const j of list) {
-        const before = { ...j };
-        Object.assign(j, { paymentStatus: JOB_NO_CHARGE, noChargeReason: String(reason).trim(), noChargeBy: currentUser.id || null,
-            noChargeAt: new Date().toISOString(), updatedAt: localDateISO(new Date()) });
-        const r = await callCloudAPI("saveJob", { jobData: j, billing: true }, { silent: true });
-        if (!r || r.status === "error") { Object.assign(j, before); failed++; } else ok++;
+        const r = await saveJobNoCharge(j, reason, { silent: true });
+        if (!r || r.status === "error") failed++; else ok++;
     }
     saveData();
     renderBillingTab();
@@ -15012,8 +15002,7 @@ function beginUploadUi(fileName) {
 
 async function uploadDocumentFile(fileDataUrl, fileName, customerId = "", workerId = "", docType = "", options = {}) {
     if (!window.supabaseAdapter) return null; // ยังไม่ได้ตั้งค่า Supabase
-    if (isViewingAs()) { showToast("👁 กำลังดูหน้าจอแบบผู้ใช้อื่น — อัปโหลดไม่ได้", "warning"); return null; }
-    if (isTesterUser()) { showToast("🧪 บัญชีทดสอบ — อัปโหลดไม่ได้", "warning"); return null; }
+    if (isReadOnlySession()) { showToast(readOnlyMessage("อัปโหลด"), "warning"); return null; }
 
     let ui = beginUploadUi(fileName);
     // ย่อไฟล์ใหญ่ผิดปกติก่อนอัปโหลด (owner, 2026-10-13): PDF / รูป เกิน 5 MB → ย่อในเบราว์เซอร์ (shrinkPdfBlob / shrinkImageBlob)
@@ -18394,107 +18383,6 @@ async function revokeWorkerShareLink(workerId) {
     showToast("🚫 ยกเลิกลิงก์แชร์เรียบร้อยแล้ว", "success");
 }
 
-// เอกสารที่ถือว่าคนงานแต่ละคนควรมีครบ ใช้ทั้งเช็ค isWorkerMissingDocs และแสดงรายการที่ขาดในหน้า Dashboard
-const REQUIRED_WORKER_DOCS = [
-    { type: 'worker-wp-doc', label: 'ใบอนุญาตทำงาน (WP)' },
-    { type: 'worker-passport', label: 'พาสปอร์ต/CI' },
-    { type: 'worker-myanmar-id', label: 'บัตรประชาชน/ทะเบียนบ้านพม่า' },
-    { type: 'worker-medical', label: 'ใบรับรองแพทย์' },
-    { type: 'worker-insurance-doc', label: 'ประกัน' },
-];
-
-function isWorkerMissingDocs(w) {
-    if (w.status === 'archived') return false;
-    return REQUIRED_WORKER_DOCS.some(doc => getAttachments(w, doc.type).length === 0);
-}
-
-const NATIONALITY_TH_LABELS = { Myanmar: 'เมียนมา พม่า', Cambodia: 'กัมพูชา เขมร', Laos: 'ลาว', Vietnam: 'เวียดนาม' };
-
-// ค้นหาในตาราง "คนงานที่ยังไม่ได้แนบเอกสาร" — ครอบคลุม ชื่อเต็ม/ชื่อไทย/คำนำหน้า, เลขเอกสารทุกประเภท, สัญชาติ (ไทย/อังกฤษ),
-// นายจ้าง (ชื่อ/เลขภาษี/เลขบัตรกรรมการ) และชื่อเอกสารที่ "ยังขาด" เช่น พิมพ์ "พาสปอร์ต" หรือ "wp" = คนที่ยังไม่มีเอกสารนั้น
-function missingDocsWorkerMatchesQuery(w, query) {
-    const emp = customers.find(c => c.id === w.employerId);
-    const missingLabels = REQUIRED_WORKER_DOCS.filter(doc => getAttachments(w, doc.type).length === 0).map(doc => doc.label);
-    const haystack = [
-        `${w.title || ''} ${englishTitle(w.title)} ${w.firstName || ''} ${w.lastName || ''}`,
-        w.thaiName, w.workerUid, w.permitNo, w.passportNo, w.pinkCardNo, w.refNo, w.insuranceNo,
-        w.nationality, NATIONALITY_TH_LABELS[w.nationality],
-        emp && emp.companyName, emp && emp.taxId, emp && emp.directorId,
-        ...missingLabels
-    ].filter(Boolean).join(' | ').toLowerCase();
-    // เลขที่พิมพ์มีขีด/ช่องว่างก็หาเจอ (เทียบแบบตัดตัวคั่นออกด้วย)
-    const compactQuery = query.replace(/[\s-]/g, '');
-    return haystack.includes(query) || (compactQuery.length >= 4 && haystack.replace(/[\s-]/g, '').includes(compactQuery));
-}
-
-function renderMissingDocsOverview() {
-    const tbody = document.getElementById("dashboard-missing-docs-tbody");
-    if (!tbody) return;
-
-    const missingWorkers = workers.filter(w => isWorkerMissingDocs(w));
-
-    // อัปเดตการ์ด KPI ด้านบนด้วยยอดจริงทั้งหมดเสมอ ไม่ผูกกับตัวกรองค้นหาของตารางด้านล่าง
-    const cardNum = document.getElementById("stat-missing-docs");
-    if (cardNum) cardNum.innerText = missingWorkers.length;
-
-    const searchInput = document.getElementById("search-dashboard-missing-docs");
-    const query = searchInput ? searchInput.value.trim().toLowerCase() : "";
-    const filteredWorkers = missingWorkers.filter(w => !query || missingDocsWorkerMatchesQuery(w, query));
-
-    const badge = document.getElementById("missing-docs-count-badge");
-    if (badge) badge.innerText = `${filteredWorkers.length} คน`;
-
-    if (filteredWorkers.length === 0) {
-        const emptyMsg = query ? "" + icon("bad") + " ไม่พบคนงานตามคำค้นหา" : "" + icon("ok") + " คนงานทุกคนมีเอกสารแนบในระบบครบถ้วนแล้ว!";
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="10" class="text-muted" style="text-align: center; padding: 20px;">
-                    ${emptyMsg}
-                </td>
-            </tr>
-        `;
-        return;
-    }
-
-    tbody.innerHTML = filteredWorkers.map(w => {
-        const emp = customers.find(c => c.id === w.employerId);
-        const empName = emp ? emp.companyName : "ไม่ระบุนายจ้าง";
-
-        // ช่องติ๊กเอกสารที่ขาด — ✅ มีแล้ว / ❌ ยังไม่มี ต่อเอกสารแต่ละประเภท ดูครบทุกอย่างในแถวเดียว
-        const docCells = REQUIRED_WORKER_DOCS.map(doc => {
-            const has = getAttachments(w, doc.type).length > 0;
-            return has
-                ? `<td style="text-align: center; color: #16a34a;" title="${doc.label}: มีแล้ว">${icon("ok")}</td>`
-                : `<td style="text-align: center; color: #dc2626;" title="${doc.label}: ขาด">${icon("bad")}</td>`;
-        }).join('');
-
-        const avatarUrl = w.photo ? w.photo : 'data:image/svg+xml;utf8,<svg xmlns=%22http:' + '/' + '/www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 width=%2232%22 height=%2232%22 fill=%22%2394a3b8%22><path d=%22M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4.42 0-8 3.58-8 8v1h16v-1c0-4.42-3.58-8-8-8z%22/></svg>';
-
-        // ดับเบิลคลิกแถวเพื่อเปิดดูข้อมูลคนงาน เหมือนตารางคนงานหลัก (ปุ่มเปิดแฟ้มใช้ stopPropagation ไม่ให้เปิดซ้อน)
-        return `
-            <tr class="clickable-row" data-ctx="worker:${w.id}" ondblclick="handleRowDblClick(event) && openWorkerQuickView('${w.id}')" title="ดับเบิลคลิกเพื่อดูข้อมูลคนงาน • คลิกขวาเพื่อดูคำสั่ง">
-                <td style="width: 50px; text-align: center;">
-                    <div style="width: 32px; height: 32px; border-radius: 50%; overflow: hidden; background-color: #f1f5f9; border: 1px solid #cbd5e1; display: inline-flex; align-items: center; justify-content: center;">
-                        <img src="${avatarUrl}" style="width: 100%; height: 100%; object-fit: cover;">
-                    </div>
-                </td>
-                <td>
-                    <div><strong>${escapeHtml(workerFullName(w))}</strong></div>
-                    <small class="text-muted">เลขประจำตัว: ${w.workerUid || '-'}</small>
-                </td>
-                <td><span class="badge badge-gold">${w.nationality}</span></td>
-                <td>${empName}</td>
-                ${docCells}
-                <td style="text-align: center;" onclick="event.stopPropagation()">
-                    <button class="btn btn-sm btn-gold btn-open-folder" onclick="openWorkerFolderModal('${w.id}')">
-                        ${icon("folder")} เปิดแฟ้มเอกสาร
-                    </button>
-                </td>
-            </tr>
-        `;
-    }).join('');
-}
-
 // ==================== KANBAN BOARD SYSTEM ====================
 
 // มุมมองหน้าระบบแจ้งงาน: table (ตาราง) / kanban (คัมบัง) / summary (สรุปงานสำหรับ Operation Manager)
@@ -18855,6 +18743,16 @@ function noChargeBadgeHtml(j) {
     return `<span class="badge badge-nocharge" title="${escapeHtml(tip)}">${icon("ok")} ไม่เรียกเก็บเงิน</span>`;
 }
 
+// ตั้งใบงานเป็นไม่เรียกเก็บเงินแล้วบันทึก — ไม่สำเร็จคืนค่าเดิมในหน่วยความจำ (คืนผลจาก saveJob)
+async function saveJobNoCharge(j, reason, options) {
+    const before = { ...j };
+    Object.assign(j, { paymentStatus: JOB_NO_CHARGE, noChargeReason: String(reason).trim(), noChargeBy: currentUser.id || null,
+        noChargeAt: new Date().toISOString(), updatedAt: localDateISO(new Date()) });
+    const r = await callCloudAPI("saveJob", { jobData: j, billing: true }, options);
+    if (!r || r.status === "error") Object.assign(j, before);
+    return r;
+}
+
 async function markJobNoCharge(jobId) {
     if (!can('finance')) return;
     const j = jobs.find(x => x.id === jobId);
@@ -18864,15 +18762,8 @@ async function markJobNoCharge(jobId) {
         title: 'ไม่เรียกเก็บเงิน', okText: 'บันทึก', placeholder: 'เช่น แถมลูกค้าประจำ / แก้งานที่เราผิดเอง / รวมในบิลอื่นแล้ว' });
     if (reason === null || reason === undefined) return;
     if (!String(reason).trim()) { uiAlert('กรุณาระบุเหตุผลที่ไม่เรียกเก็บเงิน'); return; }
-    const before = { ...j };
-    j.paymentStatus = JOB_NO_CHARGE;
-    j.noChargeReason = String(reason).trim();
-    j.noChargeBy = currentUser.id || null;
-    j.noChargeAt = new Date().toISOString();
-    j.updatedAt = localDateISO(new Date());
-    const r = await callCloudAPI("saveJob", { jobData: j, billing: true });
+    const r = await saveJobNoCharge(j, reason);
     if (!r || r.status === "error") {
-        Object.assign(j, before);
         showToast(`บันทึกไม่สำเร็จ: ${(r && r.message) || 'เชื่อมต่อไม่ได้'}`, "danger");
         return;
     }
@@ -22036,13 +21927,11 @@ const WIDGET_BOARDS = {
             { id: 'pill-workers', kind: 'pill', size: 's', els: () => [pillOf('stat-total-workers')] },
             { id: 'pill-open-jobs', kind: 'pill', size: 's', els: () => [pillOf('stat-open-jobs')] },
             { id: 'pill-expiry', kind: 'pill', size: 's', els: () => [pillOf('stat-expiry-warnings')] },
-            { id: 'pill-missing-docs', kind: 'pill', size: 's', els: () => [pillOf('stat-missing-docs')] },
             { id: 'pill-overdue', kind: 'pill', size: 's', els: () => [pillOf('stat-overdue-invoices')] },
             { id: 'panel-expiry', kind: 'block', size: 'xl', els: () => [document.querySelector('#db-tab-overview .panel-alerts')] },
             { id: 'panel-nationality', kind: 'block', size: 's', els: () => [document.querySelector('#db-tab-overview .panel-charts')] },
             { id: 'panel-worker-provinces', kind: 'block', size: 's', els: () => [document.querySelector('#db-tab-overview .panel-worker-provinces')] },
             { id: 'panel-job-status', kind: 'block', size: 's', els: () => [document.querySelector('#db-tab-overview .panel-job-status')] },
-            { id: 'panel-missing-docs', kind: 'block', size: 'xl', els: () => [panelOf('search-dashboard-missing-docs')] }
         ]
     },
     finance: {
@@ -22602,7 +22491,6 @@ function openStatTarget(target) {
             switchJobView('table');
             break;
         case 'expiry': scrollToWidget('dashboard', 'panel-expiry'); break;
-        case 'missing-docs': scrollToWidget('dashboard', 'panel-missing-docs'); break;
         case 'stale-jobs': scrollToWidget('jobs', 'list-stale'); break;
         case 'appointments': scrollToWidget('jobs', 'list-appts'); break;
         case 'overdue-bills':

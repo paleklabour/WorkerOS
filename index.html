@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261028j">
+    <link rel="stylesheet" href="styles.css?v=20261028k">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -281,10 +281,6 @@
                                     <h3 id="stat-expiry-warnings">0</h3>
                                     <p>เอกสารใกล้หมดอายุ/หมดอายุแล้ว</p>
                                 </div>
-                                <div class="stat-pill tone-orange" data-go="missing-docs" role="button" tabindex="0">
-                                    <h3 id="stat-missing-docs">0</h3>
-                                    <p>คนงานที่ยังไม่ได้แนบเอกสาร</p>
-                                </div>
                                 <div class="stat-pill tone-red needs-finance" data-go="overdue-bills" role="button" tabindex="0">
                                     <h3 id="stat-overdue-invoices">0</h3>
                                     <p>บิลค้างชำระเกิน 15 วัน</p>
@@ -373,43 +369,6 @@
                                     </div>
                                     <div class="panel-content">
                                         <div id="db-job-status-chart" class="dash-pie"></div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Second Row: Workers with Missing Documents -->
-                            <div class="dashboard-grid" style="margin-top: 25px;">
-                                <div class="dashboard-panel" style="flex: 1;">
-                                    <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center;">
-                                        <h3><span class="ico" data-icon="warn"></span> รายชื่อคนงานต่างด้าวที่ยังไม่ได้แนบเอกสาร (ป้องกันการตกหล่น)</h3>
-                                        <span class="badge" style="background-color:#f97316; color:white; font-weight: 600;" id="missing-docs-count-badge">0 คน</span>
-                                    </div>
-                                    <div style="padding: 10px 14px 0;">
-                                        <div class="search-box" style="max-width: 100%;">
-                                            <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle class="fl" cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/></svg>
-                                            <input type="text" id="search-dashboard-missing-docs" placeholder="ค้นหาชื่อ, เลข 13 หลัก, เลขใบอนุญาต/พาสปอร์ต/บัตรชมพู, สัญชาติ, นายจ้าง หรือเอกสารที่ขาด เช่น พาสปอร์ต..." oninput="renderMissingDocsOverview()">
-                                        </div>
-                                    </div>
-                                    <div class="panel-content" style="padding: 0; overflow-x: auto;">
-                                        <table class="data-table" style="box-shadow: none; border: none; border-radius: 0;">
-                                            <thead>
-                                                <tr>
-                                                    <th>รูปถ่าย</th>
-                                                    <th>ชื่อคนงานต่างด้าว</th>
-                                                    <th>สัญชาติ</th>
-                                                    <th>นายจ้าง / บริษัท</th>
-                                                    <th style="text-align: center; white-space: nowrap;">WP</th>
-                                                    <th style="text-align: center; white-space: nowrap;">พาสปอร์ต/CI</th>
-                                                    <th style="text-align: center; white-space: nowrap;">บัตร/ทะเบียนบ้านพม่า</th>
-                                                    <th style="text-align: center; white-space: nowrap;">ใบรับรองแพทย์</th>
-                                                    <th style="text-align: center; white-space: nowrap;">ประกัน</th>
-                                                    <th style="text-align: center; width: 160px;">จัดการ</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="dashboard-missing-docs-tbody">
-                                                <!-- Dynamic list of workers with missing docs -->
-                                            </tbody>
-                                        </table>
                                     </div>
                                 </div>
                             </div>
@@ -3799,6 +3758,6 @@
     </script>
 
     <!-- ตัวเปิดระบบ: หน้าล็อกอินใช้แค่ boot.js — supabase-client.js + app.js (เลข v เดียวกัน) โหลดหลังล็อกอินเท่านั้น -->
-    <script src="boot.js?v=20261028j"></script>
+    <script src="boot.js?v=20261028k"></script>
 </body>
 </html>
