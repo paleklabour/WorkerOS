@@ -14071,6 +14071,7 @@ function openCombineBillsModal(kind = billingKind) {
     if (selectAllWrap) selectAllWrap.classList.add("hidden");
     document.getElementById("combine-total-amount").innerText = "0.00";
     document.getElementById("btn-generate-combined").disabled = true;
+    document.getElementById("btn-combine-nocharge").disabled = true;
 
     document.getElementById("combine-bills-modal").classList.remove("hidden");
 }
@@ -14101,6 +14102,7 @@ function onCombineCustomerChange() {
         `;
         document.getElementById("combine-total-amount").innerText = "0.00";
         document.getElementById("btn-generate-combined").disabled = true;
+        document.getElementById("btn-combine-nocharge").disabled = true;
         return;
     }
 
@@ -14158,6 +14160,44 @@ function updateCombineTotalAmount() {
 
     // Toggle generate button
     document.getElementById("btn-generate-combined").disabled = checkboxes.length === 0;
+    const noChargeBtn = document.getElementById("btn-combine-nocharge");
+    if (noChargeBtn) {
+        noChargeBtn.disabled = checkboxes.length === 0;
+        noChargeBtn.lastChild.textContent = checkboxes.length > 1 ? ` ไม่เรียกเก็บเงิน (${checkboxes.length})` : ' ไม่เรียกเก็บเงิน';
+    }
+}
+
+// รวมบิล: ตั้งใบงานที่ติ๊กไว้หลายใบเป็น "ไม่เรียกเก็บเงิน" พร้อมกัน — เหตุผลเดียวใช้ทุกใบ (owner 2026-10-28)
+async function markCombineSelectedNoCharge() {
+    if (!can('finance')) return;
+    const ids = Array.from(document.querySelectorAll('input[name="combine-job-checkbox"]:checked')).map(cb => cb.value);
+    const list = ids.map(id => jobs.find(j => j.id === id)).filter(j => j && jobAwaitingBill(j));
+    if (!list.length) return;
+    const names = list.map(j => {
+        const w = workers.find(x => x.id === j.workerId);
+        return `• ${getCleanJobTypeName(j.jobType)} — ${w ? workerFullName(w) : 'ไม่ระบุคนงาน'}`;
+    });
+    const shown = names.length > 12 ? [...names.slice(0, 12), `… และอีก ${names.length - 12} ใบ`] : names;
+    const reason = await uiPrompt(`ตั้ง ${list.length} ใบงานเป็น "ไม่เรียกเก็บเงิน" — ไม่ออกบิลและไม่มีค่าคอม Agent\n${shown.join('\n')}\n\nกรุณาระบุเหตุผล (ใช้กับทุกใบ)`, {
+        title: 'ไม่เรียกเก็บเงิน', okText: `บันทึก ${list.length} ใบ`, placeholder: 'เช่น แถมลูกค้าประจำ / แก้งานที่เราผิดเอง / รวมในบิลอื่นแล้ว' });
+    if (reason === null || reason === undefined) return;
+    if (!String(reason).trim()) { uiAlert('กรุณาระบุเหตุผลที่ไม่เรียกเก็บเงิน'); return; }
+    let ok = 0, failed = 0;
+    for (const j of list) {
+        const before = { ...j };
+        Object.assign(j, { paymentStatus: JOB_NO_CHARGE, noChargeReason: String(reason).trim(), noChargeBy: currentUser.id || null,
+            noChargeAt: new Date().toISOString(), updatedAt: localDateISO(new Date()) });
+        const r = await callCloudAPI("saveJob", { jobData: j, billing: true }, { silent: true });
+        if (!r || r.status === "error") { Object.assign(j, before); failed++; } else ok++;
+    }
+    saveData();
+    renderBillingTab();
+    renderJobs();
+    renderDashboard();
+    if (customersAwaitingBill().some(c => c.id === document.getElementById("combine-cust-select").value)) onCombineCustomerChange();
+    else openCombineBillsModal(combineKind);
+    if (failed) showToast(`ตั้งไม่เรียกเก็บเงินแล้ว ${ok} ใบ — บันทึกไม่สำเร็จ ${failed} ใบ`, "danger");
+    else showToast(`ตั้ง ${ok} ใบงานเป็น "ไม่เรียกเก็บเงิน" แล้ว`, "success");
 }
 
 function toggleCombineSelectAll(checked) {

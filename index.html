@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261028i">
+    <link rel="stylesheet" href="styles.css?v=20261028j">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -3370,6 +3370,9 @@
                 </div>
                 <div class="modal-footer">
                     <button class="btn btn-outline" onclick="closeCombineBillsModal()">ยกเลิก</button>
+                    <button class="btn btn-outline needs-finance" id="btn-combine-nocharge" onclick="markCombineSelectedNoCharge()" disabled title="ตั้งใบงานที่ติ๊กไว้เป็นไม่เรียกเก็บเงิน (ใส่เหตุผลครั้งเดียว)">
+                        <span class="ico" data-icon="ban"></span> ไม่เรียกเก็บเงิน
+                    </button>
                     <button class="btn btn-gold" id="btn-generate-combined" onclick="generateCombinedInvoice()" disabled>
                         <span class="ico" data-icon="receipt"></span> สร้างใบแจ้งหนี้รวม (Generate Bill)
                     </button>
@@ -3796,6 +3799,6 @@
     </script>
 
     <!-- ตัวเปิดระบบ: หน้าล็อกอินใช้แค่ boot.js — supabase-client.js + app.js (เลข v เดียวกัน) โหลดหลังล็อกอินเท่านั้น -->
-    <script src="boot.js?v=20261028i"></script>
+    <script src="boot.js?v=20261028j"></script>
 </body>
 </html>
