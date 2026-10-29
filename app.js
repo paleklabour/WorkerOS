@@ -9098,7 +9098,7 @@ const TM7_FORM = {
             ['port', 126, 331, 326], ['arrD', 330, 331, 370], ['arrM', 393, 331, 481], ['arrY', 504, 331, 553],
             ['tm6', 248, 297, 403], ['days', 419, 263, 539], ['daysEn', 425, 245, 467],
             ['reason1', 136, 227, 555], ['reason2', 73, 193, 552], ['reason3', 73, 176, 552], ['reason4', 73, 159, 552],
-            ['phone', 283, 56, 485]
+            ['phone', 366, 56, 485]
         ],
         [ // หน้า 2
             ['addressTh', 165, 752, 551], ['writer', 213, 714, 513],
@@ -9162,7 +9162,7 @@ function renderGovForm(form, values) {
     const fontPx = 10 * k;
     sheet.innerHTML = form.pages.map((fields, pi) => `<div class="bt46-form gov-form-page" data-page="${pi}"><img class="bt46-bg" alt="แบบฟอร์ม หน้า ${pi + 1}">
         ${fields.map(([key, x, y, maxX]) => `<span class="bt46-f gov-f" data-key="${key}" contenteditable="true" spellcheck="false" title="คลิกเพื่อแก้ไข"
-            style="left:${x * k}px; top:${(841.89 - y) * k - fontPx - 3}px; width:${(maxX - x) * k}px; font-size:${fontPx}px">${escapeHtml(values[key] || '')}</span>`).join('')}</div>`).join('');
+            style="left:${x * k}px; top:${(841.89 - y) * k - fontPx - 5}px; width:${(maxX - x) * k}px; font-size:${fontPx}px">${escapeHtml(values[key] || '')}</span>`).join('')}</div>`).join('');
     govFormBackgrounds(form.file).then(list => sheet.querySelectorAll('.gov-form-page .bt46-bg').forEach((img, i) => { if (list[i]) img.src = list[i]; }))
         .catch(e => showUploadPill('bad', 'โหลดแบบฟอร์มไม่สำเร็จ', e.message));
 }
@@ -9193,7 +9193,7 @@ async function exportGovFormPdf(form, prefix) {
                 const s = String(el ? el.textContent : '').replace(/\s+/g, ' ').trim();
                 if (!s) return;
                 const w = font.widthOfTextAtSize(s, size), maxW = maxX - x;
-                page.drawText(s, { x, y: y + 1.5, size: w > maxW ? Math.max(7, size * maxW / w) : size, font }); // ยาวเกินเส้น → ย่อให้พอดี
+                page.drawText(s, { x, y: y + 2.5, size: w > maxW ? Math.max(7, size * maxW / w) : size, font }); // ยาวเกินเส้น → ย่อให้พอดี
             });
         });
         const blob = new Blob([await doc.save()], { type: 'application/pdf' });
