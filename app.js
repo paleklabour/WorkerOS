@@ -8789,7 +8789,7 @@ function getCurrentFormDeliveryInfo() {
     const sameAsMain = document.getElementById("cust-delivery-same-as-main").checked;
 
     if (sameAsMain) {
-        const hq = customerBranches.find(b => (b.name || "").includes("สำนักงานใหญ่")) || customerBranches[0] || {};
+        const hq = customerBranches[0] || {}; // สาขาที่ 1 เสมอ (owner 2026-10-29 — เดิมหาสาขาชื่อ "สำนักงานใหญ่" ก่อน)
         return {
             recipientName: coordinator || companyName,
             companyName, phone,
