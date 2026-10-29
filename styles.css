@@ -6767,7 +6767,7 @@ body.has-camera .upload-hint { display: none; }
 .bt46-form .bt46-f:hover, .bt46-form .bt46-f:focus { background: #fff3c4; box-shadow: 0 0 0 1px #f0c94a; }
 .bt46-form .bt46-box { position: absolute; width: 17px; height: 17px; cursor: pointer; border-radius: 3px; }
 .bt46-form .bt46-box:hover { background: rgba(45, 108, 246, 0.15); }
-.bt46-form .bt46-box.is-on::after { content: "✓"; position: absolute; left: 1px; top: -5px; font-size: 19px; font-weight: 700; color: #0b2a6b; }
+.bt46-form .bt46-box.is-on::after { content: "✓"; position: absolute; left: 3px; top: -6px; font-size: 19px; font-weight: 700; color: #0b2a6b; }
 .bt46-form .bt46-sig { position: absolute; object-fit: contain; }
 
 @media print {
