@@ -6172,7 +6172,7 @@ function renderBillingTab() {
                 <td>${escapeHtml(cleanJobType)}<br><small class="text-muted">${escapeHtml(work ? workerFullName(work) : 'ไม่พบข้อมูลคนงาน')}</small>${work && work.workerUid ? `<br><small class="text-muted">เลขประจำตัว ${escapeHtml(work.workerUid)}</small>` : ''}</td>
                 <td class="inv-num"><strong>${fmtMoney(estimate)}</strong>${j.fee > 0 ? '' : '<br><small class="text-muted">ราคามาตรฐาน</small>'}</td>
                 <td class="inv-num text-muted">-</td>
-                <td><span class="badge badge-lg ${isClosed ? 'badge-danger' : 'badge-gold'}">${isClosed ? `${icon("warn")} ปิดงานแล้ว ยังไม่ออกบิล` : escapeHtml(j.status || '-')}</span></td>
+                <td><span class="badge badge-lg ${isClosed ? 'badge-danger' : 'badge-warning'}">${isClosed ? `${icon("warn")} ปิดงานแล้ว ยังไม่ออกบิล` : escapeHtml(j.status || '-')}</span></td>
                 <td class="actions-col">
                     <button class="btn btn-sm btn-gold" onclick="openInvoiceModal('${j.id}')" style="white-space: nowrap;">${icon("receipt")} ออกบิล</button>
                     ${can('finance') ? `<button class="btn btn-sm btn-outline" onclick="markJobNoCharge('${j.id}')" style="white-space: nowrap;" title="งานนี้ไม่คิดเงินลูกค้า — ไม่ต้องออกบิล">ไม่เรียกเก็บเงิน</button>` : ''}
@@ -9690,7 +9690,7 @@ function renderJobs() {
                 <td><div class="employer-name">${custName}</div>${custIdLines}${agentLine}</td>
                 <td>${workName}${work && work.email ? `<div class="job-worker-email">${escapeHtml(work.email)}</div>` : ''}</td>
                 <td onclick="event.stopPropagation()">${canEditJob(j)
-                    ? `<input type="text" class="job-remark-input" id="job-remark-${j.id}" maxlength="20" value="${escapeHtml(j.remark || '')}" placeholder="หมายเหตุ" title="หมายเหตุสั้น ไม่เกิน 20 ตัวอักษร — พิมพ์แล้วกด Enter หรือคลิกที่อื่นเพื่อบันทึก" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}" onchange="saveJobRemark('${j.id}', this)">`
+                    ? `<input type="text" class="job-remark-input" id="job-remark-${j.id}" maxlength="100" value="${escapeHtml(j.remark || '')}" placeholder="หมายเหตุ" title="หมายเหตุสั้น ไม่เกิน 100 ตัวอักษร — พิมพ์แล้วกด Enter หรือคลิกที่อื่นเพื่อบันทึก" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}" onchange="saveJobRemark('${j.id}', this)">`
                     : (j.remark ? escapeHtml(j.remark) : '<span class="text-muted">-</span>')}${jobTagSelectHtml(j)}</td>
                 <td><span class="badge ${statusClass}">${displayStatus}</span><br>${paymentBadge}${prepaymentBadge}</td>
                 <td onclick="event.stopPropagation()">
@@ -9751,7 +9751,7 @@ function handleJobOrderNoButton(jobId) {
 async function saveJobRemark(jobId, input) {
     const j = jobs.find(item => item.id === jobId);
     if (!j || !canEditJob(j)) return;
-    const remark = String(input.value || '').trim().slice(0, 20);
+    const remark = String(input.value || '').trim().slice(0, 100);
     input.value = remark;
     if ((j.remark || '') === remark) return;
     const jobData = Object.assign({}, j, { remark: remark || null });
