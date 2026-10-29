@@ -981,12 +981,6 @@
                 }
                 return { status: "success" };
             }
-            case "setCustomerBillingNote": {
-                // Note วางบิล — การเงิน/ปฏิบัติการ แก้ได้ตอนออกบิล ดู 20261013060106_customer_billing_note_finance.sql
-                const { error } = await sb.rpc("set_customer_billing_note", { p_customer_id: payload.customerId, p_note: payload.note || "" });
-                if (error) return { status: "error", message: error.message };
-                return { status: "success" };
-            }
             case "getJobShareToken": {
                 // ลิงก์โฟลเดอร์เอกสารปิดงาน (พนักงาน + ลูกค้าเจ้าของใบงาน) ดู 20261026055749_job_close_docs_share_link.sql
                 const { data, error } = await sb.rpc("job_share_token", { p_job_id: payload.jobId });

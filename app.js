@@ -15613,48 +15613,6 @@ async function deleteStorageFileByUrl(url) {
     }
 }
 
-// ==================== ถามผู้ใช้ตอน AI อ่านเอกสารไม่สำเร็จ: กรอกเอง หรือรอแนบใหม่ ====================
-// งานที่แนบทีละหลายไฟล์ (bulk import / แฟ้มเอกสาร) เรียก beginAiRejectedBatch() ก่อนวนไฟล์ และ endAiRejectedBatch()
-// หลังจบ เพื่อให้มีช่อง "ใช้คำตอบนี้กับไฟล์ที่เหลือ" ไม่ต้องตอบซ้ำทุกไฟล์
-let aiRejectedBatchActive = false;
-let aiRejectedBatchChoice = null;
-let pendingAiRejectedResolve = null;
-
-function beginAiRejectedBatch() {
-    aiRejectedBatchActive = true;
-    aiRejectedBatchChoice = null;
-}
-
-function endAiRejectedBatch() {
-    aiRejectedBatchActive = false;
-    aiRejectedBatchChoice = null;
-}
-
-function askAiRejectedChoice(fileName, ocrError) {
-    if (aiRejectedBatchChoice) return Promise.resolve(aiRejectedBatchChoice);
-
-    document.getElementById("ai-rejected-title").innerHTML = ocrError === 'busy' ? "" + icon("warn") + " AI ไม่ว่าง" : "" + icon("warn") + " AI อ่านเอกสารไม่สำเร็จ";
-    document.getElementById("ai-rejected-filename").innerHTML = `${icon("file")} ${escapeHtml(fileName)}`;
-    document.getElementById("ai-rejected-text").innerText = ocrError === 'busy'
-        ? "Gemini มีผู้ใช้งานมากตอนนี้ AI จึงยังอ่านเอกสารนี้ไม่ได้ ไฟล์ยังไม่ถูกบันทึก ต้องการทำอย่างไร?"
-        : "AI อ่านข้อมูลจากเอกสารนี้ไม่ได้ (ไฟล์อาจไม่ชัด หรือไม่ใช่เอกสารประเภทนี้) ไฟล์ยังไม่ถูกบันทึก ต้องการทำอย่างไร?";
-    document.getElementById("ai-rejected-remember").checked = false;
-    document.getElementById("ai-rejected-remember-wrap").classList.toggle("hidden", !aiRejectedBatchActive);
-    document.getElementById("ai-rejected-modal").classList.remove("hidden");
-
-    return new Promise(resolve => { pendingAiRejectedResolve = resolve; });
-}
-
-function resolveAiRejectedChoice(choice) {
-    document.getElementById("ai-rejected-modal").classList.add("hidden");
-    if (aiRejectedBatchActive && document.getElementById("ai-rejected-remember").checked) {
-        aiRejectedBatchChoice = choice;
-    }
-    const resolve = pendingAiRejectedResolve;
-    pendingAiRejectedResolve = null;
-    if (resolve) resolve(choice);
-}
-
 // ช่องที่ต้องกรอกเองเมื่อผู้ใช้เลือก "บันทึกไฟล์ กรอกเอง" — ตามประเภทเอกสาร (ช่องแรก = ช่องที่ได้ focus)
 const MANUAL_ENTRY_FIELDS = {
     'worker-wp-doc': ['worker-permit-no', 'worker-permit-expiry'],
@@ -16163,7 +16121,6 @@ async function handleCustomerFolderFileUpload(event) {
     let anyAiRead = false;
     let aiRejectedCount = 0; // AI อ่านไม่สำเร็จ = ไม่ได้บันทึกไฟล์ (ต้องแนบใหม่)
     let needsManualEntry = false; // มีไฟล์ที่ผู้ใช้เลือก "บันทึกไฟล์ กรอกเอง"
-    beginAiRejectedBatch();
     for (const file of files) {
         const idx = customers.findIndex(x => x.id === activeFolderCustomerId);
         if (idx === -1) break;
@@ -16179,7 +16136,6 @@ async function handleCustomerFolderFileUpload(event) {
         }
     }
 
-    endAiRejectedBatch();
     if (anyAiRead) showToast("✨ AI อ่านข้อมูลจากเอกสารและอัปเดตข้อมูลนายจ้างให้อัตโนมัติแล้ว กรุณาตรวจสอบความถูกต้องอีกครั้ง", "success");
     if (aiRejectedCount > 0) showToast(`⚠️ AI อ่านไม่สำเร็จ ${aiRejectedCount} จาก ${files.length} ไฟล์ — ไฟล์เหล่านี้ยังไม่ได้บันทึก กรุณาแนบใหม่อีกครั้งในอีกสักครู่`, "warning");
     if (failCount > 0) showToast(`❌ อัปโหลดไม่สำเร็จ ${failCount} จาก ${files.length} ไฟล์`, "danger");
@@ -17888,7 +17844,6 @@ async function handleFolderFileUpload(event) {
     let aiRejectedCount = 0; // AI อ่านไม่สำเร็จ = ไม่ได้บันทึกไฟล์ (ต้องแนบใหม่)
     let cancelledCount = 0; // กด "ไม่อัปโหลด" (เลข 13 หลักไม่ตรง) = ไม่ได้บันทึกไฟล์ตามที่ผู้ใช้เลือก
     let needsManualEntry = false; // มีไฟล์ที่ผู้ใช้เลือก "บันทึกไฟล์ กรอกเอง"
-    beginAiRejectedBatch();
     for (const file of files) {
         const workerIdx = workers.findIndex(w => w.id === activeFolderWorkerId);
         if (workerIdx === -1) break;
@@ -17910,7 +17865,6 @@ async function handleFolderFileUpload(event) {
         }
     }
 
-    endAiRejectedBatch();
     if (anyAiRead) showToast("✨ AI อ่านข้อมูลจากเอกสารสำเร็จ กำลังอัปเดตข้อมูลคนงาน", "success");
     if (cancelledCount > 0) showToast(`ไม่ได้อัปโหลด ${cancelledCount} จาก ${files.length} ไฟล์ — เลข 13 หลักไม่ตรงกับคนงานนี้`, "warning");
     if (aiRejectedCount > 0) showToast(`⚠️ AI อ่านไม่สำเร็จ ${aiRejectedCount} จาก ${files.length} ไฟล์ — ไฟล์เหล่านี้ยังไม่ได้บันทึก กรุณาแนบใหม่อีกครั้งในอีกสักครู่`, "warning");
@@ -18992,7 +18946,6 @@ async function runBulkImport() {
 
     let successCount = 0;
     let failCount = 0;
-    beginAiRejectedBatch();
 
     for (let i = 0; i < rowsToImport.length; i++) {
         const row = rowsToImport[i];
@@ -19024,7 +18977,6 @@ async function runBulkImport() {
         renderBulkImportTable();
     }
 
-    endAiRejectedBatch();
     btn.disabled = false;
     if (aiBtn) aiBtn.disabled = false;
     renderBulkImportTable();
