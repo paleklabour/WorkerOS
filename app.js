@@ -6864,7 +6864,9 @@ function renderWorkerExpiryLine(label, expDate, daysLeft, warnDays) {
         return `<div class="worker-expiry-line text-muted"><span>${label}:</span> -</div>`;
     }
     const cls = daysLeft < 0 ? 'text-danger' : (daysLeft <= warnDays ? 'text-warning' : 'text-muted');
-    return `<div class="worker-expiry-line ${cls}"><span>${label}:</span> <strong>${formatThaiDate(expDate)}</strong></div>`;
+    // จุดสีหน้าวันที่ (owner 2026-10-29 — แบบแผงคนงาน): แดง = หมดแล้ว, ส้ม = ใกล้หมด, เขียว = ปกติ
+    const dot = daysLeft < 0 ? 'is-bad' : (daysLeft <= warnDays ? 'is-warn' : 'is-ok');
+    return `<div class="worker-expiry-line ${cls}"><span>${label}:</span> <span class="fv-dot ${dot}" title="${daysLeft < 0 ? 'หมดอายุแล้ว' : daysLeft <= warnDays ? 'ใกล้หมดอายุ' : 'ปกติ'}"></span><strong>${formatThaiDate(expDate)}</strong></div>`;
 }
 
 let selectedPendingWorkerIds = new Set();
