@@ -2854,7 +2854,7 @@ td > .ico {
 }
 /* หน้าต่างที่มีแท็บ: สูงคงที่ สลับแท็บแล้วขนาดไม่กระโดด (เจ้าของระบบ 2026-10-29 — ขนาดไม่เท่ากันทำให้ปวดตา) เนื้อหาเลื่อนข้างใน */
 #customer-modal > .modal-content { height: 94vh; }
-#combine-bills-modal > .modal-content { height: min(88vh, 860px); }
+#combine-bills-modal > .modal-content { height: 94vh; max-width: min(1180px, 95vw); } /* รวมบิล: กว้างขึ้น (owner 2026-10-29) */
 .combine-jobs-head {
     display: flex;
     align-items: center;
@@ -8744,3 +8744,11 @@ button.jq-worker:hover { background-color: var(--gold-light); }
 @media (max-width: 760px) { .rn-fpick-body { grid-template-columns: 1fr; grid-template-rows: auto minmax(220px, 1fr); } }
 .rn-fpick-note { margin-left: 6px; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--gold-light); color: var(--gold-primary); }
 .rn-fpick-hint { flex: 1; color: var(--text-muted); font-size: 12.5px; }
+
+/* หน้าต่างตาราง/รายการยาว ขยายเท่าแฟ้มเอกสาร (owner 2026-10-29): Bulk Import, รายการเดินบัญชี, เทียบ statement, วางรายชื่อ e-WorkPermit */
+#bulk-import-modal > .modal-content.large,
+#ledger-modal > .modal-content.large,
+#statement-modal > .modal-content.large,
+#ewp-paste-modal > .modal-content.large { width: 96vw; max-width: min(1440px, 96vw); max-height: 94vh; }
+/* จ่ายค่าคอม Agent: มีรายการใบงาน — จาก 640px (inline style) เป็น 1180px */
+#commission-modal > .modal-content { max-width: min(1180px, 95vw) !important; width: 95vw; }
