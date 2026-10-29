@@ -8241,9 +8241,45 @@ function removeStagedWorkerAttachment(docType, index) {
 // ==================== MODAL ACTIONS (SAVE, EDIT, DELETE) ====================
 
 // --- CUSTOMERS ---
+// บริการที่นายจ้างใช้กับเรา (customers.services, เจ้าของระบบ 2026-10-29): ตัวเลือก = ประเภทงานในฟอร์มเปิดใบงาน (ยกเว้น "อื่นๆ")
+function jobTypeServiceOptions() {
+    return [...document.querySelectorAll('#job-type-checkboxes-container input[name="job-type-checkbox"]')]
+        .filter(cb => cb.value !== 'อื่นๆ')
+        .map(cb => ({ value: cb.value, label: cb.parentElement.textContent.trim() }));
+}
+
+function renderCustomerServices(selected) {
+    const box = document.getElementById('cust-services');
+    if (!box) return;
+    const on = new Set(selected || []);
+    box.innerHTML = jobTypeServiceOptions().map(o => `
+        <label class="cust-service-item"><input type="checkbox" name="cust-service" value="${escapeHtml(o.value)}" data-label="${escapeHtml(o.label)}"${on.has(o.value) ? ' checked' : ''} onchange="updateCustomerServicesSummary()"> ${escapeHtml(o.label)}</label>`).join('');
+    updateCustomerServicesSummary();
+}
+
+// ช่องเดียวในฟอร์มนายจ้าง: แสดงบริการที่ติ๊กไว้ ชี้เมาส์แล้วรายการติ๊กเด้งออกมา (เจ้าของระบบ 2026-10-29 — ฟอร์มยาวแล้ว)
+function updateCustomerServicesSummary() {
+    const el = document.getElementById('cust-services-summary');
+    if (!el) return;
+    const picked = [...document.querySelectorAll('#cust-services input[name="cust-service"]:checked')].map(cb => cb.dataset.label);
+    el.textContent = picked.length ? picked.join(', ') : 'ยังไม่ได้เลือก';
+    el.classList.toggle('text-muted', !picked.length);
+}
+
+// ฟอร์มเปิดใบงาน: ประเภทงานที่นายจ้างที่เลือกใช้กับเรา = สีเขียว (ยังติ๊กประเภทอื่นได้ตามปกติ)
+function highlightJobTypesForCustomer(custId) {
+    const cust = customers.find(c => c.id === custId);
+    const on = new Set((cust && cust.services) || []);
+    document.querySelectorAll('#job-type-checkboxes-container input[name="job-type-checkbox"]').forEach(cb => {
+        const tile = cb.closest('#job-type-checkboxes-container > div');
+        if (tile) tile.classList.toggle('is-cust-service', on.has(cb.value));
+    });
+}
+
 function openCustomerModal(id = null) {
     // Reset forms
     document.getElementById("customer-form").reset();
+    renderCustomerServices(id ? (customers.find(c => c.id === id) || {}).services : []);
     document.querySelectorAll("#cust-business-type .bt-extra").forEach(el => el.remove());
     const modalTitle = document.getElementById("customer-modal-title");
     const editIdInput = document.getElementById("customer-edit-id");
@@ -8551,6 +8587,7 @@ async function saveCustomer(e) {
     const requirePrepayment = document.getElementById("cust-require-prepayment").checked;
     const email = document.getElementById("cust-email").value.trim();
     const driveShare = document.getElementById("cust-drive-share").checked;
+    const services = [...document.querySelectorAll('#cust-services input[name="cust-service"]:checked')].map(cb => cb.value);
     if (driveShare && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { uiAlert("กรุณากรอกอีเมลลูกค้าให้ถูกต้องก่อนเปิดแชร์โฟลเดอร์ Google Drive"); return; }
     const certIssueDateRaw = document.getElementById("cust-cert-issue-date").value.trim();
     if (certIssueDateRaw && !isValidDate(certIssueDateRaw)) {
@@ -8603,7 +8640,7 @@ async function saveCustomer(e) {
             const oldDriveId = customers[idx].drive_folder_id || "";
             const oldAttachments = JSON.parse(JSON.stringify(customers[idx].attachments || {}));
             customerData = {
-                id: editId, status: customers[idx].status || "active", unlockUnpaidJobDocs: !!customers[idx].unlockUnpaidJobDocs, taxId, companyName, directorId, businessType, coordinator, phone, referredByAgentId, billingNote: customers[idx].billingNote || "", requirePrepayment, email, driveShare, certIssueDate, certExpiry, deliveryAddress, branches: customerBranches, createdAt: oldCreatedAt, drive_folder_id: oldDriveId, attachments: oldAttachments
+                id: editId, status: customers[idx].status || "active", unlockUnpaidJobDocs: !!customers[idx].unlockUnpaidJobDocs, taxId, companyName, directorId, businessType, coordinator, phone, referredByAgentId, billingNote: customers[idx].billingNote || "", requirePrepayment, services, email, driveShare, certIssueDate, certExpiry, deliveryAddress, branches: customerBranches, createdAt: oldCreatedAt, drive_folder_id: oldDriveId, attachments: oldAttachments
             };
         }
     } else {
@@ -8611,7 +8648,7 @@ async function saveCustomer(e) {
         const newId = 'cust-' + Date.now();
         const createdAt = new Date().toISOString().split('T')[0];
         customerData = {
-            id: newId, taxId, companyName, directorId, businessType, coordinator, phone, referredByAgentId, billingNote: "", requirePrepayment, email, driveShare, certIssueDate, certExpiry, deliveryAddress, branches: customerBranches, createdAt, drive_folder_id: "", attachments: {}
+            id: newId, taxId, companyName, directorId, businessType, coordinator, phone, referredByAgentId, billingNote: "", requirePrepayment, services, email, driveShare, certIssueDate, certExpiry, deliveryAddress, branches: customerBranches, createdAt, drive_folder_id: "", attachments: {}
         };
     }
 
@@ -10283,6 +10320,7 @@ function openJobModal(id = null) {
     }
 
     document.getElementById("job-form").reset();
+    highlightJobTypesForCustomer(''); // ล้างสีเขียวของนายจ้างก่อนหน้า
     setJobWorkerTab('all'); // เปิดฟอร์มทุกครั้ง (ใหม่/แก้ไข) เริ่มที่แท็บคนงานทั้งหมด
 
     // Fill customer dropdown selection
@@ -10442,6 +10480,7 @@ function onJobCustomerChange(preselectedWorkerIds = null) {
     // Agent ผู้ส่งงาน: ล็อกตาม Agent ผู้แนะนำของนายจ้างที่เลือกเสมอ (ตั้งค่าได้ที่หน้าข้อมูลนายจ้างเท่านั้น)
     const cust = customers.find(c => c.id === custId);
     document.getElementById("job-agent-id").value = (cust && cust.referredByAgentId) || "";
+    highlightJobTypesForCustomer(custId); // บริการที่นายจ้างใช้กับเรา = สีเขียว
 
     // Filter workers under this customer
     jobModalWorkers = workers.filter(w => w.employerId === custId);
