@@ -3301,9 +3301,12 @@ function renderRenewalCases() {
     const active = list.filter(r => r.status === 'active' && visible(r.workerId));
     // เสร็จแล้ว (owner 2026-10-20): ได้ Smart card แล้วหายไปเมื่อคนงานทุกคนของนายจ้างนั้นเสร็จหมด (นายจ้างยังมีรอบกำลังดำเนินการ = ยังแสดง)
     // ต่อที่อื่น / ทำเล่มที่อื่นที่ยังรอข้อมูลใหม่ แสดงจนกว่าจะใส่ข้อมูล — ประวัติดูที่แผงคนงาน (renewalHistoryHtml)
+    // + เก็บไว้ 30 วันหลังปิดรอบเสมอ (owner 2026-10-29: นายจ้างที่มีคนเดียว ปิดแล้วหายทันที เช็กย้อนหลังไม่ได้)
     const empBusy = new Set(list.filter(r => r.status === 'active').map(r => r.customerId));
+    const recentSince = localDateISO(new Date(Date.now() - 30 * 86400000));
+    const recent = r => ymd10(r.doneAt || r.startedAt) >= recentSince;
     const done = list.filter(r => (r.status === 'done' || r.status === 'external') && visible(r.workerId)
-        && (renewalExternalPending(r) || renewalBookExternalPending(r) || empBusy.has(r.customerId)));
+        && (renewalExternalPending(r) || renewalBookExternalPending(r) || empBusy.has(r.customerId) || recent(r)));
     const setCount = (id, n) => { const el = document.getElementById(id); if (el) el.textContent = n ? n : ''; };
     setCount('rn-count-due', due.length);
     setCount('rn-count-active', active.length);
