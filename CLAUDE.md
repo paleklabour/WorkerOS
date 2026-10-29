@@ -123,6 +123,10 @@ Owner's rules (2026-10-09):
   amount printed on it** (1,900.00 → REC1900; from the PDF text via `doeReceiptInfoFromFile` / `receiptAmount`, no AI —
   `receiptAmountCode`, `doeAmountTotal`); amount unreadable → REC.
 - OCR may only set `workerUid` if it is exactly 13 digits.
+- Thai 13-digit check digit (owner 2026-10-29): `thaiIdChecksumOk` (mod 11) on inputs marked `data-thai-id` — employer tax id,
+  director id, pink card no. Typing 13 digits that fail = red border + hint under the field (`refreshThaiIdHint`); saving asks
+  "บันทึกต่อ / กลับไปแก้" (`confirmThaiIds`, never a hard block). NOT on the alien id `worker-uid` (e-WorkPermit numbers pass
+  only ~18%, they don't use this check digit).
 - `uploadFile` in `supabase-client.js` sniffs the real file type from the bytes
   (`sniffFileMime`) — Drive had JPEGs named `.pdf` that wouldn't open.
 - Every new worker, whatever the path, shows "รอแจ้งเข้า" until it's verified in

@@ -8656,6 +8656,7 @@ function highlightJobTypesForCustomer(custId) {
 }
 
 function openCustomerModal(id = null) {
+    setTimeout(() => document.querySelectorAll("#customer-modal input[data-thai-id]").forEach(refreshThaiIdHint), 0); // เตือนเลข 13 หลักของข้อมูลที่เปิดมา
     // Reset forms
     document.getElementById("customer-form").reset();
     renderCustomerServices(id ? (customers.find(c => c.id === id) || {}).services : [], id);
@@ -8951,6 +8952,33 @@ function closeDeliveryLabelModal() {
     setPrintPageSize("");
 }
 
+// ตรวจหลักสุดท้ายของเลข 13 หลักไทย (เลขประจำตัวประชาชน / เลขนิติบุคคล / บัตรชมพู) — mod 11 แบบกรมการปกครอง (owner 2026-10-29)
+// เลขประจำตัวคนต่างด้าวจาก e-WorkPermit ไม่ได้ใช้สูตรนี้ (ทดสอบแล้วผ่านแค่ ~18%) จึงไม่ตรวจช่องนั้น
+function thaiIdChecksumOk(v) {
+    const s = String(v || '').trim();
+    if (!/^\d{13}$/.test(s)) return false;
+    let sum = 0;
+    for (let i = 0; i < 12; i++) sum += Number(s[i]) * (13 - i);
+    return (11 - (sum % 11)) % 10 === Number(s[12]);
+}
+// ช่องที่มี data-thai-id: พิมพ์ครบ 13 หลักแล้วเลขไม่ถูกต้อง → ขอบแดง + ข้อความเตือนใต้ช่อง (ไม่บล็อกการพิมพ์)
+function refreshThaiIdHint(input) {
+    const s = String(input.value || '').trim();
+    const bad = /^\d{13}$/.test(s) && !thaiIdChecksumOk(s);
+    input.classList.toggle('is-id-bad', bad);
+    let hint = input.nextElementSibling && input.nextElementSibling.classList.contains('thai-id-hint') ? input.nextElementSibling : null;
+    if (bad && !hint) { hint = document.createElement('small'); hint.className = 'thai-id-hint'; input.after(hint); }
+    if (hint) { hint.textContent = bad ? 'เลข 13 หลักนี้ไม่ถูกต้อง (หลักสุดท้ายไม่ตรง) — ตรวจว่าพิมพ์ผิดหรือไม่' : ''; hint.hidden = !bad; }
+}
+document.addEventListener('input', (e) => { if (e.target.matches && e.target.matches('input[data-thai-id]')) refreshThaiIdHint(e.target); });
+// ก่อนบันทึก: เลขที่ไม่ผ่าน → ถามยืนยัน (เผื่อกรณีพิเศษ) คืน true = บันทึกต่อได้
+async function confirmThaiIds(list) {
+    const bad = list.filter(([, v]) => String(v || '').trim() && /^\d{13}$/.test(String(v).trim()) && !thaiIdChecksumOk(v));
+    if (!bad.length) return true;
+    return !!(await uiConfirm(`${bad.map(([label, v]) => `${label} ${v}`).join('\n')}\nเลขนี้ไม่ถูกต้องตามหลักตรวจสอบ (หลักสุดท้ายไม่ตรง) — น่าจะพิมพ์ผิด`, {
+        title: 'ตรวจเลข 13 หลัก', okText: 'บันทึกต่อ', cancelText: 'กลับไปแก้', danger: false }));
+}
+
 async function saveCustomer(e) {
     e.preventDefault();
     const editId = document.getElementById("customer-edit-id").value;
@@ -8958,6 +8986,7 @@ async function saveCustomer(e) {
     const companyName = document.getElementById("cust-company-name").value;
     if (!getCustomerEntityType()) { uiAlert("กรุณาเลือกประเภทนายจ้างก่อน: นิติบุคคล หรือ บุคคลธรรมดา"); return; }
     const directorId = getCustomerEntityType() === 'individual' ? "" : document.getElementById("cust-director-id").value.trim();
+    if (!(await confirmThaiIds([[getCustomerEntityType() === 'individual' ? 'เลขประจำตัวประชาชนนายจ้าง' : 'เลขนิติบุคคล', taxId], ['เลขประจำตัวกรรมการ', directorId]]))) return;
     const businessTypes = readCustomerBusinessTypes();
     if (businessTypes.length === 0) { uiAlert("กรุณาเลือกประเภทกิจการอย่างน้อย 1 ประเภท"); return; }
     const businessType = businessTypes.join(BUSINESS_TYPE_SEP);
@@ -9276,6 +9305,7 @@ function setupDateMask(elementId) {
 
 // --- WORKERS ---
 function openWorkerModal(id = null) {
+    setTimeout(() => document.querySelectorAll("#worker-modal input[data-thai-id]").forEach(refreshThaiIdHint), 0); // เตือนเลข 13 หลักของข้อมูลที่เปิดมา
     if (customers.length === 0) {
         uiAlert("กรุณาเพิ่มข้อมูล นายจ้าง/ลูกค้า อย่างน้อย 1 รายการก่อนจัดการคนงาน");
         return;
@@ -9419,6 +9449,7 @@ function closeWorkerModal() {
 async function saveWorker(e) {
     e.preventDefault();
     const editId = document.getElementById("worker-edit-id").value;
+    if (!(await confirmThaiIds([["เลขบัตรชมพู", document.getElementById("worker-pink-card-no").value]]))) return; // ตรวจหลักสุดท้าย (owner 2026-10-29)
     const employerId = document.getElementById("worker-employer-id").value;
     
     // Nationality custom logic
