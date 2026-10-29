@@ -134,7 +134,7 @@ Owner's rules (2026-10-09):
   (Thai day / month name / BE year), reason, page 2 address in Thailand = employer branch 1, writer + writer address = the office
   owner นายศรุต คุณารักษ์ (`TM7_WRITER`, same address as the invoice header, owner 2026-10-29); generic `renderGovForm` /
   `exportGovFormPdf` with `TM7_FORM` ([key, x, y, maxX] per page). Same window as บต.46 (`govFormCurrent`,
-  `exportCurrentGovForm`). Visa type, arrival, TM.6, days stay blank for staff to type. The printed "Phone Number" line on page 1 is covered white (`TM7_FORM.cover`, screen `.gov-cover` + PDF rectangle, owner 2026-10-29).
+  `exportCurrentGovForm`). Visa type is always "NON L-A" (owner 2026-10-29); arrival, TM.6, days stay blank for staff to type. The printed "Phone Number" line on page 1 is covered white (`TM7_FORM.cover`, screen `.gov-cover` + PDF rectangle, owner 2026-10-29).
 - Thai 13-digit check digit (owner 2026-10-29): `thaiIdChecksumOk` (mod 11) on inputs marked `data-thai-id` — employer tax id,
   director id, pink card no. Typing 13 digits that fail = red border + hint under the field (`refreshThaiIdHint`); saving asks
   "บันทึกต่อ / กลับไปแก้" (`confirmThaiIds`, never a hard block). NOT on the alien id `worker-uid` (e-WorkPermit numbers pass

@@ -9139,6 +9139,7 @@ function openTm7Modal(workerId) {
         dateD: dD, dateM: dM, dateY: dY, lastName: w.lastName || '', firstName: w.firstName || '', age, dobD: bD, dobM: bM, dobY: bY,
         birthPlace: w.passportPob || '', nationality: NATIONALITY_TH[w.nationality] || w.nationality || '',
         passportNo: w.passportNo || '', issueD: iD, issueM: iM, issueY: iY, issuedAt: w.passportAuth || '', expD: eD, expM: eM, expY: eY,
+        visaType: 'NON L-A', // ประเภทวีซ่า: แรงงาน MOU / มติ ครม. ใช้ NON L-A ทั้งหมด (owner 2026-10-29)
         reason1: `ทำงานกับ ${c.companyName || 'นายจ้าง'} ตามใบอนุญาตทำงาน${w.permitNo ? ` เลขที่ ${w.permitNo}` : ''}${w.permitExpiry ? ` (ถึง ${formatThaiDate(w.permitExpiry)})` : ''}`,
         addressTh: getCustomerHQAddress(c.id) || w.workplace || '',
         // หน้า 2 "ผู้เขียน" = เจ้าของสำนักงาน (owner 2026-10-29) — ที่อยู่เดียวกับหัวใบแจ้งหนี้
