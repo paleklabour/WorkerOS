@@ -508,7 +508,7 @@ snapshot). No prior git history existed. Restructured 2026-08-17 to version
 schema via `supabase/migrations/` and isolate the legacy GAS backend under
 `legacy/`, ahead of setting up GitHub + GitHub Pages.
 
-Client portal worker pop-up (`openClientWorkerView`, owner 2026-10-19) adds "ประวัติงานและค่าบริการ" (`clientWorkerHistoryRows`):
+Client portal worker view (`openClientWorkerView`) is a panel sliding in from the right (owner 2026-10-29, `<aside id="client-worker-panel" class="worker-panel">`, same look as the staff panel, read-only, closes on outside click / Esc / tab or page switch); opened by double-clicking a row in "คนงานของฉัน" or clicking a worker name in the "ต่ออายุ" tab (`.cp-rn-name.is-link`). It (owner 2026-10-19) adds "ประวัติงานและค่าบริการ" (`clientWorkerHistoryRows`):
 that worker's jobs with date / status / billed fee + bill no + paid or owing, and totals billed / paid / owing counted per job
 (not the whole combined bill). Unbilled jobs show no amount (estimates are internal); never show costs, commissions or expenses.
 

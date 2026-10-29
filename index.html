@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261029r">
+    <link rel="stylesheet" href="styles.css?v=20261029s">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -3368,6 +3368,21 @@
         <!-- ==================== แผงข้อมูลคนงานด้านขวา (ดับเบิลคลิกแถวคนงาน → openWorkerQuickView) ==================== -->
         <!-- owner เลือกแบบ 3 "แผงเลื่อนออกด้านขวา" + หัวเข้ม (2026-10-15): ไม่บังตาราง ดับเบิลคลิกแถวอื่นแผงเปลี่ยนเป็นคนนั้น
              ไม่ใช่ .modal-backdrop (หน้าเลื่อน/คลิกตารางได้) หน้าต่างที่เปิดจากแผงซ้อนด้านบน (z 950 < 1000) -->
+        <!-- พอร์ทัลลูกค้า: แผงข้อมูลคนงานเลื่อนออกจากขวา (openClientWorkerView — owner 2026-10-29) ดูอย่างเดียว ไม่มีข้อมูลภายใน -->
+        <aside id="client-worker-panel" class="worker-panel" role="dialog" aria-label="ข้อมูลคนงาน" aria-hidden="true">
+            <div class="wp-head">
+                <div class="wp-avatar" id="client-worker-avatar"></div>
+                <div class="wp-head-text">
+                    <h3 id="client-worker-name"></h3>
+                    <p id="client-worker-sub"></p>
+                    <div class="wp-pills" id="client-worker-pills"></div>
+                </div>
+                <button type="button" class="wp-close" title="ปิดแผงข้อมูลคนงาน" onclick="closeClientWorkerView()">&times;</button>
+            </div>
+            <div class="wp-body" id="client-worker-body"></div>
+            <div class="wp-foot"><p class="wp-hint">ดูข้อมูลอย่างเดียว — ถ้าข้อมูลไม่ถูกต้อง กด "เขียนโน้ต" ที่แถวของคนงานเพื่อแจ้งเจ้าหน้าที่</p></div>
+        </aside>
+
         <aside id="worker-quick-modal" class="worker-panel" role="dialog" aria-label="ข้อมูลคนงาน" aria-hidden="true">
             <div class="wp-head">
                 <div class="wp-avatar" id="worker-quick-avatar"></div>
@@ -3768,6 +3783,6 @@
     </script>
 
     <!-- ตัวเปิดระบบ: หน้าล็อกอินใช้แค่ boot.js — supabase-client.js + app.js (เลข v เดียวกัน) โหลดหลังล็อกอินเท่านั้น -->
-    <script src="boot.js?v=20261029r"></script>
+    <script src="boot.js?v=20261029s"></script>
 </body>
 </html>

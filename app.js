@@ -1497,6 +1497,7 @@ function clientCustomerId() {
 
 function switchClientPortalTab(tab) {
     clientPortalTab = tab;
+    closeClientWorkerView(); // เปลี่ยนแท็บพอร์ทัล = ปิดแผงคนงาน
     document.querySelectorAll('[data-portal-tab]').forEach(b => {
         b.classList.toggle('btn-gold', b.dataset.portalTab === tab);
         b.classList.toggle('btn-outline', b.dataset.portalTab !== tab);
@@ -1582,7 +1583,7 @@ function renderClientRenewalTab(myWorkers) {
     const dueRows = due.map(w => `<div class="cp-rn-row${cpRenewalPick.has(w.id) ? ' is-selected' : ''}">
         <input type="checkbox" ${cpRenewalPick.has(w.id) ? 'checked' : ''} onchange="toggleClientRenewalPick(['${w.id}'], this.checked)" title="เลือก ${escapeHtml(workerFullName(w))}">
         <div class="renewal-avatar"><img src="${w.photo ? escapeHtml(w.photo) : WORKER_AVATAR_PLACEHOLDER}" alt="" loading="lazy"></div>
-        <div class="cp-rn-name"><strong>${escapeHtml(workerFullName(w))}</strong><small class="text-muted">${escapeHtml(w.workerUid || '')}</small></div>
+        <div class="cp-rn-name is-link" data-client-worker onclick="openClientWorkerView('${w.id}')" title="ดูข้อมูลคนงาน"><strong>${escapeHtml(workerFullName(w))}</strong><small class="text-muted">${escapeHtml(w.workerUid || '')}</small></div>
         <span>${renewalExpiryCell(w.permitExpiry)}</span>
         <span class="text-muted">พาสปอร์ตถึง ${w.passportExpiry ? formatThaiDate(w.passportExpiry) : '-'}</span>
         <label class="rn-book-pick" title="ทำพาสปอร์ต/CI เล่มใหม่ด้วย (ระบบติ๊กให้เมื่อเล่มจะหมดก่อนใบอนุญาตใหม่)"><input type="checkbox" ${cpRenewalBook.get(w.id) ? 'checked' : ''} onchange="cpRenewalBook.set('${w.id}', this.checked); renderClientPortal()"> ทำเล่มด้วย</label>
@@ -1597,7 +1598,7 @@ function renderClientRenewalTab(myWorkers) {
         const canBookExt = r.withBook && !r.steps.book && !r.steps.bookExternal
             && !renewalJobsOf(r).some(j => j.jobType === RENEWAL_BOOK_JOB_TYPE && (getJobInvoice(j) || isJobNoCharge(j)));
         return `<div class="cp-rn-row cp-rn-active">
-            <div class="cp-rn-name"><strong>${escapeHtml(workerFullName(wOf(r)))}</strong><small class="rn-uid">${escapeHtml(wOf(r).workerUid || '')}</small><small class="text-muted">หมด ${r.oldPermitExpiry ? formatThaiDate(r.oldPermitExpiry) : '-'}${r.withBook && !renewalSplitBook(r) ? (r.steps.bookExternal ? ' · ทำเล่มที่อื่น' : ' · ทำเล่มด้วย') : ''}</small></div>
+            <div class="cp-rn-name is-link" data-client-worker onclick="openClientWorkerView('${r.workerId}')" title="ดูข้อมูลคนงาน"><strong>${escapeHtml(workerFullName(wOf(r)))}</strong><small class="rn-uid">${escapeHtml(wOf(r).workerUid || '')}</small><small class="text-muted">หมด ${r.oldPermitExpiry ? formatThaiDate(r.oldPermitExpiry) : '-'}${r.withBook && !renewalSplitBook(r) ? (r.steps.bookExternal ? ' · ทำเล่มที่อื่น' : ' · ทำเล่มด้วย') : ''}</small></div>
             <div class="rn-arow-progress"><div class="rn-rings">${renewalRingHtml(r, 'main')}${renewalBookTrackOf(r).length ? renewalRingHtml(r, 'book') : ''}</div></div>
             <span class="text-muted">${r.appointmentDate ? `นัดรับบัตร ${formatThaiDate(r.appointmentDate)}` : 'ยังไม่นัด'}${r.steps.bookAppt && r.steps.bookAppt.date ? `<small class="rn-book-appt">นัดทำเล่ม ${formatThaiDate(r.steps.bookAppt.date)}</small>` : ''}</span>
             <span>${pill}</span>
@@ -1611,7 +1612,7 @@ function renderClientRenewalTab(myWorkers) {
         const ext = r.status === 'external';
         const newExp = r.newPermitExpiry || (ext && !renewalExternalPending(r) ? permitExpiryKey(wOf(r)) : null);
         return `<div class="cp-rn-row cp-rn-done">
-        <div class="cp-rn-name"><strong>${escapeHtml(workerFullName(wOf(r)))}</strong>${ext ? '<span class="rn-ext-tag">ต่อที่อื่น</span>' : ''}</div>
+        <div class="cp-rn-name is-link" data-client-worker onclick="openClientWorkerView('${r.workerId}')" title="ดูข้อมูลคนงาน"><strong>${escapeHtml(workerFullName(wOf(r)))}</strong>${ext ? '<span class="rn-ext-tag">ต่อที่อื่น</span>' : ''}</div>
         <span class="text-muted">เดิม ${r.oldPermitExpiry ? formatThaiDate(r.oldPermitExpiry) : '-'}</span>
         <span>${newExp ? `ใบอนุญาตใหม่ถึง <strong>${formatThaiDate(newExp)}</strong>` : '<span class="text-muted">รอข้อมูลใบอนุญาตใหม่</span>'}</span>
         <span class="text-muted">${ext ? `แจ้ง ${formatThaiDate(String(r.startedAt || '').slice(0, 10))}` : `เสร็จ ${r.doneAt ? formatThaiDate(String(r.doneAt).slice(0, 10)) : '-'}`}</span>
@@ -1823,23 +1824,53 @@ function openClientWorkerView(workerId) {
         { label: 'โน้ตถึงเจ้าหน้าที่', value: w.clientNote },
         ...clientWorkerHistoryRows(w),
     ];
-    // ตัดช่องว่าง และหัวข้อที่ไม่มีข้อมูลใต้หัวข้อนั้นเลย
-    const summary = [];
-    let pendingHeading = null;
+    // แผงเลื่อนออกจากขวา (owner 2026-10-29 — แทนหน้าต่างกลางจอ) แบบเดียวกับแผงคนงานฝั่งเจ้าหน้าที่ (.worker-panel)
+    // หัวข้อละ 1 กลุ่ม ตัดช่องว่าง และหัวข้อที่ไม่มีข้อมูลใต้หัวข้อนั้นเลย
+    const sections = [];
     rows.forEach(r => {
-        if (r.heading) { pendingHeading = r; return; }
-        if (r.value == null || String(r.value).trim() === '') return;
-        if (pendingHeading) { summary.push(pendingHeading); pendingHeading = null; }
-        summary.push(r);
+        if (r.heading) { sections.push({ title: r.heading, items: [] }); return; }
+        if (r.value == null || String(r.value).trim() === '' || !sections.length) return;
+        sections[sections.length - 1].items.push(r);
     });
-    uiAlert('ดูข้อมูลอย่างเดียว — ถ้าข้อมูลไม่ถูกต้อง กด "เขียนโน้ต" แจ้งเจ้าหน้าที่ได้', {
-        title: 'ข้อมูลคนงาน',
-        wide: true, // หน้าต่างใหญ่ แบ่งหัวข้อเป็นคอลัมน์ ไม่ต้องเลื่อนลง
-        okText: 'ปิด',
-        card: { image: w.photo || '', imageIcon: 'user', title: workerFullName(w), subtitle: [w.nationality, w.workerUid].filter(Boolean).join(' • '), rows: [] },
-        summary
-    });
+    const panel = document.getElementById('client-worker-panel');
+    if (!panel) return;
+    document.getElementById('client-worker-avatar').innerHTML = w.photo
+        ? `<img src="${escapeHtml(w.photo)}" alt="">` : escapeHtml((workerFullName(w) || '?').trim().charAt(0).toUpperCase());
+    document.getElementById('client-worker-name').textContent = workerFullName(w);
+    document.getElementById('client-worker-sub').textContent = [w.nationality, w.workerUid].filter(Boolean).join(' • ');
+    const exp = safeParseDate(w.permitExpiry);
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    document.getElementById('client-worker-pills').innerHTML = [
+        `<span class="wp-pill">${escapeHtml(WORKER_STATUS_LABELS[w.status] || w.status || '-')}</span>`,
+        exp ? `<span class="wp-pill ${exp < today ? 'is-warn' : 'is-ok'}">ใบอนุญาตถึง ${escapeHtml(formatThaiDate(w.permitExpiry))}</span>` : ''
+    ].join('');
+    document.getElementById('client-worker-body').innerHTML = sections.filter(s => s.items.length).map(s => `<section class="wp-sec"><h4>${escapeHtml(s.title)}</h4>
+        <dl class="wp-kv">${s.items.map(r => `<dt>${escapeHtml(r.label)}</dt><dd>${escapeHtml(String(r.value))}</dd>`).join('')}</dl></section>`).join('')
+        || '<p class="wp-empty">ยังไม่มีข้อมูล</p>';
+    document.getElementById('client-worker-body').scrollTop = 0;
+    panel._workerId = w.id;
+    panel.classList.add('is-open');
+    panel.setAttribute('aria-hidden', 'false');
 }
+
+function closeClientWorkerView() {
+    const panel = document.getElementById('client-worker-panel');
+    if (!panel) return;
+    panel.classList.remove('is-open');
+    panel.setAttribute('aria-hidden', 'true');
+}
+
+// คลิกนอกแผง = ปิด (ยกเว้นคลิกชื่อคนงานอีกคน ซึ่งเปลี่ยนคนในแผงแทน) / Esc = ปิด
+document.addEventListener('mousedown', (e) => {
+    const panel = document.getElementById('client-worker-panel');
+    if (!panel || !panel.classList.contains('is-open') || panel.contains(e.target)) return;
+    if (e.target.closest && e.target.closest('[data-client-worker], .clickable-row, .modal-backdrop, .ui-dialog-backdrop')) return;
+    closeClientWorkerView();
+});
+document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape' || document.querySelector('.modal-backdrop:not(.hidden), .ui-dialog-backdrop')) return;
+    closeClientWorkerView();
+});
 
 // ประวัติงานและค่าบริการของคนงานคนนี้ (owner 2026-10-19) — เฉพาะสิ่งที่นายจ้างเห็นอยู่แล้วในแท็บใบงาน/บิล:
 // ค่าบริการตามบิล (ยังไม่ออกบิล = ไม่แสดงยอด ราคาประมาณเป็นข้อมูลภายใน), ไม่มีต้นทุน/ค่าคอม/ค่าธรรมเนียมรัฐแยก
@@ -2204,7 +2235,7 @@ function writeSessionValue(key, value) {
 
 function switchView(viewName) {
     writeSessionValue('mw_last_view', viewName);
-    closeWorkerQuickView(); // แผงข้อมูลคนงานผูกกับตารางหน้าเดิม — เปลี่ยนหน้าแล้วปิด
+    closeWorkerQuickView(); closeClientWorkerView(); // แผงข้อมูลคนงานผูกกับตารางหน้าเดิม — เปลี่ยนหน้าแล้วปิด
     // ออกจากหน้าที่กำลังกรองจากกระดิ่ง → ล้างตัวกรองนั้น (กลับมาหน้าเดิมทีหลังเห็นรายการครบตามปกติ)
     if (bellFilter && viewName !== (bellFilter.view === 'billing' ? 'expenses' : bellFilter.view)) bellFilter = null;
     // Toggles sections
