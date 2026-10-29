@@ -8233,23 +8233,71 @@ function jobTypeServiceOptions() {
         .map(cb => ({ value: cb.value, label: cb.parentElement.textContent.trim() }));
 }
 
+// ปุ่ม "บริการที่ใช้กับเรา" ข้างแท็บที่อยู่จัดส่ง (เจ้าของระบบเลือกแบบเขียว iOS 2026-10-29): ชี้ = ดูรายการ, คลิก = ปักไว้แล้วติ๊กได้
+// — แบบเดียวกับรายการขั้นตอนในหน้าต่ออายุ (.rn-steps-pop); ค่าที่เลือกอยู่ใน custServicesDraft จนกด "บันทึกข้อมูล"
+let custServicesDraft = new Set();
+let custServicesPinned = false;
+
 function renderCustomerServices(selected) {
-    const box = document.getElementById('cust-services');
-    if (!box) return;
-    const on = new Set(selected || []);
-    box.innerHTML = jobTypeServiceOptions().map(o => `
-        <label class="cust-service-item"><input type="checkbox" name="cust-service" value="${escapeHtml(o.value)}" data-label="${escapeHtml(o.label)}"${on.has(o.value) ? ' checked' : ''} onchange="updateCustomerServicesSummary()"> ${escapeHtml(o.label)}</label>`).join('');
-    updateCustomerServicesSummary();
+    custServicesDraft = new Set(selected || []);
+    hideCustomerServicesPop(true);
 }
 
-// ช่องเดียวในฟอร์มนายจ้าง: แสดงบริการที่ติ๊กไว้ ชี้เมาส์แล้วรายการติ๊กเด้งออกมา (เจ้าของระบบ 2026-10-29 — ฟอร์มยาวแล้ว)
-function updateCustomerServicesSummary() {
-    const el = document.getElementById('cust-services-summary');
-    if (!el) return;
-    const picked = [...document.querySelectorAll('#cust-services input[name="cust-service"]:checked')].map(cb => cb.dataset.label);
-    el.textContent = picked.length ? picked.join(', ') : 'ยังไม่ได้เลือก';
-    el.classList.toggle('text-muted', !picked.length);
+function customerServicesPopHtml(pinned) {
+    const rows = jobTypeServiceOptions().map(o => {
+        const on = custServicesDraft.has(o.value);
+        return `<button type="button" class="rn-sp-row cust-svc-row${on ? ' is-done' : ' is-todo'}" ${pinned ? `onclick="toggleCustomerService(${escapeHtml(JSON.stringify(o.value))})"` : 'tabindex="-1"'}>
+            <span class="rn-sp-dot" aria-hidden="true">${on ? '✓' : ''}</span><span class="rn-sp-label">${escapeHtml(o.label)}</span></button>`;
+    }).join('');
+    return `<div class="rn-sp-head"><div><b>บริการที่ใช้กับเรา</b>${pinned ? '<small>คลิกเพื่อติ๊ก / เอาออก · มีผลเมื่อกดบันทึกข้อมูล</small>' : ''}</div>
+        ${pinned ? `<button type="button" class="rn-sp-close" onclick="hideCustomerServicesPop(true)" title="ปิดรายการบริการ" aria-label="ปิดรายการบริการ">&times;</button>` : ''}</div>${rows}`;
 }
+
+function showCustomerServicesPop(pin) {
+    if (custServicesPinned && !pin) return;
+    const btn = document.getElementById('cust-services-btn');
+    if (!btn) return;
+    let pop = document.getElementById('cust-svc-pop');
+    if (!pop) {
+        pop = document.createElement('div');
+        pop.id = 'cust-svc-pop';
+        pop.className = 'rn-steps-pop is-book cust-svc-pop hidden';
+        pop.setAttribute('role', 'dialog');
+        pop.setAttribute('aria-label', 'บริการที่ใช้กับเรา');
+        document.body.appendChild(pop);
+    }
+    custServicesPinned = !!pin;
+    pop.classList.toggle('is-pinned', !!pin);
+    pop.innerHTML = customerServicesPopHtml(!!pin);
+    pop.classList.remove('hidden');
+    const rect = btn.getBoundingClientRect();
+    const h = pop.offsetHeight, w = pop.offsetWidth;
+    const below = rect.bottom + 8 + h <= window.innerHeight;
+    pop.style.top = `${Math.round(below ? rect.bottom + 8 : Math.max(8, rect.top - h - 8))}px`;
+    pop.style.left = `${Math.round(Math.max(8, Math.min(rect.left, window.innerWidth - w - 8)))}px`;
+}
+
+function hideCustomerServicesPop(force) {
+    if (custServicesPinned && !force) return;
+    custServicesPinned = false;
+    const pop = document.getElementById('cust-svc-pop');
+    if (pop) pop.classList.add('hidden');
+}
+
+function toggleCustomerService(value) {
+    if (custServicesDraft.has(value)) custServicesDraft.delete(value); else custServicesDraft.add(value);
+    const pop = document.getElementById('cust-svc-pop');
+    if (pop) pop.innerHTML = customerServicesPopHtml(true);
+}
+
+document.addEventListener('mousedown', (e) => {
+    if (!custServicesPinned) return;
+    const pop = document.getElementById('cust-svc-pop');
+    if ((pop && pop.contains(e.target)) || (e.target.closest && e.target.closest('#cust-services-btn'))) return;
+    hideCustomerServicesPop(true);
+});
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && custServicesPinned) hideCustomerServicesPop(true); });
+window.addEventListener('scroll', () => hideCustomerServicesPop(true), true);
 
 // ฟอร์มเปิดใบงาน: ประเภทงานที่นายจ้างที่เลือกใช้กับเรา = สีเขียว (ยังติ๊กประเภทอื่นได้ตามปกติ)
 function highlightJobTypesForCustomer(custId) {
@@ -8321,6 +8369,7 @@ function openCustomerModal(id = null) {
 
 function closeCustomerModal() {
     document.getElementById("customer-modal").classList.add("hidden");
+    hideCustomerServicesPop(true);
 }
 
 // ==================== DOCUMENT DELIVERY ADDRESS (ใบปะหน้า A5) ====================
@@ -8572,7 +8621,7 @@ async function saveCustomer(e) {
     const requirePrepayment = document.getElementById("cust-require-prepayment").checked;
     const email = document.getElementById("cust-email").value.trim();
     const driveShare = document.getElementById("cust-drive-share").checked;
-    const services = [...document.querySelectorAll('#cust-services input[name="cust-service"]:checked')].map(cb => cb.value);
+    const services = jobTypeServiceOptions().map(o => o.value).filter(v => custServicesDraft.has(v));
     if (driveShare && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { uiAlert("กรุณากรอกอีเมลลูกค้าให้ถูกต้องก่อนเปิดแชร์โฟลเดอร์ Google Drive"); return; }
     const certIssueDateRaw = document.getElementById("cust-cert-issue-date").value.trim();
     if (certIssueDateRaw && !isValidDate(certIssueDateRaw)) {
