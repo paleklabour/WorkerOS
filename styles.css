@@ -8661,6 +8661,7 @@ button.jq-worker:hover { background-color: var(--gold-light); }
 .wp-kv dt { color: var(--text-muted); }
 .wp-kv dd { margin: 0; min-width: 0; text-align: right; font-weight: 600; color: var(--navy-dark); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .wp-exp { display: inline-flex; align-items: center; gap: 6px; }
+/* พอร์ทัลลูกค้า: ประวัติงานในแผงคนงาน (openClientWorkerView) — งานละ 3 บรรทัด (owner 2026-10-29) */.cwp-hist-list { display: grid; gap: 8px; margin-top: 10px; }.cwp-hist { padding: 10px 12px; border-radius: 14px; background: var(--dk-subtle, #f4f6fa); font-size: 13.5px; line-height: 1.5; }.cwp-hist-title b { color: var(--navy-dark); font-size: 14px; }.cwp-hist-title small, .cwp-hist-sub { color: var(--text-muted); }.cwp-hist-money { font-weight: 600; color: var(--navy-dark); font-variant-numeric: tabular-nums; }.cwp-pay.is-paid { color: var(--dk-ok, #1f8a4c); }.cwp-pay.is-owing { color: var(--dk-bad, #c0392b); }
 .wp-note { margin: 0; font-size: 14px; color: var(--navy-dark); white-space: pre-wrap; }
 .wp-empty { margin: 18px 0; text-align: center; color: var(--text-muted); }
 

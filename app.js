@@ -1829,9 +1829,16 @@ function openClientWorkerView(workerId) {
         `<span class="wp-pill">${escapeHtml(WORKER_STATUS_LABELS[w.status] || w.status || '-')}</span>`,
         exp ? `<span class="wp-pill ${exp < today ? 'is-warn' : 'is-ok'}">ใบอนุญาตถึง ${escapeHtml(formatThaiDate(w.permitExpiry))}</span>` : ''
     ].join('');
-    document.getElementById('client-worker-body').innerHTML = sections.filter(s => s.items.length).map(s => `<section class="wp-sec"><h4>${escapeHtml(s.title)}</h4>
-        <dl class="wp-kv">${s.items.map(r => `<dt>${escapeHtml(r.label)}</dt><dd>${escapeHtml(String(r.value))}</dd>`).join('')}</dl></section>`).join('')
-        || '<p class="wp-empty">ยังไม่มีข้อมูล</p>';
+    const histHtml = (r) => { const h = r.history; return `<div class="cwp-hist">
+        <div class="cwp-hist-title"><b>${escapeHtml(r.label)}</b> <small>(${escapeHtml(h.no)})</small></div>
+        <div class="cwp-hist-sub">${escapeHtml(h.when)} · ${escapeHtml(h.status)}</div>
+        <div class="cwp-hist-money">${escapeHtml(h.money)}${h.pay ? ` · <span class="cwp-pay is-${h.pay}">${h.pay === 'paid' ? 'ชำระแล้ว' : 'ค้างชำระ'}</span>` : ''}</div></div>`; };
+    document.getElementById('client-worker-body').innerHTML = sections.filter(s => s.items.length).map(s => {
+        const kv = s.items.filter(r => !r.history), hist = s.items.filter(r => r.history);
+        return `<section class="wp-sec"><h4>${escapeHtml(s.title)}</h4>
+        ${kv.length ? `<dl class="wp-kv">${kv.map(r => `<dt>${escapeHtml(r.label)}</dt><dd>${escapeHtml(String(r.value))}</dd>`).join('')}</dl>` : ''}
+        ${hist.length ? `<div class="cwp-hist-list">${hist.map(histHtml).join('')}</div>` : ''}</section>`;
+    }).join('') || '<p class="wp-empty">ยังไม่มีข้อมูล</p>';
     document.getElementById('client-worker-body').scrollTop = 0;
     panel._workerId = w.id;
     panel.classList.add('is-open');
@@ -1868,17 +1875,19 @@ function clientWorkerHistoryRows(w) {
     let billed = 0, paid = 0;
     const rows = list.map(j => {
         const inv = getJobInvoice(j);
-        let money;
+        let money, pay = '';
         if (isJobNoCharge(j)) money = 'ไม่เรียกเก็บเงิน';
         else if (inv) {
             const fee = Number(j.fee || 0);
             const isPaid = inv.status === 'paid' || invoiceBalance(inv) <= 0;
             billed += fee;
             if (isPaid) paid += fee;
-            money = `${fmtMoney(fee)} บาท • ${inv.invoiceNo} • ${isPaid ? 'ชำระแล้ว' : 'ค้างชำระ'}`;
+            money = `${fmtMoney(fee)} บาท · ${inv.invoiceNo}`;
+            pay = isPaid ? 'paid' : 'owing';
         } else money = 'ยังไม่ออกบิล';
         const when = formatThaiDate(String(j.createdAt || j.updatedAt || '').slice(0, 10));
-        return { label: `${getCleanJobTypeName(j.jobType)} (${getJobDisplayNo(j)})`, value: `${when} • ${j.status || '-'} • ${money}` };
+        // แผงคนงานแสดงเป็นบล็อก 3 บรรทัด (owner 2026-10-29): ชื่องาน (เลขใบงาน) / วันที่ · สถานะ / ยอด · เลขบิล · ชำระแล้ว|ค้างชำระ
+        return { label: getCleanJobTypeName(j.jobType), value: when, history: { no: getJobDisplayNo(j), when, status: j.status || '-', money, pay } };
     });
     const totals = billed > 0 ? [
         { label: 'ค่าบริการที่ออกบิลแล้วรวม', value: `${fmtMoney(round2(billed))} บาท` },
