@@ -8967,6 +8967,123 @@ function closeBt46Modal() {
     setPrintPageSize("");
 }
 
+// ---------- เติมข้อมูลลงไฟล์แบบฟอร์มจริง (owner 2026-10-29: ใช้ไฟล์ที่สำนักงานใช้ยื่นแทนหน้าตาที่ระบบวาดเอง) ----------
+// แม่แบบเป็นภาพสแกน (ไม่มีช่องกรอก/ข้อความ) → วางข้อความตามพิกัด; ฟอนต์ไทย Sarabun (OFL) ฝังในไฟล์ผ่าน fontkit
+let govFormLibsLoading = null;
+function loadGovFormLibs() {
+    if (!govFormLibsLoading) {
+        govFormLibsLoading = (async () => {
+            const PDFLib = await loadPdfLib();
+            if (!window.fontkit) {
+                await new Promise((resolve, reject) => {
+                    const s = document.createElement('script');
+                    s.src = 'https://cdn.jsdelivr.net/npm/@pdf-lib/fontkit@1.1.1/dist/fontkit.umd.min.js';
+                    s.onload = resolve; s.onerror = () => reject(new Error('โหลดตัวฝังฟอนต์ไม่สำเร็จ'));
+                    document.head.appendChild(s);
+                });
+            }
+            const fontRes = await fetch('https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/sarabun/Sarabun-Regular.ttf');
+            if (!fontRes.ok) throw new Error('โหลดฟอนต์ภาษาไทยไม่สำเร็จ');
+            return { PDFLib, fontkit: window.fontkit, fontBytes: await fontRes.arrayBuffer() };
+        })().catch(e => { govFormLibsLoading = null; throw e; });
+    }
+    return govFormLibsLoading;
+}
+
+// พิกัดบนแม่แบบ บต.46 (A4 595×842 pt) — กำหนดเป็นพิกเซลของภาพหน้า 920 px กว้าง (มุมบนซ้าย) แล้วแปลงเป็น pt
+// f = ช่อง .bt46-f ในหน้าต่าง บต.46 ตามลำดับ, box = ช่องติ๊ก .bt46-box ตามลำดับ, cell = ตารางสถานะการเงิน
+const BT46_PX = 595.28 / 920;
+const BT46_LAYOUT = {
+    f: [
+        [318, 142], [500, 142], [735, 142],            // 0-2 นิติบุคคลไทย: จดทะเบียนเมื่อ / เลขที่ / ทุนจดทะเบียน
+        [345, 185], [705, 185],                        // 3-4 นิติบุคคลต่างด้าว
+        [430, 228], [748, 228],                        // 5-6 บุคคลธรรมดา: เลขบัตร / ใบอนุญาตทำงาน
+        [385, 272],                                    // 7 ชื่อนายจ้าง
+        [275, 296, 860],                               // 8 ที่ตั้ง (ยาว → ต่อบรรทัด 318)
+        [282, 340],                                    // 9 ประเภทกิจการ
+        [300, 471], [730, 471],                        // 10-11 รายได้ปัจจุบัน / เดือน
+        [400, 493], [540, 516], [450, 561], [525, 584], // 12-15 ส่งออก / ท่องเที่ยว / พนักงานไทย / คนต่างด้าว
+        [335, 608], [775, 608],                        // 16-17 ห้องเรียน / นักเรียน
+        [515, 662],                                    // 18 ชื่อคนต่างด้าว
+        [210, 686], [610, 686],                        // 19-20 สัญชาติ / หมู่โลหิต
+        [322, 710],                                    // 21 ที่อยู่ในไทย
+        [262, 734],                                    // 22 ประเภทงาน
+        [258, 758, 860],                               // 23 ลักษณะงาน (ต่อบรรทัด 780)
+        [442, 802],                                    // 24 สถานที่ทำงาน
+        [180, 826], [312, 826], [428, 826], [632, 826], // 25-28 ปี / เดือน / วัน / สัญญาถึง
+        [250, 868], [652, 868],                        // 29-30 ค่าจ้าง / ผลประโยชน์อื่น
+        [212, 912], [528, 912],                        // 31-32 การศึกษา / ประสบการณ์
+        [96, 982, 860],                                // 33 เหตุผล (ต่อบรรทัด 1004)
+        [470, 1142], [525, 1166], [525, 1190]          // 34-36 ชื่อผู้ลงนาม / ตำแหน่ง / ลงวันที่
+    ],
+    box: [[131, 142], [131, 184], [131, 228], [96, 493], [96, 516], [96, 561], [96, 584], [96, 608], [496, 608], [697, 912], [757, 912]],
+    cell: [[118, 437], [345, 437], [690, 437]],
+    signature: [505, 1080, 150, 50]
+};
+
+async function exportBt46Pdf() {
+    const sheet = document.getElementById('bt46-sheet');
+    const btn = document.getElementById('btn-bt46-pdf');
+    if (!sheet) return;
+    if (btn) btn.disabled = true;
+    try {
+        showUploadPill('load', 'กำลังสร้าง PDF บต.46…', 'เติมข้อมูลลงแบบฟอร์มจริง');
+        const { PDFLib, fontkit, fontBytes } = await loadGovFormLibs();
+        const tplRes = await fetch('assets/forms/bt46.pdf');
+        if (!tplRes.ok) throw new Error('ไม่พบไฟล์แบบฟอร์ม บต.46');
+        const doc = await PDFLib.PDFDocument.load(await tplRes.arrayBuffer());
+        doc.registerFontkit(fontkit);
+        const font = await doc.embedFont(fontBytes, { subset: true });
+        const page = doc.getPages()[0];
+        const H = page.getHeight();
+        const size = 10;
+        const txt = (s, xPx, yPx, maxXPx) => {
+            s = String(s || '').replace(/\s+/g, ' ').trim();
+            if (!s) return;
+            const x = xPx * BT46_PX, y = H - yPx * BT46_PX + 1.5;
+            const maxW = maxXPx ? (maxXPx - xPx) * BT46_PX : null;
+            if (!maxW || font.widthOfTextAtSize(s, size) <= maxW) { page.drawText(s, { x, y, size, font }); return; }
+            // ยาวเกินเส้น → ตัดคำ ต่อบรรทัดถัดไป (บรรทัดต่อเริ่มที่ขอบซ้ายของฟอร์ม)
+            let line = '', rest = s;
+            for (const ch of s) { if (font.widthOfTextAtSize(line + ch, size) > maxW) break; line += ch; }
+            const cut = line.lastIndexOf(' ') > line.length * 0.6 ? line.lastIndexOf(' ') : line.length;
+            page.drawText(s.slice(0, cut), { x, y, size, font });
+            rest = s.slice(cut).trim();
+            if (rest) page.drawText(rest, { x: 96 * BT46_PX, y: y - 22 * BT46_PX, size, font });
+        };
+        const fields = [...sheet.querySelectorAll('.bt46-f')].map(el => el.textContent);
+        BT46_LAYOUT.f.forEach(([x, y, maxX], i) => txt(fields[i], x, y, maxX));
+        const cells = [...sheet.querySelectorAll('.bt46-table td')].map(el => el.textContent);
+        BT46_LAYOUT.cell.forEach(([x, y], i) => txt(cells[i], x, y));
+        [...sheet.querySelectorAll('.bt46-box')].forEach((el, i) => {
+            const pos = BT46_LAYOUT.box[i];
+            if (pos && el.textContent.trim() === '☑') txt('✓', pos[0] - 4, pos[1] + 1);
+        });
+        const sigImg = sheet.querySelector('.bt46-sigline img');
+        if (sigImg && sigImg.src) {
+            try {
+                const bytes = await (await fetch(sigImg.src)).arrayBuffer();
+                const isPng = new Uint8Array(bytes.slice(0, 4))[1] === 0x50;
+                const img = isPng ? await doc.embedPng(bytes) : await doc.embedJpg(bytes);
+                const [sx, sy, sw, sh] = BT46_LAYOUT.signature;
+                const scale = Math.min((sw * BT46_PX) / img.width, (sh * BT46_PX) / img.height);
+                page.drawImage(img, { x: sx * BT46_PX, y: H - (sy + sh) * BT46_PX, width: img.width * scale, height: img.height * scale });
+            } catch (e) { console.warn('ใส่ลายเซ็นไม่ได้', e); }
+        }
+        const blob = new Blob([await doc.save()], { type: 'application/pdf' });
+        const name = `BT46_${(fields[18] || 'worker').replace(/[^A-Za-z0-9ก-๙]+/g, '_')}.pdf`;
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob); a.download = name;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+        showUploadPill('ok', 'สร้าง PDF บต.46 แล้ว', name);
+    } catch (err) {
+        showUploadPill('bad', 'สร้าง PDF ไม่สำเร็จ', err && err.message ? err.message : String(err));
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
 function closeDeliveryLabelModal() {
     document.getElementById("delivery-label-modal").classList.add("hidden");
     setPrintPageSize("");
