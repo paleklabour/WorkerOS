@@ -7211,7 +7211,7 @@ body.has-camera .upload-hint { display: none; }
 /* ฟอร์มนายจ้าง: ปุ่ม "บริการที่ใช้กับเรา" ข้างแท็บที่อยู่จัดส่ง — เขียว iOS (เจ้าของระบบเลือก 2026-10-29), ชี้ = ดูรายการ, คลิก = ปักไว้แล้วติ๊กได้ */
 .cust-tabs-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }.cust-tabs-row > .dashboard-tabs, .cust-tabs-row > .dashboard-tabs.seg-host { margin-bottom: 0 !important; }
 .cust-svc-btn {
-    display: inline-flex; align-items: center; gap: 8px; margin-left: auto; padding: 8px 18px 8px 9px; /* ชิดขวา แยกจากแท็บ (เจ้าของระบบ 2026-10-29) */
+    display: inline-flex; align-items: center; gap: 8px; margin-left: 12px; padding: 8px 18px 8px 9px; /* ถัดจากแท็บ เว้นระยะ ไม่ติดกัน (เจ้าของระบบ 2026-10-29) */
     border: 0; border-radius: 999px; background: #34c759; color: #fff; font: inherit; font-weight: 700; cursor: pointer;
     box-shadow: 0 4px 14px rgba(52, 199, 89, 0.4); transition: filter .18s ease, transform .18s var(--ios-spring, ease);
 }
