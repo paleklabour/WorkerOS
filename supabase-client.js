@@ -70,7 +70,7 @@
         assignedTo: "assigned_to",
         // งานไม่เรียกเก็บเงิน (20261006090000_job_no_charge.sql)
         noChargeReason: "no_charge_reason", noChargeBy: "no_charge_by", noChargeAt: "no_charge_at",
-        // หมายเหตุสั้น ≤ 20 ตัวอักษร (20261006140000_job_remark.sql)
+        // หมายเหตุสั้น ≤ 100 ตัวอักษร (20261006140000_job_remark.sql, 20261029032800_job_remark_100.sql)
         remark: "remark", tag: "tag", openedAt: "opened_at",
         // นายจ้างแจ้งออกเองจากพอร์ทัล (20261021040847_client_exit_requests.sql)
         openedByClient: "opened_by_client"
