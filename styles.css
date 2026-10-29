@@ -5621,6 +5621,28 @@ input[type="checkbox"], input[type="radio"], input[type="range"] {
     accent-color: var(--gold-primary);
 }
 
+/* ช่องติ๊กทั้งระบบเป็นวงกลมแบบ iOS (เจ้าของระบบ 2026-10-29) — สีเดิม (สีหลักของธีม) ติ๊กแล้วพื้นสีหลัก + เครื่องหมายถูกสีขาว.
+   ขนาดเริ่มต้นอยู่ใน :where (ไม่มีน้ำหนัก) เพื่อให้กฎขนาดเดิมของแต่ละจุด (16/18px) ยังใช้ได้ */
+:where(input[type="checkbox"]) { width: 16px; height: 16px; }
+input[type="checkbox"] {
+    -webkit-appearance: none; appearance: none;
+    box-sizing: border-box; flex-shrink: 0; margin: 0; padding: 0 !important; vertical-align: middle; cursor: pointer; /* .form-group input ใส่ padding 10px 14px — กันวงรี */
+    border: 1.5px solid var(--dk-muted, #a7b0bf); border-radius: 50% !important;
+    background: var(--dk-card, #ffffff) center / 70% no-repeat;
+    transition: background-color .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+input[type="checkbox"]:hover:not(:disabled) { border-color: var(--gold-primary); }
+input[type="checkbox"]:checked {
+    background-color: var(--gold-primary); border-color: var(--gold-primary);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.4l3 3 6-6.4' fill='none' stroke='%23fff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+input[type="checkbox"]:indeterminate {
+    background-color: var(--gold-primary); border-color: var(--gold-primary);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 8h8' stroke='%23fff' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+input[type="checkbox"]:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold-primary) 30%, transparent); }
+input[type="checkbox"]:disabled { opacity: .45; cursor: not-allowed; }
+
 @media (prefers-reduced-motion: reduce) {
     .tab-slider.is-animated { transition: none; }
     .ios-select-menu, .modal-content, .content-section { animation: none; }

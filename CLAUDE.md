@@ -427,6 +427,11 @@ client portal or `.prices-table`; touch devices keep the normal column. A new ta
 action column just needs `class="actions-col"` on both the `th` and the `td`. Wide
 tables get a floating bottom scrollbar (`setupFloatingHScroll`).
 
+Checkboxes (owner 2026-10-29): every `input[type="checkbox"]` in the app is a round iOS-style circle in the theme accent colour
+(`--gold-primary`, same colour as before) — one global rule next to the accent-color rule in `styles.css` (`appearance: none`,
+SVG tick, `:indeterminate` dash; default 16px via `:where`, so per-spot width/height rules still apply). Don't restyle
+checkboxes per component; radios stay native.
+
 Button descriptions (tooltips) — standing rule (2026-10-08): every button's
 description is a plain `title="..."` attribute; `setupIosTooltips()` in `app.js`
 turns every `[title]` (including ones `app.js` renders later) into the iOS
