@@ -4000,15 +4000,21 @@ async function renewalAutoFillRun(rounds) {
 // วันที่ใด ๆ (ISO / ว/ด/ป) → YYYY-MM-DD, อ่านไม่ได้ = ''
 const ymd10 = v => { const d = v ? safeParseDate(v) : null; return d ? localDateISO(d) : ''; };
 
-// หน้าต่างเลือกไฟล์แบบแฟ้มเอกสาร (owner 2026-10-29): รายการซ้าย / ตัวอย่างไฟล์ขวา — แนะนำ = ไฟล์ที่ใช้กับขั้นนี้ได้ (renewalExistingFiles),
-// ไฟล์อื่นในช่องเดียวกันเลือกได้แต่แยกไว้ด้านล่าง; ดับเบิลคลิก = ใช้ไฟล์นั้น. คืน { action: 'use', file } | { action: 'new' } | null
+// หน้าต่างเลือกไฟล์แบบแฟ้มเอกสาร (owner 2026-10-29): รายการซ้าย (ทุกช่องในแฟ้มคนงาน ผู้ใช้เลือกเอง) / ตัวอย่างไฟล์ขวา,
+// ดับเบิลคลิก = ใช้ไฟล์นั้น. คืน { action: "use", file, slot } | { action: "new" } | null
 function openRenewalFilePicker(r, w, step) {
     return new Promise(resolve => {
-        const recommended = renewalExistingFiles(r, w, step);
+        // เปิดทั้งแฟ้มคนงานให้ผู้ใช้เลือกเอง (owner 2026-10-29): ทุกช่องตามลำดับแฟ้ม ไม่มีกลุ่มแนะนำ ไม่เลือกไว้ล่วงหน้า; slotOf = ช่องที่ไฟล์อยู่
+        const recommended = [];
         const used = renewalUsedUrls(r);
-        const others = getAttachments(w, step.docType).filter(f => f && f.data && !recommended.includes(f)).reverse();
+        const typeLabelOf = key => (WORKER_FOLDER_DOC_TYPES.find(t => t.key === key) || {}).label || key;
+        const slotOf = new Map();
+        const groups = WORKER_FOLDER_DOC_TYPES.map(t => t.key)
+            .map(key => ({ key, files: getAttachments(w, key).filter(f => f && f.data).reverse() }))
+            .filter(g => g.files.length);
+        groups.forEach(g => g.files.forEach(f => slotOf.set(f, g.key)));
+        const others = groups.flatMap(g => g.files);
         const all = [...recommended, ...others];
-        const typeLabel = (WORKER_FOLDER_DOC_TYPES.find(t => t.key === step.docType) || {}).label || step.label;
         const d = v => v ? formatThaiDate(String(v).slice(0, 10)) : '';
         let sel = recommended.length ? 0 : -1;
         const back = document.createElement('div');
@@ -4028,8 +4034,8 @@ function openRenewalFilePicker(r, w, step) {
                 <div class="rn-fpick-body">
                     <div class="rn-fpick-list">
                         ${recommended.length ? `<div class="rn-fpick-head">แนะนำสำหรับขั้นนี้</div>${recommended.map((x, i) => item(x, i)).join('')}` : ''}
-                        ${others.length ? `<div class="rn-fpick-head">ไฟล์อื่นในช่อง "${escapeHtml(typeLabel)}"</div>${others.map((x, i) => item(x, recommended.length + i)).join('')}` : ''}
-                        ${all.length ? '' : '<p class="text-muted">ยังไม่มีไฟล์ในช่องนี้</p>'}
+                        ${(() => { let i = recommended.length; return groups.map(g => `<div class="rn-fpick-head">${escapeHtml(typeLabelOf(g.key))}${g.key === step.docType ? ' <span class="rn-fpick-note is-this">ช่องของขั้นนี้</span>' : ''}</div>${g.files.map(x => item(x, i++)).join('')}`).join(''); })()}
+                        ${all.length ? '' : '<p class="text-muted">ยังไม่มีไฟล์ในแฟ้มคนงานนี้</p>'}
                     </div>
                     <div class="rn-fpick-preview">${f ? (isPdfUrl(url)
                         ? `<iframe src="${escapeHtml(url)}" title="${escapeHtml(f.name || '')}"></iframe>`
@@ -4037,7 +4043,7 @@ function openRenewalFilePicker(r, w, step) {
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline" data-act="new" title="แนบไฟล์ใหม่จากเครื่อง">${icon('plus')} แนบไฟล์ใหม่</button>
-                    <span style="flex:1"></span>
+                    <small class="rn-fpick-hint">เลือกไฟล์จากช่องอื่น = ย้ายไฟล์นั้นเข้าช่องของขั้นนี้</small>
                     <button type="button" class="btn btn-outline" data-act="close">ยกเลิก</button>
                     <button type="button" class="btn btn-gold" data-act="use" ${f ? '' : 'disabled'} title="ใช้ไฟล์ที่เลือกกับขั้นนี้">ใช้ไฟล์นี้</button>
                 </div></div>`;
@@ -4050,11 +4056,12 @@ function openRenewalFilePicker(r, w, step) {
             if (!act) return;
             if (act.dataset.act === 'close') done(null);
             else if (act.dataset.act === 'new') done({ action: 'new' });
-            else if (act.dataset.act === 'use' && all[sel]) done({ action: 'use', file: all[sel] });
+            else if (act.dataset.act === 'use' && all[sel]) done({ action: 'use', file: all[sel], slot: slotOf.get(all[sel]) });
         });
         back.addEventListener('dblclick', (e) => {
             const it = e.target.closest('.rn-fpick-item');
-            if (it && all[Number(it.dataset.i)]) done({ action: 'use', file: all[Number(it.dataset.i)] });
+            const f = it && all[Number(it.dataset.i)];
+            if (f) done({ action: 'use', file: f, slot: slotOf.get(f) });
         });
         document.addEventListener('keydown', onKey);
         render();
@@ -4064,12 +4071,27 @@ function openRenewalFilePicker(r, w, step) {
 
 // ขั้นแนบไฟล์: ถ้าแฟ้มมีไฟล์ในช่องนี้อยู่แล้ว เปิดหน้าต่างเลือกไฟล์ (ใช้ไฟล์ที่มีอยู่ / แนบใหม่) แทนการถามด้วยข้อความ
 async function renewalFileOrExisting(r, w, step) {
-    const hasAny = getAttachments(w, step.docType).some(f => f && f.data);
+    const hasAny = WORKER_FOLDER_DOC_TYPES.some(t => getAttachments(w, t.key).some(f => f && f.data));
     if (!hasAny) { pickRenewalFile(r, w, step); return; }
     const ans = await openRenewalFilePicker(r, w, step);
     if (!ans) return;
     if (ans.action === 'new') { pickRenewalFile(r, w, step); return; }
-    const use = ans.file;
+    let use = ans.file;
+    // ไฟล์จากช่องอื่น → ย้ายเข้าช่องของขั้นนี้ ตั้งชื่อตามตัวย่อของช่องใหม่ (ลิงก์ไฟล์เดิม ไม่อัปโหลดซ้ำ — แบบลากย้ายในแฟ้ม)
+    if (ans.slot && ans.slot !== step.docType) {
+        const fromList = getAttachments(w, ans.slot), toList = getAttachments(w, step.docType);
+        const m = String(use.name || '').match(/\.[A-Za-z0-9]{1,5}$/);
+        const ext = m ? m[0] : extFromDataUrl(String(use.data || ''));
+        const moved = { ...use, name: uniqueWorkerDocName(toList, workerDocFileName('', '', '', step.docType, '', ext, use.name, null)) };
+        const exp = moved.expiryDate ? safeParseDate(moved.expiryDate) : null;
+        const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+        moved.manualExpired = !!(exp && exp < todayStart);
+        const before = { ...(w.attachments || {}) };
+        w.attachments = { ...before, [ans.slot]: fromList.filter(f => f !== use), [step.docType]: [moved, ...toList] };
+        const res = await callCloudAPI("saveWorker", { workerData: w });
+        if (!res || res.status === "error") { w.attachments = before; showToast("❌ ย้ายไฟล์ไม่สำเร็จ", "danger"); return; }
+        use = moved;
+    }
     if (step.expiryField) await askRenewalNewExpiry(r, w, step, use);
     renewalMarkStep(r, step.key, { url: use.data, name: use.name, existing: true });
     saveData();
