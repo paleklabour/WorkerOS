@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261029i">
+    <link rel="stylesheet" href="styles.css?v=20261029j">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -1758,6 +1758,7 @@
                     <form id="customer-form" onsubmit="saveCustomer(event)">
                         <input type="hidden" id="customer-edit-id">
 
+                        <div class="cust-tabs-row">
                         <div class="dashboard-tabs" style="display: flex; gap: 15px; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px;">
                             <button type="button" class="btn btn-gold" id="btn-cust-tab-general" onclick="switchCustomerModalTab('general')" style="padding: 8px 18px; border-radius: var(--radius-sm); font-weight: 600;">
                                 <span class="ico" data-icon="clipboard"></span> ข้อมูลทั่วไป
@@ -1765,9 +1766,11 @@
                             <button type="button" class="btn btn-outline" id="btn-cust-tab-delivery" onclick="switchCustomerModalTab('delivery')" style="padding: 8px 18px; border-radius: var(--radius-sm); font-weight: 600;">
                                 <span class="ico" data-icon="box"></span> ที่อยู่จัดส่งเอกสาร
                             </button>
-                            <button type="button" class="cust-svc-btn" id="cust-services-btn"
-                                onmouseenter="showCustomerServicesPop(false)" onmouseleave="hideCustomerServicesPop(false)" onclick="event.stopPropagation(); showCustomerServicesPop(true)"
-                                aria-label="บริการที่ลูกค้ารายนี้ใช้กับเรา"><span class="cust-svc-ic" aria-hidden="true">✓</span>บริการที่ใช้กับเรา</button>
+                        </div>
+                        <!-- ปุ่มบริการอยู่นอกกลุ่มแท็บ (กลุ่มแท็บกลายเป็นตัวเลื่อน seg-host) — ชิดขวาในแถวเดียวกัน (เจ้าของระบบ 2026-10-29) -->
+                        <button type="button" class="cust-svc-btn" id="cust-services-btn"
+                            onmouseenter="showCustomerServicesPop(false)" onmouseleave="hideCustomerServicesPop(false)" onclick="event.stopPropagation(); showCustomerServicesPop(true)"
+                            aria-label="บริการที่ลูกค้ารายนี้ใช้กับเรา"><span class="cust-svc-ic" aria-hidden="true">✓</span>บริการที่ใช้กับเรา</button>
                         </div>
 
                         <div id="cust-tab-general">
@@ -3761,6 +3764,6 @@
     </script>
 
     <!-- ตัวเปิดระบบ: หน้าล็อกอินใช้แค่ boot.js — supabase-client.js + app.js (เลข v เดียวกัน) โหลดหลังล็อกอินเท่านั้น -->
-    <script src="boot.js?v=20261029i"></script>
+    <script src="boot.js?v=20261029j"></script>
 </body>
 </html>
