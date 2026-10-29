@@ -2851,6 +2851,9 @@ td > .ico {
     max-width: 960px;
     width: 95%;
 }
+/* หน้าต่างที่มีแท็บ: สูงคงที่ สลับแท็บแล้วขนาดไม่กระโดด (เจ้าของระบบ 2026-10-29 — ขนาดไม่เท่ากันทำให้ปวดตา) เนื้อหาเลื่อนข้างใน */
+#customer-modal > .modal-content { height: 94vh; }
+#combine-bills-modal > .modal-content { height: min(88vh, 860px); }
 .combine-jobs-head {
     display: flex;
     align-items: center;
