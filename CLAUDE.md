@@ -513,6 +513,14 @@ reason field, owner) → RPC `client_request_exit` opens a "แจ้งออ�
 the job (`syncWorkerStatusForExitJob`). `client_cancel_exit` only while รอดำเนินการ and unbilled. Clients can no longer insert/update
 `jobs` directly (RLS, migration `20261021040847_client_exit_requests.sql`) — client job writes go through RPCs only.
 
+## Employer services (owner 2026-10-29)
+
+`customers.services` (text[], migration `20261029041358_customer_services.sql`) = job types this employer uses with us. Employer
+form: one compact field next to Note (`.cust-services-pick`, summary text; the checkbox list pops up on hover / focus —
+owner: the form is already long), options = the job form's job-type checkboxes except "อื่นๆ" (`jobTypeServiceOptions`,
+`renderCustomerServices`). Job form: picking the employer turns those job-type tiles green (`highlightJobTypesForCustomer`,
+`.is-cust-service`); every other type can still be ticked.
+
 ## Inactive employers (2026-10-05)
 
 Admin can deactivate an employer (`customers.status` = `active`/`inactive`,
