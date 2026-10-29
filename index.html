@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261029t">
+    <link rel="stylesheet" href="styles.css?v=20261029u">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -3123,6 +3123,17 @@
                     <button class="close-btn" title="ปิดหน้าต่าง" onclick="closeReceiptModal()">&times;</button>
                 </div>
                 <div class="modal-body">
+                    <!-- แบบรวม / แบบรายคน (owner 2026-10-29) — แสดงเฉพาะใบเสร็จที่มีรายการของบิล (จ่ายครบงวดเดียว) ดู setReceiptLayout() -->
+                    <div class="invoice-layout-bar no-print hidden" id="receipt-layout-bar">
+                        <div class="view-toggle-bar">
+                            <button class="btn btn-gold btn-sm" id="btn-rc-layout-service" onclick="setReceiptLayout('service')" title="แสดงรายการรวมตามประเภทงาน">
+                                <span class="ico" data-icon="receipt"></span> แบบรวม (ตามประเภทงาน)
+                            </button>
+                            <button class="btn btn-outline btn-sm" id="btn-rc-layout-worker" onclick="setReceiptLayout('worker')" title="แสดง 1 แถวต่อคนงาน">
+                                <span class="ico" data-icon="users"></span> แบบรายคน
+                            </button>
+                        </div>
+                    </div>
                     <div class="invoice-sheet receipt-sheet" id="receipt-sheet"></div>
                 </div>
                 <div class="modal-footer no-print">
@@ -3773,7 +3784,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261029t"></script>
+    <script src="supabase-client.js?v=20261029u"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3784,6 +3795,6 @@
     </script>
 
     <!-- Application Script -->
-    <script src="app.js?v=20261029t"></script>
+    <script src="app.js?v=20261029u"></script>
 </body>
 </html>

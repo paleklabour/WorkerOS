@@ -697,3 +697,7 @@ gender, birth date, passport no + expiry, WP no + expiry (expired = red, no day 
 Per-person invoice layout ("แบบรายคน", owner 2026-10-27): under each worker's row the items it is made of are listed in small
 type with their own amounts (`buildInvoicePerWorkerRows` → `services: [{ name, amount }]`, `.inv-item-breakdown`); the share
 link (`share-invoice` Edge Function) prints the same as "• item amount" lines.
+Receipts got the same "แบบรวม / แบบรายคน" tabs (owner 2026-10-29, asked from the client portal; every role sees them): bar
+`#receipt-layout-bar` above `#receipt-sheet`, `setReceiptLayout` re-opens the same receipt (`lastReceiptOpen`), choice kept in
+localStorage `mw_receipt_layout`. Shown only when the receipt lists a bill's items (`invoiceReceiptLine` full branch sets
+`receiptHasItemList`); part payments / deposits stay as "per bill" lines.
