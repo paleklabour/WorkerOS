@@ -6510,11 +6510,34 @@ function setCustomerBusinessTypes(value) {
         }
     });
     document.querySelectorAll('input[name="cust-business-type"]').forEach(cb => { cb.checked = types.includes(cb.value); });
+    updateBusinessTypeSummary();
 }
 
 function readCustomerBusinessTypes() {
     return Array.from(document.querySelectorAll('input[name="cust-business-type"]:checked')).map(cb => cb.value);
 }
+
+// ช่องเดียว "ประเภทกิจการ" (owner 2026-10-29): แสดงที่เลือกเป็นชิป ชี้แล้วรายการติ๊กเด้งลงมา (CSS :hover) ลากเมาส์ลงไปติ๊กได้เลย,
+// คลิกช่อง = เปิดค้าง (จอสัมผัส / คีย์บอร์ด) จนคลิกที่อื่น
+function updateBusinessTypeSummary() {
+    const el = document.getElementById('cust-bt-summary');
+    if (!el) return;
+    const picked = readCustomerBusinessTypes();
+    el.innerHTML = picked.length
+        ? picked.map(t => `<span class="bt-pick-chip">${escapeHtml(t)}</span>`).join('')
+        : '<span class="bt-pick-empty">ชี้เพื่อเลือกประเภทกิจการ</span>';
+}
+
+function toggleBusinessTypePick(open) {
+    const pick = document.getElementById('cust-bt-pick');
+    if (pick) pick.classList.toggle('is-open', open === undefined ? !pick.classList.contains('is-open') : !!open);
+}
+
+document.addEventListener('mousedown', (e) => {
+    const pick = document.getElementById('cust-bt-pick');
+    if (pick && pick.classList.contains('is-open') && !pick.contains(e.target)) toggleBusinessTypePick(false);
+});
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') toggleBusinessTypePick(false); });
 
 // จังหวัดของนายจ้าง = จังหวัดของทุกสาขา (สำนักงานใหญ่ + สาขาอื่น)
 function customerProvinces(c) {
@@ -8441,6 +8464,7 @@ function openCustomerModal(id = null) {
     document.getElementById("customer-form").reset();
     renderCustomerServices(id ? (customers.find(c => c.id === id) || {}).services : [], id);
     document.querySelectorAll("#cust-business-type .bt-extra").forEach(el => el.remove());
+    updateBusinessTypeSummary(); toggleBusinessTypePick(false); // ฟอร์มใหม่ = ยังไม่ได้เลือก (แก้ไข = setCustomerBusinessTypes อัปเดตเอง)
     const modalTitle = document.getElementById("customer-modal-title");
     const editIdInput = document.getElementById("customer-edit-id");
     tempCustomerAttachments = {};
