@@ -1580,10 +1580,10 @@ function renderClientRenewalTab(myWorkers) {
         .sort((a, b) => String(b.doneAt || b.startedAt).localeCompare(String(a.doneAt || a.startedAt))).slice(0, 20);
     const wOf = r => workers.find(w => w.id === r.workerId) || {};
 
-    const dueRows = due.map(w => `<div class="cp-rn-row${cpRenewalPick.has(w.id) ? ' is-selected' : ''}">
+    const dueRows = due.map(w => `<div class="cp-rn-row is-dblview${cpRenewalPick.has(w.id) ? ' is-selected' : ''}" data-client-worker ondblclick="if (!event.target.closest('input, button, label, a')) openClientWorkerView('${w.id}')" title="ดับเบิลคลิกเพื่อดูข้อมูลคนงาน">
         <input type="checkbox" ${cpRenewalPick.has(w.id) ? 'checked' : ''} onchange="toggleClientRenewalPick(['${w.id}'], this.checked)" title="เลือก ${escapeHtml(workerFullName(w))}">
         <div class="renewal-avatar"><img src="${w.photo ? escapeHtml(w.photo) : WORKER_AVATAR_PLACEHOLDER}" alt="" loading="lazy"></div>
-        <div class="cp-rn-name is-link" data-client-worker onclick="openClientWorkerView('${w.id}')" title="ดูข้อมูลคนงาน"><strong>${escapeHtml(workerFullName(w))}</strong><small class="text-muted">${escapeHtml(w.workerUid || '')}</small></div>
+        <div class="cp-rn-name"><strong>${escapeHtml(workerFullName(w))}</strong><small class="text-muted">${escapeHtml(w.workerUid || '')}</small></div>
         <span>${renewalExpiryCell(w.permitExpiry)}</span>
         <span class="text-muted">พาสปอร์ตถึง ${w.passportExpiry ? formatThaiDate(w.passportExpiry) : '-'}</span>
         <label class="rn-book-pick" title="ทำพาสปอร์ต/CI เล่มใหม่ด้วย (ระบบติ๊กให้เมื่อเล่มจะหมดก่อนใบอนุญาตใหม่)"><input type="checkbox" ${cpRenewalBook.get(w.id) ? 'checked' : ''} onchange="cpRenewalBook.set('${w.id}', this.checked); renderClientPortal()"> ทำเล่มด้วย</label>
@@ -1597,8 +1597,8 @@ function renderClientRenewalTab(myWorkers) {
         // ทำเล่มที่อื่น: รอบนี้ติ๊กทำเล่มไว้ เล่มยังไม่ได้ทำ และค่าทำเล่มยังไม่ออกบิล
         const canBookExt = r.withBook && !r.steps.book && !r.steps.bookExternal
             && !renewalJobsOf(r).some(j => j.jobType === RENEWAL_BOOK_JOB_TYPE && (getJobInvoice(j) || isJobNoCharge(j)));
-        return `<div class="cp-rn-row cp-rn-active">
-            <div class="cp-rn-name is-link" data-client-worker onclick="openClientWorkerView('${r.workerId}')" title="ดูข้อมูลคนงาน"><strong>${escapeHtml(workerFullName(wOf(r)))}</strong><small class="rn-uid">${escapeHtml(wOf(r).workerUid || '')}</small><small class="text-muted">หมด ${r.oldPermitExpiry ? formatThaiDate(r.oldPermitExpiry) : '-'}${r.withBook && !renewalSplitBook(r) ? (r.steps.bookExternal ? ' · ทำเล่มที่อื่น' : ' · ทำเล่มด้วย') : ''}</small></div>
+        return `<div class="cp-rn-row cp-rn-active is-dblview" data-client-worker ondblclick="if (!event.target.closest('input, button, label, a')) openClientWorkerView('${r.workerId}')" title="ดับเบิลคลิกเพื่อดูข้อมูลคนงาน">
+            <div class="cp-rn-name"><strong>${escapeHtml(workerFullName(wOf(r)))}</strong><small class="rn-uid">${escapeHtml(wOf(r).workerUid || '')}</small><small class="text-muted">หมด ${r.oldPermitExpiry ? formatThaiDate(r.oldPermitExpiry) : '-'}${r.withBook && !renewalSplitBook(r) ? (r.steps.bookExternal ? ' · ทำเล่มที่อื่น' : ' · ทำเล่มด้วย') : ''}</small></div>
             <div class="rn-arow-progress"><div class="rn-rings">${renewalRingHtml(r, 'main')}${renewalBookTrackOf(r).length ? renewalRingHtml(r, 'book') : ''}</div></div>
             <span class="text-muted">${r.appointmentDate ? `นัดรับบัตร ${formatThaiDate(r.appointmentDate)}` : 'ยังไม่นัด'}${r.steps.bookAppt && r.steps.bookAppt.date ? `<small class="rn-book-appt">นัดทำเล่ม ${formatThaiDate(r.steps.bookAppt.date)}</small>` : ''}</span>
             <span>${pill}</span>
@@ -1611,8 +1611,8 @@ function renderClientRenewalTab(myWorkers) {
     const doneRows = done.map(r => {
         const ext = r.status === 'external';
         const newExp = r.newPermitExpiry || (ext && !renewalExternalPending(r) ? permitExpiryKey(wOf(r)) : null);
-        return `<div class="cp-rn-row cp-rn-done">
-        <div class="cp-rn-name is-link" data-client-worker onclick="openClientWorkerView('${r.workerId}')" title="ดูข้อมูลคนงาน"><strong>${escapeHtml(workerFullName(wOf(r)))}</strong>${ext ? '<span class="rn-ext-tag">ต่อที่อื่น</span>' : ''}</div>
+        return `<div class="cp-rn-row cp-rn-done is-dblview" data-client-worker ondblclick="if (!event.target.closest('input, button, label, a')) openClientWorkerView('${r.workerId}')" title="ดับเบิลคลิกเพื่อดูข้อมูลคนงาน">
+        <div class="cp-rn-name"><strong>${escapeHtml(workerFullName(wOf(r)))}</strong>${ext ? '<span class="rn-ext-tag">ต่อที่อื่น</span>' : ''}</div>
         <span class="text-muted">เดิม ${r.oldPermitExpiry ? formatThaiDate(r.oldPermitExpiry) : '-'}</span>
         <span>${newExp ? `ใบอนุญาตใหม่ถึง <strong>${formatThaiDate(newExp)}</strong>` : '<span class="text-muted">รอข้อมูลใบอนุญาตใหม่</span>'}</span>
         <span class="text-muted">${ext ? `แจ้ง ${formatThaiDate(String(r.startedAt || '').slice(0, 10))}` : `เสร็จ ${r.doneAt ? formatThaiDate(String(r.doneAt).slice(0, 10)) : '-'}`}</span>
