@@ -4015,6 +4015,11 @@ function renewalAutoSteps(r, w) {
 let renewalAutoBusy = false; // กันโหลดซ้อน (กลับมาที่แท็บ) แล้วบันทึกรอบเดียวกันสองครั้ง
 async function renewalAutoFill(rounds) {
     if (!can('ops') || isReadOnlySession() || renewalAutoBusy) return 0;
+    // รอข้อมูลคนงานล่าสุดจากฐานข้อมูลก่อน (2026-10-29): ตอนเปิดหน้า workers ยังเป็นแคชในเครื่อง ไม่มีเครื่องหมาย noRenewalAuto ล่าสุด
+    // → เคยติ๊กไฟล์ที่ผู้ใช้เพิ่งเอาออกจากขั้นกลับมาเอง
+    for (let i = 0; !lastDataLoadAt && i < 60; i++) await new Promise(r => setTimeout(r, 500));
+    if (!lastDataLoadAt) return 0;
+    rounds = rounds.map(r => (renewalList || []).find(x => x.id === r.id) || r).filter(r => r.status === 'active');
     renewalAutoBusy = true;
     try { return await renewalAutoFillRun(rounds); } finally { renewalAutoBusy = false; }
 }
