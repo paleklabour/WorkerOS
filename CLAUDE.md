@@ -534,7 +534,7 @@ shows an orange tag on billing / combine rows (`customerNoChargeTag`) and a warn
 button in the bill draft (`renderInvoiceNoChargeHint` → `markJobNoChargeFromDraft`).
 
 Employer form "ประเภทกิจการ" (owner 2026-10-29): one field (`#cust-bt-pick`, `.bt-pick-summary` shows the picks as chips);
-hovering drops down the 24-option checklist and the mouse can move straight into it to tick (pure CSS `:hover`, a transparent
+hovering drops down the 24-option checklist and the mouse can move straight into it to tick (`.is-hover` set on mouseover, removed 250 ms after mouseout — pure CSS `:hover` dropped while moving down; a transparent
 padding-top bridge); clicking the field keeps it open (`toggleBusinessTypePick`, touch/keyboard) until a click elsewhere. The
 checkboxes `#cust-business-type` / `name="cust-business-type"` are unchanged and still hold the value (`setCustomerBusinessTypes`
 / `readCustomerBusinessTypes`, summary via `updateBusinessTypeSummary`).

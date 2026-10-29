@@ -6517,8 +6517,22 @@ function readCustomerBusinessTypes() {
     return Array.from(document.querySelectorAll('input[name="cust-business-type"]:checked')).map(cb => cb.value);
 }
 
-// ช่องเดียว "ประเภทกิจการ" (owner 2026-10-29): แสดงที่เลือกเป็นชิป ชี้แล้วรายการติ๊กเด้งลงมา (CSS :hover) ลากเมาส์ลงไปติ๊กได้เลย,
-// คลิกช่อง = เปิดค้าง (จอสัมผัส / คีย์บอร์ด) จนคลิกที่อื่น
+// ช่องเดียว "ประเภทกิจการ" (owner 2026-10-29): แสดงที่เลือกเป็นชิป ชี้แล้วรายการติ๊กเด้งลงมา ลากเมาส์ลงไปติ๊กได้เลย —
+// เปิด/ปิดด้วย .is-hover จาก mouseenter / mouseleave (หน่วงปิด 250 ms เหมือนปุ่มบริการ; CSS :hover ล้วนหลุดตอนเลื่อนเมาส์ลงรายการ),
+// คลิกช่อง = เปิดค้าง (.is-open, จอสัมผัส / คีย์บอร์ด) จนคลิกที่อื่น
+let btPickHideTimer = null;
+document.addEventListener('mouseover', (e) => {
+    const pick = e.target.closest && e.target.closest('#cust-bt-pick');
+    if (!pick || !window.matchMedia('(hover: hover)').matches) return;
+    clearTimeout(btPickHideTimer);
+    pick.classList.add('is-hover');
+});
+document.addEventListener('mouseout', (e) => {
+    const pick = e.target.closest && e.target.closest('#cust-bt-pick');
+    if (!pick || (e.relatedTarget && pick.contains(e.relatedTarget))) return;
+    clearTimeout(btPickHideTimer);
+    btPickHideTimer = setTimeout(() => pick.classList.remove('is-hover'), 250);
+});
 function updateBusinessTypeSummary() {
     const el = document.getElementById('cust-bt-summary');
     if (!el) return;
@@ -8464,7 +8478,7 @@ function openCustomerModal(id = null) {
     document.getElementById("customer-form").reset();
     renderCustomerServices(id ? (customers.find(c => c.id === id) || {}).services : [], id);
     document.querySelectorAll("#cust-business-type .bt-extra").forEach(el => el.remove());
-    updateBusinessTypeSummary(); toggleBusinessTypePick(false); // ฟอร์มใหม่ = ยังไม่ได้เลือก (แก้ไข = setCustomerBusinessTypes อัปเดตเอง)
+    updateBusinessTypeSummary(); toggleBusinessTypePick(false); document.getElementById("cust-bt-pick")?.classList.remove("is-hover"); // ฟอร์มใหม่ = ยังไม่ได้เลือก (แก้ไข = setCustomerBusinessTypes อัปเดตเอง)
     const modalTitle = document.getElementById("customer-modal-title");
     const editIdInput = document.getElementById("customer-edit-id");
     tempCustomerAttachments = {};
