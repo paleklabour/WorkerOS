@@ -7205,25 +7205,19 @@ body.has-camera .upload-hint { display: none; }
 }
 .job-remark-input:focus { outline: none; border-color: var(--gold-primary); box-shadow: 0 0 0 3px rgba(45, 79, 163, 0.12); }
 
-/* ฟอร์มนายจ้าง: "บริการที่ใช้กับเรา" ช่องเดียว ชี้เมาส์ (หรือโฟกัส/แตะ) แล้วรายการติ๊กเด้งออกมา (customers.services) */
-.cust-services-pick { position: relative; outline: none; }
-.cust-services-summary {
-    min-height: 58px; padding: 8px 12px; border: 1px solid var(--dk-line, #cbd5e1); border-radius: var(--radius-sm);
-    background: var(--dk-card, #ffffff); color: var(--text-dark); font-size: 13.5px; cursor: pointer;
-    overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+/* ฟอร์มนายจ้าง: ปุ่ม "บริการที่ใช้กับเรา" ข้างแท็บที่อยู่จัดส่ง — เขียว iOS (เจ้าของระบบเลือก 2026-10-29), ชี้ = ดูรายการ, คลิก = ปักไว้แล้วติ๊กได้ */
+.cust-svc-btn {
+    display: inline-flex; align-items: center; gap: 8px; padding: 8px 18px 8px 9px;
+    border: 0; border-radius: 999px; background: #34c759; color: #fff; font: inherit; font-weight: 700; cursor: pointer;
+    box-shadow: 0 4px 14px rgba(52, 199, 89, 0.4); transition: filter .18s ease, transform .18s var(--ios-spring, ease);
 }
-.cust-services-pick:hover .cust-services-summary,
-.cust-services-pick:focus-within .cust-services-summary { border-color: var(--gold-primary); }
-.cust-services-pop {
-    display: none; position: absolute; z-index: 30; top: 100%; left: 0; right: 0; margin-top: 4px;
-    grid-template-columns: 1fr 1fr; gap: 4px 10px; padding: 10px 12px;
-    background: var(--dk-card, #ffffff); border: 1px solid var(--dk-line, #e2e8f0); border-radius: 14px;
-    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
-}
-.cust-services-pick:hover .cust-services-pop,
-.cust-services-pick:focus-within .cust-services-pop { display: grid; }
-.cust-service-item { display: flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: normal; margin: 0; cursor: pointer; user-select: none; }
-.cust-service-item input { width: 16px; height: 16px; }
+.cust-svc-btn:hover { filter: brightness(1.05); }
+.cust-svc-btn:active { transform: scale(.97); }
+.cust-svc-ic { width: 24px; height: 24px; border-radius: 999px; background: #fff; color: #34c759; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; }
+.rn-steps-pop.cust-svc-pop { --rn-c: #34c759; }
+.cust-svc-row { width: 100%; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; }
+.cust-svc-pop.is-pinned .cust-svc-row { cursor: pointer; }
+.cust-svc-pop.is-pinned .cust-svc-row:hover { background: var(--dk-subtle, #f1f3f7); }
 
 /* ฟอร์มเปิดใบงาน: ประเภทงานที่นายจ้างรายนี้ใช้กับเรา = เขียว (ยังติ๊กประเภทอื่นได้) — กล่องมี inline background จึงต้อง !important */
 #job-type-checkboxes-container > div.is-cust-service {

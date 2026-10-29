@@ -516,9 +516,10 @@ the job (`syncWorkerStatusForExitJob`). `client_cancel_exit` only while รอ�
 ## Employer services (owner 2026-10-29)
 
 `customers.services` (text[], migration `20261029041358_customer_services.sql`) = job types this employer uses with us. Employer
-form: one compact field next to Note (`.cust-services-pick`, summary text; the checkbox list pops up on hover / focus —
-owner: the form is already long), options = the job form's job-type checkboxes except "อื่นๆ" (`jobTypeServiceOptions`,
-`renderCustomerServices`). Job form: picking the employer turns those job-type tiles green (`highlightJobTypesForCustomer`,
+form: an iOS-green button "บริการที่ใช้กับเรา" right after the "ที่อยู่จัดส่งเอกสาร" tab (`#cust-services-btn`, `.cust-svc-btn`;
+owner picked mockup D, no count shown — the form is already long). Like the renewal rings: hover = list, click = pinned list
+where rows toggle (`showCustomerServicesPop` / `toggleCustomerService`, popup reuses `.rn-steps-pop`); the picks live in
+`custServicesDraft` until "บันทึกข้อมูล". Options = the job form's job-type checkboxes except "อื่นๆ" (`jobTypeServiceOptions`). Job form: picking the employer turns those job-type tiles green (`highlightJobTypesForCustomer`,
 `.is-cust-service`); every other type can still be ticked.
 
 ## Inactive employers (2026-10-05)

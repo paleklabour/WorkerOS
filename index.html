@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261029f">
+    <link rel="stylesheet" href="styles.css?v=20261029g">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -1765,6 +1765,9 @@
                             <button type="button" class="btn btn-outline" id="btn-cust-tab-delivery" onclick="switchCustomerModalTab('delivery')" style="padding: 8px 18px; border-radius: var(--radius-sm); font-weight: 600;">
                                 <span class="ico" data-icon="box"></span> ที่อยู่จัดส่งเอกสาร
                             </button>
+                            <button type="button" class="cust-svc-btn" id="cust-services-btn"
+                                onmouseenter="showCustomerServicesPop(false)" onmouseleave="hideCustomerServicesPop(false)" onclick="event.stopPropagation(); showCustomerServicesPop(true)"
+                                aria-label="บริการที่ลูกค้ารายนี้ใช้กับเรา"><span class="cust-svc-ic" aria-hidden="true">✓</span>บริการที่ใช้กับเรา</button>
                         </div>
 
                         <div id="cust-tab-general">
@@ -1846,16 +1849,9 @@
                         </div>
 
                         <div class="form-row">
-                            <div class="form-group col-6">
+                            <div class="form-group col-12">
                                 <label for="cust-billing-note">Note <small class="text-muted">(เห็นเฉพาะคุณ · ไม่แสดงในใบแจ้งหนี้ที่พิมพ์ให้ลูกค้า)</small></label>
                                 <textarea id="cust-billing-note" rows="2" placeholder="เช่น ต้องส่งบิลผ่านแผนกบัญชีเท่านั้น, ปิดยอดทุกสิ้นเดือน, ชื่อผู้ติดต่อฝ่ายบัญชี..."></textarea>
-                            </div>
-                            <div class="form-group col-6">
-                                <label>บริการที่ใช้กับเรา <small class="text-muted">(ชี้เพื่อเลือก · เป็นสีเขียวตอนเปิดใบงาน)</small></label>
-                                <div class="cust-services-pick" tabindex="0" title="ติ๊กบริการที่ลูกค้ารายนี้ใช้ — ฟอร์มเปิดใบงานจะไฮไลต์เป็นสีเขียว แต่ยังเลือกงานประเภทอื่นได้">
-                                    <div class="cust-services-summary" id="cust-services-summary">ยังไม่ได้เลือก</div>
-                                    <div id="cust-services" class="cust-services-pop"></div>
-                                </div>
                             </div>
                         </div>
 
@@ -3765,6 +3761,6 @@
     </script>
 
     <!-- ตัวเปิดระบบ: หน้าล็อกอินใช้แค่ boot.js — supabase-client.js + app.js (เลข v เดียวกัน) โหลดหลังล็อกอินเท่านั้น -->
-    <script src="boot.js?v=20261029f"></script>
+    <script src="boot.js?v=20261029g"></script>
 </body>
 </html>
