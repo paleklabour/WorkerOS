@@ -8906,61 +8906,60 @@ function openBt46Modal(workerId) {
     const individual = isIndividualCustomer(c);
     const sigs = getAttachments(c, 'cust-signature');
     const sigUrl = sigs.length ? (sigs[sigs.length - 1].data || '') : '';
-    const f = (val, width) => `<span class="bt46-f" contenteditable="true" style="min-width:${width || 120}px">${escapeHtml(val || '')}</span>`;
-    const box = (on) => `<span class="bt46-box" onclick="this.textContent = this.textContent === '☑' ? '☐' : '☑'">${on ? '☑' : '☐'}</span>`;
-    const en = (t) => `<span class="bt46-en">${t}</span>`;
     const workerName = [w.title, w.firstName, w.lastName].filter(Boolean).join(' ');
     const address = getCustomerHQAddress(c.id) || w.workplace || '';
     const signer = individual ? c.companyName : (c.coordinator || '');
 
-    document.getElementById("bt46-sheet").innerHTML = `
-        <div class="bt46-head">
-            <div class="bt46-formno">แบบ บต. ๔๖<br>${en('Form WP. 46')}</div>
-            <div class="bt46-title">หนังสือรับรองการจ้าง<br>${en('EMPLOYMENT CERTIFICATION')}</div>
-        </div>
-        <h4>๑. ข้อมูลนายจ้าง ${en('Particulars of employer')}</h4>
-        <p>๑.๑ ${box(!individual)} นิติบุคคลไทย จดทะเบียนเมื่อ ${f('', 120)} เลขที่ ${f(individual ? '' : c.taxId, 130)} ทุนจดทะเบียนชำระแล้ว ${f('', 100)} บาท</p>
-        <p class="bt46-ind">${box(false)} นิติบุคคลต่างด้าว จดทะเบียนเมื่อ ${f('', 120)} จำนวนเงินที่นำเข้ามาจากต่างประเทศ ${f('', 120)} บาท</p>
-        <p class="bt46-ind">${box(individual)} บุคคลธรรมดา บัตรประจำตัวประชาชนเลขที่ ${f(individual ? c.taxId : '', 150)} ใบอนุญาตทำงานเลขที่ ${f('', 110)}</p>
-        <p>ชื่อนายจ้าง/สถานประกอบการ ${en('Name of employer')} ${f(c.companyName, 380)}</p>
-        <p>ที่ตั้งสถานประกอบการ ${en('Address')} ${f(address, 470)}</p>
-        <p>ประเภทกิจการ ${en('Type of business')} ${f(String(c.businessType || '').split(BUSINESS_TYPE_SEP).join(', '), 470)}</p>
-        <p>๑.๒ สถานะด้านการเงิน ในรอบปีที่ผ่านมา ${en('Financial status of the company during the previous year')}</p>
-        <table class="bt46-table">
-            <tr><th>ปี พ.ศ.<br>${en('Years')}</th><th>รายได้<br>${en('Income')}</th><th>ภาษีเงินได้<br>${en('Tax')}</th></tr>
-            <tr><td contenteditable="true"></td><td contenteditable="true"></td><td contenteditable="true"></td></tr>
-        </table>
-        <p>รายได้ ปัจจุบัน ${en('Current income')} ${f('', 120)} บาท ในช่วงระยะเวลา ${en('For a duration of')} ${f('', 80)} เดือน</p>
-        <p>${box(false)} มูลค่าการส่งออก ${en('Value of export')} ${f('', 160)} บาท</p>
-        <p>${box(false)} ได้นำคนต่างประเทศเข้ามาท่องเที่ยวในรอบปีที่ผ่านมา ${f('', 100)} คน</p>
-        <p>${box(false)} มีพนักงานคนไทย ${en('Total number of Thai employees')} ${f('', 80)} คน</p>
-        <p>${box(true)} มีคนต่างด้าวทำงานอยู่ด้วยแล้ว ${en('Total number of foreign worker(s)')} ${f(String(workers.filter(x => x.employerId === c.id && x.status !== 'archived').length), 60)} คน</p>
-        <p>${box(false)} จำนวนห้องเรียน ${f('', 50)} ห้อง ${box(false)} จำนวนนักเรียน ${f('', 50)} คน</p>
-        <h4>๒. ข้อมูลการจ้าง ${en('Particulars of employment')}</h4>
-        <p>ข้าพเจ้าประสงค์จะจ้างคนต่างด้าวชื่อ ${en('I wish to employ a foreigner named')} ${f(workerName, 300)}</p>
-        <p>สัญชาติ ${en('Nationality')} ${f(w.nationality, 200)} หมู่โลหิต ${en('Blood type')} ${f('', 80)}</p>
-        <p>ที่อยู่ในประเทศไทย ${en('Address in Thailand')} ${f(w.workplace || address, 430)}</p>
-        <p>ประเภทงาน ${en('Type(s) of work')} ${f(w.position, 450)}</p>
-        <p>ลักษณะงาน ${en('Nature of work')} ${f('', 460)}</p>
-        <p>สถานที่ทำงานของคนต่างด้าว ${en('Place of work of the foreigner')} ${f(w.workplace || address, 330)}</p>
-        <p>ระยะเวลาการจ้าง ${f('', 50)} ปี ${f('', 50)} เดือน ${f('', 50)} วัน มีสัญญาจ้างถึงวันที่ ${f(w.permitExpiry ? formatThaiDate(w.permitExpiry) : '', 150)}</p>
-        <p>ค่าจ้างหรือรายได้ วันละ / เดือนละ ${f('', 110)} บาท ผลประโยชน์อื่น วันละ / เดือนละ ${f('', 110)} บาท</p>
-        <p>ระดับการศึกษาสูงสุด ${f('', 150)} ประสบการณ์ทำงาน ${f('', 40)} ปี สถานภาพ ${box(false)} โสด ${box(false)} สมรส</p>
-        <h4>๓. เหตุผลที่ไม่จ้างบุคคลสัญชาติไทยเข้าทำงาน ${en('Please specify the reason(s) for not employing a Thai national')}</h4>
-        <p>${f('ขาดแคลนแรงงานไทย', 640)}</p>
-        <div class="bt46-certify">ข้าพเจ้าขอรับรองว่า ข้อความข้างต้นนี้เป็นความจริงทุกประการ<br>${en('I hereby certify that all particulars given in this form are true and correct to the best of my knowledge and belief.')}</div>
-        <div class="bt46-sign">
-            <div>ลงชื่อ <span class="bt46-sigline">${sigUrl ? `<img src="${escapeHtml(sigUrl)}" alt="ลายเซ็น">` : ''}</span> นายจ้าง</div>
-            <div>( ${f(signer, 220)} )</div>
-            <div>ตำแหน่ง ${en('Title')} ${f(individual ? 'นายจ้าง' : 'กรรมการผู้มีอำนาจ', 180)}</div>
-            <div>ลงวันที่ ${en('Date')} ${f(formatThaiDate(new Date()), 180)}</div>
-        </div>
-        <div class="bt46-note">หมายเหตุ : ผู้ทำหนังสือรับรองนี้ จะต้องเป็นผู้มีอำนาจลงชื่อผูกพันสถานประกอบการ หรือได้รับมอบอำนาจให้ทำการแทน</div>
-    `;
+    // หน้าจอ = ภาพแบบฟอร์มจริง (assets/forms/bt46.pdf) + ช่องแก้ไขวางทับตามพิกัด BT46_LAYOUT (owner 2026-10-29) — ชุดเดียวกับ PDF ที่ดาวน์โหลด
+    const values = ['', individual ? '' : c.taxId, '', '', '', individual ? c.taxId : '', '', c.companyName, address,
+        String(c.businessType || '').split(BUSINESS_TYPE_SEP).join(', '), '', '', '', '', '',
+        String(workers.filter(x => x.employerId === c.id && x.status !== 'archived').length), '', '',
+        workerName, w.nationality, '', w.workplace || address, w.position, '', w.workplace || address, '', '', '',
+        w.permitExpiry ? formatThaiDate(w.permitExpiry) : '', '', '', '', '', 'ขาดแคลนแรงงานไทย',
+        signer, individual ? 'นายจ้าง' : 'กรรมการผู้มีอำนาจ', formatThaiDate(new Date())];
+    const boxes = [!individual, false, individual, false, false, false, true, false, false, false, false];
+    renderBt46Form(values, boxes, sigUrl);
     if (!sigUrl) showToast("ยังไม่มีลายเซ็นนายจ้าง — อัปโหลดได้ที่แฟ้มเอกสารนายจ้าง หมวด \"ลายเซ็นนายจ้าง\"", "warning");
-    setPrintPageSize("size: A4 portrait; margin: 10mm;");
+    setPrintPageSize("size: A4 portrait; margin: 0;");
     document.getElementById("bt46-modal").classList.remove("hidden");
 }
+
+// ภาพพื้นหลังจากไฟล์แม่แบบ (เรนเดอร์ครั้งเดียวด้วย pdf.js แล้วจำไว้)
+let bt46BgPromise = null;
+function bt46Background() {
+    if (!bt46BgPromise) {
+        bt46BgPromise = (async () => {
+            if (!window.pdfjsLib) throw new Error('ตัวอ่าน PDF ยังโหลดไม่เสร็จ');
+            const buf = await (await fetch('assets/forms/bt46.pdf')).arrayBuffer();
+            const page = await (await window.pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise).getPage(1);
+            const vp = page.getViewport({ scale: 1840 / page.getViewport({ scale: 1 }).width }); // 2 เท่าของ 920 px ให้คม
+            const cv = document.createElement('canvas'); cv.width = vp.width; cv.height = vp.height;
+            await page.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
+            return cv.toDataURL('image/jpeg', 0.9);
+        })().catch(e => { bt46BgPromise = null; throw e; });
+    }
+    return bt46BgPromise;
+}
+
+function renderBt46Form(values, boxes, sigUrl) {
+    const sheet = document.getElementById("bt46-sheet");
+    const fontPx = 10 / BT46_PX; // 10 pt เท่ากับใน PDF
+    const fields = BT46_LAYOUT.f.map(([x, y, maxX, wrap], i) => {
+        const w = (maxX || Math.min(x + 260, 860)) - x;
+        return `<span class="bt46-f${wrap ? ' is-wrap' : ''}" contenteditable="true" spellcheck="false" title="คลิกเพื่อแก้ไข"
+            style="left:${x}px; top:${y - fontPx - 1}px; width:${w}px; font-size:${fontPx}px">${escapeHtml(values[i] || '')}</span>`;
+    }).join('');
+    const cells = BT46_LAYOUT.cell.map(([x, y]) => `<span class="bt46-f bt46-cell" contenteditable="true" spellcheck="false" title="คลิกเพื่อแก้ไข"
+        style="left:${x}px; top:${y - fontPx - 1}px; width:120px; font-size:${fontPx}px"></span>`).join('');
+    const ticks = BT46_LAYOUT.box.map(([x, y], i) => `<span class="bt46-box${boxes[i] ? ' is-on' : ''}" title="คลิกเพื่อติ๊ก / เอาออก"
+        style="left:${x - 8}px; top:${y - 12}px" onclick="this.classList.toggle('is-on')"></span>`).join('');
+    const [sx, sy, sw, sh] = BT46_LAYOUT.signature;
+    sheet.innerHTML = `<div class="bt46-form"><img class="bt46-bg" alt="แบบ บต.46">${fields}${cells}${ticks}
+        ${sigUrl ? `<img class="bt46-sig" src="${escapeHtml(sigUrl)}" alt="ลายเซ็น" style="left:${sx}px; top:${sy}px; width:${sw}px; height:${sh}px">` : ''}</div>`;
+    bt46Background().then(src => { const img = sheet.querySelector('.bt46-bg'); if (img) img.src = src; })
+        .catch(e => showUploadPill('bad', 'โหลดแบบฟอร์ม บต.46 ไม่สำเร็จ', e.message));
+}
+
 
 function closeBt46Modal() {
     document.getElementById("bt46-modal").classList.add("hidden");
@@ -8995,28 +8994,28 @@ function loadGovFormLibs() {
 const BT46_PX = 595.28 / 920;
 const BT46_LAYOUT = {
     f: [
-        [318, 142], [500, 142], [735, 142],            // 0-2 นิติบุคคลไทย: จดทะเบียนเมื่อ / เลขที่ / ทุนจดทะเบียน
+        [318, 142, 418], [483, 142, 578], [735, 142, 812], // 0-2 นิติบุคคลไทย: จดทะเบียนเมื่อ / เลขที่ / ทุนจดทะเบียน
         [345, 185], [705, 185],                        // 3-4 นิติบุคคลต่างด้าว
         [430, 228], [748, 228],                        // 5-6 บุคคลธรรมดา: เลขบัตร / ใบอนุญาตทำงาน
         [385, 272],                                    // 7 ชื่อนายจ้าง
-        [275, 296, 860],                               // 8 ที่ตั้ง (ยาว → ต่อบรรทัด 318)
+        [275, 296, 860, true],                         // 8 ที่ตั้ง (ยาว → ต่อบรรทัด 318)
         [282, 340],                                    // 9 ประเภทกิจการ
-        [350, 471], [712, 471],                        // 10-11 รายได้ปัจจุบัน / เดือน
+        [285, 471, 390], [712, 471, 772],              // 10-11 รายได้ปัจจุบัน / เดือน
         [430, 493], [545, 516], [480, 561], [525, 584], // 12-15 ส่งออก / ท่องเที่ยว / พนักงานไทย / คนต่างด้าว
-        [365, 608], [742, 608],                        // 16-17 ห้องเรียน / นักเรียน
+        [365, 608, 408], [690, 608, 752],              // 16-17 ห้องเรียน / นักเรียน
         [515, 662],                                    // 18 ชื่อคนต่างด้าว
         [210, 686], [610, 686],                        // 19-20 สัญชาติ / หมู่โลหิต
         [322, 710],                                    // 21 ที่อยู่ในไทย
         [262, 734],                                    // 22 ประเภทงาน
-        [258, 758, 860],                               // 23 ลักษณะงาน (ต่อบรรทัด 780)
+        [258, 758, 860, true],                         // 23 ลักษณะงาน (ต่อบรรทัด 780)
         [442, 802],                                    // 24 สถานที่ทำงาน
-        [275, 826], [380, 826], [470, 826], [632, 826], // 25-28 ปี / เดือน / วัน / สัญญาถึง
+        [205, 826, 262], [295, 826, 345], [400, 826, 460], [632, 826], // 25-28 ปี / เดือน / วัน / สัญญาถึง
         [365, 868], [770, 868],                        // 29-30 ค่าจ้าง / ผลประโยชน์อื่น
         [255, 912], [540, 912],                        // 31-32 การศึกษา / ประสบการณ์
-        [96, 982, 860],                                // 33 เหตุผล (ต่อบรรทัด 1004)
+        [96, 982, 860, true],                          // 33 เหตุผล (ต่อบรรทัด 1004)
         [470, 1142], [525, 1166], [525, 1190]          // 34-36 ชื่อผู้ลงนาม / ตำแหน่ง / ลงวันที่
     ],
-    box: [[131, 142], [131, 184], [131, 228], [96, 493], [96, 516], [96, 561], [96, 584], [96, 608], [496, 608], [697, 912], [763, 911]],
+    box: [[131, 142], [131, 184], [131, 228], [96, 493], [96, 516], [96, 561], [96, 584], [96, 608], [496, 608], [697, 912], [753, 912]],
     cell: [[118, 437], [345, 437], [690, 437]],
     signature: [505, 1080, 150, 50]
 };
@@ -9037,12 +9036,14 @@ async function exportBt46Pdf() {
         const page = doc.getPages()[0];
         const H = page.getHeight();
         const size = 10;
-        const txt = (s, xPx, yPx, maxXPx) => {
+        const txt = (s, xPx, yPx, maxXPx, wrap) => {
             s = String(s || '').replace(/\s+/g, ' ').trim();
             if (!s) return;
             const x = xPx * BT46_PX, y = H - yPx * BT46_PX + 1.5;
             const maxW = maxXPx ? (maxXPx - xPx) * BT46_PX : null;
             if (!maxW || font.widthOfTextAtSize(s, size) <= maxW) { page.drawText(s, { x, y, size, font }); return; }
+            // ช่องสั้น (เลข 13 หลัก ฯลฯ) ยาวเกินเส้นประ → ย่อตัวอักษรให้พอดี (ไม่ต่ำกว่า 7 pt) แทนการทับคำในฟอร์ม
+            if (!wrap) { const fit = Math.max(7, size * maxW / font.widthOfTextAtSize(s, size)); page.drawText(s, { x, y, size: fit, font }); return; }
             // ยาวเกินเส้น → ตัดคำ ต่อบรรทัดถัดไป (บรรทัดต่อเริ่มที่ขอบซ้ายของฟอร์ม)
             let line = '', rest = s;
             for (const ch of s) { if (font.widthOfTextAtSize(line + ch, size) > maxW) break; line += ch; }
@@ -9051,20 +9052,20 @@ async function exportBt46Pdf() {
             rest = s.slice(cut).trim();
             if (rest) page.drawText(rest, { x: 96 * BT46_PX, y: y - 22 * BT46_PX, size, font });
         };
-        const fields = [...sheet.querySelectorAll('.bt46-f')].map(el => el.textContent);
-        BT46_LAYOUT.f.forEach(([x, y, maxX], i) => txt(fields[i], x, y, maxX));
-        const cells = [...sheet.querySelectorAll('.bt46-table td')].map(el => el.textContent);
+        const fields = [...sheet.querySelectorAll('.bt46-f:not(.bt46-cell)')].map(el => el.textContent);
+        BT46_LAYOUT.f.forEach(([x, y, maxX, wrap], i) => txt(fields[i], x, y, maxX, wrap));
+        const cells = [...sheet.querySelectorAll('.bt46-cell')].map(el => el.textContent);
         BT46_LAYOUT.cell.forEach(([x, y], i) => txt(cells[i], x, y));
         [...sheet.querySelectorAll('.bt46-box')].forEach((el, i) => {
             const pos = BT46_LAYOUT.box[i];
-            if (!pos || el.textContent.trim() !== '☑') return;
+            if (!pos || !el.classList.contains('is-on')) return;
             // ฟอนต์ไทยไม่มี ✓ → วาดเส้นเครื่องหมายถูกเอง (จุดกึ่งกลางช่อง ≈ pos[0], pos[1] - 4 px)
             const pt = (dx, dy) => ({ x: (pos[0] + dx) * BT46_PX, y: H - (pos[1] - 4 + dy) * BT46_PX });
             const opts = { thickness: 1.3, color: PDFLib.rgb(0, 0, 0) };
             page.drawLine({ start: pt(-5, 0), end: pt(-1.5, 4.5), ...opts });
             page.drawLine({ start: pt(-1.5, 4.5), end: pt(6, -6), ...opts });
         });
-        const sigImg = sheet.querySelector('.bt46-sigline img');
+        const sigImg = sheet.querySelector('.bt46-sig');
         if (sigImg && sigImg.src) {
             try {
                 const bytes = await (await fetch(sigImg.src)).arrayBuffer();

@@ -6752,48 +6752,29 @@ body.has-camera .upload-hint { display: none; }
     font-size: 12.5px;
 }
 
-.bt46-sheet {
-    background: #ffffff;
-    color: #111111;
-    padding: 28px 34px;
-    border-radius: 12px;
-    font-size: 13.5px;
-    line-height: 1.75;
+/* บต.46 = ภาพแบบฟอร์มจริง + ช่องแก้ไขวางทับตามพิกัด BT46_LAYOUT (renderBt46Form, owner 2026-10-29)
+   กว้าง 920 px ตรงกับหน่วยพิกัด — พิมพ์/PDF ใช้พิกัดชุดเดียวกัน */
+.bt46-sheet { background: #ffffff; color: #111111; border-radius: 12px; overflow-x: auto; }
+.bt46-form { position: relative; width: 920px; margin: 0 auto; background: #ffffff; }
+.bt46-bg { display: block; width: 100%; aspect-ratio: 595.28 / 841.89; background: #f4f5f7; }
+.bt46-form .bt46-f {
+    position: absolute; display: block; min-height: 20px; padding: 0 2px; line-height: 20px;
+    white-space: nowrap; overflow: visible; outline: none; border: 0; border-radius: 3px;
+    font-family: "Sarabun", "Sukhumvit Set", "Leelawadee UI", "Tahoma", sans-serif; color: #0b2a6b; background: transparent;
 }
-
-.bt46-sheet p { margin: 0 0 4px; }
-.bt46-sheet h4 { margin: 10px 0 4px; font-size: 14.5px; color: #111111; }
-.bt46-head { position: relative; text-align: center; margin-bottom: 8px; }
-.bt46-formno { position: absolute; left: 0; top: 0; text-align: left; font-weight: 600; }
-.bt46-title { font-size: 17px; font-weight: 700; }
-.bt46-en { font-size: 11.5px; color: #444444; font-weight: 400; }
-.bt46-ind { padding-left: 32px; }
-
-.bt46-f {
-    display: inline-block;
-    border-bottom: 1px dotted #555555;
-    padding: 0 4px;
-    min-height: 1.4em;
-    vertical-align: bottom;
-    outline: none;
-}
-
-.bt46-f:hover, .bt46-f:focus { background: #fff8db; }
-.bt46-box { cursor: pointer; font-size: 15px; user-select: none; }
-
-.bt46-table { width: 100%; border-collapse: collapse; margin: 4px 0 8px; }
-.bt46-table th, .bt46-table td { border: 1px solid #333333; padding: 4px 8px; text-align: center; color: #111111; }
-.bt46-table td { height: 34px; outline: none; }
-
-.bt46-certify { text-align: center; margin: 16px 0 10px; font-weight: 600; }
-.bt46-sign { margin-left: 45%; display: grid; gap: 6px; }
-.bt46-sigline { display: inline-block; width: 200px; height: 48px; border-bottom: 1px dotted #555555; vertical-align: bottom; text-align: center; }
-.bt46-sigline img { max-height: 46px; max-width: 196px; }
-.bt46-note { margin-top: 18px; font-size: 12px; }
+.bt46-form .bt46-f.is-wrap { white-space: normal; line-height: 22px; }
+.bt46-form .bt46-f:empty { background: rgba(45, 108, 246, 0.07); }
+.bt46-form .bt46-f:hover, .bt46-form .bt46-f:focus { background: #fff3c4; box-shadow: 0 0 0 1px #f0c94a; }
+.bt46-form .bt46-box { position: absolute; width: 17px; height: 17px; cursor: pointer; border-radius: 3px; }
+.bt46-form .bt46-box:hover { background: rgba(45, 108, 246, 0.15); }
+.bt46-form .bt46-box.is-on::after { content: "✓"; position: absolute; left: 1px; top: -5px; font-size: 19px; font-weight: 700; color: #0b2a6b; }
+.bt46-form .bt46-sig { position: absolute; object-fit: contain; }
 
 @media print {
-    .bt46-sheet { padding: 0; border-radius: 0; font-size: 12.5px; line-height: 1.6; }
-    .bt46-f:hover, .bt46-f:focus { background: none; }
+    .bt46-sheet { border-radius: 0; overflow: visible; }
+    .bt46-form { zoom: 0.86; } /* 920 px → กว้าง A4 */
+    .bt46-form .bt46-f:empty, .bt46-form .bt46-f:hover, .bt46-form .bt46-f:focus { background: none; box-shadow: none; }
+    .bt46-form .bt46-f { color: #000000; }
 }
 
 /* ใบงาน "ไม่เรียกเก็บเงิน" (isJobNoCharge ใน app.js) — โทนเทาอมเขียว แยกจาก "ชำระแล้ว" */
