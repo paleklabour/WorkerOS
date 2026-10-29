@@ -6863,12 +6863,10 @@ function renderWorkerExpiryLine(label, expDate, daysLeft, warnDays) {
     if (!expDate || isNaN(expDate.getTime())) {
         return `<div class="worker-expiry-line text-muted"><span>${label}:</span> -</div>`;
     }
-    // หมดแล้ว = แดง, ใกล้หมด = ส้ม ทั้งจุดและตัวหนังสือวันที่ (owner 2026-10-29 ลองแบบจุดอย่างเดียวแล้ว เลือกให้วันที่ส้มด้วย)
-    const cls = daysLeft < 0 ? 'text-danger' : (daysLeft <= warnDays ? 'text-warning' : 'text-muted');
     // จุดสีหน้าวันที่ (owner 2026-10-29 — แบบแผงคนงาน): แดง = หมดแล้ว, ส้ม = ใกล้หมด, เขียว = ปกติ
     const dot = daysLeft < 0 ? 'is-bad' : (daysLeft <= warnDays ? 'is-warn' : 'is-ok');
-    // สีอยู่ที่จุด + วันที่เท่านั้น ป้าย "ใบอนุญาต:" / "พาสปอร์ต:" สีปกติ (owner 2026-10-29)
-    return `<div class="worker-expiry-line text-muted"><span>${label}:</span> <span class="fv-dot ${dot}" title="${daysLeft < 0 ? 'หมดอายุแล้ว' : daysLeft <= warnDays ? 'ใกล้หมดอายุ' : 'ปกติ'}"></span><strong class="${cls}">${formatThaiDate(expDate)}</strong></div>`;
+    // สีอยู่ที่จุดอย่างเดียว — ป้ายและวันที่เป็นสีตัวหนังสือปกติ (owner 2026-10-29 ลองหลายแบบแล้วเลือกแบบนี้)
+    return `<div class="worker-expiry-line"><span>${label}:</span> <span class="fv-dot ${dot}" title="${daysLeft < 0 ? 'หมดอายุแล้ว' : daysLeft <= warnDays ? 'ใกล้หมดอายุ' : 'ปกติ'}"></span><strong>${formatThaiDate(expDate)}</strong></div>`;
 }
 
 let selectedPendingWorkerIds = new Set();
