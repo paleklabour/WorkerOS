@@ -51,6 +51,8 @@
     .info span:first-child { color: var(--muted); flex-shrink: 0; }
     .info span:last-child { text-align: right; font-weight: 600; }
     .info span.is-expired { color: #c0392b; }
+    .info div.is-stack { flex-direction: column; gap: 3px; }
+    .info div.is-stack span:last-child { text-align: left; white-space: nowrap; font-variant-numeric: tabular-nums; }
     .info-group { display: flex; flex-direction: column; gap: 6px; }
     .info-label { font-size: 12.5px; color: var(--muted); padding-left: 14px; }
     .worker-card { display: flex; align-items: center; gap: 14px; background: #fff; border-radius: 16px; padding: 14px; }
@@ -246,14 +248,15 @@
     }
 
     // แถว [ป้าย, ค่า, หมดอายุแล้ว?] → รายการซ้าย/ขวาแบบ iOS
-    const infoRowsHtml = (rows) => rows.map(([k, v, bad]) => `<div><span>${esc(k)}</span><span${bad ? ' class="is-expired"' : ''}>${esc(v)}</span></div>`).join('');
+    // stack = ป้ายอยู่บรรทัดบน ค่าเต็มบรรทัดล่าง (เลขเอกสาร + หมดอายุ ยาวเกินแผง 330px — owner 2026-10-29: "หมดอายุ" ต้องอยู่บรรทัดเดียวกับเลข)
+    const infoRowsHtml = (rows) => rows.map(([k, v, bad, stack]) => `<div${stack ? ' class="is-stack"' : ''}><span>${esc(k)}</span><span${bad ? ' class="is-expired"' : ''}>${esc(v)}</span></div>`).join('');
 
     // เลข + วันหมดอายุในแถวเดียว ("AB123456 · หมดอายุ 01/02/2570"); หมดอายุแล้ว = ตัวแดง (ไม่บอกจำนวนวัน ตามกติกาของระบบ)
     function docRow(label, no, expiry) {
         if (!no && !expiry) return null;
         const expired = expiry && new Date(expiry) < new Date(new Date().toDateString());
         const exp = expiry ? `${expired ? 'หมดอายุแล้ว' : 'หมดอายุ'} ${thaiDate(expiry)}` : '';
-        return [label, [no, exp].filter(Boolean).join(' · '), expired];
+        return [label, [no, exp].filter(Boolean).join(' · '), expired, !!(no && exp)];
     }
 
     const NAT_TH = { Myanmar: 'เมียนมา', Cambodia: 'กัมพูชา', Laos: 'ลาว', Vietnam: 'เวียดนาม' };
