@@ -8947,10 +8947,10 @@ function renderBt46Form(values, boxes, sigUrl) {
     const fields = BT46_LAYOUT.f.map(([x, y, maxX, wrap], i) => {
         const w = (maxX || Math.min(x + 260, 860)) - x;
         return `<span class="bt46-f${wrap ? ' is-wrap' : ''}" contenteditable="true" spellcheck="false" title="คลิกเพื่อแก้ไข"
-            style="left:${x}px; top:${y - fontPx - 1}px; width:${w}px; font-size:${fontPx}px">${escapeHtml(values[i] || '')}</span>`;
+            style="left:${x}px; top:${y - fontPx - 4}px; width:${w}px; font-size:${fontPx}px">${escapeHtml(values[i] || '')}</span>`;
     }).join('');
     const cells = BT46_LAYOUT.cell.map(([x, y]) => `<span class="bt46-f bt46-cell" contenteditable="true" spellcheck="false" title="คลิกเพื่อแก้ไข"
-        style="left:${x}px; top:${y - fontPx - 1}px; width:120px; font-size:${fontPx}px"></span>`).join('');
+        style="left:${x}px; top:${y - fontPx - 4}px; width:120px; font-size:${fontPx}px"></span>`).join('');
     const ticks = BT46_LAYOUT.box.map(([x, y], i) => `<span class="bt46-box${boxes[i] ? ' is-on' : ''}" title="คลิกเพื่อติ๊ก / เอาออก"
         style="left:${x - 8}px; top:${y - 12}px" onclick="this.classList.toggle('is-on')"></span>`).join('');
     const [sx, sy, sw, sh] = BT46_LAYOUT.signature;
