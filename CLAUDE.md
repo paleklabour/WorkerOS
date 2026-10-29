@@ -517,9 +517,12 @@ the job (`syncWorkerStatusForExitJob`). `client_cancel_exit` only while รอ�
 
 `customers.services` (text[], migration `20261029041358_customer_services.sql`) = job types this employer uses with us. Employer
 form: an iOS-green button "บริการที่ใช้กับเรา" right after the "ที่อยู่จัดส่งเอกสาร" tab (`#cust-services-btn`, `.cust-svc-btn`;
-owner picked mockup D, no count shown — the form is already long). Like the renewal rings: hover = list, click = pinned list
-where rows toggle (`showCustomerServicesPop` / `toggleCustomerService`, popup reuses `.rn-steps-pop`); the picks live in
-`custServicesDraft` until "บันทึกข้อมูล". Options = the job form's job-type checkboxes except "อื่นๆ" (`jobTypeServiceOptions`). Job form: picking the employer turns those job-type tiles green (`highlightJobTypesForCustomer`,
+owner picked mockup D, no count shown — the form is already long). Hovering opens the list and the mouse can move straight
+into it to tick / type (owner 2026-10-29: no click needed); leaving button + list closes it after 250 ms unless typing inside;
+click = pin (touch). (`showCustomerServicesPop` / `hideCustomerServicesPop` / `toggleCustomerService`, popup reuses
+`.rn-steps-pop`.) The picks live in `custServicesDraft` until "บันทึกข้อมูล". Opening the form / the list re-reads the
+employer's ticks + prices from the DB (`refreshCustomerServicesFromDb` → `getCustomerServices`) so one user sees what another
+just saved; it doesn't overwrite once this form has been edited (`custServicesDirty`). Options = the job form's job-type checkboxes except "อื่นๆ" (`jobTypeServiceOptions`). Job form: picking the employer turns those job-type tiles green (`highlightJobTypesForCustomer`,
 `.is-cust-service`); every other type can still be ticked.
 Per-customer prices (owner 2026-10-29, picked level 2 of 3, migration `20261029045759_customer_service_prices.sql`): table
 `customer_service_prices` (customer_id, service, price = total charged incl. gov fee / null = standard price, no_charge), RLS

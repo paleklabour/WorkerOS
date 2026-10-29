@@ -943,6 +943,20 @@
                 if (error) return { status: "error", message: error.message };
                 return { status: "success" };
             }
+            case "getCustomerServices": {
+                // ติ๊กบริการ + ราคา (ฝ่ายการเงิน) ล่าสุดของนายจ้าง 1 ราย — เปิดฟอร์มแล้วเห็นที่อีกคนเพิ่งบันทึก (owner 2026-10-29)
+                const [cRes, pRes] = await Promise.all([
+                    sb.from("customers").select("services").eq("id", payload.customerId).maybeSingle(),
+                    sb.from("customer_service_prices").select("service, price, no_charge").eq("customer_id", payload.customerId)
+                ]);
+                if (cRes.error) return { status: "error", message: cRes.error.message };
+                return {
+                    status: "success",
+                    services: (cRes.data && cRes.data.services) || [],
+                    prices: pRes.error ? null : (pRes.data || []).map((r) => ({
+                        customerId: payload.customerId, service: r.service, price: r.price === null ? null : Number(r.price), noCharge: !!r.no_charge }))
+                };
+            }
             case "setCustomerServicePrices": {
                 // ราคาบริการรายลูกค้า (owner 2026-10-29) — แทนทั้งชุดของนายจ้างรายนี้: แถวที่ไม่มีราคาและไม่ได้ติ๊กไม่เก็บเงิน = ลบ
                 const rows = (payload.rows || []).filter((r) => r.price !== null || r.noCharge);
