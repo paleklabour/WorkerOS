@@ -5655,7 +5655,10 @@ function buildNotificationGroups() {
     const groups = [];
     const dismissed = loadBellDismissed();
     let hiddenCount = 0;
+    // Operation Manager เห็นแค่งานที่ลูกค้าเปิดมา (ใบงาน + คำขอต่ออายุ) และปฏิทิน (owner 2026-10-29)
+    const OM_BELL_KEYS = new Set(['clientjobs', 'renewalreq', 'calnote', 'holiday']);
     const add = (g) => {
+        if (role === 'operation_manager' && !OM_BELL_KEYS.has(g.key)) return;
         const all = g.items.map(it => ({ ...it, id: `${g.key}|${it.legacyAction || it.action}|${it.text}` }));
         g.items = all.filter(it => !dismissed[it.id]);
         hiddenCount += all.length - g.items.length;
@@ -5672,6 +5675,9 @@ function buildNotificationGroups() {
     const scope = (opsAll ? jobs : role === 'staff' ? jobs.filter(mine) : []).filter(j => !isSystemJob(j)); // งานต่ออายุมีหมวดของตัวเองด้านล่าง
     if (scope.length) {
         if (opsAll) {
+            // งานที่ลูกค้าเปิดเองจากพอร์ทัล (แจ้งออก ฯลฯ) ที่ยังไม่ปิด
+            if (role === 'operation_manager') add({ key: 'clientjobs', icon: 'inbox', title: 'งานที่ลูกค้าเปิดมา (ยังไม่ปิด)', view: 'jobs',
+                items: scope.filter(j => j.openedByClient && isJobStatusOpen(j.status)).sort(sortNewest).map(j => bellJobItem(j)) });
             add({ key: 'unassigned', icon: 'users', title: 'งานแจ้งใหม่ ยังไม่มอบหมายผู้รับผิดชอบ', view: 'jobs',
                 items: scope.filter(j => isJobStatusOpen(j.status) && !j.assignedTo).sort(sortNewest).map(j => bellJobItem(j)) });
             add({ key: 'new', icon: 'inbox', title: 'งานแจ้งใหม่ (รอดำเนินการ)', view: 'jobs',
