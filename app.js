@@ -9057,7 +9057,12 @@ async function exportBt46Pdf() {
         BT46_LAYOUT.cell.forEach(([x, y], i) => txt(cells[i], x, y));
         [...sheet.querySelectorAll('.bt46-box')].forEach((el, i) => {
             const pos = BT46_LAYOUT.box[i];
-            if (pos && el.textContent.trim() === '☑') txt('✓', pos[0] - 4, pos[1] + 1);
+            if (!pos || el.textContent.trim() !== '☑') return;
+            // ฟอนต์ไทยไม่มี ✓ → วาดเส้นเครื่องหมายถูกเอง (จุดกึ่งกลางช่อง ≈ pos[0], pos[1] - 4 px)
+            const pt = (dx, dy) => ({ x: (pos[0] + dx) * BT46_PX, y: H - (pos[1] - 4 + dy) * BT46_PX });
+            const opts = { thickness: 1.3, color: PDFLib.rgb(0, 0, 0) };
+            page.drawLine({ start: pt(-5, 0), end: pt(-1.5, 4.5), ...opts });
+            page.drawLine({ start: pt(-1.5, 4.5), end: pt(6, -6), ...opts });
         });
         const sigImg = sheet.querySelector('.bt46-sigline img');
         if (sigImg && sigImg.src) {
