@@ -3849,7 +3849,7 @@ async function renewalStepClick(id, key) {
         if (ans === true) { if (st.url) openStepFile(step); return; }
         if (ans !== 'extra') return;
         const how = await uiConfirm(`แก้ "${step.label}" ของ ${workerFullName(w)} — ไฟล์เดิมยังอยู่ในแฟ้มคนงาน ไม่ถูกลบ`, {
-            title: step.label, okText: 'เลือกไฟล์ใหม่', extraText: 'ยกเลิกขั้นนี้', danger: false
+            title: step.label, okText: 'เลือกไฟล์จากแฟ้ม', extraText: 'ยกเลิกขั้นนี้', danger: false
         });
         if (how !== true && how !== 'extra') return;
         // ไฟล์ที่ผู้ใช้เอาออกจากขั้นนี้ ระบบจะไม่ติ๊กให้เองอีกในรอบนี้ (renewalAutoSteps)
@@ -4000,18 +4000,76 @@ async function renewalAutoFillRun(rounds) {
 // วันที่ใด ๆ (ISO / ว/ด/ป) → YYYY-MM-DD, อ่านไม่ได้ = ''
 const ymd10 = v => { const d = v ? safeParseDate(v) : null; return d ? localDateISO(d) : ''; };
 
-// ขั้นแนบไฟล์: ถ้าแฟ้มมีไฟล์ที่ใช้ได้อยู่แล้ว ถามว่าจะใช้ไฟล์นั้น (ไม่แนบซ้ำ) หรือแนบใหม่
-async function renewalFileOrExisting(r, w, step) {
-    const files = renewalExistingFiles(r, w, step);
-    if (!files.length) { pickRenewalFile(r, w, step); return; }
-    const use = files[0];
-    const d = v => v ? formatThaiDate(String(v).slice(0, 10)) : '';
-    const info = step.multi ? `${files.length} ไฟล์` : [use.name, use.uploadedAt ? `แนบ ${d(use.uploadedAt)}` : '', use.expiryDate ? `หมด ${d(use.expiryDate)}` : ''].filter(Boolean).join(' · ');
-    const ans = await uiConfirm(`แฟ้มของ ${workerFullName(w)} มี${step.label}อยู่แล้ว: ${info}`, {
-        title: step.label, okText: 'ใช้ไฟล์ที่มีอยู่', extraText: 'แนบใหม่', danger: false
+// หน้าต่างเลือกไฟล์แบบแฟ้มเอกสาร (owner 2026-10-29): รายการซ้าย / ตัวอย่างไฟล์ขวา — แนะนำ = ไฟล์ที่ใช้กับขั้นนี้ได้ (renewalExistingFiles),
+// ไฟล์อื่นในช่องเดียวกันเลือกได้แต่แยกไว้ด้านล่าง; ดับเบิลคลิก = ใช้ไฟล์นั้น. คืน { action: 'use', file } | { action: 'new' } | null
+function openRenewalFilePicker(r, w, step) {
+    return new Promise(resolve => {
+        const recommended = renewalExistingFiles(r, w, step);
+        const used = renewalUsedUrls(r);
+        const others = getAttachments(w, step.docType).filter(f => f && f.data && !recommended.includes(f)).reverse();
+        const all = [...recommended, ...others];
+        const typeLabel = (WORKER_FOLDER_DOC_TYPES.find(t => t.key === step.docType) || {}).label || step.label;
+        const d = v => v ? formatThaiDate(String(v).slice(0, 10)) : '';
+        let sel = recommended.length ? 0 : -1;
+        const back = document.createElement('div');
+        back.className = 'modal-backdrop rn-fpick-backdrop';
+        const done = (val) => { back.remove(); document.removeEventListener('keydown', onKey); resolve(val); };
+        const onKey = (e) => { if (e.key === 'Escape') done(null); };
+        const item = (f, i) => `<button type="button" class="rn-fpick-item${i === sel ? ' is-on' : ''}" data-i="${i}">
+            <span class="rn-fpick-ico">${isPdfUrl(workerFolderFileUrl(f)) ? 'PDF' : 'IMG'}</span>
+            <span class="rn-fpick-txt"><b>${escapeHtml(f.name || '-')}</b>
+                <small>${[f.uploadedAt ? `แนบ ${d(f.uploadedAt)}` : '', f.expiryDate ? `หมด ${d(f.expiryDate)}` : '', used.has(f.data) ? 'ใช้กับขั้นอื่นแล้ว' : ''].filter(Boolean).join(' · ') || '&nbsp;'}</small></span></button>`;
+        const render = () => {
+            const f = all[sel];
+            const url = f ? workerFolderFileUrl(f) : '';
+            back.innerHTML = `<div class="modal-content large rn-fpick" role="dialog" aria-label="เลือกไฟล์">
+                <div class="modal-header"><h3>${icon('folder')} เลือกไฟล์: ${escapeHtml(step.label)} — ${escapeHtml(workerFullName(w))}</h3>
+                    <button class="close-btn" title="ปิดหน้าต่าง" data-act="close">&times;</button></div>
+                <div class="rn-fpick-body">
+                    <div class="rn-fpick-list">
+                        ${recommended.length ? `<div class="rn-fpick-head">แนะนำสำหรับขั้นนี้</div>${recommended.map((x, i) => item(x, i)).join('')}` : ''}
+                        ${others.length ? `<div class="rn-fpick-head">ไฟล์อื่นในช่อง "${escapeHtml(typeLabel)}"</div>${others.map((x, i) => item(x, recommended.length + i)).join('')}` : ''}
+                        ${all.length ? '' : '<p class="text-muted">ยังไม่มีไฟล์ในช่องนี้</p>'}
+                    </div>
+                    <div class="rn-fpick-preview">${f ? (isPdfUrl(url)
+                        ? `<iframe src="${escapeHtml(url)}" title="${escapeHtml(f.name || '')}"></iframe>`
+                        : `<img src="${escapeHtml(url)}" alt="${escapeHtml(f.name || '')}">`) : '<p class="text-muted">เลือกไฟล์ทางซ้ายเพื่อดูตัวอย่าง</p>'}</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline" data-act="new" title="แนบไฟล์ใหม่จากเครื่อง">${icon('plus')} แนบไฟล์ใหม่</button>
+                    <span style="flex:1"></span>
+                    <button type="button" class="btn btn-outline" data-act="close">ยกเลิก</button>
+                    <button type="button" class="btn btn-gold" data-act="use" ${f ? '' : 'disabled'} title="ใช้ไฟล์ที่เลือกกับขั้นนี้">ใช้ไฟล์นี้</button>
+                </div></div>`;
+        };
+        back.addEventListener('click', (e) => {
+            if (e.target === back) return done(null);
+            const it = e.target.closest('.rn-fpick-item');
+            if (it) { sel = Number(it.dataset.i); render(); return; }
+            const act = e.target.closest('[data-act]');
+            if (!act) return;
+            if (act.dataset.act === 'close') done(null);
+            else if (act.dataset.act === 'new') done({ action: 'new' });
+            else if (act.dataset.act === 'use' && all[sel]) done({ action: 'use', file: all[sel] });
+        });
+        back.addEventListener('dblclick', (e) => {
+            const it = e.target.closest('.rn-fpick-item');
+            if (it && all[Number(it.dataset.i)]) done({ action: 'use', file: all[Number(it.dataset.i)] });
+        });
+        document.addEventListener('keydown', onKey);
+        render();
+        document.body.appendChild(back);
     });
-    if (ans === 'extra') { pickRenewalFile(r, w, step); return; }
-    if (ans !== true) return;
+}
+
+// ขั้นแนบไฟล์: ถ้าแฟ้มมีไฟล์ในช่องนี้อยู่แล้ว เปิดหน้าต่างเลือกไฟล์ (ใช้ไฟล์ที่มีอยู่ / แนบใหม่) แทนการถามด้วยข้อความ
+async function renewalFileOrExisting(r, w, step) {
+    const hasAny = getAttachments(w, step.docType).some(f => f && f.data);
+    if (!hasAny) { pickRenewalFile(r, w, step); return; }
+    const ans = await openRenewalFilePicker(r, w, step);
+    if (!ans) return;
+    if (ans.action === 'new') { pickRenewalFile(r, w, step); return; }
+    const use = ans.file;
     if (step.expiryField) await askRenewalNewExpiry(r, w, step, use);
     renewalMarkStep(r, step.key, { url: use.data, name: use.name, existing: true });
     saveData();

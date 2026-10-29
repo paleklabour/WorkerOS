@@ -614,7 +614,7 @@ without new data. File steps go through `attachDocumentToWorker` into
 the normal worker doc slots; ใบแทน / card / new passport then ask for the new expiry (`askRenewalNewExpiry`) and set it on
 the worker and the file, so the old file folds into "expired" by the usual rule. Card (+ book if any) closes the round.
 Files already in the worker folder (e.g. attached when the worker was created, before the round; owner 2026-10-28): a file step
-offers "ใช้ไฟล์ที่มีอยู่" (`renewalFileOrExisting` / `renewalExistingFiles`), and `renewalAutoFill` ticks renewal-track steps by
+opens a folder-style file picker when the slot has files (`openRenewalFilePicker`, owner 2026-10-29: list left / preview right, "แนะนำสำหรับขั้นนี้" = `renewalExistingFiles`, other files of the slot below, double-click = use, "แนบไฟล์ใหม่" = upload; also used by "แก้ไขขั้นนี้" → "เลือกไฟล์จากแฟ้ม"; `renewalFileOrExisting`), and `renewalAutoFill` ticks renewal-track steps by
 itself on `loadRenewals` and right after `startRenewals` — ใบแทน = a WP_R / WP file with expiry after the round's old expiry
 (also ticks medical), REQ / REC<amount> uploaded ≤ 180 days before the old expiry (or undated once the permit is renewed).
 Never auto: ใบนัด and Smart card (owner 2026-10-28 — new WP files were ใบแทน, nobody had an appointment yet), book track,
