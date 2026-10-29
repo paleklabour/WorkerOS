@@ -3666,7 +3666,9 @@ function renewalActiveHtml(list, searched = list) {
     const groups = renewalGroupByProvince(list, workerOf).flatMap(pg => pg.employers.map(e => ({ ...e, prov: pg.prov })));
     const body = groups.map(g => {
         const ids = g.items.map(r => r.id);
-        const sorted = [...g.items].sort((a, b) => renewalStageIndex(a) - renewalStageIndex(b) || String(a.oldPermitExpiry).localeCompare(String(b.oldPermitExpiry)));
+        // ลำดับคงที่ (owner 2026-10-29): วันหมดอายุเดิม → ชื่อคนงาน — ไม่เรียงตามความคืบหน้าแล้ว (อัปเดตขั้นตอน/ไฟล์แล้วแถวกระโดด)
+        const nameOf = r => workerFullName(workers.find(w => w.id === r.workerId) || {}) || '';
+        const sorted = [...g.items].sort((a, b) => String(a.oldPermitExpiry || '').localeCompare(String(b.oldPermitExpiry || '')) || nameOf(a).localeCompare(nameOf(b)) || String(a.id).localeCompare(String(b.id)));
         return `<section class="rn-agroup">
             <div class="rn-agroup-head">
                 ${canEdit ? `<input type="checkbox" ${ids.every(id => renewalSel.has(id)) ? 'checked' : ''} onchange='toggleRenewalSel(${JSON.stringify(ids)}, this.checked)' title="เลือกทุกคนของนายจ้างนี้">` : ''}
