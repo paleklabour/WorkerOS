@@ -3754,6 +3754,7 @@ function renewalDoneHtml(list) {
             <td class="rn-act-cell"><div class="rn-actions">
                 ${canEdit && extPending ? `<button type="button" class="btn btn-sm rn-next-btn" onclick="renewalEnterNewData('${r.id}', 'permit')" title="แนบใบอนุญาตใหม่ หรือกรอกวันหมดอายุใหม่">ใส่ข้อมูลใบอนุญาตใหม่</button>` : ''}
                 ${canEdit && bookPending ? `<button type="button" class="btn btn-sm rn-next-btn" onclick="renewalEnterNewData('${r.id}', 'book')" title="แนบเล่มใหม่ หรือกรอกวันหมดอายุเล่มใหม่">ใส่ข้อมูลเล่มใหม่</button>` : ''}
+                ${canEdit && r.status === 'done' && !renewalActiveOf(r.workerId) ? `<button type="button" class="btn btn-sm btn-outline" onclick="reopenRenewal('${r.id}')" title="เปิดรอบนี้กลับไปที่กำลังดำเนินการ (เช่น ปิดผิด / ต้องแก้ขั้นตอน)">ย้อนกลับไปดำเนินการ</button>` : ''}
             </div></td>
         </tr>`;
     }).join('');
@@ -3827,6 +3828,33 @@ async function saveRenewalRow(r) {
         saveData();
     }
     return true;
+}
+
+// ย้อนรอบที่ปิดแล้วกลับไปกำลังดำเนินการ (owner 2026-10-29): เอาขั้นปิดรอบ (Smart card / บัตรชมพู) ออก ให้ทำขั้นนั้นใหม่แล้วรอบจะปิดเองอีกครั้ง;
+// ใบงานเก็บเงินเบื้องหลังที่ปิดพร้อมรอบ → กลับเป็นกำลังดำเนินการ (บิล/การรับเงินไม่เปลี่ยน); ข้อมูลคนงาน (วันหมดอายุใหม่) และไฟล์ในแฟ้มคงไว้
+async function reopenRenewal(id) {
+    const r = (renewalList || []).find(x => x.id === id);
+    const w = r && workers.find(x => x.id === r.workerId);
+    if (!r || !w || r.status !== 'done' || !can('ops')) return;
+    if (renewalActiveOf(r.workerId)) { uiAlert(`${workerFullName(w)} มีรอบที่กำลังดำเนินการอยู่แล้ว — ย้อนรอบนี้ไม่ได้`); return; }
+    const closeKey = r.kind === 'registration' ? 'pinkcard' : 'card';
+    const closeLabel = r.kind === 'registration' ? 'บัตรชมพู' : 'Smart card';
+    const ok = await uiConfirm(`ย้อนรอบ${r.kind === 'registration' ? 'ขึ้นทะเบียน' : 'ต่ออายุ'}ของ ${workerFullName(w)} กลับไป "กำลังดำเนินการ"?\nขั้น "${closeLabel}" จะถูกเอาออก (ไฟล์ยังอยู่ในแฟ้มคนงาน) — ทำขั้นนั้นใหม่แล้วรอบจะปิดเอง`, {
+        title: 'ย้อนกลับไปดำเนินการ', okText: 'ย้อนกลับ', danger: false
+    });
+    if (!ok) return;
+    const steps = { ...r.steps }; delete steps[closeKey];
+    Object.assign(r, { status: 'active', doneAt: null, steps });
+    if (!(await saveRenewalRow(r))) return;
+    for (const j of renewalJobsOf(r)) {
+        if (j.status !== 'ปิดงานแล้ว') continue;
+        Object.assign(j, { status: 'กำลังดำเนินการ', closedAt: null, closedBy: null, updatedAt: localDateISO(new Date()) });
+        await callCloudAPI("saveJob", { jobData: j });
+    }
+    saveData();
+    showToast(`ย้อน ${workerFullName(w)} กลับไปกำลังดำเนินการแล้ว`, "success");
+    renderRenewalCases();
+    renderWorkers();
 }
 
 function renewalMarkStep(r, key, extra = {}) {
