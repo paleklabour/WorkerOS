@@ -6906,11 +6906,16 @@ function updateEmployerDropdownOptions() {
 
     const optionsHTML = customers.map(c => `<option value="${c.id}">${c.companyName}</option>`).join('');
     
+    // สร้างตัวเลือกใหม่แล้วคงค่าที่เลือกไว้ (2026-10-29: แก้คนงานแล้วบันทึก → ตัวกรองนายจ้างหน้าคนงานหลุด รายชื่อเด้งกลับทั้งหมด)
     if (filterEmpSelect) {
+        const keep = filterEmpSelect.value;
         filterEmpSelect.innerHTML = '<option value="">ทุกนายจ้าง/บริษัท</option>' + optionsHTML;
+        if (keep && customers.some(c => c.id === keep)) filterEmpSelect.value = keep;
     }
     if (modalEmpSelect) {
+        const keep = modalEmpSelect.value;
         modalEmpSelect.innerHTML = '<option value="" disabled selected>--- เลือกนายจ้าง/บริษัท ---</option>' + optionsHTML;
+        if (keep && customers.some(c => c.id === keep)) modalEmpSelect.value = keep;
     }
 }
 
