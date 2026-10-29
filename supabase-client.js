@@ -229,7 +229,7 @@
     // -------------------- getData --------------------
     async function handleGetData() {
         const [customersRes, workersRes, jobsRes, banksRes, profilesRes, agentsRes, expensesRes, freeInvoicesRes,
-               invoicesRes, paymentsRes, servicePricesRes, receiptsRes, teamRes, settingsRes, transfersRes, statementRes, billingNotesRes] = await Promise.all([
+               invoicesRes, paymentsRes, servicePricesRes, receiptsRes, teamRes, settingsRes, transfersRes, statementRes, billingNotesRes, custPricesRes] = await Promise.all([
             // เรียงตามวันที่สร้าง (+id) เสมอ — ไม่ระบุลำดับ Postgres คืนแถวที่เพิ่งแก้ไขในตำแหน่งใหม่ ทำให้รายการในตารางกระโดด
             sb.from("customers").select("*").order("created_at", { ascending: true }).order("id", { ascending: true }),
             sb.from("workers").select("*").order("created_at", { ascending: true }).order("id", { ascending: true }),
@@ -247,7 +247,8 @@
             sb.from("app_settings").select("key, value"),
             sb.from("account_transfers").select("*"),
             selectAllRows("bank_statement_lines"),
-            sb.from("billing_notes").select("customer_id, note") // RLS คืนเฉพาะ Note ของบัญชีที่ล็อกอิน
+            sb.from("billing_notes").select("customer_id, note"), // RLS คืนเฉพาะ Note ของบัญชีที่ล็อกอิน
+            sb.from("customer_service_prices").select("customer_id, service, price, no_charge") // ฝ่ายการเงินเท่านั้น (RLS) — อื่น ๆ ได้ว่าง
         ]);
         // RLS กรองแถวให้อัตโนมัติตาม role/customer_id ของผู้ใช้ที่ล็อกอินอยู่แล้ว
         // (ไม่ต้อง filter ซ้ำฝั่ง client เหมือนโค้ด Code.gs เดิม)
@@ -281,6 +282,9 @@
             statementLines: statementRes.error ? [] : normalizeNumbers(toCamelList(statementRes.data, STATEMENT_LINE_MAP), ["amount", "balance"]),
             // Note วางบิลส่วนตัว { customerId: note } — เฉพาะของคนที่ล็อกอิน
             myBillingNotes: billingNotesRes.error ? {} : Object.fromEntries((billingNotesRes.data || []).map((r) => [r.customer_id, r.note])),
+            // ราคาบริการรายลูกค้า [{ customerId, service, price (null = ราคามาตรฐาน), noCharge }] (20261029045759)
+            customerServicePrices: custPricesRes.error ? [] : (custPricesRes.data || []).map((r) => ({
+                customerId: r.customer_id, service: r.service, price: r.price === null ? null : Number(r.price), noCharge: !!r.no_charge })),
             // ทีมงานภายใน (ชื่อ+ตำแหน่ง) สำหรับเลือก/แสดงผู้รับผิดชอบใบงาน — profiles อ่านได้เฉพาะแถวตัวเองถ้าไม่ใช่ admin
             team: teamRes.error ? [] : (teamRes.data || []),
             // ค่าตั้งค่ากลาง { key: value } เช่น cash_card_order
@@ -949,6 +953,18 @@
                     : sb.from("billing_notes").delete().eq("customer_id", payload.customerId).eq("user_id", uid);
                 const { error } = await q;
                 if (error) return { status: "error", message: error.message };
+                return { status: "success" };
+            }
+            case "setCustomerServicePrices": {
+                // ราคาบริการรายลูกค้า (owner 2026-10-29) — แทนทั้งชุดของนายจ้างรายนี้: แถวที่ไม่มีราคาและไม่ได้ติ๊กไม่เก็บเงิน = ลบ
+                const rows = (payload.rows || []).filter((r) => r.price !== null || r.noCharge);
+                const { error: delErr } = await sb.from("customer_service_prices").delete().eq("customer_id", payload.customerId);
+                if (delErr) return { status: "error", message: delErr.message };
+                if (rows.length) {
+                    const { error } = await sb.from("customer_service_prices").insert(rows.map((r) => ({
+                        customer_id: payload.customerId, service: r.service, price: r.price, no_charge: !!r.noCharge })));
+                    if (error) return { status: "error", message: error.message };
+                }
                 return { status: "success" };
             }
             case "setCustomerBillingNote": {

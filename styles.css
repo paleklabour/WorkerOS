@@ -7222,6 +7222,25 @@ body.has-camera .upload-hint { display: none; }
 .cust-svc-row { width: 100%; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; }
 .cust-svc-pop.is-pinned .cust-svc-row { cursor: pointer; }
 .cust-svc-pop.is-pinned .cust-svc-row:hover { background: var(--dk-subtle, #f1f3f7); }
+/* ฝ่ายการเงิน: ราคา + ไม่เก็บเงิน ต่อบริการ (customer_service_prices, owner 2026-10-29) */
+.rn-steps-pop.cust-svc-pop.is-fin { width: 440px; }
+.rn-steps-pop.cust-svc-pop.is-fin.is-pinned { width: 560px; max-width: calc(100vw - 16px); }
+.cust-svc-row.is-fin { display: grid; grid-template-columns: minmax(0, 1fr) 120px auto; gap: 10px; align-items: center; }
+.cust-svc-pop:not(.is-pinned) .cust-svc-row.is-fin { grid-template-columns: minmax(0, 1fr) auto; }
+.cust-svc-name { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.cust-svc-price { width: 100%; padding: 5px 10px; border-radius: 999px; text-align: right; font-variant-numeric: tabular-nums; }
+.cust-svc-price:disabled { opacity: .45; }
+.cust-svc-price-text { font-variant-numeric: tabular-nums; white-space: nowrap; font-size: 13.5px; }
+.cust-svc-nc { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-size: 13px; font-weight: normal; white-space: nowrap; cursor: pointer; }
+.cust-svc-nc input { width: 16px; height: 16px; margin: 0; }
+.cust-nocharge-tag { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; font-size: 12.5px; font-weight: 700; white-space: nowrap;
+    color: var(--dk-warn, #9a5b00); background: var(--dk-warn-bg, #fff4dc); }
+.inv-nocharge-hint { display: flex; flex-direction: column; gap: 6px; margin-bottom: 15px; }
+.inv-nocharge-hint.hidden { display: none; }
+.inv-nocharge-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border-radius: 14px; font-size: 13.5px;
+    color: var(--dk-warn, #8a5300); background: var(--dk-warn-bg, #fff7e6); }
+.inv-nocharge-row span { flex: 1; min-width: 200px; }
+.inv-nocharge-row .btn { background: #f5a623; color: #fff; border: 0; }
 
 /* ฟอร์มเปิดใบงาน: ประเภทงานที่นายจ้างรายนี้ใช้กับเรา = เขียว (ยังติ๊กประเภทอื่นได้) — กล่องมี inline background จึงต้อง !important */
 #job-type-checkboxes-container > div.is-cust-service {
