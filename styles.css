@@ -8752,3 +8752,7 @@ button.jq-worker:hover { background-color: var(--gold-light); }
 #ewp-paste-modal > .modal-content.large { width: 96vw; max-width: min(1440px, 96vw); max-height: 94vh; }
 /* จ่ายค่าคอม Agent: มีรายการใบงาน — จาก 640px (inline style) เป็น 1180px */
 #commission-modal > .modal-content { max-width: min(1180px, 95vw) !important; width: 95vw; }
+
+/* ครึ่งจอ (owner 2026-10-29): หัวการ์ดกราฟแคบ → ปุ่มสลับกราฟ/ตาราง ลงบรรทัดใต้ชื่อ แทนการถูกตัดขอบขวา */
+.panel-header:has(> .seg-chart-toggle) { flex-wrap: wrap; row-gap: 8px; }
+.panel-header > .seg-chart-toggle { flex-shrink: 0; overflow: visible; }
