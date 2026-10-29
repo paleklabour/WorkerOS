@@ -9097,8 +9097,7 @@ const TM7_FORM = {
             ['visaType', 305, 400, 555], ['arrivedBy', 152, 365, 320], ['arrivedFrom', 325, 365, 553],
             ['port', 126, 331, 326], ['arrD', 330, 331, 370], ['arrM', 393, 331, 481], ['arrY', 504, 331, 553],
             ['tm6', 248, 297, 403], ['days', 419, 263, 539], ['daysEn', 425, 245, 467],
-            ['reason1', 136, 227, 555], ['reason2', 73, 193, 552], ['reason3', 73, 176, 552], ['reason4', 73, 159, 552],
-            ['phone', 366, 56, 485]
+            ['reason1', 136, 227, 555], ['reason2', 73, 193, 552], ['reason3', 73, 176, 552], ['reason4', 73, 159, 552]
         ],
         [ // หน้า 2
             ['addressTh', 165, 752, 551], ['writer', 213, 714, 513],
@@ -9107,6 +9106,9 @@ const TM7_FORM = {
         ]
     ]
 };
+// พื้นที่ในแม่แบบที่ปิดทับด้วยสีขาว [หน้า, x, y, กว้าง, สูง] (pt มุมล่างซ้าย) — บรรทัด "Phone Number....." หน้า 1 (owner 2026-10-29: เอาออก)
+TM7_FORM.cover = [[0, 270, 50, 225, 20]];
+const TM7_WRITER = { writer: 'นายศรุต คุณารักษ์', wHouse: '14 หมู่ 2', wRoad: 'เลียบคลอง ร.5', wSub: 'คอหงส์', wDistrict: 'หาดใหญ่', wProvince: 'สงขลา' };
 const TH_MONTHS = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
 const thDateParts = (v) => { const d = v ? safeParseDate(v) : null; return d ? [String(d.getDate()), TH_MONTHS[d.getMonth()], String(d.getFullYear() + 543)] : ['', '', '']; };
 
@@ -9114,7 +9116,6 @@ function openTm7Modal(workerId) {
     const w = workers.find(item => item.id === workerId);
     if (!w) return;
     const c = customers.find(item => item.id === w.employerId) || {};
-    const hq = (c.branches || [])[0] || {};
     const dob = safeParseDate(w.dob);
     const now = new Date();
     const age = dob ? String(now.getFullYear() - dob.getFullYear() - (now < new Date(now.getFullYear(), dob.getMonth(), dob.getDate()) ? 1 : 0)) : '';
@@ -9125,8 +9126,8 @@ function openTm7Modal(workerId) {
         passportNo: w.passportNo || '', issueD: iD, issueM: iM, issueY: iY, issuedAt: w.passportAuth || '', expD: eD, expM: eM, expY: eY,
         reason1: `ทำงานกับ ${c.companyName || 'นายจ้าง'} ตามใบอนุญาตทำงาน${w.permitNo ? ` เลขที่ ${w.permitNo}` : ''}${w.permitExpiry ? ` (ถึง ${formatThaiDate(w.permitExpiry)})` : ''}`,
         addressTh: getCustomerHQAddress(c.id) || w.workplace || '',
-        writer: c.companyName || '', wHouse: [hq.houseNo, hq.moo ? `ม.${hq.moo}` : ''].filter(Boolean).join(' '), wRoad: hq.road || '',
-        wSub: hq.subdistrict || '', wDistrict: hq.district || '', wProvince: hq.province || ''
+        // หน้า 2 "ผู้เขียน" = เจ้าของสำนักงาน (owner 2026-10-29) — ที่อยู่เดียวกับหัวใบแจ้งหนี้
+        ...TM7_WRITER
     };
     govFormCurrent = 'tm7';
     document.getElementById('gov-form-title').textContent = 'แบบ ตม.7 คำขออยู่ต่อในราชอาณาจักร';
@@ -9162,7 +9163,8 @@ function renderGovForm(form, values) {
     const fontPx = 10 * k;
     sheet.innerHTML = form.pages.map((fields, pi) => `<div class="bt46-form gov-form-page" data-page="${pi}"><img class="bt46-bg" alt="แบบฟอร์ม หน้า ${pi + 1}">
         ${fields.map(([key, x, y, maxX]) => `<span class="bt46-f gov-f" data-key="${key}" contenteditable="true" spellcheck="false" title="คลิกเพื่อแก้ไข"
-            style="left:${x * k}px; top:${(841.89 - y) * k - fontPx - 5}px; width:${(maxX - x) * k}px; font-size:${fontPx}px">${escapeHtml(values[key] || '')}</span>`).join('')}</div>`).join('');
+            style="left:${x * k}px; top:${(841.89 - y) * k - fontPx - 5}px; width:${(maxX - x) * k}px; font-size:${fontPx}px">${escapeHtml(values[key] || '')}</span>`).join('')}
+        ${(form.cover || []).filter(cv => cv[0] === pi).map(([, x, y, w, h]) => `<span class="gov-cover" style="left:${x * k}px; top:${(841.89 - y - h) * k}px; width:${w * k}px; height:${h * k}px"></span>`).join('')}</div>`).join('');
     govFormBackgrounds(form.file).then(list => sheet.querySelectorAll('.gov-form-page .bt46-bg').forEach((img, i) => { if (list[i]) img.src = list[i]; }))
         .catch(e => showUploadPill('bad', 'โหลดแบบฟอร์มไม่สำเร็จ', e.message));
 }
@@ -9185,6 +9187,7 @@ async function exportGovFormPdf(form, prefix) {
         const font = await doc.embedFont(fontBytes, { subset: true });
         const pages = doc.getPages();
         const size = 10;
+        (form.cover || []).forEach(([pi, x, y, width, height]) => { if (pages[pi]) pages[pi].drawRectangle({ x, y, width, height, color: PDFLib.rgb(1, 1, 1) }); });
         form.pages.forEach((fields, pi) => {
             const page = pages[pi];
             if (!page) return;

@@ -131,9 +131,10 @@ Owner's rules (2026-10-09):
   (Sarabun has no ✓), employer signature image if any. Thai font = Sarabun TTF (OFL) + fontkit from jsDelivr (`loadGovFormLibs`).
   ตม.7 (owner's 2-page form `assets/forms/tm7.pdf`, has a text layer so the dotted-line coordinates were read from pdf.js in pt):
   worker-row button "ตม.7" → `openTm7Modal` fills name, age, birth date/place, nationality (Thai), passport no/issue/authority/expiry
-  (Thai day / month name / BE year), reason, and page 2 address + writer = employer branch 1; generic `renderGovForm` /
+  (Thai day / month name / BE year), reason, page 2 address in Thailand = employer branch 1, writer + writer address = the office
+  owner นายศรุต คุณารักษ์ (`TM7_WRITER`, same address as the invoice header, owner 2026-10-29); generic `renderGovForm` /
   `exportGovFormPdf` with `TM7_FORM` ([key, x, y, maxX] per page). Same window as บต.46 (`govFormCurrent`,
-  `exportCurrentGovForm`). Visa type, arrival, TM.6, days stay blank for staff to type.
+  `exportCurrentGovForm`). Visa type, arrival, TM.6, days stay blank for staff to type. The printed "Phone Number" line on page 1 is covered white (`TM7_FORM.cover`, screen `.gov-cover` + PDF rectangle, owner 2026-10-29).
 - Thai 13-digit check digit (owner 2026-10-29): `thaiIdChecksumOk` (mod 11) on inputs marked `data-thai-id` — employer tax id,
   director id, pink card no. Typing 13 digits that fail = red border + hint under the field (`refreshThaiIdHint`); saving asks
   "บันทึกต่อ / กลับไปแก้" (`confirmThaiIds`, never a hard block). NOT on the alien id `worker-uid` (e-WorkPermit numbers pass
