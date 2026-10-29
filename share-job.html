@@ -51,6 +51,8 @@
     .info span:first-child { color: var(--muted); flex-shrink: 0; }
     .info span:last-child { text-align: right; font-weight: 600; }
     .info span.is-expired { color: #c0392b; }
+    .exp-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 7px; vertical-align: middle; }
+    .exp-dot.is-ok { background: #2f8a5c; } .exp-dot.is-warn { background: #e08a12; } .exp-dot.is-bad { background: #c62828; }
     .info div.is-stack { flex-direction: column; gap: 3px; }
     .info div.is-stack span:last-child { text-align: left; white-space: nowrap; font-variant-numeric: tabular-nums; }
     .info-group { display: flex; flex-direction: column; gap: 6px; }
@@ -249,14 +251,17 @@
 
     // แถว [ป้าย, ค่า, หมดอายุแล้ว?] → รายการซ้าย/ขวาแบบ iOS
     // stack = ป้ายอยู่บรรทัดบน ค่าเต็มบรรทัดล่าง (เลขเอกสาร + หมดอายุ ยาวเกินแผง 330px — owner 2026-10-29: "หมดอายุ" ต้องอยู่บรรทัดเดียวกับเลข)
-    const infoRowsHtml = (rows) => rows.map(([k, v, bad, stack]) => `<div${stack ? ' class="is-stack"' : ''}><span>${esc(k)}</span><span${bad ? ' class="is-expired"' : ''}>${esc(v)}</span></div>`).join('');
+    // dot = จุดสีสถานะวันหมดอายุ (ok / warn / bad) หน้าค่า — owner 2026-10-29 แบบเดียวกับแผงคนงานในระบบ
+    const infoRowsHtml = (rows) => rows.map(([k, v, bad, stack, dot]) => `<div${stack ? ' class="is-stack"' : ''}><span>${esc(k)}</span><span${bad ? ' class="is-expired"' : ''}>${dot ? `<i class="exp-dot is-${dot}"></i>` : ''}${esc(v)}</span></div>`).join('');
 
     // เลข + วันหมดอายุในแถวเดียว ("AB123456 · หมดอายุ 01/02/2570"); หมดอายุแล้ว = ตัวแดง (ไม่บอกจำนวนวัน ตามกติกาของระบบ)
-    function docRow(label, no, expiry) {
+    function docRow(label, no, expiry, warnDays) {
         if (!no && !expiry) return null;
         const expired = expiry && new Date(expiry) < new Date(new Date().toDateString());
+        const daysLeft = expiry ? Math.ceil((new Date(expiry) - new Date(new Date().toDateString())) / 86400000) : null;
+        const dot = expiry ? (expired ? 'bad' : daysLeft <= warnDays ? 'warn' : 'ok') : '';
         const exp = expiry ? `${expired ? 'หมดอายุแล้ว' : 'หมดอายุ'} ${thaiDate(expiry)}` : '';
-        return [label, [no, exp].filter(Boolean).join(' · '), expired, !!(no && exp)];
+        return [label, [no, exp].filter(Boolean).join(' · '), expired, !!(no && exp), dot];
     }
 
     const NAT_TH = { Myanmar: 'เมียนมา', Cambodia: 'กัมพูชา', Laos: 'ลาว', Vietnam: 'เวียดนาม' };
@@ -279,8 +284,8 @@
             w.workerUid ? ['เลขประจำตัว', w.workerUid] : null,
             w.gender ? ['เพศ', GENDER_TH[String(w.gender).toLowerCase()] || w.gender] : null,
             w.dob ? ['วันเกิด', thaiDate(w.dob)] : null,
-            docRow('พาสปอร์ต', w.passportNo, w.passportExpiry),
-            docRow('ใบอนุญาตทำงาน', w.permitNo, w.permitExpiry),
+            docRow('พาสปอร์ต', w.passportNo, w.passportExpiry, 180),
+            docRow('ใบอนุญาตทำงาน', w.permitNo, w.permitExpiry, 60),
             w.pinkCardNo ? ['บัตรชมพู', w.pinkCardNo] : null,
         ].filter(Boolean);
         if (rows.length) {
