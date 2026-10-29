@@ -3480,23 +3480,31 @@ function renewalStepsPopHtml(r, track, pinned) {
         ${pinned ? `<button type="button" class="rn-sp-close" onclick="hideRenewalStepsPop(true)" title="ปิดรายการขั้นตอน" aria-label="ปิดรายการขั้นตอน">&times;</button>` : ''}</div>${rows}`;
 }
 
+// ชี้วงแหวน = รายการขั้นตอนเด้งออกมา แล้วลากเมาส์ลงไปกดปุ่มในรายการได้เลย (owner 2026-10-29 — เหมือนปุ่มบริการในฟอร์มนายจ้าง);
+// เอาเมาส์ออกจากวงแหวน+รายการ = ปิด (รอ 250 ms ให้ข้ามช่องว่างได้), คลิกวงแหวน = ปักไว้ (จอสัมผัส)
+let renewalStepsHideTimer = null;
+let renewalStepsPopAnchor = null;
 function showRenewalStepsPop(btn, pin) {
-    if (renewalStepsPopPinned && !pin) return; // ปักไว้อยู่ — ชี้ที่อื่นไม่เปลี่ยน
+    clearTimeout(renewalStepsHideTimer);
+    if (renewalStepsPopPinned && !pin && renewalStepsPopAnchor !== btn) return; // ปักไว้อยู่ — ชี้วงอื่นไม่เปลี่ยน
     const r = (renewalList || []).find(x => x.id === btn.dataset.rid);
     if (!r) return;
     let pop = document.getElementById('rn-steps-pop');
     if (!pop) {
         pop = document.createElement('div');
         pop.id = 'rn-steps-pop';
-        pop.className = 'rn-steps-pop hidden';
+        pop.className = 'rn-steps-pop is-pinned hidden'; // is-pinned = รับเมาส์ได้เสมอ
         pop.setAttribute('role', 'dialog');
+        pop.addEventListener('mouseenter', () => clearTimeout(renewalStepsHideTimer));
+        pop.addEventListener('mouseleave', () => hideRenewalStepsPop(false));
         document.body.appendChild(pop);
     }
-    renewalStepsPopPinned = !!pin;
-    pop.classList.toggle('is-pinned', !!pin);
+    if (pin) renewalStepsPopPinned = true;
+    if (renewalStepsPopAnchor === btn && !pop.classList.contains('hidden')) return; // เปิดของวงนี้อยู่แล้ว — ไม่วาดใหม่/ไม่ขยับ
+    renewalStepsPopAnchor = btn;
     pop.classList.toggle('is-book', btn.dataset.track === 'book'); // สีของสาย (CSS --rn-c)
     pop.setAttribute('aria-label', 'ขั้นตอน');
-    pop.innerHTML = renewalStepsPopHtml(r, btn.dataset.track, !!pin);
+    pop.innerHTML = renewalStepsPopHtml(r, btn.dataset.track, true);
     pop.classList.remove('hidden');
     const rect = btn.getBoundingClientRect();
     const h = pop.offsetHeight, w = pop.offsetWidth;
@@ -3506,21 +3514,34 @@ function showRenewalStepsPop(btn, pin) {
 }
 
 function hideRenewalStepsPop(force) {
-    if (renewalStepsPopPinned && !force) return;
-    renewalStepsPopPinned = false;
+    clearTimeout(renewalStepsHideTimer);
     const pop = document.getElementById('rn-steps-pop');
+    if (!force) {
+        renewalStepsHideTimer = setTimeout(() => {
+            if (renewalStepsPopPinned || !pop || pop.matches(':hover')) return;
+            if (renewalStepsPopAnchor && renewalStepsPopAnchor.isConnected && renewalStepsPopAnchor.matches(':hover')) return;
+            pop.classList.add('hidden');
+            renewalStepsPopAnchor = null;
+        }, 250);
+        return;
+    }
+    renewalStepsPopPinned = false;
+    renewalStepsPopAnchor = null;
     if (pop) pop.classList.add('hidden');
 }
 
 document.addEventListener('mousedown', (e) => {
-    if (!renewalStepsPopPinned) return;
     const pop = document.getElementById('rn-steps-pop');
-    if (pop && pop.contains(e.target)) return;
+    if (!pop || pop.classList.contains('hidden')) return;
+    if (pop.contains(e.target)) return;
     if (e.target.closest && e.target.closest('.rn-ring-btn')) return;
     hideRenewalStepsPop(true);
 });
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && renewalStepsPopPinned) hideRenewalStepsPop(true); });
-window.addEventListener('scroll', () => hideRenewalStepsPop(true), true);
+document.addEventListener('keydown', (e) => {
+    const pop = document.getElementById('rn-steps-pop');
+    if (e.key === 'Escape' && pop && !pop.classList.contains('hidden')) hideRenewalStepsPop(true);
+});
+window.addEventListener('scroll', (e) => { if (e.target && e.target.id === 'rn-steps-pop') return; hideRenewalStepsPop(true); }, true);
 
 function renewalActiveRowHtml(r, canEdit) {
     const w = workers.find(x => x.id === r.workerId);

@@ -564,8 +564,9 @@ credit, agent commission, portal all unchanged) but `renderJobs` hides them (`is
 cancelling deletes the unbilled ones. Their billing-page rows are teal (`.is-renewal-row` + "งานต่ออายุ" tag); the billing page and the combine-bills window have
 tabs ใบงานทั่วไป / งานต่ออายุ (`billingKind` / `combineKind`) and a bill never mixes the two (owner).
 Progress display (owner 2026-10-27, picked mockup 5): each track is a ring (`renewalRingHtml`: x/total, "รอ…", "เสร็จล่าสุด: …"); hovering
-shows every step with its date, clicking pins that list with per-step buttons (open file / edit / next step → `renewalStepClick`;
-`showRenewalStepsPop`). Renewal/registration ring = theme accent (blue in the pink theme), book ring = green.
+shows every step with its date and per-step buttons (open file / edit / next step → `renewalStepClick`; `showRenewalStepsPop`) —
+the mouse can move straight into the list and click (owner 2026-10-29, same as the employer services list); leaving ring + list
+closes it after 250 ms; clicking the ring pins it (touch). Renewal/registration ring = theme accent (blue in the pink theme), book ring = green.
 Book as its own track (owner 2026-10-27, picked mockup 1): a renewal round with `with_book` shows two tracks in the same row —
 ต่ออายุ (the 6 steps above) and ทำเล่ม (`RENEWAL_BOOK_TRACK`, the office's real steps per owner 2026-10-27: บัตรประชาชน
 หน้า-หลัง `worker-myanmar-id` (1 file NTID_FB / 2 files NTID_F + NTID_B; can reuse a card already in the folder) → ใบเสร็จจอง
