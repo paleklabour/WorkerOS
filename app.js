@@ -6049,6 +6049,12 @@ function setBillingKind(kind) {
     renderBillingTab();
 }
 
+// ป้ายสถานะใบงานที่รอออกบิล (หน้าออกบิล + หน้าต่างรวมบิล): กำลังดำเนินการ = เหลือง, ปิดงานแล้ว = แดง, อื่น ๆ = เทา (เจ้าของระบบ 2026-10-29)
+function billingJobStatusBadge(j, extraCls = '') {
+    if (j.status === 'ปิดงานแล้ว') return `<span class="badge ${extraCls} badge-danger">${icon("warn")} ปิดงานแล้ว ยังไม่ออกบิล</span>`;
+    return `<span class="badge ${extraCls} ${j.status === 'กำลังดำเนินการ' ? 'badge-warning' : 'badge-gold'}">${escapeHtml(j.status || '-')}</span>`;
+}
+
 function renderBillingTab() {
     const searchInput = document.getElementById("search-billing");
     const squash = s => String(s || '').toLowerCase().replace(/\s+/g, ' ').trim(); // ช่องว่างซ้อนในชื่อไม่มีผลกับการค้นหา
@@ -6177,7 +6183,6 @@ function renderBillingTab() {
         const cust = customers.find(c => c.id === j.customerId);
         const work = workers.find(w => w.id === j.workerId);
         const cleanJobType = (j.jobType || "").replace(/\s*\(\d+\)/g, "");
-        const isClosed = j.status === 'ปิดงานแล้ว';
         const estimate = jobBillEstimate(j);
         return `
             <tr class="clickable-row${isSystemJob(j) ? ' is-renewal-row' : ''}" data-ctx="job:${j.id}" ondblclick="handleRowDblClick(event) && openJobQuickView('${j.id}')" title="ดับเบิลคลิกเพื่อดูสรุปใบงาน • คลิกขวาเพื่อดูคำสั่ง">
@@ -6187,7 +6192,7 @@ function renderBillingTab() {
                 <td>${escapeHtml(cleanJobType)}<br><small class="text-muted">${escapeHtml(work ? workerFullName(work) : 'ไม่พบข้อมูลคนงาน')}</small>${work && work.workerUid ? `<br><small class="text-muted">เลขประจำตัว ${escapeHtml(work.workerUid)}</small>` : ''}</td>
                 <td class="inv-num"><strong>${fmtMoney(estimate)}</strong>${j.fee > 0 ? '' : '<br><small class="text-muted">ราคามาตรฐาน</small>'}</td>
                 <td class="inv-num text-muted">-</td>
-                <td><span class="badge badge-lg ${isClosed ? 'badge-danger' : j.status === 'กำลังดำเนินการ' ? 'badge-warning' : 'badge-gold'}">${isClosed ? `${icon("warn")} ปิดงานแล้ว ยังไม่ออกบิล` : escapeHtml(j.status || '-')}</span></td>
+                <td>${billingJobStatusBadge(j, 'badge-lg')}</td>
                 <td class="actions-col">
                     <button class="btn btn-sm btn-gold" onclick="openInvoiceModal('${j.id}')" style="white-space: nowrap;">${icon("receipt")} ออกบิล</button>
                     ${can('finance') ? `<button class="btn btn-sm btn-outline" onclick="markJobNoCharge('${j.id}')" style="white-space: nowrap;" title="งานนี้ไม่คิดเงินลูกค้า — ไม่ต้องออกบิล">ไม่เรียกเก็บเงิน</button>` : ''}
@@ -14152,6 +14157,7 @@ function onCombineCustomerChange() {
                     <div>
                         <strong>${j.jobType || "ไม่ระบุประเภทงาน"}</strong> - คนงาน: ${workName}${workUidTag}
                         ${isSystemJob(j) ? `<span class="rn-bill-tag">${JOB_KIND_TAG[jobKindOf(j)]}</span>` : ''}
+                        ${billingJobStatusBadge(j)}
                     </div>
                 </label>
                 <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
