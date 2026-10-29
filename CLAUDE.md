@@ -608,7 +608,7 @@ the worker stays out of the due list; "ใส่ข้อมูลใบอน�
 `steps.bookExternal` = we renew the WP but the book is done elsewhere (`markBookExternal` / client `client_book_external`):
 the unbilled book job is deleted and the round can close without the book; new book data can be entered later. Both show
 in the เสร็จแล้ว tab (grey "ต่อที่อื่น" tag, per-employer count) — the เสร็จแล้ว tab only keeps a finished round while its employer
-still has an active round, for 30 days after it closed (owner 2026-10-29 — a one-worker employer vanished at once), or while external / book-external data is
+still has an active round, for 30 days after it closed (owner 2026-10-29 — a one-worker employer vanished at once; a done round can be sent back with "ย้อนกลับไปดำเนินการ" = `reopenRenewal`: status active, the closing step (card / pink card) removed, its closed billing jobs back to กำลังดำเนินการ, worker data and files kept), or while external / book-external data is
 still pending; full history lives in the worker side panel (`renewalHistoryHtml`, section "ประวัติต่ออายุ") and bell group `renewalext` once the old expiry has passed
 without new data. File steps go through `attachDocumentToWorker` into
 the normal worker doc slots; ใบแทน / card / new passport then ask for the new expiry (`askRenewalNewExpiry`) and set it on
