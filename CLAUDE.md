@@ -123,6 +123,11 @@ Owner's rules (2026-10-09):
   amount printed on it** (1,900.00 → REC1900; from the PDF text via `doeReceiptInfoFromFile` / `receiptAmount`, no AI —
   `receiptAmountCode`, `doeAmountTotal`); amount unreadable → REC.
 - OCR may only set `workerUid` if it is exactly 13 digits.
+- Official form PDFs (owner 2026-10-29): the บต.46 window has "PDF แบบฟอร์มจริง" (`exportBt46Pdf`) — fills the owner's blank
+  form `assets/forms/bt46.pdf` (a scanned image, no fields/text) with pdf-lib: values are read from the editable `.bt46-f` /
+  `.bt46-box` / table cells in DOM order and drawn at `BT46_LAYOUT` (px of a 920-px-wide page image → pt), ticks drawn as lines
+  (Sarabun has no ✓), employer signature image if any. Thai font = Sarabun TTF (OFL) + fontkit from jsDelivr (`loadGovFormLibs`).
+  ตม.7 will follow the same pattern once the owner sends the blank form.
 - Thai 13-digit check digit (owner 2026-10-29): `thaiIdChecksumOk` (mod 11) on inputs marked `data-thai-id` — employer tax id,
   director id, pink card no. Typing 13 digits that fail = red border + hint under the field (`refreshThaiIdHint`); saving asks
   "บันทึกต่อ / กลับไปแก้" (`confirmThaiIds`, never a hard block). NOT on the alien id `worker-uid` (e-WorkPermit numbers pass
