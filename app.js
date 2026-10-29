@@ -8262,8 +8262,11 @@ function customerServicesPopHtml(pinned) {
         const name = `<span class="rn-sp-dot" aria-hidden="true">${on ? '✓' : ''}</span><span class="rn-sp-label">${escapeHtml(o.label)}${fin && on && d.noCharge ? ' <span class="cust-nocharge-tag">ไม่เก็บเงิน</span>' : ''}</span>`;
         if (!fin) return `<button type="button" class="rn-sp-row cust-svc-row${on ? ' is-done' : ' is-todo'}" ${pinned ? `onclick="toggleCustomerService(${v})"` : 'tabindex="-1"'}>${name}</button>`;
         const priceCell = pinned
-            ? `<input type="number" min="0" step="0.01" class="cust-svc-price" value="${d.price === '' ? '' : d.price}" placeholder="${escapeHtml(stdText)}" ${on && !d.noCharge ? '' : 'disabled'}
-                 oninput="setCustomerServicePrice(${v}, this.value)" title="ยอดรวมที่เรียกเก็บของลูกค้ารายนี้ (ว่าง = ราคามาตรฐาน)" aria-label="ราคา ${escapeHtml(o.label)}">`
+            // ช่องข้อความ + inputmode ตัวเลข (ไม่ใช่ type=number: ไม่มีลูกศร ล้อเมาส์ไม่เปลี่ยนค่า) — พิมพ์ "1,500" ได้, ออกจากช่องแล้วจัดรูปแบบให้
+            ? `<span class="cust-svc-price-wrap"><input type="text" inputmode="decimal" autocomplete="off" class="cust-svc-price" value="${d.price === '' ? '' : fmtMoney(d.price)}" placeholder="${escapeHtml(stdText)}" ${on && !d.noCharge ? '' : 'disabled'}
+                 oninput="setCustomerServicePrice(${v}, this.value)" onfocus="this.select()" onblur="this.value = (custPriceDraft[${v}] || {}).price === '' || (custPriceDraft[${v}] || {}).price === undefined ? '' : fmtMoney(custPriceDraft[${v}].price)"
+                 onkeydown="if (event.key === 'Enter') { event.preventDefault(); this.blur(); }"
+                 title="ยอดรวมที่เรียกเก็บของลูกค้ารายนี้ (ว่าง = ราคามาตรฐาน)" aria-label="ราคา ${escapeHtml(o.label)}"><span class="cust-svc-unit">บาท</span></span>`
             : `<span class="cust-svc-price-text">${on ? (d.noCharge ? '—' : d.price !== '' ? fmtMoney(d.price) : `<span class="text-muted">${escapeHtml(stdText)}</span>`) : ''}</span>`;
         const ncCell = pinned
             ? `<label class="cust-svc-nc"><input type="checkbox" ${d.noCharge ? 'checked' : ''} ${on ? '' : 'disabled'} onchange="setCustomerServiceNoCharge(${v}, this.checked)"> ไม่เก็บเงิน</label>`
@@ -8278,8 +8281,9 @@ function customerServicesPopHtml(pinned) {
 
 function setCustomerServicePrice(service, value) {
     const d = custPriceDraft[service] || (custPriceDraft[service] = { price: '', noCharge: false });
-    const n = parseFloat(value);
-    d.price = value === '' || isNaN(n) || n < 0 ? '' : round2(n);
+    const clean = String(value || '').replace(/[,\s฿บาท]/g, '');
+    const n = parseFloat(clean);
+    d.price = clean === '' || isNaN(n) || n < 0 ? '' : round2(n);
 }
 
 function setCustomerServiceNoCharge(service, on) {
@@ -8329,7 +8333,8 @@ function showCustomerServicesPop(pin) {
     const rect = btn.getBoundingClientRect();
     const h = pop.offsetHeight, w = pop.offsetWidth;
     const below = rect.bottom + 8 + h <= window.innerHeight;
-    pop.style.top = `${Math.round(below ? rect.bottom + 8 : Math.max(8, rect.top - h - 8))}px`;
+    // สูงเกินจอ (CSS จำกัด max-height แล้วเลื่อนในรายการ) → ชิดล่างจอแทนการล้น
+    pop.style.top = `${Math.round(below ? rect.bottom + 8 : Math.max(8, Math.min(rect.top - h - 8, window.innerHeight - h - 8)))}px`;
     pop.style.left = `${Math.round(Math.max(8, Math.min(rect.left, window.innerWidth - w - 8)))}px`;
 }
 
@@ -8353,7 +8358,7 @@ document.addEventListener('mousedown', (e) => {
     hideCustomerServicesPop(true);
 });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && custServicesPinned) hideCustomerServicesPop(true); });
-window.addEventListener('scroll', () => hideCustomerServicesPop(true), true);
+window.addEventListener('scroll', (e) => { if (e.target && e.target.id === 'cust-svc-pop') return; hideCustomerServicesPop(true); }, true); // เลื่อนในรายการเองไม่ปิด
 
 // ฟอร์มเปิดใบงาน: ประเภทงานที่นายจ้างที่เลือกใช้กับเรา = สีเขียว (ยังติ๊กประเภทอื่นได้ตามปกติ)
 function highlightJobTypesForCustomer(custId) {

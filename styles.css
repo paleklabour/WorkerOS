@@ -7225,11 +7225,21 @@ body.has-camera .upload-hint { display: none; }
 /* ฝ่ายการเงิน: ราคา + ไม่เก็บเงิน ต่อบริการ (customer_service_prices, owner 2026-10-29) */
 .rn-steps-pop.cust-svc-pop.is-fin { width: 440px; }
 .rn-steps-pop.cust-svc-pop.is-fin.is-pinned { width: 560px; max-width: calc(100vw - 16px); }
-.cust-svc-row.is-fin { display: grid; grid-template-columns: minmax(0, 1fr) 120px auto; gap: 10px; align-items: center; }
+.cust-svc-row.is-fin { display: grid; grid-template-columns: minmax(0, 1fr) 140px auto; gap: 10px; align-items: center; }
 .cust-svc-pop:not(.is-pinned) .cust-svc-row.is-fin { grid-template-columns: minmax(0, 1fr) auto; }
 .cust-svc-name { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
-.cust-svc-price { width: 100%; padding: 5px 10px; border-radius: 999px; text-align: right; font-variant-numeric: tabular-nums; }
-.cust-svc-price:disabled { opacity: .45; }
+.rn-steps-pop.cust-svc-pop { max-height: calc(100vh - 16px); overflow-y: auto; overscroll-behavior: contain; }
+.cust-svc-price-wrap { position: relative; display: block; }
+.cust-svc-price {
+    width: 100%; height: 34px; padding: 0 40px 0 12px; box-sizing: border-box;
+    border: 1px solid var(--dk-line, #d5dce8); border-radius: 999px; background: var(--dk-card, #ffffff); color: var(--text-dark);
+    font: inherit; font-size: 14px; text-align: right; font-variant-numeric: tabular-nums; outline: none;
+    transition: border-color .15s ease, box-shadow .15s ease;
+}
+.cust-svc-price::placeholder { color: var(--dk-muted, #9aa3b2); }
+.cust-svc-price:focus { border-color: #34c759; box-shadow: 0 0 0 3px rgba(52, 199, 89, 0.2); }
+.cust-svc-price:disabled { opacity: .45; cursor: not-allowed; }
+.cust-svc-unit { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 12.5px; color: var(--dk-muted, #8a93a5); pointer-events: none; }
 .cust-svc-price-text { font-variant-numeric: tabular-nums; white-space: nowrap; font-size: 13.5px; }
 .cust-svc-nc { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-size: 13px; font-weight: normal; white-space: nowrap; cursor: pointer; }
 .cust-svc-nc input { width: 16px; height: 16px; margin: 0; }
