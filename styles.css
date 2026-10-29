@@ -6769,6 +6769,7 @@ body.has-camera .upload-hint { display: none; }
 .bt46-form .bt46-box:hover { background: rgba(45, 108, 246, 0.15); }
 .bt46-form .bt46-box.is-on::after { content: "✓"; position: absolute; left: 3px; top: -6px; font-size: 19px; font-weight: 700; color: #0b2a6b; }
 .bt46-form .bt46-sig { position: absolute; object-fit: contain; }
+.gov-form-page + .gov-form-page { margin-top: 16px; } /* ตม.7 หลายหน้า (renderGovForm) */@media print { .gov-form-page { break-after: page; } .gov-form-page + .gov-form-page { margin-top: 0; } }
 
 @media print {
     .bt46-sheet { border-radius: 0; overflow: visible; }

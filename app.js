@@ -7389,6 +7389,9 @@ function renderWorkers() {
                 <button class="btn btn-sm btn-outline" onclick="openBt46Modal('${w.id}')" title="สร้างแบบ บต.46 หนังสือรับรองการจ้าง">
                     ${icon("print")} บต.46
                 </button>
+                <button class="btn btn-sm btn-outline" onclick="openTm7Modal('${w.id}')" title="สร้างแบบ ตม.7 คำขออยู่ต่อในราชอาณาจักร (ต่อวีซ่า)">
+                    ${icon("print")} ตม.7
+                </button>
             </div>
         `;
 
@@ -8918,6 +8921,8 @@ function openBt46Modal(workerId) {
         w.permitExpiry ? formatThaiDate(w.permitExpiry) : '', '', '', '', '', 'ขาดแคลนแรงงานไทย',
         signer, individual ? 'นายจ้าง' : 'กรรมการผู้มีอำนาจ', formatThaiDate(new Date())];
     const boxes = [!individual, false, individual, false, false, false, true, false, false, false, false];
+    govFormCurrent = 'bt46';
+    document.getElementById('gov-form-title').textContent = 'แบบ บต.46 หนังสือรับรองการจ้าง';
     renderBt46Form(values, boxes, sigUrl);
     if (!sigUrl) showToast("ยังไม่มีลายเซ็นนายจ้าง — อัปโหลดได้ที่แฟ้มเอกสารนายจ้าง หมวด \"ลายเซ็นนายจ้าง\"", "warning");
     setPrintPageSize("size: A4 portrait; margin: 0;");
@@ -9083,6 +9088,137 @@ async function exportBt46Pdf() {
         document.body.appendChild(a); a.click(); a.remove();
         setTimeout(() => URL.revokeObjectURL(a.href), 60000);
         showUploadPill('ok', 'สร้าง PDF บต.46 แล้ว', name);
+    } catch (err) {
+        showUploadPill('bad', 'สร้าง PDF ไม่สำเร็จ', err && err.message ? err.message : String(err));
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
+// ---------- ตม.7 คำขออยู่ต่อในราชอาณาจักร (owner 2026-10-29) — ไฟล์แบบฟอร์มจริง 2 หน้า assets/forms/tm7.pdf ----------
+// ไฟล์นี้มีชั้นข้อความ → พิกัดเส้นประอ่านจาก pdf.js ตรง ๆ (หน่วย pt, มุมล่างซ้าย, y = เส้นฐานของบรรทัด)
+// ช่อง: [ชื่อ, x, y, xสุดเส้น]; หน้าจอใช้หน้าต่างเดียวกับ บต.46 (ภาพฟอร์ม + ช่องแก้ไขวางทับ) และ PDF ใช้พิกัดชุดเดียวกัน
+let govFormCurrent = 'bt46';
+const TM7_FORM = {
+    file: 'assets/forms/tm7.pdf',
+    pages: [
+        [ // หน้า 1
+            ['writtenAt', 422, 701, 544], ['dateD', 336, 658, 366], ['dateM', 398, 658, 475], ['dateY', 497, 658, 545],
+            ['lastName', 240, 571, 385], ['firstName', 410, 571, 556],
+            ['middleName', 98, 537, 258], ['age', 278, 537, 308], ['dobD', 364, 537, 402], ['dobM', 425, 537, 497], ['dobY', 516, 537, 555],
+            ['birthPlace', 115, 502, 431], ['nationality', 436, 502, 555],
+            ['passportNo', 291, 468, 467], ['issueD', 472, 468, 547], ['issueM', 93, 434, 183], ['issueY', 206, 434, 241],
+            ['issuedAt', 277, 434, 402], ['expD', 474, 434, 549], ['expM', 93, 400, 184], ['expY', 206, 400, 241],
+            ['visaType', 305, 400, 555], ['arrivedBy', 152, 365, 320], ['arrivedFrom', 325, 365, 553],
+            ['port', 126, 331, 326], ['arrD', 330, 331, 370], ['arrM', 393, 331, 481], ['arrY', 504, 331, 553],
+            ['tm6', 248, 297, 403], ['days', 419, 263, 539], ['daysEn', 425, 245, 467],
+            ['reason1', 136, 227, 555], ['reason2', 73, 193, 552], ['reason3', 73, 176, 552], ['reason4', 73, 159, 552],
+            ['phone', 283, 56, 485]
+        ],
+        [ // หน้า 2
+            ['addressTh', 165, 752, 551], ['writer', 213, 714, 513],
+            ['wHouse', 120, 676, 222], ['wRoad', 243, 676, 345], ['wSub', 391, 676, 555],
+            ['wDistrict', 114, 638, 306], ['wProvince', 334, 638, 553]
+        ]
+    ]
+};
+const TH_MONTHS = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+const thDateParts = (v) => { const d = v ? safeParseDate(v) : null; return d ? [String(d.getDate()), TH_MONTHS[d.getMonth()], String(d.getFullYear() + 543)] : ['', '', '']; };
+
+function openTm7Modal(workerId) {
+    const w = workers.find(item => item.id === workerId);
+    if (!w) return;
+    const c = customers.find(item => item.id === w.employerId) || {};
+    const hq = (c.branches || [])[0] || {};
+    const dob = safeParseDate(w.dob);
+    const now = new Date();
+    const age = dob ? String(now.getFullYear() - dob.getFullYear() - (now < new Date(now.getFullYear(), dob.getMonth(), dob.getDate()) ? 1 : 0)) : '';
+    const [dD, dM, dY] = thDateParts(now), [bD, bM, bY] = thDateParts(w.dob), [iD, iM, iY] = thDateParts(w.passportIssue), [eD, eM, eY] = thDateParts(w.passportExpiry);
+    const v = {
+        dateD: dD, dateM: dM, dateY: dY, lastName: w.lastName || '', firstName: w.firstName || '', age, dobD: bD, dobM: bM, dobY: bY,
+        birthPlace: w.passportPob || '', nationality: NATIONALITY_TH[w.nationality] || w.nationality || '',
+        passportNo: w.passportNo || '', issueD: iD, issueM: iM, issueY: iY, issuedAt: w.passportAuth || '', expD: eD, expM: eM, expY: eY,
+        reason1: `ทำงานกับ ${c.companyName || 'นายจ้าง'} ตามใบอนุญาตทำงาน${w.permitNo ? ` เลขที่ ${w.permitNo}` : ''}${w.permitExpiry ? ` (ถึง ${formatThaiDate(w.permitExpiry)})` : ''}`,
+        addressTh: getCustomerHQAddress(c.id) || w.workplace || '',
+        writer: c.companyName || '', wHouse: [hq.houseNo, hq.moo ? `ม.${hq.moo}` : ''].filter(Boolean).join(' '), wRoad: hq.road || '',
+        wSub: hq.subdistrict || '', wDistrict: hq.district || '', wProvince: hq.province || ''
+    };
+    govFormCurrent = 'tm7';
+    document.getElementById('gov-form-title').textContent = 'แบบ ตม.7 คำขออยู่ต่อในราชอาณาจักร';
+    renderGovForm(TM7_FORM, v);
+    setPrintPageSize("size: A4 portrait; margin: 0;");
+    document.getElementById("bt46-modal").classList.remove("hidden");
+}
+
+// ภาพแต่ละหน้าของแม่แบบ (pdf.js) จำไว้ต่อไฟล์
+const govFormBgCache = {};
+function govFormBackgrounds(file) {
+    if (!govFormBgCache[file]) {
+        govFormBgCache[file] = (async () => {
+            if (!window.pdfjsLib) throw new Error('ตัวอ่าน PDF ยังโหลดไม่เสร็จ');
+            const pdf = await window.pdfjsLib.getDocument({ data: new Uint8Array(await (await fetch(file)).arrayBuffer()) }).promise;
+            const out = [];
+            for (let p = 1; p <= pdf.numPages; p++) {
+                const page = await pdf.getPage(p);
+                const vp = page.getViewport({ scale: 1840 / page.getViewport({ scale: 1 }).width });
+                const cv = document.createElement('canvas'); cv.width = vp.width; cv.height = vp.height;
+                await page.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
+                out.push(cv.toDataURL('image/jpeg', 0.9));
+            }
+            return out;
+        })().catch(e => { delete govFormBgCache[file]; throw e; });
+    }
+    return govFormBgCache[file];
+}
+
+function renderGovForm(form, values) {
+    const sheet = document.getElementById("bt46-sheet");
+    const k = 920 / 595.28;            // px ต่อ pt (หน้ากว้าง 920 px)
+    const fontPx = 10 * k;
+    sheet.innerHTML = form.pages.map((fields, pi) => `<div class="bt46-form gov-form-page" data-page="${pi}"><img class="bt46-bg" alt="แบบฟอร์ม หน้า ${pi + 1}">
+        ${fields.map(([key, x, y, maxX]) => `<span class="bt46-f gov-f" data-key="${key}" contenteditable="true" spellcheck="false" title="คลิกเพื่อแก้ไข"
+            style="left:${x * k}px; top:${(841.89 - y) * k - fontPx - 3}px; width:${(maxX - x) * k}px; font-size:${fontPx}px">${escapeHtml(values[key] || '')}</span>`).join('')}</div>`).join('');
+    govFormBackgrounds(form.file).then(list => sheet.querySelectorAll('.gov-form-page .bt46-bg').forEach((img, i) => { if (list[i]) img.src = list[i]; }))
+        .catch(e => showUploadPill('bad', 'โหลดแบบฟอร์มไม่สำเร็จ', e.message));
+}
+
+function exportCurrentGovForm() {
+    return govFormCurrent === 'tm7' ? exportGovFormPdf(TM7_FORM, 'TM7') : exportBt46Pdf();
+}
+
+async function exportGovFormPdf(form, prefix) {
+    const sheet = document.getElementById('bt46-sheet');
+    const btn = document.getElementById('btn-bt46-pdf');
+    if (btn) btn.disabled = true;
+    try {
+        showUploadPill('load', `กำลังสร้าง PDF ${prefix}…`, 'เติมข้อมูลลงแบบฟอร์มจริง');
+        const { PDFLib, fontkit, fontBytes } = await loadGovFormLibs();
+        const tplRes = await fetch(form.file);
+        if (!tplRes.ok) throw new Error('ไม่พบไฟล์แบบฟอร์ม');
+        const doc = await PDFLib.PDFDocument.load(await tplRes.arrayBuffer());
+        doc.registerFontkit(fontkit);
+        const font = await doc.embedFont(fontBytes, { subset: true });
+        const pages = doc.getPages();
+        const size = 10;
+        form.pages.forEach((fields, pi) => {
+            const page = pages[pi];
+            if (!page) return;
+            fields.forEach(([key, x, y, maxX]) => {
+                const el = sheet.querySelector(`.gov-form-page[data-page="${pi}"] .gov-f[data-key="${key}"]`);
+                const s = String(el ? el.textContent : '').replace(/\s+/g, ' ').trim();
+                if (!s) return;
+                const w = font.widthOfTextAtSize(s, size), maxW = maxX - x;
+                page.drawText(s, { x, y: y + 1.5, size: w > maxW ? Math.max(7, size * maxW / w) : size, font }); // ยาวเกินเส้น → ย่อให้พอดี
+            });
+        });
+        const blob = new Blob([await doc.save()], { type: 'application/pdf' });
+        const who = [...sheet.querySelectorAll('.gov-f[data-key="firstName"], .gov-f[data-key="lastName"]')].map(e => e.textContent.trim()).filter(Boolean).join('_');
+        const name = `${prefix}_${(who || 'worker').replace(/[^A-Za-z0-9ก-๙]+/g, '_')}.pdf`;
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob); a.download = name;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+        showUploadPill('ok', `สร้าง PDF ${prefix} แล้ว`, name);
     } catch (err) {
         showUploadPill('bad', 'สร้าง PDF ไม่สำเร็จ', err && err.message ? err.message : String(err));
     } finally {
