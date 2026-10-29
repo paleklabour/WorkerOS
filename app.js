@@ -1793,7 +1793,6 @@ function openClientWorkerView(workerId) {
         { label: 'เลขอ้างอิง', value: w.refNo },
         { label: 'เลขประจำตัวคนต่างด้าว', value: w.workerUid },
         { label: 'เลขที่ใบอนุญาตทำงาน', value: w.permitNo },
-        { label: 'ใบอนุญาตหมดอายุ', value: d(w.permitExpiry) },
         { label: 'เลขบัตรชมพู', value: w.pinkCardNo },
         { label: 'ตำแหน่งงาน', value: w.position },
         { label: 'สถานที่ทำงาน', value: w.workplace },
@@ -1802,7 +1801,6 @@ function openClientWorkerView(workerId) {
         { label: 'สถานที่ออก', value: w.passportPob },
         { label: 'ผู้ออก', value: w.passportAuth },
         { label: 'วันออก', value: d(w.passportIssue) },
-        { label: 'วันหมดอายุ', value: d(w.passportExpiry) },
         { heading: 'อื่น ๆ' },
         { label: 'เลขกรมธรรม์ประกัน', value: w.insuranceNo },
         { label: 'สถานะ', value: WORKER_STATUS_LABELS[w.status] || w.status },
@@ -1829,11 +1827,29 @@ function openClientWorkerView(workerId) {
         `<span class="wp-pill">${escapeHtml(WORKER_STATUS_LABELS[w.status] || w.status || '-')}</span>`,
         exp ? `<span class="wp-pill ${exp < today ? 'is-warn' : 'is-ok'}">ใบอนุญาตถึง ${escapeHtml(formatThaiDate(w.permitExpiry))}</span>` : ''
     ].join('');
+    // วันหมดอายุ + จุดสี (owner 2026-10-29 — แบบเดียวกับแผงฝั่งเจ้าหน้าที่): แดง = หมดแล้ว, ส้ม = ใกล้หมด (ใบอนุญาต/บัตรชมพู/ประกัน ≤ 60 วัน,
+    // พาสปอร์ต ≤ 180 วัน), เขียว = ปกติ — แสดงวันที่กับสีเท่านั้น ไม่บอกจำนวนวัน (กติกาของระบบ)
+    const expHtml = (v, warnDays) => {
+        const dt = safeParseDate(v);
+        if (!dt) return '';
+        const diff = Math.ceil((dt - today) / 86400000);
+        const st = diff < 0 ? ['is-bad', 'หมดอายุแล้ว'] : diff <= warnDays ? ['is-warn', 'ใกล้หมดอายุ'] : ['is-ok', 'ปกติ'];
+        return `<span class="wp-exp" title="${st[1]}"><span class="fv-dot ${st[0]}"></span>${escapeHtml(formatThaiDate(v))}</span>`;
+    };
+    const fileExp = key => getAttachments(w, key).map(f => f && f.expiryDate).filter(Boolean).sort().pop() || '';
+    const expRows = [
+        ['ใบอนุญาตทำงาน', expHtml(w.permitExpiry, 60)],
+        ['พาสปอร์ต / CI', expHtml(w.passportExpiry, 180)],
+        ['บัตรชมพู', expHtml(fileExp('worker-pink-card'), 60)],
+        ['ประกัน', expHtml(fileExp('worker-insurance-doc'), 60)],
+    ].filter(r => r[1]);
+    const expSection = expRows.length ? `<section class="wp-sec"><h4>วันหมดอายุ</h4>
+        <dl class="wp-kv">${expRows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl></section>` : '';
     const histHtml = (r) => { const h = r.history; return `<div class="cwp-hist">
         <div class="cwp-hist-title"><b>${escapeHtml(r.label)}</b> <small>(${escapeHtml(h.no)})</small></div>
         <div class="cwp-hist-sub">${escapeHtml(h.when)} · ${escapeHtml(h.status)}</div>
         <div class="cwp-hist-money">${escapeHtml(h.money)}${h.pay ? ` · <span class="cwp-pay is-${h.pay}">${h.pay === 'paid' ? 'ชำระแล้ว' : 'ค้างชำระ'}</span>` : ''}</div></div>`; };
-    document.getElementById('client-worker-body').innerHTML = sections.filter(s => s.items.length).map(s => {
+    document.getElementById('client-worker-body').innerHTML = expSection + sections.filter(s => s.items.length).map(s => {
         const kv = s.items.filter(r => !r.history), hist = s.items.filter(r => r.history);
         return `<section class="wp-sec"><h4>${escapeHtml(s.title)}</h4>
         ${kv.length ? `<dl class="wp-kv">${kv.map(r => `<dt>${escapeHtml(r.label)}</dt><dd>${escapeHtml(String(r.value))}</dd>`).join('')}</dl>` : ''}
