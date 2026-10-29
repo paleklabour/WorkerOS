@@ -20497,9 +20497,24 @@ async function voidCurrentInvoice() {
 }
 
 // ---------- ใบเสร็จรับเงิน (พิมพ์ได้ทุกงวด) ----------
+// แบบรวม / แบบรายคน (owner 2026-10-29 — ลูกค้าขอ): ใช้กับใบเสร็จที่แสดงรายการของบิล (invoiceReceiptLine แบบ full)
+// แบบรายคน = buildInvoicePerWorkerRows เหมือนใบแจ้งหนี้; จำค่าที่เลือกไว้ในเบราว์เซอร์นี้
+let receiptLayout = (() => { try { return localStorage.getItem('mw_receipt_layout') === 'worker' ? 'worker' : 'service'; } catch (e) { return 'service'; } })();
+let lastReceiptOpen = null;   // { kind: 'payment' | 'receipt', id } — วาดใหม่ตอนสลับแบบ
+let receiptHasItemList = false;
+
+function setReceiptLayout(layout) {
+    receiptLayout = layout === 'worker' ? 'worker' : 'service';
+    try { localStorage.setItem('mw_receipt_layout', receiptLayout); } catch (e) { /* จำไม่ได้ก็ไม่เป็นไร */ }
+    if (!lastReceiptOpen) return;
+    if (lastReceiptOpen.kind === 'receipt') openReceiptDoc(lastReceiptOpen.id); else openReceiptModal(lastReceiptOpen.id);
+}
+
 function openReceiptModal(paymentId) {
     const p = payments.find(x => x.id === paymentId);
     if (!p) return;
+    lastReceiptOpen = { kind: 'payment', id: paymentId };
+    receiptHasItemList = false;
     if (p.receiptId) { openReceiptDoc(p.receiptId); return; }
     const inv = invoices.find(i => i.id === p.invoiceId);
     if (!inv) return;
@@ -20519,6 +20534,15 @@ function invoiceReceiptLine(inv, p, startNo, allowItems) {
     const paidToDate = round2(livePays.slice(0, seq).reduce((s, x) => s + Number(x.amount || 0), 0));
     const remaining = Math.max(0, round2(Number(inv.grandTotal || 0) - paidToDate));
     if (allowItems && seq === 1 && remaining === 0) {
+        receiptHasItemList = true;
+        if (receiptLayout === 'worker' && (inv.items || []).length) {
+            const list = buildInvoicePerWorkerRows(inv.items);
+            return { rows: list.map((r, i) => `
+            <tr><td style="text-align:center;">${i + 1}</td>
+                <td><div class="inv-item-title">${escapeHtml(r.title)}</div>${r.desc ? `<div class="inv-item-desc">${escapeHtml(r.desc)}</div>` : ''}
+                    ${r.services.length ? `<div class="inv-item-breakdown">${r.services.map(s => `<div><span>${escapeHtml(s.name)}</span><span>${fmtMoney(s.amount)}</span></div>`).join('')}</div>` : ''}</td>
+                <td class="inv-num inv-amount">${fmtMoney(r.fee)}</td></tr>`).join(''), count: list.length, full: true };
+        }
         return { rows: (inv.items || []).map((it, i) => `
             <tr><td style="text-align:center;">${i + 1}</td>
                 <td><div class="inv-item-title">${escapeHtml(it.title)}</div><div class="inv-item-desc">${escapeHtml(it.desc || '')}</div></td>
@@ -20535,6 +20559,8 @@ function invoiceReceiptLine(inv, p, startNo, allowItems) {
 function openReceiptDoc(receiptId) {
     const r = receipts.find(x => x.id === receiptId);
     if (!r) return;
+    lastReceiptOpen = { kind: 'receipt', id: receiptId };
+    receiptHasItemList = false;
     const allocs = liveAllocationsOf(r.id).sort((a, b) => (a.paidDate || '').localeCompare(b.paidDate || '') || (a.createdAt || '').localeCompare(b.createdAt || ''));
     const unapplied = receiptUnapplied(r);
     let rowsHtml = '';
@@ -20619,6 +20645,13 @@ function renderReceiptSheet({ receiptNo, paidDate, refText, title, name, addr, t
                 <p class="signature-date">วันที่ ....... /....... /..........</p>
             </div>
         </div>`;
+    // แท็บแบบรวม / แบบรายคน — เฉพาะใบเสร็จที่มีรายการของบิล (แบ่งจ่าย / มัดจำ แสดงเป็นยอดตามบิลอยู่แล้ว)
+    const bar = document.getElementById('receipt-layout-bar');
+    if (bar) bar.classList.toggle('hidden', !receiptHasItemList);
+    [['service', 'btn-rc-layout-service'], ['worker', 'btn-rc-layout-worker']].forEach(([key, id]) => {
+        const btn = document.getElementById(id);
+        if (btn) btn.className = key === receiptLayout ? "btn btn-gold btn-sm" : "btn btn-outline btn-sm";
+    });
     setPrintPageSize(INVOICE_PAGE_CSS);
     document.getElementById("receipt-modal").classList.remove("hidden");
 }
