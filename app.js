@@ -6049,10 +6049,10 @@ function setBillingKind(kind) {
     renderBillingTab();
 }
 
-// ป้ายสถานะใบงานที่รอออกบิล (หน้าออกบิล + หน้าต่างรวมบิล): กำลังดำเนินการ = เหลือง, ปิดงานแล้ว = แดง, อื่น ๆ = เทา (เจ้าของระบบ 2026-10-29)
+// ป้ายสถานะใบงานที่รอออกบิล (หน้าออกบิล + หน้าต่างรวมบิล): รอดำเนินการ / กำลังดำเนินการ = เหลือง, ปิดงานแล้ว = แดง, อื่น ๆ = เทา (เจ้าของระบบ 2026-10-29)
 function billingJobStatusBadge(j, extraCls = '') {
     if (j.status === 'ปิดงานแล้ว') return `<span class="badge ${extraCls} badge-danger">${icon("warn")} ปิดงานแล้ว ยังไม่ออกบิล</span>`;
-    return `<span class="badge ${extraCls} ${j.status === 'กำลังดำเนินการ' ? 'badge-warning' : 'badge-gold'}">${escapeHtml(j.status || '-')}</span>`;
+    return `<span class="badge ${extraCls} ${['รอดำเนินการ', 'กำลังดำเนินการ'].includes(j.status) ? 'badge-warning' : 'badge-gold'}">${escapeHtml(j.status || '-')}</span>`;
 }
 
 function renderBillingTab() {
