@@ -8723,8 +8723,9 @@ button.jq-worker:hover { background-color: var(--gold-light); }
 .bell-filter-bar > span:not(.ico) { flex: 1; min-width: 200px; }
 
 /* ต่ออายุ: หน้าต่างเลือกไฟล์แบบแฟ้ม (openRenewalFilePicker, owner 2026-10-29) — รายการซ้าย / ตัวอย่างขวา */
-.rn-fpick { display: flex; flex-direction: column; height: min(86vh, 820px); overflow: hidden; }
-.rn-fpick-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(260px, 340px) minmax(0, 1fr); gap: 14px; padding: 14px 20px; }
+.rn-fpick { display: flex; flex-direction: column; height: 94vh; overflow: hidden; }
+.modal-content.large.rn-fpick { max-width: min(1440px, 96vw); width: 96vw; } /* ใหญ่เท่าแฟ้มเอกสาร (owner 2026-10-29) */
+.rn-fpick-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(280px, 380px) minmax(0, 1fr); gap: 14px; padding: 14px 20px; }
 .rn-fpick-list { overflow-y: auto; overscroll-behavior-y: contain; display: flex; flex-direction: column; gap: 6px; padding-right: 4px; }
 .rn-fpick-head { font-size: 12.5px; font-weight: 700; color: var(--text-muted); margin: 8px 2px 2px; }
 .rn-fpick-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; border: 1px solid var(--dk-line, #e2e8f0); border-radius: 14px;
