@@ -7119,6 +7119,7 @@ body.has-camera .upload-hint { display: none; }
 .cp-rn-row:first-of-type { border-top: 0; }
 .cp-rn-row.is-selected { background-color: color-mix(in srgb, var(--gold-primary) 8%, transparent); }
 .cp-rn-row > input { width: 18px; height: 18px; accent-color: var(--gold-primary); }
+.cp-rn-name.is-link { cursor: pointer; } /* คลิกชื่อ = แผงข้อมูลคนงานเลื่อนออกจากขวา (openClientWorkerView) */.cp-rn-name.is-link:hover strong { color: var(--gold-primary); text-decoration: underline; text-underline-offset: 3px; }
 .cp-rn-active { grid-template-columns: minmax(160px, 240px) minmax(0, 1fr) 170px 150px auto; }
 .cp-rn-done { grid-template-columns: minmax(160px, 1fr) 160px 220px 140px; }
 .cp-rn-name { display: flex; flex-direction: column; min-width: 0; }
