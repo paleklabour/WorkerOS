@@ -589,7 +589,7 @@ done from the green ring's pinned step list) (`renewalRingHtml`,
 keep the single trailing book/visa step.
 UI: ถึงรอบ is grouped province → employer (`renewalGroupByProvince`, province filter `renewalProvince`, start button on the
 left, fixed column widths shared by every employer table); กำลังดำเนินการ = owner-picked design A (`renewalActiveHtml`): employer
-groups, one row per worker with a segmented progress bar (`renewalBarHtml`, segment click = open that step), next-step
+groups, one row per worker in a fixed order (old permit expiry → name; owner 2026-10-29: rows must not jump after a step/file update, so no sorting by progress) with a segmented progress bar (`renewalBarHtml`, segment click = open that step), next-step
 button; ticking rows shows a floating dark bar (`.rn-selbar`) to mark ตรวจสุขภาพ / set one appointment date for all selected
 (`renewalBulkStep` → `moveRenewalsToStage`; file steps one row at a time).
 Client portal tab "ต่ออายุ" (`renderClientRenewalTab`, owner 2026-10-20): the employer ticks due workers (≤ 60 days) and sends a
