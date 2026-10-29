@@ -20,6 +20,7 @@ let receipts = [];       // ใบเสร็จ = เงินเข้า 1 �
 let transfers = [];      // โอนระหว่างบัญชีของบริษัท / เงินสด (account_transfers) — ย้ายยอดคงเหลือ ไม่ใช่รายรับรายจ่าย
 let statementLines = []; // บรรทัด statement ธนาคารที่นำเข้า + ผลจับคู่ (bank_statement_lines)
 let myBillingNotes = {};  // Note วางบิลส่วนตัว { customerId: note } — เห็นเฉพาะคนเขียน (billing_notes, owner 2026-10-27)
+let customerServicePrices = [];  // ราคาบริการรายลูกค้า [{ customerId, service, price|null, noCharge }] — ฝ่ายการเงินเท่านั้น (owner 2026-10-29)
 let servicePrices = [];  // ราคามาตรฐานต่อประเภทงาน (ค่าธรรมเนียมรัฐ + ค่าบริการ) — ใช้ภายในเท่านั้น
 
 // Thai provinces selection constraint
@@ -370,6 +371,7 @@ async function loadData() {
             transfers = res.transfers || [];
             statementLines = res.statementLines || [];
             myBillingNotes = res.myBillingNotes || {};
+            customerServicePrices = res.customerServicePrices || [];
             servicePrices = res.servicePrices || [];
             hiddenWorkers = [];
             applyInactiveEmployers();
@@ -6174,7 +6176,7 @@ function renderBillingTab() {
                 <td><strong>${getJobDisplayNo(j)}</strong>${isSystemJob(j) ? `<div><span class="rn-bill-tag">${JOB_KIND_TAG[jobKindOf(j)]}</span></div>` : ''}</td>
                 <td><span class="badge badge-lg badge-warning">${icon("edit")} ยังไม่ออกบิล</span></td>
                 <td><div class="employer-name">${escapeHtml(cust ? cust.companyName : "ไม่พบนายจ้าง")}</div>${buildEmployerIdLinesHtml(cust)}</td>
-                <td>${escapeHtml(cleanJobType)}<br><small class="text-muted">${escapeHtml(work ? workerFullName(work) : 'ไม่พบข้อมูลคนงาน')}</small>${work && work.workerUid ? `<br><small class="text-muted">เลขประจำตัว ${escapeHtml(work.workerUid)}</small>` : ''}</td>
+                <td>${escapeHtml(cleanJobType)}${customerNoChargeTag(j)}<br><small class="text-muted">${escapeHtml(work ? workerFullName(work) : 'ไม่พบข้อมูลคนงาน')}</small>${work && work.workerUid ? `<br><small class="text-muted">เลขประจำตัว ${escapeHtml(work.workerUid)}</small>` : ''}</td>
                 <td class="inv-num"><strong>${fmtMoney(estimate)}</strong>${j.fee > 0 ? '' : '<br><small class="text-muted">ราคามาตรฐาน</small>'}</td>
                 <td class="inv-num text-muted">-</td>
                 <td>${billingJobStatusBadge(j, 'badge-lg')}</td>
@@ -8237,20 +8239,73 @@ function jobTypeServiceOptions() {
 // — แบบเดียวกับรายการขั้นตอนในหน้าต่ออายุ (.rn-steps-pop); ค่าที่เลือกอยู่ใน custServicesDraft จนกด "บันทึกข้อมูล"
 let custServicesDraft = new Set();
 let custServicesPinned = false;
+// ฝ่ายการเงิน: ราคา (ยอดรวมที่เรียกเก็บ, '' = ราคามาตรฐาน) + ไม่เก็บเงิน ต่อบริการ (customer_service_prices, owner 2026-10-29)
+let custPriceDraft = {}; // service -> { price: '' | number, noCharge: bool }
 
-function renderCustomerServices(selected) {
+function renderCustomerServices(selected, customerId) {
     custServicesDraft = new Set(selected || []);
+    custPriceDraft = {};
+    customerServicePrices.filter(p => p.customerId === customerId).forEach(p => {
+        custPriceDraft[p.service] = { price: p.price === null ? '' : p.price, noCharge: !!p.noCharge };
+    });
     hideCustomerServicesPop(true);
 }
 
 function customerServicesPopHtml(pinned) {
+    const fin = can('finance');
     const rows = jobTypeServiceOptions().map(o => {
         const on = custServicesDraft.has(o.value);
-        return `<button type="button" class="rn-sp-row cust-svc-row${on ? ' is-done' : ' is-todo'}" ${pinned ? `onclick="toggleCustomerService(${escapeHtml(JSON.stringify(o.value))})"` : 'tabindex="-1"'}>
-            <span class="rn-sp-dot" aria-hidden="true">${on ? '✓' : ''}</span><span class="rn-sp-label">${escapeHtml(o.label)}</span></button>`;
+        const d = custPriceDraft[o.value] || { price: '', noCharge: false };
+        const v = escapeHtml(JSON.stringify(o.value));
+        const std = getServicePrice(o.value);
+        const stdText = std ? fmtMoney(std.govFee + std.serviceFee) : 'ราคา';
+        const name = `<span class="rn-sp-dot" aria-hidden="true">${on ? '✓' : ''}</span><span class="rn-sp-label">${escapeHtml(o.label)}${fin && on && d.noCharge ? ' <span class="cust-nocharge-tag">ไม่เก็บเงิน</span>' : ''}</span>`;
+        if (!fin) return `<button type="button" class="rn-sp-row cust-svc-row${on ? ' is-done' : ' is-todo'}" ${pinned ? `onclick="toggleCustomerService(${v})"` : 'tabindex="-1"'}>${name}</button>`;
+        const priceCell = pinned
+            ? `<input type="number" min="0" step="0.01" class="cust-svc-price" value="${d.price === '' ? '' : d.price}" placeholder="${escapeHtml(stdText)}" ${on && !d.noCharge ? '' : 'disabled'}
+                 oninput="setCustomerServicePrice(${v}, this.value)" title="ยอดรวมที่เรียกเก็บของลูกค้ารายนี้ (ว่าง = ราคามาตรฐาน)" aria-label="ราคา ${escapeHtml(o.label)}">`
+            : `<span class="cust-svc-price-text">${on ? (d.noCharge ? '—' : d.price !== '' ? fmtMoney(d.price) : `<span class="text-muted">${escapeHtml(stdText)}</span>`) : ''}</span>`;
+        const ncCell = pinned
+            ? `<label class="cust-svc-nc"><input type="checkbox" ${d.noCharge ? 'checked' : ''} ${on ? '' : 'disabled'} onchange="setCustomerServiceNoCharge(${v}, this.checked)"> ไม่เก็บเงิน</label>`
+            : '';
+        return `<div class="rn-sp-row cust-svc-row is-fin${on ? ' is-done' : ' is-todo'}">
+            <button type="button" class="cust-svc-name" ${pinned ? `onclick="toggleCustomerService(${v})"` : 'tabindex="-1"'}>${name}</button>${priceCell}${ncCell}</div>`;
     }).join('');
-    return `<div class="rn-sp-head"><div><b>บริการที่ใช้กับเรา</b>${pinned ? '<small>คลิกเพื่อติ๊ก / เอาออก · มีผลเมื่อกดบันทึกข้อมูล</small>' : ''}</div>
+    const sub = fin ? 'ราคา = ยอดรวมที่เรียกเก็บ (ว่าง = ราคามาตรฐาน) · ฝ่ายบัญชีทุกคนเห็นเหมือนกัน · มีผลเมื่อกดบันทึกข้อมูล' : 'คลิกเพื่อติ๊ก / เอาออก · มีผลเมื่อกดบันทึกข้อมูล';
+    return `<div class="rn-sp-head"><div><b>บริการที่ใช้กับเรา</b>${pinned ? `<small>${sub}</small>` : ''}</div>
         ${pinned ? `<button type="button" class="rn-sp-close" onclick="hideCustomerServicesPop(true)" title="ปิดรายการบริการ" aria-label="ปิดรายการบริการ">&times;</button>` : ''}</div>${rows}`;
+}
+
+function setCustomerServicePrice(service, value) {
+    const d = custPriceDraft[service] || (custPriceDraft[service] = { price: '', noCharge: false });
+    const n = parseFloat(value);
+    d.price = value === '' || isNaN(n) || n < 0 ? '' : round2(n);
+}
+
+function setCustomerServiceNoCharge(service, on) {
+    const d = custPriceDraft[service] || (custPriceDraft[service] = { price: '', noCharge: false });
+    d.noCharge = !!on;
+    const pop = document.getElementById('cust-svc-pop');
+    if (pop) pop.innerHTML = customerServicesPopHtml(true);
+}
+
+// บันทึกราคาบริการของนายจ้างรายนี้หลังบันทึกฟอร์ม (ฝ่ายการเงินเท่านั้น) — เฉพาะบริการที่ติ๊กไว้; ไม่เปลี่ยน = ไม่ส่ง
+async function saveCustomerServicePrices(customerId) {
+    if (!can('finance') || !customerId) return true;
+    const rows = [...custServicesDraft].map(service => {
+        const d = custPriceDraft[service] || {};
+        return { service, price: d.noCharge || d.price === '' || d.price === undefined ? null : d.price, noCharge: !!d.noCharge };
+    }).filter(r => r.price !== null || r.noCharge);
+    const key = rs => JSON.stringify([...rs].sort((a, b) => a.service.localeCompare(b.service)).map(r => [r.service, r.price, r.noCharge]));
+    const before = customerServicePrices.filter(p => p.customerId === customerId);
+    if (key(rows) === key(before)) return true;
+    const res = await callCloudAPI("setCustomerServicePrices", { customerId, rows });
+    if (!res || res.status === "error") {
+        showToast("❌ บันทึกราคาบริการไม่สำเร็จ: " + ((res && res.message) || 'unknown error'), "danger");
+        return false;
+    }
+    customerServicePrices = customerServicePrices.filter(p => p.customerId !== customerId).concat(rows.map(r => ({ customerId, ...r })));
+    return true;
 }
 
 function showCustomerServicesPop(pin) {
@@ -8268,6 +8323,7 @@ function showCustomerServicesPop(pin) {
     }
     custServicesPinned = !!pin;
     pop.classList.toggle('is-pinned', !!pin);
+    pop.classList.toggle('is-fin', can('finance'));
     pop.innerHTML = customerServicesPopHtml(!!pin);
     pop.classList.remove('hidden');
     const rect = btn.getBoundingClientRect();
@@ -8312,7 +8368,7 @@ function highlightJobTypesForCustomer(custId) {
 function openCustomerModal(id = null) {
     // Reset forms
     document.getElementById("customer-form").reset();
-    renderCustomerServices(id ? (customers.find(c => c.id === id) || {}).services : []);
+    renderCustomerServices(id ? (customers.find(c => c.id === id) || {}).services : [], id);
     document.querySelectorAll("#cust-business-type .bt-extra").forEach(el => el.remove());
     const modalTitle = document.getElementById("customer-modal-title");
     const editIdInput = document.getElementById("customer-edit-id");
@@ -8716,6 +8772,7 @@ async function saveCustomer(e) {
     }
     // Note เป็นของส่วนตัว (billing_notes) — ไม่เขียนลงข้อมูลนายจ้างที่ทุกคนเห็น
     await saveMyBillingNote(customerData.id, billingNote);
+    await saveCustomerServicePrices(customerData.id); // ราคาบริการรายลูกค้า (ฝ่ายการเงิน) — ใช้ id จริงหลังบันทึก
 
     // ไฟล์แนบถูกอัปโหลดขึ้น Storage ไปแล้วตั้งแต่ตอนเลือกไฟล์ (ดู processCustomerDocFile) — เหลือแค่ผูก
     // reference เข้ากับข้อมูลลูกค้าที่บันทึกสำเร็จแล้ว (รวมกับไฟล์เดิมที่มีอยู่แล้ว ไม่เขียนทับ)
@@ -13176,6 +13233,28 @@ function getServicePrice(jobTypeName) {
     return servicePrices.find(p => p.jobType === jobTypeName) || null;
 }
 
+// ราคาบริการรายลูกค้า (customer_service_prices, owner 2026-10-29): price = ยอดรวมที่เรียกเก็บ (รวมค่าธรรมเนียมรัฐ), null = ใช้ราคามาตรฐาน
+function customerServicePriceRow(customerId, service) {
+    return customerServicePrices.find(p => p.customerId === customerId && p.service === service) || null;
+}
+// ราคาเริ่มต้นของ 1 รายการ: ราคาลูกค้ารายนี้ → ราคามาตรฐาน → 0
+function defaultServiceCharge(customerId, service) {
+    const cp = customerServicePriceRow(customerId, service);
+    if (cp && cp.price !== null) return cp.price;
+    const std = getServicePrice(service);
+    return std ? std.govFee + std.serviceFee : 0;
+}
+// ป้ายส้ม "ลูกค้าไม่เก็บเงินบริการนี้" ในหน้าออกบิล / รวมบิล (ฝ่ายการเงินเท่านั้น)
+const customerNoChargeTag = (j) => customerServiceNoCharge(j)
+    ? ' <span class="cust-nocharge-tag" title="ตั้งไว้ในปุ่ม &quot;บริการที่ใช้กับเรา&quot; ของนายจ้าง — กด &quot;ไม่เรียกเก็บเงิน&quot; ถ้าไม่ออกบิลงานนี้">ลูกค้าไม่เก็บเงินบริการนี้</span>' : '';
+
+// ใบงานที่ลูกค้าตั้งบริการไว้ว่า "ไม่เก็บเงิน" (ทุกรายการในใบงาน) — ใช้เตือนเท่านั้น ไม่ตั้งให้อัตโนมัติ
+function customerServiceNoCharge(j) {
+    if (!j || !jobAwaitingBill(j)) return false;
+    const items = parseJobTypeItems(j.jobType, 0);
+    return items.length > 0 && items.every(it => { const cp = customerServicePriceRow(j.customerId, it.name); return !!(cp && cp.noCharge); });
+}
+
 // สร้างรายการในบิลจากใบงาน 1 ใบ — ถ้าใบงานยังไม่มีราคา (fee = 0) ใช้ราคามาตรฐานแทน
 // govFee ของแต่ละรายการ: ใช้ jobs.govFee ที่เคยบันทึกไว้ (เฉลี่ยตามสัดส่วนราคา) หรือค่าธรรมเนียมรัฐจากราคามาตรฐาน
 function buildInvoiceItemsFromJob(j, workDetails) {
@@ -13189,7 +13268,7 @@ function buildInvoiceItemsFromJob(j, workDetails) {
     const priceSum = parsed.reduce((s, x) => s + x.price, 0);
     return parsed.map((item, idx) => {
         const std = getServicePrice(item.name);
-        const price = useStandard && std ? std.govFee + std.serviceFee : item.price;
+        const price = useStandard ? (defaultServiceCharge(j.customerId, item.name) || item.price) : item.price; // ราคาลูกค้ารายนี้ก่อน แล้วค่อยราคามาตรฐาน
         let govFee = 0;
         if (j.govFee > 0 && weightSum > 0) govFee = round2(j.govFee * stdGovWeights[idx] / weightSum);
         else if (j.govFee > 0 && priceSum > 0) govFee = round2(j.govFee * item.price / priceSum);
@@ -14230,7 +14309,7 @@ function onCombineCustomerChange() {
                     <div>
                         <strong>${j.jobType || "ไม่ระบุประเภทงาน"}</strong> - คนงาน: ${workName}${workUidTag}
                         ${isSystemJob(j) ? `<span class="rn-bill-tag">${JOB_KIND_TAG[jobKindOf(j)]}</span>` : ''}
-                        ${billingJobStatusBadge(j)}
+                        ${billingJobStatusBadge(j)}${customerNoChargeTag(j)}
                     </div>
                 </label>
                 <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
@@ -18848,10 +18927,7 @@ function isJobNoCharge(j) {
 // ใบงานที่ยังต้องออกบิล = ยังไม่อยู่ในบิลใด และไม่ได้ตั้งเป็น "ไม่เรียกเก็บเงิน"
 // ยอดของใบงานที่ยังไม่ออกบิล: ค่าบริการที่ตั้งไว้ ไม่มี = ราคามาตรฐาน (ค่าธรรมเนียมรัฐ + ค่าบริการ) ของทุกประเภทงานในใบ
 function jobBillEstimate(j) {
-    return j.fee > 0 ? j.fee : parseJobTypeItems(j.jobType, 0).reduce((s, it) => {
-        const std = getServicePrice(it.name);
-        return s + (std ? std.govFee + std.serviceFee : 0);
-    }, 0);
+    return j.fee > 0 ? j.fee : parseJobTypeItems(j.jobType, 0).reduce((s, it) => s + defaultServiceCharge(j.customerId, it.name), 0);
 }
 
 function jobAwaitingBill(j) {
@@ -19566,7 +19642,33 @@ async function revokeInvoiceShareLink() {
     showToast("🚫 ยกเลิกลิงก์ใบวางบิลแล้ว", "success");
 }
 
+// ร่างบิล: ใบงานที่ลูกค้ารายนี้ตั้งบริการไว้ว่า "ไม่เก็บเงิน" → แถบเตือน + ปุ่มตั้งไม่เรียกเก็บเงิน (กดเอง ไม่ตั้งให้อัตโนมัติ; owner 2026-10-29)
+function renderInvoiceNoChargeHint() {
+    let box = document.getElementById('invoice-nocharge-hint');
+    const anchor = document.getElementById('invoice-billing-note-wrap');
+    if (!box && anchor) {
+        box = document.createElement('div');
+        box.id = 'invoice-nocharge-hint';
+        box.className = 'no-print inv-nocharge-hint hidden';
+        anchor.after(box);
+    }
+    if (!box) return;
+    const list = currentInvoiceId || !can('finance') ? [] : (currentInvoiceJobIds || [])
+        .map(id => jobs.find(j => j.id === id)).filter(j => j && customerServiceNoCharge(j));
+    box.classList.toggle('hidden', !list.length);
+    box.innerHTML = list.map(j => `<div class="inv-nocharge-row">${icon('warn')}
+        <span>ลูกค้ารายนี้ตั้งไว้ว่า "ไม่เก็บเงิน" บริการ <b>${escapeHtml(getCleanJobTypeName(j.jobType))}</b> — ใบงาน ${escapeHtml(getJobDisplayNo(j))}</span>
+        <button type="button" class="btn btn-sm" onclick="markJobNoChargeFromDraft('${j.id}')" title="ตั้งใบงานนี้เป็นไม่เรียกเก็บเงินแทนการออกบิล">ตั้งใบงานนี้เป็นไม่เรียกเก็บเงิน</button></div>`).join('');
+}
+
+async function markJobNoChargeFromDraft(jobId) {
+    await markJobNoCharge(jobId);
+    const j = jobs.find(x => x.id === jobId);
+    if (j && isJobNoCharge(j)) closeInvoiceModal(); // ร่างนี้มีใบงานที่ไม่เก็บเงินแล้ว — ปิด ให้เลือกใบงานใหม่
+}
+
 function renderInvoiceStatusUi() {
+    renderInvoiceNoChargeHint();
     const inv = currentInvoiceId ? invoices.find(i => i.id === currentInvoiceId) : null;
     const status = inv ? inv.status : 'draft';
     const canManage = can('finance');

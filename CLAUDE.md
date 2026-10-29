@@ -521,6 +521,14 @@ owner picked mockup D, no count shown — the form is already long). Like the re
 where rows toggle (`showCustomerServicesPop` / `toggleCustomerService`, popup reuses `.rn-steps-pop`); the picks live in
 `custServicesDraft` until "บันทึกข้อมูล". Options = the job form's job-type checkboxes except "อื่นๆ" (`jobTypeServiceOptions`). Job form: picking the employer turns those job-type tiles green (`highlightJobTypesForCustomer`,
 `.is-cust-service`); every other type can still be ticked.
+Per-customer prices (owner 2026-10-29, picked level 2 of 3, migration `20261029045759_customer_service_prices.sql`): table
+`customer_service_prices` (customer_id, service, price = total charged incl. gov fee / null = standard price, no_charge), RLS
+`can_finance()` — every finance user sees the same values, ops roles see nothing (they only see the service ticks). Finance users
+get a price box + "ไม่เก็บเงิน" per ticked service in the same popup (`custPriceDraft`, saved by `saveCustomerServicePrices` after
+the employer form saves). Used as the default price: `defaultServiceCharge(customerId, service)` (customer price → standard → 0)
+in `buildInvoiceItemsFromJob` and `jobBillEstimate`. "ไม่เก็บเงิน" never sets no-charge by itself (only Admin/AM click it): it
+shows an orange tag on billing / combine rows (`customerNoChargeTag`) and a warning bar with a "ตั้งใบงานนี้เป็นไม่เรียกเก็บเงิน"
+button in the bill draft (`renderInvoiceNoChargeHint` → `markJobNoChargeFromDraft`).
 
 ## Inactive employers (2026-10-05)
 
