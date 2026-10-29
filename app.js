@@ -8250,20 +8250,46 @@ function jobTypeServiceOptions() {
         .map(cb => ({ value: cb.value, label: cb.parentElement.textContent.trim() }));
 }
 
-// ปุ่ม "บริการที่ใช้กับเรา" ข้างแท็บที่อยู่จัดส่ง (เจ้าของระบบเลือกแบบเขียว iOS 2026-10-29): ชี้ = ดูรายการ, คลิก = ปักไว้แล้วติ๊กได้
-// — แบบเดียวกับรายการขั้นตอนในหน้าต่ออายุ (.rn-steps-pop); ค่าที่เลือกอยู่ใน custServicesDraft จนกด "บันทึกข้อมูล"
+// ปุ่ม "บริการที่ใช้กับเรา" ข้างแท็บที่อยู่จัดส่ง (เจ้าของระบบเลือกแบบเขียว iOS 2026-10-29): ชี้ = รายการเด้งออกมา แล้วลากเมาส์ลงไปติ๊ก/กรอกได้เลย
+// (owner 2026-10-29 — ไม่ต้องคลิกปุ่มก่อน), เอาเมาส์ออกจากปุ่ม+รายการ = ปิด (ยกเว้นกำลังพิมพ์), คลิกปุ่ม = ปักไว้ (จอสัมผัส)
+// ค่าที่เลือกอยู่ใน custServicesDraft จนกด "บันทึกข้อมูล"; เปิดฟอร์ม/เปิดรายการ = ดึงค่าล่าสุดจากฐานข้อมูล (refreshCustomerServicesFromDb)
 let custServicesDraft = new Set();
 let custServicesPinned = false;
+let custServicesDirty = false;     // แก้ในฟอร์มนี้แล้ว — ดึงค่าล่าสุดมาไม่ทับของที่กำลังแก้
+let custServicesCustomerId = null;
+let custServicesHideTimer = null;
 // ฝ่ายการเงิน: ราคา (ยอดรวมที่เรียกเก็บ, '' = ราคามาตรฐาน) + ไม่เก็บเงิน ต่อบริการ (customer_service_prices, owner 2026-10-29)
 let custPriceDraft = {}; // service -> { price: '' | number, noCharge: bool }
 
 function renderCustomerServices(selected, customerId) {
     custServicesDraft = new Set(selected || []);
+    custServicesCustomerId = customerId || null;
+    custServicesDirty = false;
     custPriceDraft = {};
     customerServicePrices.filter(p => p.customerId === customerId).forEach(p => {
         custPriceDraft[p.service] = { price: p.price === null ? '' : p.price, noCharge: !!p.noCharge };
     });
     hideCustomerServicesPop(true);
+    refreshCustomerServicesFromDb();
+}
+
+// ค่าที่อีกคนเพิ่งบันทึก (อีกเครื่อง / อีกฝ่าย) — อัปเดตข้อมูลในหน้านี้ และแทนค่าในฟอร์มถ้ายังไม่ได้แก้
+async function refreshCustomerServicesFromDb() {
+    const id = custServicesCustomerId;
+    if (!id) return;
+    const res = await callCloudAPI("getCustomerServices", { customerId: id });
+    if (!res || res.status !== "success" || id !== custServicesCustomerId) return;
+    const c = customers.find(x => x.id === id);
+    if (c) c.services = res.services;
+    if (res.prices) customerServicePrices = customerServicePrices.filter(p => p.customerId !== id).concat(res.prices);
+    if (custServicesDirty) return;
+    custServicesDraft = new Set(res.services);
+    custPriceDraft = {};
+    (res.prices || customerServicePrices.filter(p => p.customerId === id)).forEach(p => {
+        custPriceDraft[p.service] = { price: p.price === null ? '' : p.price, noCharge: !!p.noCharge };
+    });
+    const pop = document.getElementById('cust-svc-pop');
+    if (pop && !pop.classList.contains('hidden') && !pop.contains(document.activeElement)) pop.innerHTML = customerServicesPopHtml(true);
 }
 
 function customerServicesPopHtml(pinned) {
@@ -8295,6 +8321,7 @@ function customerServicesPopHtml(pinned) {
 }
 
 function setCustomerServicePrice(service, value) {
+    custServicesDirty = true;
     const d = custPriceDraft[service] || (custPriceDraft[service] = { price: '', noCharge: false });
     const clean = String(value || '').replace(/[,\s฿บาท]/g, '');
     const n = parseFloat(clean);
@@ -8302,6 +8329,7 @@ function setCustomerServicePrice(service, value) {
 }
 
 function setCustomerServiceNoCharge(service, on) {
+    custServicesDirty = true;
     const d = custPriceDraft[service] || (custPriceDraft[service] = { price: '', noCharge: false });
     d.noCharge = !!on;
     const pop = document.getElementById('cust-svc-pop');
@@ -8328,23 +8356,26 @@ async function saveCustomerServicePrices(customerId) {
 }
 
 function showCustomerServicesPop(pin) {
-    if (custServicesPinned && !pin) return;
+    clearTimeout(custServicesHideTimer);
     const btn = document.getElementById('cust-services-btn');
     if (!btn) return;
     let pop = document.getElementById('cust-svc-pop');
     if (!pop) {
         pop = document.createElement('div');
         pop.id = 'cust-svc-pop';
-        pop.className = 'rn-steps-pop is-book cust-svc-pop hidden';
+        pop.className = 'rn-steps-pop is-book is-pinned cust-svc-pop hidden'; // is-pinned = รับเมาส์ได้เสมอ (ลากลงมาติ๊ก)
         pop.setAttribute('role', 'dialog');
         pop.setAttribute('aria-label', 'บริการที่ใช้กับเรา');
+        pop.addEventListener('mouseenter', () => clearTimeout(custServicesHideTimer));
+        pop.addEventListener('mouseleave', () => hideCustomerServicesPop(false));
         document.body.appendChild(pop);
     }
-    custServicesPinned = !!pin;
-    pop.classList.toggle('is-pinned', !!pin);
+    if (pin) custServicesPinned = true;
+    if (!pop.classList.contains('hidden')) return; // เปิดอยู่แล้ว — ไม่วาดใหม่/ไม่ขยับ
     pop.classList.toggle('is-fin', can('finance'));
-    pop.innerHTML = customerServicesPopHtml(!!pin);
+    pop.innerHTML = customerServicesPopHtml(true);
     pop.classList.remove('hidden');
+    if (!custServicesDirty) refreshCustomerServicesFromDb();
     const rect = btn.getBoundingClientRect();
     const h = pop.offsetHeight, w = pop.offsetWidth;
     const below = rect.bottom + 8 + h <= window.innerHeight;
@@ -8353,26 +8384,40 @@ function showCustomerServicesPop(pin) {
     pop.style.left = `${Math.round(Math.max(8, Math.min(rect.left, window.innerWidth - w - 8)))}px`;
 }
 
+// force = ปิดทันที; ไม่ force (เมาส์ออกจากปุ่ม/รายการ) = รอแป๊บให้ลากเมาส์ข้ามช่องว่างไปที่รายการได้ — ไม่ปิดถ้าปักไว้หรือกำลังพิมพ์ในรายการ
 function hideCustomerServicesPop(force) {
-    if (custServicesPinned && !force) return;
-    custServicesPinned = false;
+    clearTimeout(custServicesHideTimer);
     const pop = document.getElementById('cust-svc-pop');
+    if (!force) {
+        custServicesHideTimer = setTimeout(() => {
+            if (custServicesPinned || !pop || pop.matches(':hover') || pop.contains(document.activeElement)) return;
+            const btn = document.getElementById('cust-services-btn');
+            if (btn && btn.matches(':hover')) return;
+            pop.classList.add('hidden');
+        }, 250);
+        return;
+    }
+    custServicesPinned = false;
     if (pop) pop.classList.add('hidden');
 }
 
 function toggleCustomerService(value) {
+    custServicesDirty = true;
     if (custServicesDraft.has(value)) custServicesDraft.delete(value); else custServicesDraft.add(value);
     const pop = document.getElementById('cust-svc-pop');
     if (pop) pop.innerHTML = customerServicesPopHtml(true);
 }
 
 document.addEventListener('mousedown', (e) => {
-    if (!custServicesPinned) return;
     const pop = document.getElementById('cust-svc-pop');
-    if ((pop && pop.contains(e.target)) || (e.target.closest && e.target.closest('#cust-services-btn'))) return;
+    if (!pop || pop.classList.contains('hidden')) return;
+    if (pop.contains(e.target) || (e.target.closest && e.target.closest('#cust-services-btn'))) return;
     hideCustomerServicesPop(true);
 });
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && custServicesPinned) hideCustomerServicesPop(true); });
+document.addEventListener('keydown', (e) => {
+    const pop = document.getElementById('cust-svc-pop');
+    if (e.key === 'Escape' && pop && !pop.classList.contains('hidden')) hideCustomerServicesPop(true);
+});
 window.addEventListener('scroll', (e) => { if (e.target && e.target.id === 'cust-svc-pop') return; hideCustomerServicesPop(true); }, true); // เลื่อนในรายการเองไม่ปิด
 
 // ฟอร์มเปิดใบงาน: ประเภทงานที่นายจ้างที่เลือกใช้กับเรา = สีเขียว (ยังติ๊กประเภทอื่นได้ตามปกติ)
