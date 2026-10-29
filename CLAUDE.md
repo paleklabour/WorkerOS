@@ -533,6 +533,12 @@ in `buildInvoiceItemsFromJob` and `jobBillEstimate`. "ไม่เก็บเ�
 shows an orange tag on billing / combine rows (`customerNoChargeTag`) and a warning bar with a "ตั้งใบงานนี้เป็นไม่เรียกเก็บเงิน"
 button in the bill draft (`renderInvoiceNoChargeHint` → `markJobNoChargeFromDraft`).
 
+Employer form "ประเภทกิจการ" (owner 2026-10-29): one field (`#cust-bt-pick`, `.bt-pick-summary` shows the picks as chips);
+hovering drops down the 24-option checklist and the mouse can move straight into it to tick (pure CSS `:hover`, a transparent
+padding-top bridge); clicking the field keeps it open (`toggleBusinessTypePick`, touch/keyboard) until a click elsewhere. The
+checkboxes `#cust-business-type` / `name="cust-business-type"` are unchanged and still hold the value (`setCustomerBusinessTypes`
+/ `readCustomerBusinessTypes`, summary via `updateBusinessTypeSummary`).
+
 ## Inactive employers (2026-10-05)
 
 Admin can deactivate an employer (`customers.status` = `active`/`inactive`,

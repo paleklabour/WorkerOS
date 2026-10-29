@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261029o">
+    <link rel="stylesheet" href="styles.css?v=20261029p">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -1804,7 +1804,10 @@
                         <div class="form-row">
                             <div class="form-group col-6">
                                 <label>ประเภทกิจการ (ข้อมูลกรมจัดหางาน) — เลือกได้หลายประเภท <span class="required">*</span></label>
-                                <div id="cust-business-type" class="bt-checklist" role="group" aria-label="ประเภทกิจการ">
+                                <!-- ช่องเดียว ชี้แล้วรายการติ๊กเด้งลงมา ลากเมาส์ลงไปติ๊กได้เลย (เจ้าของระบบ 2026-10-29); ช่องติ๊กเดิมยังเป็นที่เก็บค่าจริง -->
+                                <div class="bt-pick" id="cust-bt-pick">
+                                <button type="button" class="bt-pick-summary" id="cust-bt-summary" onclick="toggleBusinessTypePick()" aria-label="เลือกประเภทกิจการ"></button>
+                                <div class="bt-pick-panel"><div id="cust-business-type" class="bt-checklist" role="group" aria-label="ประเภทกิจการ" onchange="updateBusinessTypeSummary()">
                                     <label class="bt-option"><input type="checkbox" name="cust-business-type" value="ประมง"> 1. ประมง</label>
                                     <label class="bt-option"><input type="checkbox" name="cust-business-type" value="ต่อเนื่องประมงทะเล"> 2. ต่อเนื่องประมงทะเล</label>
                                     <label class="bt-option"><input type="checkbox" name="cust-business-type" value="เกษตรและปศุสัตว์"> 3. เกษตรและปศุสัตว์</label>
@@ -1829,6 +1832,7 @@
                                     <label class="bt-option"><input type="checkbox" name="cust-business-type" value="สถานบริการสปา นวด เพื่อสุขภาพ"> 22. สถานบริการสปา นวด เพื่อสุขภาพ</label>
                                     <label class="bt-option"><input type="checkbox" name="cust-business-type" value="สถานศึกษา มูลนิธิ สมาคม สถานพยาบาล"> 23. สถานศึกษา มูลนิธิ สมาคม สถานพยาบาล</label>
                                     <label class="bt-option"><input type="checkbox" name="cust-business-type" value="การให้บริการต่าง ๆ"> 24. การให้บริการต่าง ๆ</label>
+                                </div></div>
                                 </div>
                             </div>
                             <div class="form-group col-6">
@@ -3764,6 +3768,6 @@
     </script>
 
     <!-- ตัวเปิดระบบ: หน้าล็อกอินใช้แค่ boot.js — supabase-client.js + app.js (เลข v เดียวกัน) โหลดหลังล็อกอินเท่านั้น -->
-    <script src="boot.js?v=20261029o"></script>
+    <script src="boot.js?v=20261029p"></script>
 </body>
 </html>
