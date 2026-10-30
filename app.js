@@ -17707,6 +17707,9 @@ async function moveWorkerFileExpiryState(e, markExpired) {
     if (isWorkerDocFileExpired(fItem, idx, list, docType) === markExpired) return; // อยู่ตรงที่ลากมาวางอยู่แล้ว ไม่ต้องทำอะไร
 
     fItem.manualExpired = markExpired; // เจ้าหน้าที่ตั้งเองแล้ว ใช้ทับตรรกะอัตโนมัติ (วันหมดอายุจริง/ลำดับอัปโหลด) ต่อจากนี้
+    // ลากไฟล์ที่เลยวันหมดอายุแล้วกลับมาปัจจุบันเอง = ให้อยู่ปัจจุบันจริง (ไม่งั้นวันหมดอายุพับกลับทันที)
+    if (markExpired) delete fItem.forceCurrent;
+    else { const ex = fItem.expiryDate ? safeParseDate(fItem.expiryDate) : null; const t0 = new Date(); t0.setHours(0, 0, 0, 0); if (ex && ex < t0) fItem.forceCurrent = true; else delete fItem.forceCurrent; }
     renderWorkerFolderTiles();
     showToast(markExpired ? "📁 ย้ายไฟล์ไปที่ \"ไฟล์ที่หมดอายุ\" แล้ว" : "📂 ย้ายไฟล์กลับมาที่เอกสารปัจจุบันแล้ว", "success");
 
@@ -17902,15 +17905,19 @@ const EXPIRY_TRACKED_WORKER_DOC_TYPES = ['worker-wp-doc', 'worker-passport'];
 //     ทำให้ไฟล์ที่เพิ่งแนบ (แต่ไม่ใช่ไฟล์สุดท้าย) ตกไปอยู่ "หมดอายุ" ทั้งที่ยังไม่หมด
 //   - เอกสารประเภทที่ไม่มีวันหมดอายุพิมพ์อยู่ ให้ตัดสินจากลำดับอัปโหลดแทน (ไฟล์ล่าสุดของประเภทนั้น = ปัจจุบัน)
 function isWorkerDocFileExpired(fItem, fIdx, list, docType) {
-    if (fItem && typeof fItem.manualExpired === 'boolean') return fItem.manualExpired;
+    if (fItem && fItem.manualExpired === true) return true;
+    // ถึงวันหมดอายุของไฟล์เอง = หมดอายุเสมอ (owner 2026-10-30) — manualExpired: false (ย้ายหมวด / ลากกลับ) กันแค่กติกาตามลำดับไฟล์
+    // ยกเว้นเจ้าหน้าที่ลากไฟล์ที่เลยวันแล้วกลับมา "ปัจจุบัน" เอง (forceCurrent, moveWorkerFileExpiryState)
     if (fItem && fItem.expiryDate) {
         const exp = safeParseDate(fItem.expiryDate);
         if (exp) {
             const todayStart = new Date();
             todayStart.setHours(0, 0, 0, 0);
-            return exp < todayStart;
+            if (exp < todayStart) return !fItem.forceCurrent;
+            return false;
         }
     }
+    if (fItem && fItem.manualExpired === false) return false;
     // ใบเสร็จรับเงินเป็นหลักฐานการจ่ายเงิน ไม่มีวันหมดอายุจริงและยังใช้อ้างอิงได้เสมอ ต่อให้มีหลายใบสะสมไว้
     // (ไม่งั้นถ้าอัปโหลดซ้ำ/มีหลายใบจากคนละรอบต่ออายุ ใบเก่าจะโดนจัดเป็น "หมดอายุ" ไปเองตามลำดับอัปโหลดทั้งที่ไม่ควร)
     if (docType === 'worker-receipt') return false;
