@@ -4446,15 +4446,15 @@ function regChecks(w) {
         { label: 'ชื่อ', ok: !!w.firstName }, { label: 'วันเกิด', ok: !!w.dob }
     ];
     const extras = [];
-    if (getAttachments(w, 'worker-pink-card').length) extras.push('มีบัตรชมพูเก่า');
-    if (getAttachments(w, 'worker-passport').length) extras.push('มีเล่มเก่า');
+    if (getAttachments(w, 'worker-pink-card').length) extras.push('บัตรชมพูเก่า');
+    if (getAttachments(w, 'worker-passport').length) extras.push('เล่มเก่า');
     return { checks, extras, complete: checks.every(c => c.ok), missing: checks.filter(c => !c.ok).map(c => c.label) };
 }
 
 function regChipsHtml(w) {
     const { checks, extras } = regChecks(w);
     return checks.map(c => `<span class="reg-chip ${c.ok ? 'is-ok' : 'is-miss'}">${c.ok ? '✓' : '✗'} ${escapeHtml(c.label)}</span>`).join('')
-        + extras.map(x => `<span class="reg-chip">${escapeHtml(x)}</span>`).join('');
+        + extras.map(x => `<span class="reg-chip is-ok" title="แนบมาแล้ว (ไม่บังคับ)">✓ ${escapeHtml(x)}</span>`).join(''); // เอกสารเสริมที่แนบมาแล้ว ติ๊กถูกเหมือนช่องบังคับ (owner 2026-10-30)
 }
 
 // ---------- หน้า (ฝั่งเจ้าหน้าที่) ----------
