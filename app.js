@@ -17918,7 +17918,7 @@ const EXPIRY_TRACKED_WORKER_DOC_TYPES = ['worker-wp-doc', 'worker-passport'];
 //   - ใบอนุญาตทำงาน/พาสปอร์ต (ปกติมีวันหมดอายุ แต่ AI อ่านไม่ได้ เช่น Gemini ไม่ว่าง หรือเป็นหน้า 2-3 ของเอกสารชุดเดียวกัน)
 //     ถือว่ายังใช้ได้ เว้นแต่มีไฟล์ประเภทเดียวกันที่แนบทีหลังและรู้วันหมดอายุแน่ชัดมาแทนแล้ว — เดิมใช้ลำดับอัปโหลดล้วน ๆ
 //     ทำให้ไฟล์ที่เพิ่งแนบ (แต่ไม่ใช่ไฟล์สุดท้าย) ตกไปอยู่ "หมดอายุ" ทั้งที่ยังไม่หมด
-//   - เอกสารประเภทที่ไม่มีวันหมดอายุพิมพ์อยู่ ให้ตัดสินจากเวลาแนบ (ชุดล่าสุดของประเภทนั้น = ปัจจุบัน, ชุด = แนบห่างกันไม่เกิน 24 ชม.)
+//   - ไฟล์ที่ไม่มีวันหมดอายุ: พับเมื่อมีไฟล์ใหม่กว่าที่วันหมดอายุเลื่อนออกไปจริง (ดูในฟังก์ชัน) ไม่งั้นอยู่ปัจจุบัน
 function isWorkerDocFileExpired(fItem, fIdx, list, docType) {
     if (fItem && fItem.manualExpired === true) return true;
     // ถึงวันหมดอายุของไฟล์เอง = หมดอายุเสมอ (owner 2026-10-30) — manualExpired: false (ย้ายหมวด / ลากกลับ) กันแค่กติกาตามลำดับไฟล์
@@ -17936,14 +17936,15 @@ function isWorkerDocFileExpired(fItem, fIdx, list, docType) {
     // ใบเสร็จรับเงินเป็นหลักฐานการจ่ายเงิน ไม่มีวันหมดอายุจริงและยังใช้อ้างอิงได้เสมอ ต่อให้มีหลายใบสะสมไว้
     // (ไม่งั้นถ้าอัปโหลดซ้ำ/มีหลายใบจากคนละรอบต่ออายุ ใบเก่าจะโดนจัดเป็น "หมดอายุ" ไปเองตามลำดับอัปโหลดทั้งที่ไม่ควร)
     if (docType === 'worker-receipt' || docType === 'worker-other') return false; // เอกสารอื่นๆ = หลายเรื่องปนกัน ไม่มีใบไหนแทนใบไหน
-    // ไฟล์ไม่มีวันหมดอายุ: หมดอายุเมื่อมี "ชุดใหม่กว่า" ในช่องเดียวกัน = ไฟล์ที่แนบทีหลังเกิน 24 ชม. (owner 2026-10-30)
-    // ไฟล์ที่แนบในชุดเดียวกัน (หน้า–หลัง WP_F/WP_B, PinkCard + PinkCard_2) อยู่ปัจจุบันด้วยกัน — เดิมไฟล์ไหนมีไฟล์ตามหลัง
-    // ก็พับหมด (หน้าบัตรตกไป "หมดอายุ") ; ช่องใบอนุญาต/เล่ม นับเฉพาะชุดใหม่ที่มีวันหมดอายุ (มาแทนจริง)
+    // ไฟล์ไม่มีวันหมดอายุ (owner 2026-10-30): พับเฉพาะเมื่อมีหลักฐานว่าต่ออายุแล้วจริง = มีไฟล์ที่แนบทีหลัง (เกิน 24 ชม.)
+    // ซึ่งวันหมดอายุ "ใหม่กว่า" ไฟล์ที่มีวันหมดอายุในชุดเดียวกับไฟล์นี้หรือก่อนหน้า — ไม่มีหลักฐาน = อยู่ปัจจุบัน (เจ้าหน้าที่ลากเองได้)
+    // เดิมแค่มีไฟล์ตามหลังก็พับ: หน้า–หลังบัตรที่แนบแยกกัน (คนละไฟล์ / คนละวัน) ด้านที่อ่านวันไม่ได้ตกไป "หมดอายุ" ทั้งที่ยังใช้ได้
     const t = workerDocUploadTime(fItem);
-    const newer = list.filter((f, i) => f && f !== fItem && f.manualExpired !== true && (t !== null && workerDocUploadTime(f) !== null
-        ? workerDocUploadTime(f) - t > WORKER_DOC_BATCH_MS : i > fIdx));
-    if (EXPIRY_TRACKED_WORKER_DOC_TYPES.includes(docType)) return newer.some(f => f.expiryDate);
-    return newer.length > 0;
+    const isNewer = (f, i) => { const tf = workerDocUploadTime(f); return t !== null && tf !== null ? tf - t > WORKER_DOC_BATCH_MS : i > fIdx; };
+    const dated = list.map((f, i) => [f, i]).filter(([f]) => f && f !== fItem && f.expiryDate && f.manualExpired !== true);
+    const newestNew = dated.filter(([f, i]) => isNewer(f, i)).map(([f]) => ymd10(f.expiryDate)).sort().pop();
+    if (!newestNew) return false;
+    return dated.some(([f, i]) => !isNewer(f, i) && ymd10(f.expiryDate) < newestNew);
 }
 
 // เวลาแนบไฟล์: uploadedAt หรือเลข ms หน้าชื่อไฟล์ใน Storage (<เวลา>_<ชื่อ>) — ไม่รู้ = null (ใช้ลำดับในรายการแทน)
