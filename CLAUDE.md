@@ -197,7 +197,10 @@ Owner's rules (2026-10-09):
   Expiry folding (`isWorkerDocFileExpired`, owner 2026-10-30): `manualExpired: true` = expired; a file whose own `expiryDate` has
   passed is expired even with `manualExpired: false` (that flag only blocks the "a later file exists" order rule — moved files
   used to stay "current" forever), unless staff dragged that past-date file back to current themselves (`forceCurrent`).
-  drive-backup uses the same rule for the " (หมดอายุ)" suffix.
+  drive-backup uses the same rule for the " (หมดอายุ)" suffix. Undated files fold only when a NEWER BATCH exists in the same slot
+  (uploaded > 24 h later, `workerDocUploadTime` = uploadedAt or the ms prefix of the Storage file name, `WORKER_DOC_BATCH_MS`;
+  WP / passport slots: that newer batch must carry an expiry date) — files uploaded together (front/back) stay current together.
+  Receipts and "เอกสารอื่นๆ" never fold. (Old rule "any later file" folded every front side — 89 workers / 146 files, 2026-10-30.)
   If the worker edit form for the same worker is open behind the folder, every folder render re-syncs the form's
   `tempWorkerAttachments` (`syncWorkerFormAttachments`: folder's current files + files staged in the form − files removed in the
   form, base snapshot `workerFormAttachBase`) — the form used to keep its open-time copy and "บันทึกข้อมูล" undid the move (owner 2026-10-30).
