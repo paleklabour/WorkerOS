@@ -3190,8 +3190,18 @@ function syncRenewalTabUi() {
     if (regCount) regCount.textContent = workers.filter(regInPool).length || '';
     const isReg = renewalTab === 'pool';
     document.querySelectorAll('[data-renewal-kind]').forEach(b => b.classList.toggle('is-on', (b.dataset.renewalKind === 'registration') === isReg));
-    // แท็บย่อยของ ถึงรอบ / กำลังดำเนินการ / เสร็จแล้ว อยู่ในกล่องรายการแล้ว (renewalSubTabsHtml) — แถบบนสุดเหลือไว้เฉพาะแท็บตามวันหมดอายุ
-    document.querySelector('#view-renewals .renewal-tabs')?.classList.toggle('hidden', renewalTab !== 'all');
+    // แท็บย่อยอยู่ใต้สวิตช์ ต่ออายุ | ขึ้นทะเบียน เสมอ (owner 2026-10-30: เอาแถบบนสุดออก) — ถึงรอบ / กำลังดำเนินการ / เสร็จแล้ว
+    // วาดในกล่องรายการ (renewalPanelHtml); แท็บตามวันหมดอายุวาดที่ #renewal-all-subtabs (สร้าง host ใหม่ทุกครั้ง ตัวเลื่อนจะได้ติดใหม่)
+    const allTabs = document.getElementById('renewal-all-subtabs');
+    if (allTabs && renewalTab === 'all') {
+        try {
+            renewalTabCounts = { ...renewalTabCounts, due: renewalDueWorkers().length,
+                active: (renewalList || []).filter(r => r.kind !== 'registration' && r.status === 'active' && workers.some(w => w.id === r.workerId)).length };
+        } catch (e) { /* ใช้ตัวเลขเดิม */ }
+        allTabs.innerHTML = renewalSubTabsHtml();
+        const sub = allTabs.querySelector('.rn-subtabs');
+        if (sub) { sub.classList.add('seg-host'); attachTabSlider(sub, () => sub.querySelector(':scope > .btn.btn-gold')); attachSegmentedGestures(sub); }
+    }
     const rnCount = document.getElementById('rn-kind-count-renewal');
     if (rnCount) { try { rnCount.textContent = renewalDueWorkers().length || ''; } catch (e) { rnCount.textContent = ''; } }
     document.querySelectorAll('#view-renewals .renewal-all-only').forEach(el => el.classList.toggle('hidden', !isAll));

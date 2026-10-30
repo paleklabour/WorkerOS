@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261030zq">
+    <link rel="stylesheet" href="styles.css?v=20261030zr">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -860,12 +860,8 @@
                             <button type="button" class="rn-kind-btn" data-renewal-kind="renewal" onclick="switchRenewalKind('renewal')" title="งานต่ออายุใบอนุญาตทำงาน / ทำเล่ม">ต่ออายุ <span class="rn-count" id="rn-kind-count-renewal"></span></button>
                             <button type="button" class="rn-kind-btn" data-renewal-kind="registration" onclick="switchRenewalKind('registration')" title="คนงานรอขึ้นทะเบียน และรอบ มติ ครม.">ขึ้นทะเบียน <span class="rn-count" id="reg-pool-count"></span></button>
                         </div>
-                        <div class="dashboard-tabs renewal-tabs">
-                            <button type="button" class="btn btn-outline" data-renewal-tab="due" onclick="switchRenewalTab('due')" title="คนงานที่ใบอนุญาตเหลือไม่ถึง 60 วัน และยังไม่ได้เริ่มรอบต่ออายุ">ถึงรอบ <span class="rn-count" id="rn-count-due"></span></button>
-                            <button type="button" class="btn btn-outline" data-renewal-tab="active" onclick="switchRenewalTab('active')" title="รอบต่ออายุที่เริ่มแล้ว">กำลังดำเนินการ <span class="rn-count" id="rn-count-active"></span></button>
-                            <button type="button" class="btn btn-outline" data-renewal-tab="done" onclick="switchRenewalTab('done')" title="รอบต่ออายุที่ได้ Smart card แล้ว">เสร็จแล้ว <span class="rn-count" id="rn-count-done"></span></button>
-                            <button type="button" class="btn btn-outline" data-renewal-tab="all" onclick="switchRenewalTab('all')" title="คนงานทั้งหมด จัดกลุ่มตามวันหมดอายุใบอนุญาต / กลุ่ม ครม.">ตามวันหมดอายุ</button>
-                        </div>
+                        <!-- แท็บย่อยของแท็บ "ตามวันหมดอายุ" (renewalSubTabsHtml) — แท็บอื่นวาดแท็บย่อยในกล่องรายการเอง ไม่มีแถบบนสุดแล้ว (owner 2026-10-30) -->
+                        <div id="renewal-all-subtabs" class="renewal-all-only rn-all-subtabs"></div>
                         <p class="text-muted renewal-all-only" style="font-size: 13px; margin-bottom: 16px;">
                             จัดกลุ่มคนงานที่ยังทำงานอยู่ตาม "วันหมดอายุใบอนุญาตทำงาน" ที่ตรงกันเป๊ะโดยอัตโนมัติ (ตั้งชื่อกลุ่มตามวันที่นั้น)
                             — คนงานที่วันหมดอายุไม่ตรงกับใครเลยจะถูกจัดไว้ในกลุ่ม MOU — เรียงข้อมูลในแต่ละกลุ่มตามชื่อนายจ้าง
@@ -3789,7 +3785,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261030zq"></script>
+    <script src="supabase-client.js?v=20261030zr"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3800,6 +3796,6 @@
     </script>
 
     <!-- Application Script -->
-    <script src="app.js?v=20261030zq"></script>
+    <script src="app.js?v=20261030zr"></script>
 </body>
 </html>
