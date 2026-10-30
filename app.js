@@ -3190,7 +3190,8 @@ function syncRenewalTabUi() {
     if (regCount) regCount.textContent = workers.filter(regInPool).length || '';
     const isReg = renewalTab === 'pool';
     document.querySelectorAll('[data-renewal-kind]').forEach(b => b.classList.toggle('is-on', (b.dataset.renewalKind === 'registration') === isReg));
-    document.querySelector('#view-renewals .renewal-tabs')?.classList.toggle('hidden', isReg);
+    // แท็บย่อยของ ถึงรอบ / กำลังดำเนินการ / เสร็จแล้ว อยู่ในกล่องรายการแล้ว (renewalSubTabsHtml) — แถบบนสุดเหลือไว้เฉพาะแท็บตามวันหมดอายุ
+    document.querySelector('#view-renewals .renewal-tabs')?.classList.toggle('hidden', renewalTab !== 'all');
     const rnCount = document.getElementById('rn-kind-count-renewal');
     if (rnCount) { try { rnCount.textContent = renewalDueWorkers().length || ''; } catch (e) { rnCount.textContent = ''; } }
     document.querySelectorAll('#view-renewals .renewal-all-only').forEach(el => el.classList.toggle('hidden', !isAll));
@@ -3317,17 +3318,34 @@ function setRenewalCohort(d) { renewalCohort = d; renderRenewalCases(); }
 function renewalDueShown() {
     return renewalDueWorkers(RENEWAL_EARLY_DAYS).filter(w => renewalDaysLeft(w.permitExpiry) <= RENEWAL_DUE_DAYS || (renewalCohort && ymd10(w.permitExpiry) === renewalCohort));
 }
-// dates = วันหมดอายุเดิมของทุกรายการในแท็บ (ก่อนกรองรุ่น); early = วันที่ยังไม่ถึง 60 วัน (ป้าย "เริ่มก่อนได้")
-function renewalCohortChipsHtml(dates, early = new Set()) {
+// ตัวเลือกรุ่น (dropdown แถวเดียวกับจังหวัด — owner 2026-10-30: ปุ่มรุ่นแยกบรรทัดเปลืองที่ ครึ่งจอยิ่งแน่น)
+// dates = วันหมดอายุเดิมของทุกรายการในแท็บ (ก่อนกรองรุ่น); early = วันที่ยังไม่ถึง 60 วัน ("เริ่มก่อนได้")
+function renewalCohortSelectHtml(dates, early = new Set()) {
     const counts = new Map();
     dates.filter(Boolean).map(d => ymd10(d)).forEach(d => counts.set(d, (counts.get(d) || 0) + 1));
     if (renewalCohort && !counts.has(renewalCohort)) counts.set(renewalCohort, 0);
     const keys = [...counts.keys()].sort();
     if (keys.length < 2 && !renewalCohort && !early.size) return '';
     const total = dates.filter(d => !early.has(ymd10(d || ''))).length;
-    const chip = (key, label, n, isEarly) => `<button type="button" class="rn-cohort-chip${renewalCohort === key ? ' is-on' : ''}${isEarly ? ' is-early' : ''}" onclick="setRenewalCohort('${key}')"
-        title="${key ? `ใบอนุญาตเดิมหมด ${formatThaiDate(key)}${isEarly ? ' — ยังไม่ถึง 60 วัน กดเพื่อเริ่มต่ออายุก่อนกำหนด' : ''}` : 'แสดงทุกรุ่น แบ่งหัวข้อตามวันหมดอายุ'}">${escapeHtml(label)} <span class="rn-count">${n}</span>${isEarly ? '<small>เริ่มก่อนได้</small>' : ''}</button>`;
-    return `<div class="rn-cohorts" role="toolbar" aria-label="เลือกรุ่นตามวันหมดอายุใบอนุญาตเดิม">${chip('', 'ทุกรุ่น', total, false)}${keys.map(k => chip(k, formatThaiDate(k), counts.get(k), early.has(k))).join('')}</div>`;
+    return `<select class="select-filter rn-cohort-select${renewalCohort ? ' is-set' : ''}" onchange="setRenewalCohort(this.value)" title="เลือกรุ่นตามวันหมดอายุใบอนุญาตเดิม — ทุกรุ่น = แบ่งหัวข้อตามรุ่น">
+        <option value="">ทุกรุ่น (${total})</option>
+        ${keys.map(k => `<option value="${k}" ${k === renewalCohort ? 'selected' : ''}>หมด ${formatThaiDate(k)} (${counts.get(k)})${early.has(k) ? ' · เริ่มก่อนได้' : ''}</option>`).join('')}
+    </select>`;
+}
+// แท็บย่อยของต่ออายุ — อยู่ในกล่องเดียวกับรายการ แบบเดียวกับฝั่งขึ้นทะเบียน (owner 2026-10-30)
+let renewalTabCounts = { due: 0, active: 0, done: 0 };
+function renewalSubTabsHtml() {
+    const tabs = [['due', 'ถึงรอบ', renewalTabCounts.due], ['active', 'กำลังดำเนินการ', renewalTabCounts.active], ['done', 'เสร็จแล้ว', renewalTabCounts.done], ['all', 'ตามวันหมดอายุ', '']];
+    return `<div class="dashboard-tabs reg-views rn-subtabs">${tabs.map(([k, label, n]) => `<button type="button" class="btn ${renewalTab === k ? 'btn-gold' : 'btn-outline'}" onclick="switchRenewalTab('${k}')">${label} <span class="rn-count">${n || ''}</span></button>`).join('')}</div>`;
+}
+// กล่องของแท็บ ถึงรอบ / กำลังดำเนินการ / เสร็จแล้ว: หัว "ต่ออายุ" + คำอธิบาย → แท็บย่อย + ตัวกรอง → รายการ → แถบคำสั่งลอย
+function renewalPanelHtml(sub, filters, body, selBar) {
+    return `<div class="dashboard-panel">
+        <div class="panel-header rn-head"><div><h3 style="margin:0;">ต่ออายุ</h3><small class="text-muted">${sub}</small></div></div>
+        <div class="rn-toolbar">${renewalSubTabsHtml()}${filters}</div>
+        <div class="rn-groups">${body}</div>
+        ${selBar || ''}
+    </div>`;
 }
 // แบ่งหัวข้อตามรุ่น (ใช้ตอน "ทุกรุ่น" และมีมากกว่า 1 รุ่น) — bodyOf(itemsของรุ่นนั้น) วาดเนื้อหาเดิม (จังหวัด → นายจ้าง)
 function renewalByCohortHtml(items, dateOf, bodyOf) {
@@ -3391,6 +3409,7 @@ function renderRenewalCases() {
     setCount('rn-count-due', due.length);
     setCount('rn-count-active', active.length);
     setCount('rn-count-done', done.length);
+    renewalTabCounts = { due: due.length, active: active.length, done: done.length };
     if (renewalList === null) {
         box.innerHTML = `<div class="dashboard-panel"><p class="text-muted rn-empty">กำลังโหลดข้อมูลรอบต่ออายุ…</p></div>`;
         loadRenewals(true);
@@ -3407,6 +3426,8 @@ function renderRenewalCases() {
         const searched = done.filter(r => renewalMatchesSearch(workers.find(w => w.id === r.workerId)));
         box.innerHTML = renewalDoneHtml(searched.filter(r => renewalCohortOk(r.oldPermitExpiry)), searched);
     }
+    const sub = box.querySelector('.rn-subtabs');
+    if (sub) { sub.classList.add('seg-host'); attachTabSlider(sub, () => sub.querySelector(':scope > .btn.btn-gold')); attachSegmentedGestures(sub); }
     const restore = () => { if (Math.abs(window.scrollY - keepY) > 1) window.scrollTo({ top: keepY, behavior: 'instant' }); };
     restore();
     requestAnimationFrame(restore);
@@ -3467,7 +3488,6 @@ function renewalDueHtml(list, due = list) {
             <td>${w.passportExpiry ? formatThaiDate(w.passportExpiry) : '<span class="text-muted">-</span>'}</td>
             <td><select class="rn-visa-pick" ${canStart ? '' : 'disabled'} onchange="renewalBookPick.set('${w.id}', this.value)" title="ทำเล่มใหม่ / ตี Visa ในเล่มเดิม / Visa ทำที่อื่น (ระบบเลือกทำเล่มให้เมื่อเล่มหมดก่อนใบอนุญาตใหม่)">
                 ${RENEWAL_BOOK_PICKS.map(([v, label]) => `<option value="${v}" ${renewalBookPickOf(w) === v ? 'selected' : ''}>${label}</option>`).join('')}</select></td>
-            ${canStart ? `<td class="rn-act-cell"><button type="button" class="btn btn-sm btn-gold" onclick="startRenewals(['${w.id}'])" title="เริ่มรอบต่ออายุของคนงานคนนี้">เริ่มต่ออายุ</button></td>` : ''}
         </tr>`;
     const empHtml = (g) => {
         const sorted = [...g.items].sort((a, b) => String(permitExpiryKey(a)).localeCompare(String(permitExpiryKey(b))));
@@ -3479,8 +3499,8 @@ function renewalDueHtml(list, due = list) {
                 <strong>${escapeHtml(g.name)}</strong><span class="text-muted">${ids.length} คน</span>
             </div>
             <div class="table-container"><table class="data-table rn-table rn-due-table">
-                <colgroup>${canStart ? '<col class="rd-check">' : ''}<col class="rd-worker"><col class="rd-exp"><col class="rd-pass"><col class="rd-book">${canStart ? '<col class="rd-act">' : ''}</colgroup>
-                <thead><tr>${canStart ? '<th class="rn-check"></th>' : ''}<th>คนงาน</th><th>ใบอนุญาตหมด</th><th>พาสปอร์ต/CI หมด</th><th>เล่ม / Visa</th>${canStart ? '<th class="rn-act-cell"></th>' : ''}</tr></thead>
+                <colgroup>${canStart ? '<col class="rd-check">' : ''}<col class="rd-worker"><col class="rd-exp"><col class="rd-pass"><col class="rd-book"></colgroup>
+                <thead><tr>${canStart ? '<th class="rn-check"></th>' : ''}<th>คนงาน</th><th>ใบอนุญาตหมด</th><th>พาสปอร์ต/CI หมด</th><th>เล่ม / Visa</th></tr></thead>
                 <tbody>${sorted.map(rowHtml).join('')}</tbody>
             </table></div>
         </div>`;
@@ -3494,20 +3514,17 @@ function renewalDueHtml(list, due = list) {
     // ปุ่มรุ่น: นับจากรายการหลังค้นหา/จังหวัด (ไม่กรองรุ่น) + รุ่นที่จะหมดภายใน 90 วัน (เริ่มก่อนได้)
     const cohortBase = renewalDueWorkers(RENEWAL_EARLY_DAYS).filter(w => renewalMatchesSearch(w) && renewalProvinceOk(w));
     const early = new Set(cohortBase.filter(w => renewalDaysLeft(w.permitExpiry) > RENEWAL_DUE_DAYS).map(w => ymd10(w.permitExpiry)));
-    const cohortChips = renewalCohortChipsHtml(cohortBase.map(w => w.permitExpiry), early);
-    return `<div class="dashboard-panel">
-        <div class="panel-header rn-head">
-            <div><h3 style="margin:0;">ต่ออายุ</h3><small class="text-muted">ใบอนุญาตทำงานเหลือไม่ถึง ${RENEWAL_DUE_DAYS} วัน หรือหมดแล้ว และยังไม่ได้เริ่มรอบ · จัดกลุ่มตามจังหวัดและนายจ้าง</small></div>
-        </div>
-        <div class="rn-toolbar">
-            ${canStart ? `<button type="button" class="btn btn-gold" ${renewalPicked.size ? '' : 'disabled'} onclick="startRenewals([...renewalPicked])" title="เริ่มรอบต่ออายุของคนงานที่เลือกไว้">${icon('plus')} เริ่มต่ออายุ${renewalPicked.size ? ` ${renewalPicked.size} คน` : ''}</button>
-                <button type="button" class="btn btn-outline" ${renewalPicked.size ? '' : 'disabled'} onclick="markRenewalsExternal([...renewalPicked])" title="บันทึกว่าคนงานที่เลือกไปต่อใบอนุญาตกับนายหน้าอื่น">ต่อที่อื่น${renewalPicked.size ? ` ${renewalPicked.size} คน` : ''}</button>` : ''}
-            ${canStart && list.length ? `<label class="rn-book-pick" title="เลือกทุกคนที่แสดงอยู่"><input type="checkbox" ${allPicked ? 'checked' : ''} onchange="toggleRenewalPickAll(this.checked)"> เลือกทั้งหมด</label>` : ''}
-            ${renewalProvinceSelectHtml(due)}
-        </div>
-        ${cohortChips}
-        <div class="rn-groups">${body || '<p class="rn-empty">ไม่มีคนงานที่ถึงรอบต่ออายุ</p>'}</div>
-    </div>`;
+    const cohortSel = renewalCohortSelectHtml(cohortBase.map(w => w.permitExpiry), early);
+    const nPick = renewalPicked.size;
+    const selBar = canStart && nPick ? `<div class="rn-selbar" role="toolbar" aria-label="คำสั่งสำหรับคนงานที่เลือก">
+        <span>เลือก ${nPick} คน</span>
+        <button type="button" class="btn btn-gold" onclick="startRenewals([...renewalPicked])" title="เริ่มรอบต่ออายุของคนงานที่เลือกไว้">เริ่มต่ออายุ ${nPick} คน</button>
+        <button type="button" class="btn rn-selbar-btn" onclick="markRenewalsExternal([...renewalPicked])" title="บันทึกว่าคนงานที่เลือกไปต่อใบอนุญาตกับนายหน้าอื่น">ต่อที่อื่น ${nPick} คน</button>
+        <button type="button" class="btn rn-selbar-clear" onclick="toggleRenewalPickIds([...renewalPicked], false)" title="ล้างที่เลือกไว้">ล้าง</button>
+    </div>` : '';
+    return renewalPanelHtml(`ใบอนุญาตทำงานเหลือไม่ถึง ${RENEWAL_DUE_DAYS} วัน หรือหมดแล้ว และยังไม่ได้เริ่มรอบ · ติ๊กคนงานแล้วใช้แถบด้านล่าง`,
+        `${renewalProvinceSelectHtml(due)}${cohortSel}${canStart && list.length ? `<label class="rn-book-pick" title="เลือกทุกคนที่แสดงอยู่"><input type="checkbox" ${allPicked ? 'checked' : ''} onchange="toggleRenewalPickAll(this.checked)"> เลือกทั้งหมด</label>` : ''}`,
+        body || '<p class="rn-empty">ไม่มีคนงานที่ถึงรอบต่ออายุ</p>', selBar);
 }
 
 function toggleRenewalPick(id, on) {
@@ -3628,7 +3645,7 @@ function renewalStepsPopHtml(r, track, pinned) {
         let act = '';
         if (canEdit) {
             if (x.kind === 'done') act = 'แก้ไข';
-            else if (x.kind === 'next') act = renewalNextLabel(r, s);
+            else if (x.kind === 'next' && track !== 'main') act = renewalNextLabel(r, s); // สายหลักมีปุ่มขั้นถัดไปในแถวแล้ว (owner 2026-10-30: ซ้ำ)
             else if (x.kind === 'ext' && s.key === 'book') act = 'ใส่ข้อมูลเล่มใหม่';
             else if (x.kind === 'ext' && s.key === 'visa' && r.status === 'active') act = 'ตีเองแทน';
         }
@@ -3771,7 +3788,7 @@ function renewalActiveHtml(list, searched = list) {
         </section>`;
     }).join('');
     const body = renewalByCohortHtml(list, r => r.oldPermitExpiry, bodyOf);
-    const cohortChips = renewalCohortChipsHtml(searched.filter(r => renewalProvinceOk(workerOf(r))).map(r => r.oldPermitExpiry));
+    const cohortSel = renewalCohortSelectHtml(searched.filter(r => renewalProvinceOk(workerOf(r))).map(r => r.oldPermitExpiry));
     const sel = list.filter(r => renewalSel.has(r.id));
     const nMed = sel.filter(r => renewalStageIndex(r) === 0).length;
     const nAppt = sel.filter(r => renewalNextStep(r) && renewalNextStep(r).key === 'appointment').length;
@@ -3785,14 +3802,9 @@ function renewalActiveHtml(list, searched = list) {
         <button type="button" class="btn rn-selbar-danger" onclick="cancelRenewals(${escapeHtml(JSON.stringify(sel.map(r => r.id)))})" title="ยกเลิกรอบต่ออายุของคนงานที่เลือกทั้งหมด">ยกเลิกต่ออายุ ${sel.length} คน</button>
         <button type="button" class="btn rn-selbar-clear" onclick="toggleRenewalSel([...renewalSel], false)" title="ล้างที่เลือกไว้ (ไม่ยกเลิกรอบ)">ล้าง</button>
     </div>` : '';
-    return `<div class="dashboard-panel">
-        <div class="panel-header rn-head"><div><h3 style="margin:0;">กำลังดำเนินการ <span class="text-muted rn-head-count">${list.length} คน</span></h3>
-            <small class="text-muted">ติ๊กหลายคนแล้วใช้แถบด้านล่าง (ตรวจสุขภาพ / วันนัด) · ขั้นที่ต้องแนบไฟล์กดปุ่มในแถวทีละคน · กดช่องในแถบความคืบหน้าเพื่อเปิดไฟล์ของขั้นนั้น</small></div></div>
-        <div class="rn-toolbar">${renewalProvinceSelectHtml(searched.map(workerOf))}</div>
-        ${cohortChips}
-        <div class="rn-groups">${body || '<p class="rn-empty">ยังไม่มีรอบที่กำลังดำเนินการ — เริ่มได้จากแท็บ "ต่ออายุ"</p>'}</div>
-        ${selBar}
-    </div>`;
+    return renewalPanelHtml(`${list.length} คน · ติ๊กหลายคนแล้วใช้แถบด้านล่าง (ตรวจสุขภาพ / วันนัด) · ขั้นที่ต้องแนบไฟล์กดปุ่มในแถวทีละคน · กดช่องในแถบความคืบหน้าเพื่อเปิดไฟล์ของขั้นนั้น`,
+        `${renewalProvinceSelectHtml(searched.map(workerOf))}${cohortSel}`,
+        body || '<p class="rn-empty">ยังไม่มีรอบที่กำลังดำเนินการ — เริ่มได้จากแท็บ "ถึงรอบ"</p>', selBar);
 }
 
 function toggleRenewalSel(ids, on) {
@@ -3862,14 +3874,11 @@ function renewalDoneHtml(list, searched = list) {
         extByEmp[k] = (extByEmp[k] || 0) + 1;
     });
     const extSummary = Object.entries(extByEmp).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${escapeHtml(k)} ${n}`).join(' · ');
-    return `<div class="dashboard-panel">
-        <div class="panel-header rn-head"><div><h3 style="margin:0;">เสร็จแล้ว</h3><small class="text-muted">แสดงจนกว่าคนงานทุกคนของนายจ้างนั้นจะเสร็จ · ต่อที่อื่นที่ยังรอข้อมูลใหม่แสดงจนกว่าจะใส่ข้อมูล · ประวัติดูที่แผงคนงาน${extSummary ? ` · ต่อที่อื่น: ${extSummary}` : ''}</small></div></div>
-        ${renewalCohortChipsHtml(searched.map(r => r.oldPermitExpiry))}
-        <div class="table-container"><table class="data-table rn-table">
+    return renewalPanelHtml(`แสดงจนกว่าคนงานทุกคนของนายจ้างนั้นจะเสร็จ · ต่อที่อื่นที่ยังรอข้อมูลใหม่แสดงจนกว่าจะใส่ข้อมูล · ประวัติดูที่แผงคนงาน${extSummary ? ` · ต่อที่อื่น: ${extSummary}` : ''}`, renewalCohortSelectHtml(searched.map(r => r.oldPermitExpiry)),
+        `<div class="table-container"><table class="data-table rn-table">
             <thead><tr><th>คนงาน / นายจ้าง</th><th>สถานะ</th><th>ใบอนุญาตเดิมหมด</th><th>ใบอนุญาตใหม่หมด</th><th>ทำเล่ม</th><th>วันที่</th><th class="rn-act-cell"></th></tr></thead>
             <tbody>${rows || `<tr><td colspan="7" class="rn-empty">ไม่มีรายการค้าง — รอบที่เสร็จครบแล้วดูประวัติได้ที่แผงคนงาน</td></tr>`}</tbody>
-        </table></div>
-    </div>`;
+        </table></div>`, '');
 }
 
 // ประวัติรอบต่ออายุของคนงาน 1 คน (แผงคนงาน แท็บข้อมูล, owner 2026-10-20) — ใหม่สุดก่อน ไม่นับรอบที่ยกเลิก
