@@ -3179,8 +3179,22 @@ function switchRenewalTab(tab) {
     renewalTab = tab;
     if (tab !== 'pool') { try { localStorage.setItem('mw_renewal_last', tab); } catch (e) { /* ไม่มีที่เก็บ */ } }
     try { localStorage.setItem('mw_renewal_tab', tab); } catch (e) { /* ไม่มีที่เก็บ ใช้ค่าเริ่มต้น */ }
+    // เอฟเฟคเหมือนหน้าอื่น (owner 2026-10-30): แท็บย่อยในกล่องถูกวาดใหม่ทุกครั้ง → เลื่อนตัวเลื่อนไปปุ่มใหม่ก่อน แล้วค่อยวาด
+    // (แบบ regSwitchView) และให้จางเข้าเฉพาะรายการ ไม่ใช่ทั้งกล่องที่มีแท็บอยู่ด้วย
+    const box = document.getElementById('renewal-cases-container');
+    const host = box && box.querySelector('.rn-subtabs');
+    const btn = host && [...host.querySelectorAll(':scope > .btn')].find(b => (b.getAttribute('onclick') || '').includes(`'${tab}'`));
+    // แท็บย่อยในกล่องเดียวกัน = เหมือนฝั่งขึ้นทะเบียนทุกอย่าง (owner: "ขึ้นทะเบียนถูกแล้ว") — เลื่อนตัวเลื่อน แล้ววาดใหม่ ไม่จางทั้งกล่อง
+    if (btn) {
+        if (host._tabSliderMoveTo && !iosReducedMotion()) {
+            host.querySelectorAll(':scope > .btn').forEach(b => { b.classList.toggle('btn-gold', b === btn); b.classList.toggle('btn-outline', b !== btn); });
+            setTimeout(renderRenewalGroups, 240);
+        } else renderRenewalGroups();
+        return;
+    }
+    // สลับ ต่ออายุ ↔ ขึ้นทะเบียน (กล่องคนละแบบ) = จางเข้าทั้งกล่องเหมือนเปลี่ยนหน้า
     renderRenewalGroups();
-    replayPageTransition(document.getElementById(tab === 'all' ? 'renewal-groups-container' : 'renewal-cases-container'));
+    replayPageTransition(box);
 }
 
 function syncRenewalTabUi() {
