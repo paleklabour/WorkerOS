@@ -194,6 +194,10 @@ Owner's rules (2026-10-09):
   Worker folder files can be dragged onto another doc group / its + / an empty "+ type" chip to move them to that
   type (owner 2026-10-18, `moveWorkerFileToDocType`): same Storage link, renamed to the new type's code
   (`workerDocFileName` + `uniqueWorkerDocName`), no AI. Dropping elsewhere in the list still means "not expired".
+  Expiry folding (`isWorkerDocFileExpired`, owner 2026-10-30): `manualExpired: true` = expired; a file whose own `expiryDate` has
+  passed is expired even with `manualExpired: false` (that flag only blocks the "a later file exists" order rule — moved files
+  used to stay "current" forever), unless staff dragged that past-date file back to current themselves (`forceCurrent`).
+  drive-backup uses the same rule for the " (หมดอายุ)" suffix.
   If the worker edit form for the same worker is open behind the folder, every folder render re-syncs the form's
   `tempWorkerAttachments` (`syncWorkerFormAttachments`: folder's current files + files staged in the form − files removed in the
   form, base snapshot `workerFormAttachBase`) — the form used to keep its open-time copy and "บันทึกข้อมูล" undid the move (owner 2026-10-30).

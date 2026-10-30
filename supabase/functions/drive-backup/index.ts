@@ -299,7 +299,8 @@ async function runBackup(sb: SupabaseClient, trigger: string) {
         const url = typeof f === "string" ? f : f?.data;
         const p = storagePath(url);
         if (!p) return;
-        const expired = f && (f.manualExpired === true || (f.manualExpired !== false && f.expiryDate && String(f.expiryDate).slice(0, 10) < today));
+        // เหมือน isWorkerDocFileExpired ในแอป: ตั้งเองว่าหมดอายุ หรือถึงวันหมดอายุของไฟล์ (ยกเว้นลากกลับมาปัจจุบันเอง forceCurrent)
+        const expired = f && (f.manualExpired === true || (!f.forceCurrent && f.expiryDate && String(f.expiryDate).slice(0, 10) < today));
         const suffix = expired ? " (หมดอายุ)" : "";
         want(url, lockedRenewalUrls.has(url) ? heldFolder(fk) : fk,
           `${dateFromPath(p, f?.uploadedAt)}_${WORKER_DOC_LABELS[type] || "เอกสาร"}_${workerTag(w)}${suffix}`, sysFileName(f?.name, p, suffix));
