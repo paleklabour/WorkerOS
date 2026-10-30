@@ -23297,9 +23297,11 @@ function setupCollapsibleSections() {
         if (control && control !== h && h.contains(control)) return;
         // กดยุบ/กางได้เฉพาะที่ลูกศร (owner 2026-10-20: กดตรงไหนของหัวก็พับ ทำให้เผลอพับบ่อย) — ลูกศรคือ ::after
         // ชิดขอบขวาของเนื้อหาหัวข้อ จึงนับเฉพาะคลิกในแถบกว้าง ~32px ด้านขวาสุด
+        // ในหน้าต่าง pop up หัวข้อกว้างเต็มฟอร์ม ลูกศรอยู่ไกลจากชื่อหัวข้อ → กดที่ชื่อหัวข้อ (h3/h4) ก็พับได้ด้วย (owner 2026-10-30)
+        const onTitle = h.closest('.modal-backdrop') && e.target.closest('h3, h4') && h.contains(e.target.closest('h3, h4'));
         const r = h.getBoundingClientRect();
         const padRight = parseFloat(getComputedStyle(h).paddingRight) || 0;
-        if (e.clientX < r.right - padRight - 32) return;
+        if (!onTitle && e.clientX < r.right - padRight - 32) return;
         setCollapsed(h, !h.classList.contains('is-collapsed'), true);
     });
 
