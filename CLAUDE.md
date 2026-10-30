@@ -346,7 +346,7 @@ tab focus (`startSessionGuard` / `checkSingleSession`) and log out if another de
 claimed it later. Tabs in the same browser share the id.
 
 Collapsible headers fold with an animation (height + opacity, `setCollapsed(h, on, true)` on click — only a click on the
-arrow at the header's right edge counts, owner 2026-10-20: clicking anywhere on the header folded it by accident;
+arrow at the header's right edge counts, owner 2026-10-20: clicking anywhere on the header folded it by accident; inside a pop-up (`.modal-backdrop`) a click on the heading title h3/h4 also folds, owner 2026-10-30 — the arrow sat too far from the title;
 restored/auto-expanded states skip it). Pie toggles also on: completed jobs by type
 (`donetypes`), employer provinces (`custprov`), receivables aging (`aging`), revenue vs
 gov fees (`govsplit`).

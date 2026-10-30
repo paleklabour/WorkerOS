@@ -2433,6 +2433,8 @@ label.user-avatar:hover { box-shadow: 0 0 0 3px rgba(45, 79, 163, 0.18); }
 }
 .form-section-header::after, .documents-section > h4::after, .section-title-bar::after { margin-left: auto; }
 .is-collapsed::after { transform: rotate(-90deg); }
+/* ใน pop up กดที่ชื่อหัวข้อก็พับได้ (handler ใน setupCollapsibleSections) */
+.modal-backdrop :is(.form-section-header, .section-title-bar, .panel-header:not(.fin-period-bar)) :is(h3, h4), .modal-backdrop .documents-section > h4 { cursor: pointer; }
 :is(.panel-header, .form-section-header, .section-title-bar, .documents-section > h4):hover::after { background-color: var(--gold-primary); }
 .sec-collapsed-away { display: none !important; }
 /* การ์ดที่พับแล้วไม่ยืดสูงตามการ์ดข้างๆ ในแถวเดียวกัน */
