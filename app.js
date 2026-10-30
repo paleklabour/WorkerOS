@@ -3322,8 +3322,9 @@ function renewalDueWorkers(days = RENEWAL_DUE_DAYS) {
 
 // ---------- รุ่น = วันหมดอายุใบอนุญาตเดิม (owner 2026-10-30: 11/12/2569, 13/02/2570, 31/03/2570 ต่อซ้อนกันได้ ไม่ให้ปนกัน) ----------
 // ปุ่มเลือกรุ่นบนแท็บ ถึงรอบ / กำลังดำเนินการ / เสร็จแล้ว (ค่าเดียวกันทุกแท็บ) — "ทุกรุ่น" = แบ่งหัวข้อตามรุ่นก่อน แล้วจังหวัด → นายจ้าง
-// รัฐมักเปิดรับก่อนหมดอายุราว 2 เดือน: แท็บถึงรอบมีปุ่มรุ่นที่จะหมดภายใน 90 วันด้วย กดแล้วเริ่มต่ออายุก่อนกำหนดได้
-const RENEWAL_EARLY_DAYS = 90;
+// รัฐมักเปิดรับก่อนหมดอายุราว 2 เดือน: แท็บถึงรอบมีตัวเลือกรุ่นที่จะหมดภายใน 6 เดือนด้วย (เฉพาะวันที่มี ≥ 2 คน) เลือกแล้วเริ่มต่ออายุก่อนกำหนดได้
+// (เดิม 90 วัน — owner 2026-10-30 หารุ่น 13/02/2570 ไม่เจอ เพราะตอนนั้นเหลือ 106 วัน และมีรุ่นเดียวจึงไม่มีช่องเลือกเลย)
+const RENEWAL_EARLY_DAYS = 183;
 let renewalCohort = '';
 const renewalCohortOk = (iso) => !renewalCohort || ymd10(iso || '') === renewalCohort;
 function setRenewalCohort(d) { renewalCohort = d; renderRenewalCases(); }
@@ -3336,9 +3337,10 @@ function renewalDueShown() {
 function renewalCohortSelectHtml(dates, early = new Set()) {
     const counts = new Map();
     dates.filter(Boolean).map(d => ymd10(d)).forEach(d => counts.set(d, (counts.get(d) || 0) + 1));
+    early.forEach(d => { if ((counts.get(d) || 0) < 2) counts.delete(d); }); // รุ่นล่วงหน้า = วันที่มีหลายคน (คนเดียว = MOU ไม่ใช่รุ่น)
     if (renewalCohort && !counts.has(renewalCohort)) counts.set(renewalCohort, 0);
     const keys = [...counts.keys()].sort();
-    if (keys.length < 2 && !renewalCohort && !early.size) return '';
+    if (!keys.length) return ''; // มีรุ่นเดียวก็แสดง ให้หาเจอที่เดิมเสมอ
     const total = dates.filter(d => !early.has(ymd10(d || ''))).length;
     return `<select class="select-filter rn-cohort-select${renewalCohort ? ' is-set' : ''}" onchange="setRenewalCohort(this.value)" title="เลือกรุ่นตามวันหมดอายุใบอนุญาตเดิม — ทุกรุ่น = แบ่งหัวข้อตามรุ่น">
         <option value="">ทุกรุ่น (${total})</option>

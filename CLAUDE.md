@@ -767,7 +767,7 @@ announce date, permit expiry, Admin "ลบรอบนี้" — then employer
 Cohorts (owner 2026-10-30 — 11/12/2569, 13/02/2570 (436 workers), 31/03/2570 (110) renew in overlapping windows): a renewal
 cohort = the round's old permit expiry. Renewal tabs ถึงรอบ / กำลังดำเนินการ / เสร็จแล้ว get cohort chips (`renewalCohortChipsHtml`,
 state `renewalCohort` shared by the three tabs, `renewalCohortOk`); "ทุกรุ่น" with 2+ cohorts = headed blocks per cohort, then
-province → employer (`renewalByCohortHtml`). ถึงรอบ also offers cohorts expiring within 90 days (`RENEWAL_EARLY_DAYS`, dashed chip
+province → employer (`renewalByCohortHtml`). ถึงรอบ also offers cohorts (dates with ≥ 2 workers) expiring within 6 months (`RENEWAL_EARLY_DAYS` = 183; was 90 — 13/02/2570 could not be found 106 days ahead), option
 "เริ่มก่อนได้"); picking one lists them so staff can start early (`renewalDueShown`). Billing: `jobCohortOf(j)` (renewal = old
 expiry, registration = มติ ครม. round) → grey tag next to "งานต่ออายุ"/"งานขึ้นทะเบียน" on job and invoice rows, chip bar
 `#billing-cohort-bar` on those two tabs (`billingCohort`, reset when the tab changes; invoices match if any job is in the
