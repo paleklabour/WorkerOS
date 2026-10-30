@@ -388,6 +388,11 @@ async function loadData() {
             // เปลี่ยนธีมจากอีกเครื่องไว้ → ใช้ธีมล่าสุดของบัญชี (ตอนเปิดระบบ/กดรีเฟรช)
             const me = currentUser ? users.find(u => u.id === currentUser.id) : null;
             if (me) syncThemeFromAccount(me.theme);
+            // บัญชีลูกค้าหลายบริษัท: บริษัทที่ดูอยู่ = profiles.customer_id ล่าสุด (อาจสลับจากอีกเครื่อง) — ข้อมูลที่ RLS ส่งมาเป็นของบริษัทนั้น
+            if (me && currentUser.role === 'client' && !isViewingAs() && me.customer_id && me.customer_id !== currentUser.customer_id) {
+                currentUser.customer_id = me.customer_id;
+                try { localStorage.setItem("mw_current_user", JSON.stringify(currentUser)); } catch (e) { /* ไม่เป็นไร */ }
+            }
 
             // Cache locally
             localStorage.setItem("mw_customers", JSON.stringify(customers));
@@ -1511,6 +1516,9 @@ async function switchClientCompany(customerId) {
     closeClientWorkerView();
     const res = await callCloudAPI("clientSwitchCustomer", { customerId });
     if (!res || res.status !== "success") { renderClientPortal(); return; }
+    // ผู้ใช้ที่จำไว้ในเบราว์เซอร์ต้องเปลี่ยนบริษัทด้วย — ไม่งั้นโหลดหน้าใหม่แล้วกรองข้อมูลบริษัทใหม่ด้วยรหัสบริษัทเก่า (ว่างหมด)
+    currentUser.customer_id = customerId;
+    try { localStorage.setItem("mw_current_user", JSON.stringify(currentUser)); } catch (e) { /* ไม่เป็นไร */ }
     location.reload();
 }
 
@@ -1542,14 +1550,27 @@ function renderClientPortal() {
     const outstanding = round2(myInvoices.filter(i => i.status === 'issued' || i.status === 'partial').reduce((s, i) => s + invoiceBalance(i), 0));
     const head = document.getElementById("client-portal-head");
     if (clientCompanies === null) loadClientCompanies();
-    const switcher = (clientCompanies || []).length > 1
-        ? `<select class="cp-company-switch" onchange="switchClientCompany(this.value)" title="สลับบริษัทที่ดูอยู่">
-            ${clientCompanies.map(c => `<option value="${escapeHtml(c.id)}" ${c.id === custId ? 'selected' : ''}>${escapeHtml(c.companyName)}</option>`).join('')}
-           </select>` : '';
+    const custName = escapeHtml(cust ? cust.companyName : 'บริษัทของฉัน');
+    // หลายบริษัท: ชื่อบริษัทเป็นปุ่มเปิดเมนูสลับบริษัท (เมนูแบบเดียวกับ ••• ในแฟ้มเอกสาร — .fv-more / toggleFvMenu)
+    const title = (clientCompanies || []).length > 1
+        ? `<div class="fv-more cp-company-picker">
+            <button type="button" class="cp-company-btn" onclick="toggleFvMenu(this)" title="สลับบริษัทที่ดูอยู่">
+                ${icon('building')}<span>${custName}</span><span class="cp-company-count">${clientCompanies.length} บริษัท ${icon('chevronDown')}</span>
+            </button>
+            <div class="fv-menu cp-company-menu">
+                <div class="cp-company-menu-head">บริษัทในบัญชีนี้</div>
+                ${clientCompanies.map(c => `
+                <button type="button" class="${c.id === custId ? 'is-current' : ''}" onclick="switchClientCompany('${escapeHtml(c.id)}')">
+                    <span class="cp-company-ic">${icon('building')}</span>
+                    <span class="cp-company-txt"><strong>${escapeHtml(c.companyName)}</strong>${c.taxId ? `<small>เลขผู้เสียภาษี ${escapeHtml(c.taxId)}</small>` : ''}</span>
+                    ${c.id === custId ? `<span class="cp-company-tick">${icon('ok')}</span>` : ''}
+                </button>`).join('')}
+            </div>
+           </div>`
+        : `<h3>${icon('building')} ${custName}</h3>`;
     if (head) head.innerHTML = `
-        <div class="cp-company"><h3>${icon('building')} ${escapeHtml(cust ? cust.companyName : 'บริษัทของฉัน')}</h3>
-            <span class="text-muted">${cust && cust.taxId ? `เลขผู้เสียภาษี ${escapeHtml(cust.taxId)}` : ''}</span>
-            ${switcher}</div>
+        <div class="cp-company">${title}
+            <span class="text-muted">${cust && cust.taxId ? `เลขผู้เสียภาษี ${escapeHtml(cust.taxId)}` : ''}</span></div>
         <div class="cp-stats">
             <div><span>คนงานปัจจุบัน</span><strong>${myWorkers.filter(w => w.status !== 'archived').length}</strong></div>
             ${myWorkers.some(workerNeedsNotifyEntry) ? `<div class="is-due"><span>รอแจ้งเข้า</span><strong>${myWorkers.filter(workerNeedsNotifyEntry).length}</strong></div>` : ''}

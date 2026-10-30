@@ -4899,11 +4899,92 @@ tr.is-voided-row td {
     margin-top: 14px;
 }
 
-.cp-company-switch {
-    display: block;
-    margin-top: 8px;
+/* พอร์ทัล: สลับบริษัท (บัญชีลูกค้าหลายบริษัท) — ชื่อบริษัทเป็นปุ่ม เปิดเมนูแบบ .fv-menu */
+.cp-company-picker {
+    position: relative;
+    display: inline-block;
     max-width: 100%;
+    margin-bottom: 2px;
 }
+
+.cp-company-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 100%;
+    margin: 0 0 0 -10px;
+    padding: 6px 10px;
+    border: none;
+    border-radius: 12px;
+    background: transparent;
+    color: var(--navy-dark);
+    font-family: inherit;
+    font-size: 18px;
+    font-weight: 700;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+
+.cp-company-btn:hover,
+.cp-company-picker.is-open .cp-company-btn { background-color: var(--dk-subtle, #f1f3f7); }
+
+.cp-company-count {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+    padding: 3px 6px 3px 10px;
+    border-radius: 999px;
+    background-color: color-mix(in srgb, var(--gold-primary) 12%, transparent);
+    color: var(--gold-primary);
+    font-size: 12.5px;
+    font-weight: 600;
+}
+
+.cp-company-count svg { transition: transform 0.18s; }
+.cp-company-picker.is-open .cp-company-count svg { transform: rotate(180deg); }
+
+.fv-menu.cp-company-menu {
+    left: 0;
+    right: auto;
+    min-width: 300px;
+    max-width: min(420px, calc(100vw - 32px));
+    z-index: 40;
+}
+
+.cp-company-menu-head {
+    padding: 6px 10px 4px;
+    color: var(--dk-muted, #8a93a6);
+    font-size: 12.5px;
+    font-weight: 600;
+}
+
+.fv-menu.cp-company-menu > button { gap: 12px; padding: 9px 10px; }
+
+.cp-company-ic {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background-color: var(--dk-subtle, #f1f3f7);
+    color: var(--dk-muted, #8a93a6);
+}
+
+.cp-company-btn > span:not(.cp-company-count) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.cp-company-menu > button.is-current .cp-company-ic {
+    background-color: color-mix(in srgb, var(--gold-primary) 14%, transparent);
+    color: var(--gold-primary);
+}
+
+.cp-company-txt { display: grid; flex: 1; min-width: 0; }
+.cp-company-txt strong { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cp-company-txt small { color: var(--dk-muted, #8a93a6); font-size: 12.5px; }
+.cp-company-tick { display: inline-flex; flex-shrink: 0; color: var(--gold-primary); }
 
 .cp-stats {
     display: flex;
