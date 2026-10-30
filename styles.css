@@ -6927,6 +6927,17 @@ body.has-camera .upload-hint { display: none; }
 .rn-visa-pick { width: 100%; min-width: 190px; max-width: 210px; font-size: 13.5px; padding: 5px 30px 5px 12px; }
 .rn-due-table .rd-act { width: 150px; }
 .rn-due-table td { overflow: hidden; text-overflow: ellipsis; }
+/* ตัวเลือกรุ่น (owner 2026-10-30) — เลือกรุ่นอยู่ = ขอบสีหลัก ให้รู้ว่ากำลังกรองอยู่ */
+.rn-toolbar .rn-cohort-select { width: 250px; max-width: 100%; }
+.rn-toolbar .rn-cohort-select.is-set { border-color: var(--gold-primary); color: var(--gold-primary); font-weight: 600; }
+/* ครึ่งจอ (≈ 900–1100px): ตัวกรองแคบลง คอลัมน์วันที่/เล่มแคบลง ไม่ต้องเลื่อนซ้ายขวา */
+@media (max-width: 1100px) {
+    .rn-toolbar .rn-province, .rn-toolbar .rn-cohort-select { width: 210px; }
+    .rn-due-table .rd-exp, .rn-due-table .rd-pass { width: 128px; }
+    .rn-due-table .rd-book { width: 200px; }
+    .rn-visa-pick { min-width: 0; }
+    .rn-toolbar .rn-subtabs { width: 100%; }
+}
 /* ช่องติ๊กไม่ต้องมี padding/จุดไข่ปลา (เคยขึ้น ".." หลังช่องติ๊ก) */
 .rn-due-table th.rn-check, .rn-due-table td.rn-check { padding-left: 0; padding-right: 0; text-overflow: clip; overflow: visible; }
 .rn-groups { padding: 0 20px 20px; display: flex; flex-direction: column; gap: 18px; }

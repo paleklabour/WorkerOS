@@ -788,3 +788,9 @@ expiry, registration = มติ ครม. round) → grey tag next to "งา�
 `#billing-cohort-bar` on those two tabs (`billingCohort`, reset when the tab changes; invoices match if any job is in the
 cohort), combine-bills window sorted by cohort with a header + "เลือกทั้งรุ่นนี้" (`combineSelectCohort`) — a bill may still
 mix cohorts if staff tick them, nothing blocks it.
+Same day, renewal tabs laid out like the registration side (owner): ถึงรอบ / กำลังดำเนินการ / เสร็จแล้ว each render one panel via
+`renewalPanelHtml` (head "ต่ออายุ" + note → toolbar with the sub-tabs `renewalSubTabsHtml` (iOS slider) + province + cohort
+dropdown `renewalCohortSelectHtml` → list → floating bar); the top `.renewal-tabs` bar now shows only on ตามวันหมดอายุ.
+Duplicates removed: ถึงรอบ has no per-row "เริ่มต่ออายุ" and no toolbar start buttons — ticking shows the dark floating bar
+(เริ่มต่ออายุ N / ต่อที่อื่น N / ล้าง); the ring step list no longer has a "next step" button on the main track (the row has it;
+book / visa tracks keep theirs). Cohort chips became a dropdown in the same row (chips kept only on the billing page).
