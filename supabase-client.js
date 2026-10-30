@@ -1226,12 +1226,7 @@
     }
 
     window.supabaseAdapter = {
-<<<<<<< HEAD
-        login, callCloudAPI, uploadFile, ocrDocument, client: sb,
-        isPasswordRecovery, updatePassword, signOut, hasSession
-=======
         login, callCloudAPI, uploadFile, ocrDocument, readDocNoAi, client: sb,
-        isPasswordRecovery, updatePassword, signOut, hasSession, sessionLogin
->>>>>>> e75c17f (Folder expiry: files fold only by their own expiry date (undated = current); folder button to set a file's expiry; Admin tool reads expiry of every undated WP file without AI (gov PDF text + e-WorkPermit QR))
+        isPasswordRecovery, updatePassword, signOut, hasSession
     };
 })();
