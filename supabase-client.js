@@ -1083,6 +1083,17 @@
                 if (error) return { status: "error", message: error.message };
                 return { status: "success" };
             }
+            // บัญชีลูกค้าหลายบริษัท (20261030023253_client_multi_company.sql): รายชื่อบริษัทที่สลับได้ / สลับบริษัทที่ดูอยู่
+            case "listClientCompanies": {
+                const { data, error } = await sb.rpc("client_my_companies");
+                if (error) return { status: "error", message: error.message };
+                return { status: "success", rows: (data || []).map((r) => ({ id: r.id, companyName: r.company_name, taxId: r.tax_id })) };
+            }
+            case "clientSwitchCustomer": {
+                const { error } = await sb.rpc("client_switch_customer", { p_customer_id: payload.customerId });
+                if (error) return { status: "error", message: error.message };
+                return { status: "success" };
+            }
             case "clientCancelRenewal": {
                 const { data, error } = await sb.rpc("client_cancel_renewal", { p_id: payload.id });
                 if (error) return { status: "error", message: error.message };

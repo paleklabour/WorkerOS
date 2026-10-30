@@ -1480,6 +1480,25 @@ function clientCustomerId() {
     return (currentUser && currentUser.customer_id && currentUser.customer_id !== 'ALL') ? currentUser.customer_id : (customers[0] || {}).id;
 }
 
+// บัญชีลูกค้าหลายบริษัท (owner 2026-10-30): เจ้าของเดียวกันหลายบริษัท login ครั้งเดียว แล้วสลับบริษัทจากหัวพอร์ทัล
+// บริษัทที่ดูอยู่ = profiles.customer_id (RLS เดิมกรองให้) — สลับผ่าน RPC client_switch_customer แล้วโหลดหน้าใหม่ทั้งหมด
+let clientCompanies = null;
+async function loadClientCompanies() {
+    clientCompanies = [];
+    if (!currentUser || currentUser.role !== 'client') return;
+    const res = await callCloudAPI("listClientCompanies", {}, { silent: true });
+    clientCompanies = (res && res.rows) || [];
+    if (clientCompanies.length > 1) renderClientPortal();
+}
+
+async function switchClientCompany(customerId) {
+    if (!customerId || customerId === clientCustomerId()) return;
+    closeClientWorkerView();
+    const res = await callCloudAPI("clientSwitchCustomer", { customerId });
+    if (!res || res.status !== "success") { renderClientPortal(); return; }
+    location.reload();
+}
+
 function switchClientPortalTab(tab) {
     clientPortalTab = tab;
     closeClientWorkerView(); // เปลี่ยนแท็บพอร์ทัล = ปิดแผงคนงาน
@@ -1507,9 +1526,15 @@ function renderClientPortal() {
     const myInvoices = invoices.filter(i => i.customerId === custId && i.status !== 'void');
     const outstanding = round2(myInvoices.filter(i => i.status === 'issued' || i.status === 'partial').reduce((s, i) => s + invoiceBalance(i), 0));
     const head = document.getElementById("client-portal-head");
+    if (clientCompanies === null) loadClientCompanies();
+    const switcher = (clientCompanies || []).length > 1
+        ? `<select class="cp-company-switch" onchange="switchClientCompany(this.value)" title="สลับบริษัทที่ดูอยู่">
+            ${clientCompanies.map(c => `<option value="${escapeHtml(c.id)}" ${c.id === custId ? 'selected' : ''}>${escapeHtml(c.companyName)}</option>`).join('')}
+           </select>` : '';
     if (head) head.innerHTML = `
         <div class="cp-company"><h3>${icon('building')} ${escapeHtml(cust ? cust.companyName : 'บริษัทของฉัน')}</h3>
-            <span class="text-muted">${cust && cust.taxId ? `เลขผู้เสียภาษี ${escapeHtml(cust.taxId)}` : ''}</span></div>
+            <span class="text-muted">${cust && cust.taxId ? `เลขผู้เสียภาษี ${escapeHtml(cust.taxId)}` : ''}</span>
+            ${switcher}</div>
         <div class="cp-stats">
             <div><span>คนงานปัจจุบัน</span><strong>${myWorkers.filter(w => w.status !== 'archived').length}</strong></div>
             ${myWorkers.some(workerNeedsNotifyEntry) ? `<div class="is-due"><span>รอแจ้งเข้า</span><strong>${myWorkers.filter(workerNeedsNotifyEntry).length}</strong></div>` : ''}
