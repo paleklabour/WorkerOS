@@ -778,3 +778,13 @@ Renewals page = "ต่ออายุ / ขึ้นทะเบียน" (own
 tab key still `'all'`); the old "รอขึ้นทะเบียน" button / breadcrumb are gone. Registration sub-views (`regPoolView`) are the
 same three: `pool` รอขึ้นทะเบียน · `active` กำลังดำเนินการ (every open มติ ครม. round, one `.reg-round-block` per round —
 announce date, permit expiry, Admin "ลบรอบนี้" — then employer groups) · `done` เสร็จแล้ว. Old `round:<id>` values map to `active`.
+
+Cohorts (owner 2026-10-30 — 11/12/2569, 13/02/2570 (436 workers), 31/03/2570 (110) renew in overlapping windows): a renewal
+cohort = the round's old permit expiry. Renewal tabs ถึงรอบ / กำลังดำเนินการ / เสร็จแล้ว get cohort chips (`renewalCohortChipsHtml`,
+state `renewalCohort` shared by the three tabs, `renewalCohortOk`); "ทุกรุ่น" with 2+ cohorts = headed blocks per cohort, then
+province → employer (`renewalByCohortHtml`). ถึงรอบ also offers cohorts expiring within 90 days (`RENEWAL_EARLY_DAYS`, dashed chip
+"เริ่มก่อนได้"); picking one lists them so staff can start early (`renewalDueShown`). Billing: `jobCohortOf(j)` (renewal = old
+expiry, registration = มติ ครม. round) → grey tag next to "งานต่ออายุ"/"งานขึ้นทะเบียน" on job and invoice rows, chip bar
+`#billing-cohort-bar` on those two tabs (`billingCohort`, reset when the tab changes; invoices match if any job is in the
+cohort), combine-bills window sorted by cohort with a header + "เลือกทั้งรุ่นนี้" (`combineSelectCohort`) — a bill may still
+mix cohorts if staff tick them, nothing blocks it.
