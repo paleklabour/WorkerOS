@@ -6884,7 +6884,7 @@ body.has-camera .upload-hint { display: none; }
 .slip-qr-none { color: var(--dk-muted, #64748b); background-color: var(--dk-subtle, #f1f5f9); }
 
 /* งานต่ออายุ (renderRenewalCases, owner 2026-10-20): แท็บ ถึงรอบ / กำลังทำ / เสร็จแล้ว + จุดขั้นตอน */
-.renewal-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.rn-all-subtabs { margin-bottom: 14px; }
 /* สวิตช์ใหญ่ ต่ออายุ | ขึ้นทะเบียน (owner 2026-10-30, แบบ A) */
 .rn-kind-switch { display: inline-flex; gap: 4px; padding: 4px; margin-bottom: 14px; border-radius: 999px; background-color: var(--dk-subtle, #e9ecf2); }
 .rn-kind-btn { min-width: 150px; min-height: 40px; padding: 0 22px; border: 0; border-radius: 999px; background: transparent; color: var(--text-muted); font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; transition: background-color .2s, color .2s, box-shadow .2s; }
