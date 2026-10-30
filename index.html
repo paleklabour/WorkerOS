@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261030zn">
+    <link rel="stylesheet" href="styles.css?v=20261030zo">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -138,7 +138,7 @@
                     </a>
                     <a href="#" class="menu-item" id="menu-renewals" onclick="switchView('renewals')">
                         <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8M4 4v4h4M4 13a8 8 0 0 0 14.3 4.9L20 16M20 20v-4h-4"/></svg>
-                        <span>ข้อมูลคนงานต่ออายุ/ทำเล่ม</span>
+                        <span>ต่ออายุ / ขึ้นทะเบียน</span>
                     </a>
                     <a href="#" class="menu-item" id="menu-expenses" onclick="switchView('expenses')">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="20">
@@ -855,11 +855,16 @@
                     <div id="view-renewals" class="content-section hidden">
                         <!-- งานต่ออายุ (owner 2026-10-20): ถึงรอบ / กำลังดำเนินการ / เสร็จแล้ว = ตาราง renewals (renderRenewalCases),
                              "ทั้งหมด (ตามกลุ่ม)" = รายการเดิมจัดกลุ่มตามวันหมดอายุ (renderRenewalGroups) -->
+                        <!-- สวิตช์ใหญ่ ต่ออายุ | ขึ้นทะเบียน (owner 2026-10-30, แบบ A) — ขึ้นทะเบียน = renewalTab 'pool' (renderRegistrationPool) -->
+                        <div class="rn-kind-switch" role="tablist">
+                            <button type="button" class="rn-kind-btn" data-renewal-kind="renewal" onclick="switchRenewalKind('renewal')" title="งานต่ออายุใบอนุญาตทำงาน / ทำเล่ม">ต่ออายุ <span class="rn-count" id="rn-kind-count-renewal"></span></button>
+                            <button type="button" class="rn-kind-btn" data-renewal-kind="registration" onclick="switchRenewalKind('registration')" title="คนงานรอขึ้นทะเบียน และรอบ มติ ครม.">ขึ้นทะเบียน <span class="rn-count" id="reg-pool-count"></span></button>
+                        </div>
                         <div class="dashboard-tabs renewal-tabs">
-                            <button type="button" class="btn btn-outline" data-renewal-tab="all" onclick="switchRenewalTab('all')" title="คนงานทั้งหมด จัดกลุ่มตามวันหมดอายุใบอนุญาต / กลุ่ม ครม.">ทั้งหมด (ตามกลุ่ม)</button>
-                            <button type="button" class="btn btn-outline" data-renewal-tab="due" onclick="switchRenewalTab('due')" title="คนงานที่ใบอนุญาตเหลือไม่ถึง 60 วัน และยังไม่ได้เริ่มรอบต่ออายุ">ต่ออายุ <span class="rn-count" id="rn-count-due"></span></button>
+                            <button type="button" class="btn btn-outline" data-renewal-tab="due" onclick="switchRenewalTab('due')" title="คนงานที่ใบอนุญาตเหลือไม่ถึง 60 วัน และยังไม่ได้เริ่มรอบต่ออายุ">ถึงรอบ <span class="rn-count" id="rn-count-due"></span></button>
                             <button type="button" class="btn btn-outline" data-renewal-tab="active" onclick="switchRenewalTab('active')" title="รอบต่ออายุที่เริ่มแล้ว">กำลังดำเนินการ <span class="rn-count" id="rn-count-active"></span></button>
                             <button type="button" class="btn btn-outline" data-renewal-tab="done" onclick="switchRenewalTab('done')" title="รอบต่ออายุที่ได้ Smart card แล้ว">เสร็จแล้ว <span class="rn-count" id="rn-count-done"></span></button>
+                            <button type="button" class="btn btn-outline" data-renewal-tab="all" onclick="switchRenewalTab('all')" title="คนงานทั้งหมด จัดกลุ่มตามวันหมดอายุใบอนุญาต / กลุ่ม ครม.">ตามวันหมดอายุ</button>
                         </div>
                         <p class="text-muted renewal-all-only" style="font-size: 13px; margin-bottom: 16px;">
                             จัดกลุ่มคนงานที่ยังทำงานอยู่ตาม "วันหมดอายุใบอนุญาตทำงาน" ที่ตรงกันเป๊ะโดยอัตโนมัติ (ตั้งชื่อกลุ่มตามวันที่นั้น)
@@ -898,7 +903,6 @@
                                 <button type="button" class="btn btn-outline renewal-filter-clear hidden" id="btn-clear-renewal-filters" onclick="clearRenewalFilters()">ล้างตัวกรอง</button>
                             </div>
                             <!-- ฐานข้อมูลรอขึ้นทะเบียน (owner 2026-10-20): ปุ่มเข้าจากแท็บแรก → renewalTab 'pool' (renderRegistrationPool) -->
-                            <button type="button" class="btn btn-gold btn-add renewal-all-only" id="btn-open-reg-pool" onclick="switchRenewalTab('pool')" title="คนงานที่รอขึ้นทะเบียน เก็บสะสมไว้รอรัฐเปิดรับ">รอขึ้นทะเบียน <span class="rn-count" id="reg-pool-count"></span></button>
                         </div>
                         <p class="renewal-filter-summary hidden" id="renewal-filter-summary"></p>
                         <div id="renewal-groups-container" class="renewal-all-only">
@@ -3783,7 +3787,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261030zn"></script>
+    <script src="supabase-client.js?v=20261030zo"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3793,7 +3797,12 @@
         window.pdfjsLib = pdfjsLib;
     </script>
 
+<<<<<<< HEAD
     <!-- Application Script -->
-    <script src="app.js?v=20261030zn"></script>
+    <script src="app.js?v=20261030zo"></script>
+=======
+    <!-- ตัวเปิดระบบ: หน้าล็อกอินใช้แค่ boot.js — supabase-client.js + app.js (เลข v เดียวกัน) โหลดหลังล็อกอินเท่านั้น -->
+    <script src="boot.js?v=20261030zo"></script>
+>>>>>>> f9dd17a (Renewals page: switch ต่ออายุ | ขึ้นทะเบียน with matching sub-tabs; registration rounds shown together under กำลังดำเนินการ)
 </body>
 </html>
