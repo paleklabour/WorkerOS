@@ -773,7 +773,7 @@ delete). Dragging a selected file drags the whole set (`{ multi: true }` payload
 single moves).
 
 Renewals page = "ต่ออายุ / ขึ้นทะเบียน" (owner picked layout A, 2026-10-30): big switch ต่ออายุ | ขึ้นทะเบียน on top
-(`switchRenewalKind`, `.rn-kind-switch`; ขึ้นทะเบียน = renewalTab `'pool'`, back to ต่ออายุ = last renewal tab, localStorage
+(`switchRenewalKind`, `.dashboard-tabs.rn-kind-switch` — same sliding-thumb tab group as other pages, active = btn-gold; ขึ้นทะเบียน = renewalTab `'pool'`, back to ต่ออายุ = last renewal tab, localStorage
 `mw_renewal_last`). Renewal sub-tabs in order ถึงรอบ · กำลังดำเนินการ · เสร็จแล้ว · ตามวันหมดอายุ (= old "ทั้งหมด (ตามกลุ่ม)",
 tab key still `'all'`); the old "รอขึ้นทะเบียน" button / breadcrumb are gone. Registration sub-views (`regPoolView`) are the
 same three: `pool` รอขึ้นทะเบียน · `active` กำลังดำเนินการ (every open มติ ครม. round, one `.reg-round-block` per round —
@@ -798,6 +798,6 @@ Then (owner 2026-10-30) the ตามวันหมดอายุ tab was remo
 `#view-renewals .renewal-all-only` stay hidden): its planning info moved to a dashboard card "รุ่นต่ออายุที่จะมาถึง"
 (`panel-renewal-cohorts`, `needs-ops`, widget id `panel-renewal-cohorts` xl) — numbers only, no worker lists (owner):
 `renewalCohortStats` = per old-expiry date with ≥ 2 workers expiring within 6 months or with active rounds: total, employers,
-started / done, ต้องทำเล่ม; tag กำลังต่อ / ถึงรอบแล้ว / เปิดรับประมาณ <expiry − 60 days> / ต่อครบแล้ว; foot line = single-date
+started / done (bars are `.bar-fill` so they grow like other charts), ต้องทำเล่ม; tag กำลังต่อ / ถึงรอบแล้ว / เปิดรับประมาณ <expiry − 60 days> / ต่อครบแล้ว; foot line = single-date
 (MOU) count + registration pool / open rounds. Clicking a row → `openRenewalCohort` (sets `renewalCohort`, opens ถึงรอบ or
 กำลังดำเนินการ).
