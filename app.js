@@ -24358,15 +24358,15 @@ function renewalCohortStats() {
     const by = new Map();
     const get = d => { if (!by.has(d)) by.set(d, { date: d, waiting: 0, started: 0, done: 0, emps: new Set(), needBook: 0, hasActive: false }); return by.get(d); };
     workers.forEach(w => {
-        if (w.status === 'archived' \|\| w.status === 'deleted' \|\| !w.permitExpiry) return;
+        if (w.status === 'archived' || w.status === 'deleted' || !w.permitExpiry) return;
         const d = ymd10(w.permitExpiry);
-        if (!d \|\| d > horizon \|\| renewalActiveOf(w.id) \|\| renewalExternalOf(w.id)) return;
+        if (!d || d > horizon || renewalActiveOf(w.id) || renewalExternalOf(w.id)) return;
         if (d < today && renewalDaysLeft(d) < -RENEWAL_DUE_DAYS) return; // หมดไปนานแล้ว ไม่ใช่รุ่นที่จะมาถึง
         const s = get(d); s.waiting++; s.emps.add(w.employerId);
         if (renewalBookPickOf(w) === 'book') s.needBook++;
     });
     rounds.forEach(r => {
-        const d = ymd10(r.oldPermitExpiry \|\| '');
+        const d = ymd10(r.oldPermitExpiry || '');
         if (!d) return;
         if (r.status !== 'active' && !by.has(d)) return; // รุ่นที่ต่อเสร็จหมดแล้ว ไม่ต้องโชว์
         const s = get(d); s.emps.add(r.customerId);
@@ -24400,7 +24400,7 @@ function renderRenewalCohortsPanel() {
         </button>`;
     };
     const pool = workers.filter(regInPool).length;
-    const openRounds = (registrationRounds \|\| []).filter(r => r.status === 'open');
+    const openRounds = (registrationRounds || []).filter(r => r.status === 'open');
     const inRounds = workers.filter(w => w.status === 'pending_register' && openRounds.some(r => regInRound(w, r.id))).length;
     box.innerHTML = (cohorts.length ? cohorts.map(row).join('') : '<p class="text-muted rn-empty">ไม่มีรุ่นที่ใบอนุญาตจะหมดใน 6 เดือนนี้</p>')
         + `<div class="drc-foot">
