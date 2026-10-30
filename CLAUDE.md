@@ -758,3 +758,9 @@ Receipts got the same "แบบรวม / แบบรายคน" tabs (owne
 `#receipt-layout-bar` above `#receipt-sheet`, `setReceiptLayout` re-opens the same receipt (`lastReceiptOpen`), choice kept in
 localStorage `mw_receipt_layout`. Shown only when the receipt lists a bill's items (`invoiceReceiptLine` full branch sets
 `receiptHasItemList`); part payments / deposits stay as "per bill" lines.
+
+Keyboard shortcuts (owner 2026-10-30, `setupKeyboardShortcuts`): Esc = close the topmost `.modal-backdrop` (clicks its `.close-btn`;
+asks first if a field in it was typed in — `_kbDirty`; skipped while a menu / calendar / ui-dialog is open, `SHORTCUT_POPUP_SEL`),
+Ctrl+Enter = save the topmost window (form submit button, or a button whose text starts with "บันทึก" — `modalSaveTarget`),
+Enter = save only in small windows (≤ 2 visible fields); in bigger forms Enter no longer submits. Ctrl+K or / = focus the
+search box of the current page (or of the open window). In pop-ups a click on the heading title also folds a section.

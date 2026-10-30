@@ -23209,6 +23209,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try { setupFloatingHScroll(); } catch (err) { console.error('Floating scrollbar setup failed:', err); }
     try { setupRowActionsOverlay(); } catch (err) { console.error('Row actions setup failed:', err); }
     try { setupCollapsibleSections(); } catch (err) { console.error('Collapsible sections setup failed:', err); }
+    try { setupKeyboardShortcuts(); } catch (err) { console.error('Keyboard shortcuts setup failed:', err); }
 });
 
 // ==================== ยุบ/กางหัวข้อ (owner, 2026-10-13) ====================
@@ -23338,6 +23339,116 @@ function setupCollapsibleSections() {
         });
     };
     applySavedCollapse();
+}
+
+// ==================== คีย์ลัด (owner 2026-10-30) ====================
+// Esc = ปิดหน้าต่างบนสุด (แก้ฟอร์มค้างไว้ → ถามก่อน) · Ctrl+Enter = บันทึกหน้าต่างบนสุด
+// Enter = บันทึก เฉพาะหน้าต่างเล็กที่มีช่องกรอก ≤ 2 ช่อง (ฟอร์มใหญ่กด Enter ไม่บันทึก กันเผลอบันทึกระหว่างพิมพ์)
+// Ctrl+K หรือ / = ไปช่องค้นหาของหน้านั้น (หรือของหน้าต่างที่เปิดอยู่)
+const SHORTCUT_POPUP_SEL = '.ui-dialog-backdrop, .ios-select-menu, .ios-calendar, .ctx-menu, .fv-more.is-open, .bt-pick.is-open, #cust-bt-pick.is-open, #rn-steps-pop:not(.hidden), #cust-svc-pop:not(.hidden), .multi-filter-panel:not(.hidden), #fin-range-pop, .search-suggest-dropdown:not(.hidden), .bell-panel:not(.hidden)';
+const isShown = el => !!(el && el.isConnected && el.getClientRects().length);
+
+function topModalBackdrop() {
+    let best = null, bestZ = -Infinity;
+    document.querySelectorAll('.modal-backdrop:not(.hidden)').forEach(bd => {
+        if (!isShown(bd)) return;
+        const z = parseInt(getComputedStyle(bd).zIndex, 10) || 0;
+        if (z >= bestZ) { best = bd; bestZ = z; }
+    });
+    return best;
+}
+function shortcutPopupOpen() {
+    return [...document.querySelectorAll(SHORTCUT_POPUP_SEL)].some(isShown);
+}
+// ช่องกรอกที่มองเห็นในฟอร์ม (ไม่นับ checkbox/ปุ่ม/ไฟล์/ช่องซ่อน)
+function visibleFormFields(root) {
+    return [...root.querySelectorAll('input, select, textarea')].filter(el =>
+        !/^(hidden|checkbox|radio|file|button|submit|reset|image)$/i.test(el.type || '') && !el.disabled && isShown(el));
+}
+// ปุ่มบันทึกของหน้าต่าง: ปุ่ม submit ของฟอร์ม หรือปุ่มที่ขึ้นต้นด้วย "บันทึก"
+function modalSaveTarget(bd) {
+    const forms = [...bd.querySelectorAll('form')].filter(isShown);
+    for (const f of forms) {
+        const btn = [...f.querySelectorAll('button[type="submit"], input[type="submit"]')].find(b => isShown(b) && !b.disabled);
+        if (btn) return { form: f, btn };
+    }
+    const btn = [...bd.querySelectorAll('.modal-footer button, .modal-actions button, button.btn-gold')]
+        .find(b => isShown(b) && !b.disabled && /^\s*บันทึก/.test(b.textContent || ''));
+    return btn ? { btn } : null;
+}
+function triggerModalSave(bd) {
+    const t = modalSaveTarget(bd);
+    if (!t) return false;
+    if (t.form && t.form.requestSubmit) t.form.requestSubmit(t.btn); else t.btn.click();
+    return true;
+}
+function focusPageSearch() {
+    const bd = topModalBackdrop();
+    const root = bd || document.querySelector('.content-section:not(.hidden).active') || document.querySelector('.content-section:not(.hidden)') || document;
+    const box = [...root.querySelectorAll('.search-box input, input[type="search"], input[placeholder*="ค้นหา"]')].find(el => isShown(el) && !el.disabled);
+    if (!box) return false;
+    box.focus();
+    if (box.select) box.select();
+    return true;
+}
+
+function setupKeyboardShortcuts() {
+    // แก้ฟอร์มในหน้าต่างแล้ว → Esc ถามก่อนปิด; หน้าต่างถูกซ่อน (บันทึก/ปิด) → ล้างสถานะ
+    const markDirty = e => { const bd = e.target.closest && e.target.closest('.modal-backdrop'); if (bd && e.isTrusted) bd._kbDirty = true; };
+    document.addEventListener('input', markDirty, true);
+    document.addEventListener('change', markDirty, true);
+    const mo = new MutationObserver(rs => rs.forEach(r => { if (r.target.classList.contains('hidden')) r.target._kbDirty = false; }));
+    document.querySelectorAll('.modal-backdrop').forEach(bd => mo.observe(bd, { attributes: true, attributeFilter: ['class'] }));
+
+    const isTyping = el => el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
+
+    // capture: ตัดสินใจก่อนตัวจัดการ Esc อื่นๆ ปิดเมนู/ปฏิทินไปแล้ว
+    document.addEventListener('keydown', e => {
+        if (e.isComposing) return;
+        if (e.key === 'Escape') {
+            if (shortcutPopupOpen()) return;          // Esc ปิดเมนู/ปฏิทิน/กล่องถามก่อน
+            const bd = topModalBackdrop();
+            if (!bd) return;
+            // รอให้ตัวจัดการของหน้าต่างเองทำก่อน (บางหน้าต่างปิดตัวเองด้วย Esc อยู่แล้ว)
+            setTimeout(async () => {
+                if (!isShown(bd) || topModalBackdrop() !== bd) return;
+                const closeBtn = [...bd.querySelectorAll('.modal-header .close-btn, .close-btn, [data-close]')].find(isShown);
+                if (!closeBtn) return;
+                if (bd._kbDirty && !(await uiConfirm('มีข้อมูลที่แก้ไขไว้ยังไม่ได้บันทึก ปิดหน้าต่างนี้เลยไหม?', { okText: 'ปิดโดยไม่บันทึก', cancelText: 'กลับไปแก้ต่อ', danger: true }))) return;
+                bd._kbDirty = false;
+                closeBtn.click();
+            }, 0);
+            return;
+        }
+        if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && (e.key === 'k' || e.key === 'K')) {
+            if (focusPageSearch()) e.preventDefault();
+            return;
+        }
+        if (e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey && !isTyping(e.target) && !shortcutPopupOpen()) {
+            if (focusPageSearch()) e.preventDefault();
+        }
+    }, true);
+
+    // bubble: ให้ช่องที่ใช้ Enter เอง (เลือกรายการค้นหา ฯลฯ) จัดการก่อน — ถ้าเขา preventDefault แล้วก็ไม่ยุ่ง
+    document.addEventListener('keydown', e => {
+        if (e.key !== 'Enter' || e.isComposing || e.defaultPrevented || e.altKey) return;
+        if (shortcutPopupOpen()) return;
+        const bd = topModalBackdrop();
+        if (!bd) return;
+        if (e.ctrlKey || e.metaKey) {
+            if (triggerModalSave(bd)) e.preventDefault();
+            return;
+        }
+        const el = e.target;
+        if (!el || el.tagName !== 'INPUT' || !bd.contains(el) || /^(checkbox|radio|file|button|submit)$/i.test(el.type || '')) return;
+        const form = el.closest('form') || bd;
+        if (visibleFormFields(form).length <= 2) {
+            e.preventDefault();
+            triggerModalSave(bd);
+        } else if (el.closest('form')) {
+            e.preventDefault(); // ฟอร์มใหญ่: Enter ไม่ส่งฟอร์ม
+        }
+    });
 }
 
 // ปุ่มจัดการลอยบนแถว (CSS: td.actions-col ใน styles.css) — ให้ปุ่มชิดขอบขวาที่ "มองเห็น" ของกล่องตาราง
