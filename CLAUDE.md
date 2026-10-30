@@ -764,3 +764,10 @@ asks first if a field in it was typed in — `_kbDirty`; skipped while a menu / 
 Ctrl+Enter = save the topmost window (form submit button, or a button whose text starts with "บันทึก" — `modalSaveTarget`),
 Enter = save only in small windows (≤ 2 visible fields); in bigger forms Enter no longer submits. Ctrl+K or / = focus the
 search box of the current page (or of the open window). In pop-ups a click on the heading title also folds a section.
+
+Multi-select in document folders (owner 2026-10-30, no tick circles — owner): worker + employer folder lists, Ctrl/⌘+click toggles
+a file, Shift+click selects a range in list order (`fvItemClick`, set `fvMulti[scope]` = [{key, url}] — by url, indexes shift after
+moves). 2+ files → sticky dark bar at the bottom of the list (`markFvMulti`, `.fv-selbar`): ดาวน์โหลด (one by one), ย้ายไปกลุ่ม…
+(worker only: doc type / ไฟล์ที่หมดอายุ / เอกสารปัจจุบัน) and ลบ N ไฟล์ (`can('deleteFiles')`, one confirm, one save, then Storage
+delete). Dragging a selected file drags the whole set (`{ multi: true }` payload → `fvMultiMove`, same rename / expiry rules as
+single moves).
