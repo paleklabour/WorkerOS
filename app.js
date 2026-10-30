@@ -4432,14 +4432,16 @@ function regChecks(w) {
     ];
     const extras = [];
     if (getAttachments(w, 'worker-pink-card').length) extras.push('บัตรชมพูเก่า');
-    if (getAttachments(w, 'worker-passport').length) extras.push('เล่มเก่า');
-    return { checks, extras, complete: checks.every(c => c.ok), missing: checks.filter(c => !c.ok).map(c => c.label) };
+    if (regHasPassport(w)) extras.push('เล่มเก่า');
+    const expiredBook = (w.passportNo || getAttachments(w, 'worker-passport').length) && regPassportExpired(w);
+    return { checks, extras, expiredBook, complete: checks.every(c => c.ok), missing: checks.filter(c => !c.ok).map(c => c.label) };
 }
 
 function regChipsHtml(w) {
-    const { checks, extras } = regChecks(w);
+    const { checks, extras, expiredBook } = regChecks(w);
     return checks.map(c => `<span class="reg-chip ${c.ok ? 'is-ok' : 'is-miss'}">${c.ok ? '✓' : '✗'} ${escapeHtml(c.label)}</span>`).join('')
-        + extras.map(x => `<span class="reg-chip is-ok" title="แนบมาแล้ว (ไม่บังคับ)">✓ ${escapeHtml(x)}</span>`).join(''); // เอกสารเสริมที่แนบมาแล้ว ติ๊กถูกเหมือนช่องบังคับ (owner 2026-10-30)
+        + extras.map(x => `<span class="reg-chip is-ok" title="แนบมาแล้ว (ไม่บังคับ)">✓ ${escapeHtml(x)}</span>`).join('') // เอกสารเสริมที่แนบมาแล้ว ติ๊กถูกเหมือนช่องบังคับ (owner 2026-10-30)
+        + (expiredBook ? `<span class="reg-chip" title="นับว่าไม่มีเล่ม (ทำเล่มใหม่) — ไฟล์เก็บไว้เป็นข้อมูล">เล่มเก่าหมดอายุ</span>` : '');
 }
 
 // ---------- หน้า (ฝั่งเจ้าหน้าที่) ----------
@@ -4535,7 +4537,14 @@ function regSelBarHtml(rounds) {
 // ลบรอบ มติ ครม. (Admin, owner 2026-10-20) — คนงานในรอบไม่ถูกลบ กลับไปอยู่แท็บรอขึ้นทะเบียน
 // รอบขั้นตอนขึ้นทะเบียนที่กำลังทำของคนงาน / มีเล่ม (พาสปอร์ต/CI) อยู่แล้วไหม
 const regActiveRoundOf = (workerId) => (renewalList || []).find(r => r.kind === 'registration' && r.workerId === workerId && r.status === 'active');
-const regHasPassport = (w) => !!(w.passportNo || getAttachments(w, 'worker-passport').length);
+// เล่มเก่าที่หมดอายุแล้ว = ถือว่าไม่มีเล่ม (ทำเล่มใหม่ ไม่ตี visa) แต่ไฟล์เก็บไว้เป็นข้อมูล (owner 2026-10-30)
+// หมดอายุ = วันหมดอายุ (คนงาน / ไฟล์ล่าสุด) ผ่านไปแล้ว หรือไฟล์เล่มทุกไฟล์ถูกย้ายไป "หมดอายุ" ในแฟ้ม; ไม่รู้วันหมดอายุ = ยังนับว่ามี
+const regPassportExpired = (w) => {
+    const files = getAttachments(w, 'worker-passport');
+    const exp = [w.passportExpiry, ...files.map(f => f && f.expiryDate)].filter(Boolean).map(d => String(d).slice(0, 10)).sort().pop();
+    return (!!exp && exp < localDateISO(new Date())) || (files.length > 0 && files.every(f => f && f.manualExpired));
+};
+const regHasPassport = (w) => !!(w.passportNo || getAttachments(w, 'worker-passport').length) && !regPassportExpired(w);
 
 // ยกเลิกขั้นตอนขึ้นทะเบียนของคนงาน 1 คน: ลบรายการรอออกบิล (ที่ออกบิลแล้วเก็บไว้ให้ฝ่ายบัญชี) แล้วตั้งสถานะยกเลิก
 async function regCancelRound(r) {
