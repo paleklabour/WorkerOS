@@ -13543,9 +13543,65 @@ function toggleUserCustomerField() {
         select.innerHTML = '<option value="" disabled selected>--- เลือกนายจ้าง ---</option>' +
             customers.map(c => `<option value="${c.id}">${c.companyName}</option>`).join('');
         clearSearchSelect('user-customer');
+        renderUserLinkChips();
+        renderUserLinkChecklist();
     } else {
         group.classList.add('hidden');
     }
+}
+
+// บัญชี Client ดูได้หลายบริษัท (owner 2026-10-30): ติ๊กบริษัทอื่นของเจ้าของเดียวกัน → ลูกค้าสลับดูได้จากหัวพอร์ทัล
+// เก็บใน client_customer_links (บันทึกพร้อมบัญชีใน saveUser) — นายจ้างหลักของบัญชี (user-customer-id) นับรวมให้เองตอนบันทึก
+let userLinkDraft = new Set();
+async function loadUserLinks(userId) {
+    userLinkDraft = new Set();
+    const res = await callCloudAPI("listClientLinks", { userId }, { silent: true });
+    if (res && res.customerIds) res.customerIds.forEach(id => userLinkDraft.add(id));
+    renderUserLinkChips();
+    renderUserLinkChecklist();
+}
+
+function toggleUserLink(customerId, on) {
+    if (on) userLinkDraft.add(customerId); else userLinkDraft.delete(customerId);
+    renderUserLinkChips();
+    renderUserLinkChecklist();
+}
+
+function renderUserLinkChips() {
+    const el = document.getElementById("user-link-chips");
+    if (!el) return;
+    const mainId = document.getElementById("user-customer-id").value;
+    const ids = Array.from(userLinkDraft).filter(id => id !== mainId);
+    el.style.display = ids.length ? 'flex' : 'none';
+    el.innerHTML = ids.map(id => {
+        const c = customers.find(x => x.id === id);
+        return `<span class="job-worker-chip">${escapeHtml(c ? c.companyName : id)}<button type="button" onclick="toggleUserLink('${id}', false)" title="เอาบริษัทนี้ออกจากบัญชี">&times;</button></span>`;
+    }).join('');
+}
+
+function renderUserLinkChecklist() {
+    const el = document.getElementById("user-link-checklist");
+    if (!el) return;
+    const mainId = document.getElementById("user-customer-id").value;
+    const q = (document.getElementById("user-link-search").value || '').trim().toLowerCase();
+    const list = customers.filter(c => c.id !== mainId
+        && (!q || String(c.companyName || '').toLowerCase().includes(q) || String(c.taxId || '').includes(q)));
+    if (!list.length) { el.innerHTML = '<div class="job-worker-empty">--- ไม่พบนายจ้างที่ตรงกับคำค้นหา ---</div>'; return; }
+    // ที่ติ๊กไว้ขึ้นก่อน แล้วตามชื่อ
+    list.sort((a, b) => (userLinkDraft.has(b.id) - userLinkDraft.has(a.id)) || String(a.companyName).localeCompare(String(b.companyName), 'th'));
+    el.innerHTML = list.map(c => `
+        <label class="job-worker-row">
+            <input type="checkbox" ${userLinkDraft.has(c.id) ? 'checked' : ''} onchange="toggleUserLink('${c.id}', this.checked)">
+            <span class="job-worker-row-name">${escapeHtml(c.companyName || '')}</span>
+            <span class="job-worker-row-uid">${c.taxId ? `ภาษี ${escapeHtml(c.taxId)}` : ''}</span>
+        </label>`).join('');
+}
+
+// บันทึกรายการบริษัทของบัญชี: ไม่มีบริษัทอื่น = ล้างทั้งหมด (บัญชีบริษัทเดียวตามเดิม), มี = นายจ้างหลัก + ที่ติ๊ก
+async function saveUserLinks(userId, role, mainId) {
+    const ids = role === 'client' && mainId ? Array.from(userLinkDraft).filter(id => id !== mainId) : [];
+    const res = await callCloudAPI("saveClientLinks", { userId, customerIds: ids.length ? [mainId, ...ids] : [] });
+    if (!res || res.status === "error") showToast("⚠️ บันทึกบัญชีแล้ว แต่บันทึกบริษัทที่สลับดูได้ไม่สำเร็จ — แก้ไขบัญชีอีกครั้ง", "warning");
 }
 
 function openUserModal(id = null) {
@@ -13587,8 +13643,10 @@ function openUserModal(id = null) {
         setUserAvatarField(u.avatarUrl || "");
         document.getElementById("user-role").value = u.role || "staff";
         toggleUserCustomerField();
+        userLinkDraft = new Set();
         if (u.role === 'client') {
             if (u.customer_id) selectSearchSelectItem('user-customer', u.customer_id);
+            loadUserLinks(u.id);
         }
     } else {
         editIdInput.value = "";
@@ -13604,6 +13662,7 @@ function openUserModal(id = null) {
         pinInput.required = true;
 
         setUserAvatarField("");
+        userLinkDraft = new Set();
         toggleUserCustomerField();
     }
 
@@ -13645,6 +13704,7 @@ async function saveUser(e) {
             return;
         }
 
+        await saveUserLinks(editId, role, customerId);
         const idx = users.findIndex(u => u.id === editId);
         if (idx !== -1) {
             users[idx] = Object.assign({}, users[idx], { name, role, customer_id: role === 'client' ? customerId : null, avatarUrl });
@@ -13694,6 +13754,7 @@ async function saveUser(e) {
         });
         if (!r2 || r2.status === "error") showToast("⚠️ สร้างบัญชีแล้ว แต่บันทึกรูปไม่สำเร็จ — แก้ไขบัญชีเพื่อใส่รูปอีกครั้ง", "warning");
     }
+    if (newId && role === 'client' && userLinkDraft.size) await saveUserLinks(newId, role, customerId);
     users.push({ id: newId, email, name, role, customer_id: userData.customer_id, avatarUrl });
     localStorage.setItem("mw_users", JSON.stringify(users));
     showToast("เพิ่มบัญชีผู้ใช้งานใหม่สำเร็จ", "success");
