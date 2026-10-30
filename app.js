@@ -16013,7 +16013,7 @@ function renderCustomerFolderTiles() {
             if (query && !(fItem.name || '').toLowerCase().includes(query)) return;
             allFiles.push({ key: docInfo.key, idx: fIdx });
             items.push(`
-                <div class="fv-item" data-key="${docInfo.key}" data-idx="${fIdx}" onclick="selectCustomerFolderFile('${docInfo.key}', ${fIdx})" title="${escapeHtml(fItem.name || '')}">
+                <div class="fv-item" data-key="${docInfo.key}" data-idx="${fIdx}" onclick="fvItemClick(event, 'customer', '${docInfo.key}', ${fIdx})" title="${escapeHtml(fItem.name || '')}">
                     ${renderDriveThumbnail(fItem.data || '')}
                     <div class="fv-item-text"><b>${escapeHtml(fItem.name || '-')}</b><small>${fItem.uploadedAt ? formatThaiDate(String(fItem.uploadedAt).slice(0, 10)) : ''}</small></div>
                 </div>`);
@@ -16048,6 +16048,7 @@ function markCustomerFolderSelection() {
     document.querySelectorAll('#customer-folder-modal .fv-item').forEach(el => {
         el.classList.toggle('is-active', !!sel && el.dataset.key === sel.key && Number(el.dataset.idx) === sel.idx);
     });
+    markFvMulti('customer');
 }
 
 function selectCustomerFolderFile(key, idx) {
@@ -16102,7 +16103,7 @@ function customerFolderAction(action) {
 function openCustomerFolderModal(customerId) {
     // เรียกซ้ำหลังแนบ/เปลี่ยนชื่อ/ลบไฟล์ (แฟ้มเดิมยังเปิดอยู่) → คงไฟล์ที่เลือกและคำค้นหาไว้
     const reopening = customerId === activeFolderCustomerId && !document.getElementById("customer-folder-modal").classList.contains("hidden");
-    if (!reopening) activeCustomerFolderSel = null;
+    if (!reopening) { activeCustomerFolderSel = null; fvMultiClear('customer'); }
     activeFolderCustomerId = customerId;
     const c = customers.find(item => item.id === customerId);
     if (!c) return;
@@ -17456,7 +17457,7 @@ function renderWorkerFolderItem(file, fItem, idx, isExpired) {
         : (fItem.uploadedAt ? formatThaiDate(String(fItem.uploadedAt).slice(0, 10)) : '');
     return `
         <div class="fv-item${isExpired ? ' is-expired' : ''}" data-key="${file.key}" data-idx="${idx}" draggable="${can('ops') ? 'true' : 'false'}"
-             ondragstart="onWorkerFileDragStart(event, '${file.key}', ${idx})" onclick="selectWorkerFolderFile('${file.key}', ${idx})" title="${escapeHtml(fItem.name || '')}">
+             ondragstart="onWorkerFileDragStart(event, '${file.key}', ${idx})" onclick="fvItemClick(event, 'worker', '${file.key}', ${idx})" title="${escapeHtml(fItem.name || '')}">
             ${renderDriveThumbnail(workerFolderFileUrl(fItem))}
             <div class="fv-item-text"><b>${escapeHtml(fItem.name || '-')}</b><small>${meta}</small></div>
         </div>`;
@@ -17468,12 +17469,209 @@ function markWorkerFolderSelection() {
     });
     const photoBtn = document.querySelector('#worker-folder-modal .fv-photo');
     if (photoBtn) photoBtn.classList.toggle('is-active', !!activeFolderSel && activeFolderSel.kind === 'photo');
+    markFvMulti('worker');
 }
 
 function selectWorkerFolderFile(key, idx) {
     activeFolderSel = { kind: 'file', key, idx };
     markWorkerFolderSelection();
     renderWorkerFolderPreview();
+}
+
+// ==================== เลือกหลายไฟล์ในแฟ้ม (owner 2026-10-30) ====================
+// Ctrl/⌘+คลิก = เลือกเพิ่ม/เอาออกทีละไฟล์, Shift+คลิก = เลือกเป็นช่วง (ตามลำดับที่เห็นในรายการ), คลิกธรรมดา = กลับเป็นเลือกไฟล์เดียว
+// เลือก ≥ 2 ไฟล์ → แถบด้านล่างรายการ: ดาวน์โหลด / ย้ายไปกลุ่ม (แฟ้มคนงาน) / ลบ — ลากไฟล์ที่เลือกไว้ไปวางที่กลุ่มอื่นหรือ "หมดอายุ" = ย้ายทั้งชุด
+// เก็บเป็น "ข้อมูลไฟล์" (url) ไม่ใช่ลำดับ เพราะลำดับในกลุ่มเปลี่ยนหลังย้าย/ลบ
+const fvMulti = { worker: [], customer: [] };      // [{ key, url }]
+const fvMultiAnchor = { worker: null, customer: null };
+const FV_MODAL = { worker: '#worker-folder-modal', customer: '#customer-folder-modal' };
+
+function fvFolderOwner(scope) {
+    return scope === 'worker' ? workers.find(x => x.id === activeFolderWorkerId) : customers.find(x => x.id === activeFolderCustomerId);
+}
+function fvFileUrlAt(scope, key, idx) {
+    const o = fvFolderOwner(scope);
+    const f = o ? getAttachments(o, key)[idx] : null;
+    return f ? f.data : null;
+}
+// ไฟล์ที่เลือกไว้ → [{ key, idx, item }] ตามสถานะปัจจุบัน (ไฟล์ที่ไม่อยู่แล้วตัดทิ้ง)
+function fvMultiResolve(scope) {
+    const o = fvFolderOwner(scope);
+    if (!o) return [];
+    const out = [];
+    fvMulti[scope].forEach(s => {
+        const list = getAttachments(o, s.key);
+        const idx = list.findIndex(f => f && f.data === s.url);
+        if (idx >= 0) out.push({ key: s.key, idx, item: list[idx] });
+    });
+    return out;
+}
+function fvMultiClear(scope) {
+    fvMulti[scope] = [];
+    fvMultiAnchor[scope] = null;
+    markFvMulti(scope);
+}
+function fvItemClick(e, scope, key, idx) {
+    const url = fvFileUrlAt(scope, key, idx);
+    const select = () => scope === 'worker' ? selectWorkerFolderFile(key, idx) : selectCustomerFolderFile(key, idx);
+    if (!url || !(e.ctrlKey || e.metaKey || e.shiftKey)) {
+        fvMulti[scope] = [];
+        fvMultiAnchor[scope] = url ? { key, url } : null;
+        select();
+        return;
+    }
+    e.preventDefault();
+    // เริ่มเลือกหลายไฟล์: นับไฟล์ที่เปิดดูอยู่เป็นไฟล์แรกด้วย
+    const cur = scope === 'worker' ? (activeFolderSel && activeFolderSel.kind === 'file' ? activeFolderSel : null) : activeCustomerFolderSel;
+    if (!fvMulti[scope].length && cur) {
+        const cu = fvFileUrlAt(scope, cur.key, cur.idx);
+        if (cu) { fvMulti[scope] = [{ key: cur.key, url: cu }]; if (!fvMultiAnchor[scope]) fvMultiAnchor[scope] = { key: cur.key, url: cu }; }
+    }
+    if (e.shiftKey && fvMultiAnchor[scope]) {
+        const items = [...document.querySelectorAll(`${FV_MODAL[scope]} .fv-item[data-key]`)];
+        const a = items.findIndex(el => fvFileUrlAt(scope, el.dataset.key, Number(el.dataset.idx)) === fvMultiAnchor[scope].url);
+        const b = items.findIndex(el => el.dataset.key === key && Number(el.dataset.idx) === idx);
+        if (a >= 0 && b >= 0) {
+            const range = items.slice(Math.min(a, b), Math.max(a, b) + 1)
+                .map(el => ({ key: el.dataset.key, url: fvFileUrlAt(scope, el.dataset.key, Number(el.dataset.idx)) })).filter(s => s.url);
+            const keep = (e.ctrlKey || e.metaKey) ? fvMulti[scope] : [];
+            fvMulti[scope] = [...keep.filter(s => !range.some(r => r.url === s.url)), ...range];
+        }
+    } else {
+        const at = fvMulti[scope].findIndex(s => s.url === url);
+        if (at >= 0) fvMulti[scope].splice(at, 1); else fvMulti[scope].push({ key, url });
+        fvMultiAnchor[scope] = { key, url };
+    }
+    // พรีวิวตามไฟล์ที่คลิกล่าสุด (ถ้ายังอยู่ในชุด) — ไม่ล้างชุดที่เลือก
+    if (fvMulti[scope].some(s => s.url === url)) {
+        if (scope === 'worker') { activeFolderSel = { kind: 'file', key, idx }; markWorkerFolderSelection(); renderWorkerFolderPreview(); }
+        else { activeCustomerFolderSel = { key, idx }; markCustomerFolderSelection(); renderCustomerFolderPreview(); }
+    } else markFvMulti(scope);
+}
+
+function markFvMulti(scope) {
+    const modal = document.querySelector(FV_MODAL[scope]);
+    if (!modal) return;
+    const picked = fvMultiResolve(scope);
+    fvMulti[scope] = picked.map(p => ({ key: p.key, url: p.item.data }));
+    const on = picked.length >= 2;
+    modal.querySelectorAll('.fv-item[data-key]').forEach(el => {
+        el.classList.toggle('is-multi', on && picked.some(p => p.key === el.dataset.key && p.idx === Number(el.dataset.idx)));
+    });
+    const list = modal.querySelector('.fv-list');
+    let bar = modal.querySelector('.fv-selbar');
+    if (!on) { if (bar) bar.remove(); return; }
+    if (!bar && list) { bar = document.createElement('div'); bar.className = 'rn-selbar fv-selbar'; list.appendChild(bar); }
+    if (!bar) return;
+    const canMove = scope === 'worker' && can('ops');
+    const canDel = can('deleteFiles') && (scope === 'worker' ? can('ops') : can('customers'));
+    const moveOpts = canMove ? WORKER_FOLDER_DOC_TYPES.map(t => `<option value="${t.key}">${escapeHtml(fvShortLabel(t.label))}</option>`).join('') : '';
+    bar.innerHTML = `<span class="fv-selbar-count">เลือก ${picked.length} ไฟล์</span>
+        <button type="button" class="btn btn-sm rn-selbar-btn" onclick="fvMultiDownload('${scope}')" title="ดาวน์โหลดไฟล์ที่เลือกทั้งหมด">${icon('inbox')} ดาวน์โหลด</button>
+        ${canMove ? `<select class="fv-selbar-move" onchange="if (this.value) fvMultiMove('worker', this.value)" title="ย้ายไฟล์ที่เลือกไปกลุ่มเอกสารอื่น">
+            <option value="">ย้ายไปกลุ่ม…</option>${moveOpts}<option value="@expired">ไฟล์ที่หมดอายุ</option><option value="@current">เอกสารปัจจุบัน (ไม่หมดอายุ)</option></select>` : ''}
+        ${canDel ? `<button type="button" class="btn btn-sm rn-selbar-danger" onclick="fvMultiDelete('${scope}')" title="ลบไฟล์ที่เลือกทั้งหมด">${icon('trash')} ลบ ${picked.length} ไฟล์</button>` : ''}
+        <button type="button" class="btn btn-sm rn-selbar-clear" onclick="fvMultiClear('${scope}')" title="ยกเลิกการเลือกหลายไฟล์">ยกเลิก</button>`;
+}
+
+async function fvMultiDownload(scope) {
+    const picked = fvMultiResolve(scope);
+    for (const p of picked) {
+        downloadAttachment(p.item.name, scope === 'worker' ? workerFolderFileUrl(p.item) : (p.item.data || ''));
+        await new Promise(r => setTimeout(r, 350)); // เบราว์เซอร์บล็อกถ้าโหลดพร้อมกันหลายไฟล์ในทีเดียว
+    }
+}
+
+async function fvMultiDelete(scope) {
+    const o = fvFolderOwner(scope);
+    const picked = fvMultiResolve(scope);
+    if (!o || !picked.length || !can('deleteFiles')) return;
+    if (scope === 'worker' ? !can('ops') : !can('customers')) return;
+    const names = picked.map(p => p.item.name || '-');
+    const shown = names.slice(0, 12).join('\n') + (names.length > 12 ? `\n… และอีก ${names.length - 12} ไฟล์` : '');
+    if (!(await uiConfirm(`ลบ ${picked.length} ไฟล์นี้ออกจากแฟ้ม?\n\n${shown}`, { okText: `ลบ ${picked.length} ไฟล์`, danger: true }))) return;
+    const before = JSON.parse(JSON.stringify(o.attachments || {}));
+    const urls = new Set(picked.map(p => p.item.data));
+    const next = { ...(o.attachments || {}) };
+    [...new Set(picked.map(p => p.key))].forEach(k => {
+        const rest = getAttachments(o, k).filter(f => !urls.has(f.data));
+        if (rest.length) next[k] = rest; else delete next[k];
+    });
+    o.attachments = next;
+    const res = scope === 'worker'
+        ? await callCloudAPI("saveWorker", { workerData: o })
+        : await callCloudAPI("saveCustomer", { customerData: o });
+    if (!res || res.status === "error") {
+        o.attachments = before;
+        showToast("❌ ลบไฟล์ไม่สำเร็จ: " + (res && res.message ? res.message : "unknown error"), "danger");
+        markFvMulti(scope);
+        return;
+    }
+    saveData();
+    urls.forEach(u => deleteStorageFileByUrl(u));
+    fvMultiClear(scope);
+    showToast(`🗑️ ลบ ${picked.length} ไฟล์ออกจากแฟ้มแล้ว`, "success");
+    if (scope === 'worker') { openWorkerFolderModal(activeFolderWorkerId); renderWorkers(); renderDashboard(); }
+    else { openCustomerFolderModal(activeFolderCustomerId); renderCustomers(); }
+}
+
+// ย้ายไฟล์ที่เลือกทั้งชุด: toType = หมวดเอกสาร / '@expired' / '@current' — บันทึกครั้งเดียว
+async function fvMultiMove(scope, toType, pickedIn) {
+    if (scope !== 'worker' || !can('ops')) return;
+    const w = fvFolderOwner('worker');
+    const picked = pickedIn || fvMultiResolve('worker');
+    if (!w || !picked.length) return;
+    const before = JSON.parse(JSON.stringify(w.attachments || {}));
+    const t0 = new Date(); t0.setHours(0, 0, 0, 0);
+    let changed = 0;
+    if (toType === '@expired' || toType === '@current') {
+        const markExpired = toType === '@expired';
+        picked.forEach(p => {
+            const list = getAttachments(w, p.key);
+            if (isWorkerDocFileExpired(p.item, p.idx, list, p.key) === markExpired) return;
+            p.item.manualExpired = markExpired;
+            if (markExpired) delete p.item.forceCurrent;
+            else { const ex = p.item.expiryDate ? safeParseDate(p.item.expiryDate) : null; if (ex && ex < t0) p.item.forceCurrent = true; else delete p.item.forceCurrent; }
+            changed++;
+        });
+    } else {
+        const moving = picked.filter(p => p.key !== toType);
+        const urls = new Set(moving.map(p => p.item.data));
+        const next = { ...(w.attachments || {}) };
+        let toList = getAttachments(w, toType);
+        const movedItems = [];
+        moving.forEach(p => {
+            const fItem = p.item;
+            const m = String(fItem.name || '').match(/\.[A-Za-z0-9]{1,5}$/);
+            const ext = m ? m[0] : extFromDataUrl(String(fItem.data || ''));
+            const name = uniqueWorkerDocName([...movedItems, ...toList], workerDocFileName('', '', '', toType, '', ext, fItem.name, toType === 'worker-receipt' && doeAmountTotal(fItem.doe) ? { receiptAmount: doeAmountTotal(fItem.doe) } : null));
+            const exp = fItem.expiryDate ? safeParseDate(fItem.expiryDate) : null;
+            movedItems.push({ ...fItem, name, manualExpired: !!(exp && exp < t0) });
+        });
+        [...new Set(moving.map(p => p.key))].forEach(k => {
+            const rest = getAttachments(w, k).filter(f => !urls.has(f.data));
+            if (rest.length) next[k] = rest; else delete next[k];
+        });
+        next[toType] = [...movedItems, ...toList];
+        w.attachments = next;
+        changed = movedItems.length;
+        // ชุดที่เลือกตามไปอยู่ในหมวดใหม่ (url เดิม)
+        fvMulti.worker = fvMulti.worker.map(s => urls.has(s.url) ? { key: toType, url: s.url } : s);
+        if (movedItems[0]) activeFolderSel = { kind: 'file', key: toType, idx: 0 };
+    }
+    if (!changed) { markFvMulti('worker'); return; }
+    renderWorkerFolderTiles();
+    const res = await callCloudAPI("saveWorker", { workerData: w });
+    if (!res || res.status === "error") {
+        w.attachments = before;
+        renderWorkerFolderTiles();
+        showToast("❌ ย้ายไฟล์ไม่สำเร็จ: " + (res && res.message ? res.message : "ยังไม่ถูกบันทึกลงคลาวด์ กรุณาลองใหม่"), "danger");
+        return;
+    }
+    saveData();
+    const label = toType === '@expired' ? '"ไฟล์ที่หมดอายุ"' : toType === '@current' ? 'เอกสารปัจจุบัน'
+        : `หมวด ${(WORKER_FOLDER_DOC_TYPES.find(t => t.key === toType) || {}).label || toType}`;
+    showToast(`📂 ย้าย ${changed} ไฟล์ไปที่ ${label} แล้ว`, "success");
 }
 
 function selectWorkerFolderPhoto() {
@@ -17614,7 +17812,10 @@ async function setWorkerPhotoFromFile(w, url) {
 // ==================== ลากไฟล์ในแฟ้มคนงานย้ายเข้า/ออกโฟลเดอร์ "ไฟล์ที่หมดอายุ" (เหมือนลากการ์ดใน Kanban) ====================
 function onWorkerFileDragStart(e, docType, idx) {
     if (!can('ops')) { e.preventDefault(); return; }
-    e.dataTransfer.setData("text/plain", JSON.stringify({ docType, idx }));
+    // ลากไฟล์ที่อยู่ในชุดที่เลือกไว้ (≥ 2) = ลากทั้งชุด
+    const url = fvFileUrlAt('worker', docType, idx);
+    const multi = fvMulti.worker.length >= 2 && fvMulti.worker.some(s => s.url === url);
+    e.dataTransfer.setData("text/plain", JSON.stringify(multi ? { multi: true } : { docType, idx }));
 }
 
 function onWorkerFileDragOver(e) {
@@ -17630,6 +17831,7 @@ function onWorkerFileDragOver(e) {
 
 async function onWorkerFileDropToExpired(e) {
     e.preventDefault();
+    if (fvDropIsMulti(e)) { fvClearFileDrag(); await fvMultiMove('worker', '@expired'); return; }
     await moveWorkerFileExpiryState(e, true);
 }
 
@@ -17642,12 +17844,18 @@ async function onWorkerFileDropToCurrent(e) {
     if (kind === 'worker-folder' && toType) {
         let payload = null;
         try { payload = JSON.parse(e.dataTransfer.getData("text/plain") || 'null'); } catch (err) { return; }
+        if (payload && payload.multi) { await fvMultiMove('worker', toType); return; }
         if (payload && payload.docType && payload.docType !== toType && typeof payload.idx === 'number') {
             await moveWorkerFileToDocType(payload.docType, payload.idx, toType);
             return;
         }
     }
+    if (fvDropIsMulti(e)) { await fvMultiMove('worker', '@current'); return; }
     await moveWorkerFileExpiryState(e, false);
+}
+
+function fvDropIsMulti(e) {
+    try { const p = JSON.parse(e.dataTransfer.getData("text/plain") || 'null'); return !!(p && p.multi); } catch (err) { return false; }
 }
 
 // ย้ายไฟล์ไปหมวดเอกสารอื่น — ไฟล์ใน Storage ไม่ต้องอัปโหลดใหม่ (ลิงก์เดิม) แค่ย้ายรายการ + ตั้งชื่อเป็นตัวย่อของหมวดใหม่
@@ -17766,7 +17974,7 @@ function updateFolderDriveButton(btnId, folderKey) {
 function openWorkerFolderModal(workerId) {
     // เรียกซ้ำหลังแนบ/เปลี่ยนชื่อ/ลบไฟล์ (แฟ้มเดิมยังเปิดอยู่) → คงไฟล์ที่เลือกและคำค้นหาไว้
     const reopening = workerId === activeFolderWorkerId && !document.getElementById("worker-folder-modal").classList.contains("hidden");
-    if (!reopening) activeFolderSel = null;
+    if (!reopening) { activeFolderSel = null; fvMultiClear('worker'); }
     activeFolderWorkerId = workerId;
     const w = workers.find(item => item.id === workerId);
     if (!w) return;
