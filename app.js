@@ -2885,193 +2885,12 @@ function cohortYearLabel(c, y) {
     return `${formatThaiDate(y.date)} — ${y.count} คน${tag}`;
 }
 
+// หน้าต่ออายุ: แท็บ ถึงรอบ / กำลังดำเนินการ / เสร็จแล้ว / ขึ้นทะเบียน วาดใน #renewal-cases-container (renderRenewalCases)
+// แท็บ "ตามวันหมดอายุ" เดิม (รายการจัดกลุ่มตามวันหมดอายุ + ตัวกรองสัญชาติ/เล่ม/กลุ่ม) ถูกเอาออก 2026-10-30 — สรุปรุ่นอยู่การ์ดแดชบอร์ด
 function renderRenewalGroups() {
     if (renewalTab === 'all') renewalTab = 'due';
     syncRenewalTabUi();
-    if (renewalTab !== 'all') { renderRenewalCases(); return; } // ถึงรอบ / กำลังดำเนินการ / เสร็จแล้ว
-    const container = document.getElementById("renewal-groups-container");
-    if (!container) return;
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const searchInput = document.getElementById("search-renewal");
-    const query = searchInput ? searchInput.value.trim().toLowerCase() : "";
-    const filterVal = id => (document.getElementById(id) || {}).value || "";
-    const natFilter = filterVal("filter-renewal-nationality");
-    const statusFilter = filterVal("filter-renewal-status");
-    const bookFilter = filterVal("filter-renewal-book");
-    const groupFilter = filterVal("filter-renewal-group");
-
-    // จัดกลุ่มจากคนงาน "ทั้งหมด" ก่อน แล้วค่อยกรองภายในกลุ่ม — ไม่งั้นค้นหาจนเหลือคนเดียวในกลุ่มมติ ครม.
-    // จะทำให้คนนั้นถูกย้ายไปอยู่กลุ่ม MOU ผิด ๆ (กลุ่มนิยามจาก "มีคนวันหมดอายุตรงกันตั้งแต่ 2 คน")
-    const relevant = workers.filter(w => w.status !== 'archived' && w.status !== 'deleted' && w.permitExpiry);
-    const matchesFilters = (w) => {
-        if (natFilter && w.nationality !== natFilter) return false;
-        if (statusFilter) {
-            const d = daysLeftOf(w);
-            const st = d === null ? '' : d < 0 ? 'expired' : d <= 60 ? 'warning' : 'normal';
-            if (st !== statusFilter) return false;
-        }
-        if (bookFilter && (bookFilter === 'has') !== hasBook(w)) return false;
-        if (!query) return true;
-        const emp = customers.find(c => c.id === w.employerId);
-        // ครอบคลุมเท่าช่องค้นหาหน้าคนงาน (renderWorkers) + ชื่อไทย/เลขอ้างอิง/เลขผู้เสียภาษีนายจ้าง
-        const hay = [w.firstName, w.lastName, `${w.firstName || ''} ${w.lastName || ''}`, w.thaiName, w.refNo, w.workerUid,
-            w.passportNo, w.permitNo, w.nationality, w.pinkCardNo, emp && emp.companyName, emp && emp.taxId]
-            .filter(Boolean).join(' | ').toLowerCase();
-        return hay.includes(query);
-    };
-    const anyFilter = !!(query || natFilter || statusFilter || bookFilter || groupFilter);
-
-    // รอบ ครม. นับตามวัน/เดือน — คนที่ต่ออายุแล้ว (ปีถัดไป) ยังอยู่กลุ่มเดิม ดู permitCohorts()
-    const { cohorts: batchGroups, cohortOf } = permitCohorts(relevant);
-    const mouWorkers = relevant.filter(w => permitExpiryKey(w) && !cohortOf(w));
-
-    function daysLeftOf(w) {
-        const d = safeParseDate(w.permitExpiry);
-        return d ? Math.ceil((d - today) / (1000 * 60 * 60 * 24)) : null;
-    }
-
-    function statusBadgeOf(daysDiff) {
-        if (daysDiff === null) return '-';
-        if (daysDiff < 0) return `<span class="badge badge-lg badge-danger">หมดอายุแล้ว</span>`;
-        if (daysDiff <= 60) return `<span class="badge badge-lg badge-warning">ใกล้หมดอายุ</span>`;
-        return `<span class="badge badge-lg badge-success">ปกติ</span>`;
-    }
-
-    function hasBook(w) {
-        return !!(w.passportNo && w.passportNo.trim());
-    }
-
-    function bookBadgeOf(w) {
-        return hasBook(w)
-            ? `<span class="badge badge-success">มีเล่ม (${w.passportNo})</span>`
-            : `<span class="badge badge-warning">ยังไม่มีเล่ม</span>`;
-    }
-
-    // วันหมดอายุเล่ม (พาสปอร์ต/CI) — สีตามเกณฑ์เดียวกับตารางคนงาน: ส้มเมื่อเหลือไม่ถึง 180 วัน, แดงเมื่อหมดแล้ว
-    function bookExpiryOf(w) {
-        const d = safeParseDate(w.passportExpiry);
-        if (!d) return '<span class="text-muted">-</span>';
-        const diff = Math.ceil((d - today) / (1000 * 60 * 60 * 24));
-        const cls = diff < 0 ? 'text-danger' : (diff <= 180 ? 'text-warning' : '');
-        return `<span class="${cls}">${formatThaiDate(d)}</span>`;
-    }
-
-    // byDate = กลุ่ม ครม.: เรียงคนที่ยังไม่ต่อ (ปีก่อน) ขึ้นก่อน แล้วค่อยตามนายจ้าง; subtitle = แยกจำนวนรายปี
-    function buildGroupPanel(title, list, { byDate = false, subtitle = '' } = {}) {
-        const expiredCount = list.filter(w => { const d = daysLeftOf(w); return d !== null && d < 0; }).length;
-        const warningCount = list.filter(w => { const d = daysLeftOf(w); return d !== null && d >= 0 && d <= 60; }).length;
-        const noBookCount = list.filter(w => !hasBook(w)).length;
-
-        const sortedList = [...list].sort((a, b) => {
-            if (byDate) {
-                const ka = permitExpiryKey(a) || '', kb = permitExpiryKey(b) || '';
-                if (ka !== kb) return ka < kb ? -1 : 1;
-            }
-            const empA = customers.find(c => c.id === a.employerId);
-            const empB = customers.find(c => c.id === b.employerId);
-            return (empA ? empA.companyName : '').localeCompare(empB ? empB.companyName : '', 'th');
-        });
-
-        const rows = sortedList.map(w => {
-            const emp = customers.find(c => c.id === w.employerId);
-            const daysDiff = daysLeftOf(w);
-            return `
-                <tr class="clickable-row" data-ctx="worker:${w.id}" ondblclick="handleRowDblClick(event) && openWorkerQuickView('${w.id}', 'renewal')" title="ดับเบิลคลิกเพื่อดูข้อมูลคนงาน • คลิกขวาเพื่อดูคำสั่ง">
-                    <td>
-                        <div><strong>${w.refNo || '-'}</strong></div>
-                        <div class="worker-id-line"><span>เลขประจำตัวคนต่างด้าว</span> <b>${w.workerUid || '-'}</b></div>
-                        <div class="worker-id-line"><span>เลขที่ใบอนุญาตทำงาน</span> <b>${w.permitNo || '-'}</b></div>
-                    </td>
-                    <td>
-                        <!-- รูป + ชื่อ แบบเดียวกับตารางหน้าข้อมูลคนงานต่างด้าว (renderWorkers) -->
-                        <div class="renewal-worker-cell">
-                            <div class="renewal-avatar"><img src="${w.photo ? escapeHtml(w.photo) : WORKER_AVATAR_PLACEHOLDER}" alt="" loading="lazy"></div>
-                            <div>
-                                <strong>${escapeHtml(workerFullName(w))}</strong>
-                                ${w.thaiName ? `<div><small class="text-muted">ชื่อไทย (บัตรชมพู): ${w.thaiName}</small></div>` : ''}
-                                <div><small class="text-muted">เพศ: ${w.gender || '-'}</small></div>
-                            </div>
-                        </div>
-                    </td>
-                    <td>${w.nationality || '-'}</td>
-                    <td>${emp ? emp.companyName : '-'}</td>
-                    <td>${formatThaiDate(w.permitExpiry)}</td>
-                    <td>${statusBadgeOf(daysDiff)}</td>
-                    <td>${bookBadgeOf(w)}</td>
-                    <td>${bookExpiryOf(w)}</td>
-                </tr>
-            `;
-        }).join('');
-
-        return `
-            <div class="dashboard-panel" style="flex: 1; margin-bottom: 20px;">
-                <div class="panel-header">
-                    <div>
-                        <h3 style="margin:0;">${title}</h3>
-                        ${subtitle ? `<small class="text-muted renewal-cohort-years">${subtitle}</small>` : ''}
-                    </div>
-                    <span style="font-size: 13px; color: #64748b;">
-                        ทั้งหมด ${list.length} คน • ${icon("warn")} ใกล้หมดอายุ ${warningCount} • ${icon("bad")} หมดอายุแล้ว ${expiredCount} • ${icon("book")} ยังไม่มีเล่ม ${noBookCount}
-                    </span>
-                </div>
-                <div class="panel-content" style="padding: 0; overflow-x: auto;">
-                    <!-- แต่ละกลุ่มเป็นตารางแยกกัน — ล็อกความกว้างคอลัมน์ (.renewal-table) ให้ทุกกลุ่มตรงกัน -->
-                    <table class="data-table renewal-table" style="box-shadow: none; border: none; border-radius: 0;">
-                        <colgroup>
-                            <col class="rc-id"><col class="rc-name"><col class="rc-nat"><col class="rc-emp">
-                            <col class="rc-exp"><col class="rc-status"><col class="rc-book"><col class="rc-bookexp">
-                        </colgroup>
-                        <thead>
-                            <tr>
-                                <th>เลขคนงาน</th><th>ชื่อ-นามสกุล</th><th>สัญชาติ</th><th>นายจ้าง</th>
-                                <th>วันหมดอายุ</th><th>สถานะ</th><th>เล่ม (พาสปอร์ต)</th><th>วันหมดอายุเล่ม</th>
-                            </tr>
-                        </thead>
-                        <tbody>${rows || `<tr><td colspan="8" style="text-align:center; padding: 16px;">ไม่มีข้อมูล</td></tr>`}</tbody>
-                    </table>
-                </div>
-            </div>
-        `;
-    }
-
-    let html = '';
-    let shownCount = 0;
-    if (groupFilter !== 'mou') {
-        batchGroups.forEach(g => {
-            const list = g.workers.filter(matchesFilters);
-            if (list.length === 0) return;
-            shownCount += list.length;
-            const subtitle = 'ใบอนุญาตหมดอายุ ' + g.years.map(y => cohortYearLabel(g, y)).join(' • ');
-            html += buildGroupPanel(g.label, list, { byDate: true, subtitle });
-        });
-    }
-    if (groupFilter !== 'batch') {
-        const list = mouWorkers.filter(matchesFilters);
-        if (list.length > 0) {
-            shownCount += list.length;
-            html += buildGroupPanel('กลุ่ม MOU', list);
-        }
-    }
-
-    const summaryEl = document.getElementById("renewal-filter-summary");
-    const clearBtn = document.getElementById("btn-clear-renewal-filters");
-    if (summaryEl) {
-        summaryEl.classList.toggle("hidden", !anyFilter);
-        summaryEl.textContent = anyFilter ? `พบ ${shownCount} คน จากทั้งหมด ${relevant.length} คน` : '';
-    }
-    if (clearBtn) clearBtn.classList.toggle("hidden", !anyFilter);
-
-    container.innerHTML = html || `<p class="text-muted" style="text-align:center; padding: 30px;">${anyFilter ? 'ไม่พบคนงานตามตัวกรองที่เลือก' : 'ไม่มีข้อมูลคนงานที่ต้องต่ออายุ'}</p>`;
-}
-
-// เติมรายชื่อนายจ้างในตัวกรองหน้าต่ออายุ (เฉพาะนายจ้างที่มีคนงานในหน้านี้) — คงค่าที่เลือกไว้
-function clearRenewalFilters() {
-    ["search-renewal", "filter-renewal-nationality", "filter-renewal-status", "filter-renewal-book", "filter-renewal-group"]
-        .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-    renderRenewalGroups();
+    renderRenewalCases();
 }
 
 // ==================== งานต่ออายุใบอนุญาตทำงาน (owner 2026-10-20) — แยกจากใบงานในระบบแจ้งงาน ====================
@@ -3120,7 +2939,6 @@ const REG_STEPS = [
 ];
 const REG_VISA_STEP = { key: 'book', label: 'ตี visa', kind: 'file', docType: 'worker-passport', hint: 'VISA' };
 const RENEWAL_DUE_DAYS = 60;
-const RENEWAL_CHECK_SVG = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>';
 let renewalList = null; // null = ยังไม่โหลด
 // แท็บ "ตามวันหมดอายุ" ('all') ถูกเอาออก (owner 2026-10-30) — ข้อมูลรุ่นย้ายไปการ์ดในแดชบอร์ด (renderRenewalCohortsPanel)
 let renewalTab = (() => { let t = 'due'; try { t = localStorage.getItem('mw_renewal_tab') || 'due'; } catch (e) { /* ไม่มีที่เก็บ */ } return t === 'all' ? 'due' : t; })();
@@ -3213,11 +3031,6 @@ function switchRenewalTab(tab) {
 }
 
 function syncRenewalTabUi() {
-    document.querySelectorAll('[data-renewal-tab]').forEach(b => {
-        b.classList.toggle('btn-gold', b.dataset.renewalTab === renewalTab);
-        b.classList.toggle('btn-outline', b.dataset.renewalTab !== renewalTab);
-    });
-    const isAll = renewalTab === 'all';
     const regCount = document.getElementById('reg-pool-count');
     if (regCount) regCount.textContent = workers.filter(regInPool).length || '';
     const isReg = renewalTab === 'pool';
@@ -3227,24 +3040,11 @@ function syncRenewalTabUi() {
         b.classList.toggle('btn-gold', on);
         b.classList.toggle('btn-outline', !on);
     });
-    // แท็บย่อยอยู่ใต้สวิตช์ ต่ออายุ | ขึ้นทะเบียน เสมอ (owner 2026-10-30: เอาแถบบนสุดออก) — ถึงรอบ / กำลังดำเนินการ / เสร็จแล้ว
-    // วาดในกล่องรายการ (renewalPanelHtml); แท็บตามวันหมดอายุวาดที่ #renewal-all-subtabs (สร้าง host ใหม่ทุกครั้ง ตัวเลื่อนจะได้ติดใหม่)
-    const allTabs = document.getElementById('renewal-all-subtabs');
-    if (allTabs && renewalTab === 'all') {
-        try {
-            renewalTabCounts = { ...renewalTabCounts, due: renewalDueWorkers().length,
-                active: (renewalList || []).filter(r => r.kind !== 'registration' && r.status === 'active' && workers.some(w => w.id === r.workerId)).length };
-        } catch (e) { /* ใช้ตัวเลขเดิม */ }
-        allTabs.innerHTML = renewalSubTabsHtml();
-        const sub = allTabs.querySelector('.rn-subtabs');
-        if (sub) { sub.classList.add('seg-host'); attachTabSlider(sub, () => sub.querySelector(':scope > .btn.btn-gold')); attachSegmentedGestures(sub); }
+    // ตัวเลขบนปุ่ม "ต่ออายุ" — ฝั่งต่ออายุ renderRenewalCases ตั้งให้เองจากรายการที่นับอยู่แล้ว (ไม่นับซ้ำทุกครั้งที่วาด)
+    if (isReg) {
+        const rnCount = document.getElementById('rn-kind-count-renewal');
+        if (rnCount) { try { rnCount.textContent = renewalDueWorkers().length || ''; } catch (e) { rnCount.textContent = ''; } }
     }
-    const rnCount = document.getElementById('rn-kind-count-renewal');
-    if (rnCount) { try { rnCount.textContent = renewalDueWorkers().length || ''; } catch (e) { rnCount.textContent = ''; } }
-    document.querySelectorAll('#view-renewals .renewal-all-only').forEach(el => el.classList.toggle('hidden', !isAll));
-    const cases = document.getElementById('renewal-cases-container');
-    if (cases) cases.classList.toggle('hidden', isAll);
-    if (!isAll) document.getElementById('renewal-filter-summary')?.classList.add('hidden');
 }
 
 const renewalDaysLeft = (iso) => {
@@ -3455,9 +3255,7 @@ function renderRenewalCases() {
     const done = list.filter(r => (r.status === 'done' || r.status === 'external') && visible(r.workerId)
         && (renewalExternalPending(r) || renewalBookExternalPending(r) || empBusy.has(r.customerId) || recent(r)));
     const setCount = (id, n) => { const el = document.getElementById(id); if (el) el.textContent = n ? n : ''; };
-    setCount('rn-count-due', due.length);
-    setCount('rn-count-active', active.length);
-    setCount('rn-count-done', done.length);
+    setCount('rn-kind-count-renewal', due.length); // ตัวเลขบนปุ่ม "ต่ออายุ" ด้านบน
     renewalTabCounts = { due: due.length, active: active.length, done: done.length };
     if (renewalList === null) {
         box.innerHTML = `<div class="dashboard-panel"><p class="text-muted rn-empty">กำลังโหลดข้อมูลรอบต่ออายุ…</p></div>`;
@@ -3625,7 +3423,6 @@ async function startRenewals(ids) {
 // กลุ่มตามนายจ้าง (เรียงจังหวัด → นายจ้าง) แถวละคน: แถบความคืบหน้า 6 ช่อง + "ขั้นที่ n/6 · รอ…" + วันนัด + ปุ่มขั้นถัดไป
 // ติ๊กหลายคน → แถบคำสั่งลอยด้านล่าง "ตรวจสุขภาพแล้ว" / "ใส่วันนัด" ทำให้ทุกคนที่เลือกที่รอขั้นนั้นอยู่ทีเดียว
 // ขั้นที่ต้องแนบไฟล์ทำทีละคนจากปุ่มในแถว
-const renewalStepDone = (r, s) => !!r.steps[s.key];
 // ขั้นถัดไปของสายต่ออายุ (สายทำเล่มแยก ดู renewalBookNext)
 const renewalNextStep = (r) => renewalMainSteps(r).find(s => !r.steps[s.key]) || (renewalHasBook(r) && !renewalSplitBook(r) && !r.steps.book && !r.steps.bookExternal ? renewalBookStepOf(r) : null);
 const renewalStagesOf = (r) => renewalSplitBook(r) ? renewalMainSteps(r) : [...renewalMainSteps(r), renewalBookStepOf(r)];

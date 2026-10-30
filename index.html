@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261030zv">
+    <link rel="stylesheet" href="styles.css?v=20261030zw">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -869,49 +869,11 @@
                             <button type="button" class="btn btn-outline rn-kind-btn" data-renewal-kind="renewal" onclick="switchRenewalKind('renewal')" title="งานต่ออายุใบอนุญาตทำงาน / ทำเล่ม">ต่ออายุ <span class="rn-count" id="rn-kind-count-renewal"></span></button>
                             <button type="button" class="btn btn-outline rn-kind-btn" data-renewal-kind="registration" onclick="switchRenewalKind('registration')" title="คนงานรอขึ้นทะเบียน และรอบ มติ ครม.">ขึ้นทะเบียน <span class="rn-count" id="reg-pool-count"></span></button>
                         </div>
-                        <!-- แท็บย่อยของแท็บ "ตามวันหมดอายุ" (renewalSubTabsHtml) — แท็บอื่นวาดแท็บย่อยในกล่องรายการเอง ไม่มีแถบบนสุดแล้ว (owner 2026-10-30) -->
-                        <div id="renewal-all-subtabs" class="renewal-all-only rn-all-subtabs"></div>
-                        <p class="text-muted renewal-all-only" style="font-size: 13px; margin-bottom: 16px;">
-                            จัดกลุ่มคนงานที่ยังทำงานอยู่ตาม "วันหมดอายุใบอนุญาตทำงาน" ที่ตรงกันเป๊ะโดยอัตโนมัติ (ตั้งชื่อกลุ่มตามวันที่นั้น)
-                            — คนงานที่วันหมดอายุไม่ตรงกับใครเลยจะถูกจัดไว้ในกลุ่ม MOU — เรียงข้อมูลในแต่ละกลุ่มตามชื่อนายจ้าง
-                        </p>
                         <div class="table-actions">
                             <div class="search-box">
                                 <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle class="fl" cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/></svg>
                                 <input type="text" id="search-renewal" placeholder="ค้นหาชื่อ-นามสกุล, เลขคนงาน, พาสปอร์ต, ชื่อนายจ้าง..." oninput="renderRenewalGroups()">
                             </div>
-                            <!-- ตัวกรองหน้าต่ออายุ/ทำเล่ม — กรองคนงาน "ภายใน" แต่ละกลุ่ม (กลุ่มยังจัดจากคนงานทั้งหมด) ดู renderRenewalGroups() -->
-                            <div class="filter-box renewal-filters renewal-all-only">
-                                <select id="filter-renewal-nationality" onchange="renderRenewalGroups()">
-                                    <option value="">ทุกสัญชาติ</option>
-                                    <option value="Myanmar">เมียนมา (Myanmar)</option>
-                                    <option value="Cambodia">กัมพูชา (Cambodia)</option>
-                                    <option value="Laos">ลาว (Laos)</option>
-                                    <option value="Vietnam">เวียดนาม (Vietnam)</option>
-                                </select>
-                                <select id="filter-renewal-status" onchange="renderRenewalGroups()">
-                                    <option value="">สถานะใบอนุญาตทั้งหมด</option>
-                                    <option value="normal">ปกติ</option>
-                                    <option value="warning">ใกล้หมดอายุ (≤ 60 วัน)</option>
-                                    <option value="expired">หมดอายุแล้ว</option>
-                                </select>
-                                <select id="filter-renewal-book" onchange="renderRenewalGroups()">
-                                    <option value="">เล่มทั้งหมด</option>
-                                    <option value="has">มีเล่มแล้ว</option>
-                                    <option value="none">ยังไม่มีเล่ม</option>
-                                </select>
-                                <select id="filter-renewal-group" onchange="renderRenewalGroups()">
-                                    <option value="">ทุกกลุ่ม</option>
-                                    <option value="batch">เฉพาะกลุ่มมติ ครม.</option>
-                                    <option value="mou">เฉพาะกลุ่ม MOU</option>
-                                </select>
-                                <button type="button" class="btn btn-outline renewal-filter-clear hidden" id="btn-clear-renewal-filters" onclick="clearRenewalFilters()">ล้างตัวกรอง</button>
-                            </div>
-                            <!-- ฐานข้อมูลรอขึ้นทะเบียน (owner 2026-10-20): ปุ่มเข้าจากแท็บแรก → renewalTab 'pool' (renderRegistrationPool) -->
-                        </div>
-                        <p class="renewal-filter-summary hidden" id="renewal-filter-summary"></p>
-                        <div id="renewal-groups-container" class="renewal-all-only">
-                            <!-- Dynamic renewal groups -->
                         </div>
                         <div id="renewal-cases-container"></div>
                     </div>
@@ -3804,6 +3766,6 @@
     </script>
 
     <!-- ตัวเปิดระบบ: หน้าล็อกอินใช้แค่ boot.js — supabase-client.js + app.js (เลข v เดียวกัน) โหลดหลังล็อกอินเท่านั้น -->
-    <script src="boot.js?v=20261030zv"></script>
+    <script src="boot.js?v=20261030zw"></script>
 </body>
 </html>

@@ -453,22 +453,6 @@ td.actions-col .btn-outline:hover {
     letter-spacing: 0.01em;
 }
 
-/* ตัวกรองหน้าคนงานต่ออายุ/ทำเล่ม — ตัวกรองหลายตัว ให้ขึ้นบรรทัดใหม่ได้เมื่อจอแคบ */
-.renewal-filters {
-    flex-wrap: wrap;
-}
-
-.renewal-filter-clear {
-    white-space: nowrap;
-}
-
-.renewal-filter-summary {
-    margin: -6px 0 14px;
-    font-size: 13.5px;
-    font-weight: 600;
-    color: var(--gold-primary);
-}
-
 /* ป้าย "รอแจ้งเข้า" ใต้บรรทัดเพศ ในช่องชื่อคนงาน (ตารางคนงาน) */
 .worker-notify-badge {
     margin-top: 4px;
@@ -1534,7 +1518,7 @@ label.user-avatar:hover { box-shadow: 0 0 0 3px rgba(45, 79, 163, 0.18); }
 }
 .table-actions > .btn-add,
 .table-actions > .action-buttons-group,
-.table-actions > .btn:last-child:not(.renewal-filter-clear) { margin-left: auto; }
+.table-actions > .btn:last-child { margin-left: auto; }
 
 /* กลุ่มปุ่มบนแถบเครื่องมือ — ปุ่มไม่ตัดคำแล้ว จอแคบให้ปุ่มขึ้นแถวใหม่แทนการล้นจอ */
 .action-buttons-group {
@@ -6884,7 +6868,6 @@ body.has-camera .upload-hint { display: none; }
 .slip-qr-none { color: var(--dk-muted, #64748b); background-color: var(--dk-subtle, #f1f5f9); }
 
 /* งานต่ออายุ (renderRenewalCases, owner 2026-10-20): แท็บ ถึงรอบ / กำลังทำ / เสร็จแล้ว + จุดขั้นตอน */
-.rn-all-subtabs { margin-bottom: 14px; }
 /* สวิตช์ ต่ออายุ | ขึ้นทะเบียน = แท็บกลุ่มมาตรฐาน (.dashboard-tabs + ตัวเลื่อน) แค่ใหญ่กว่าแท็บย่อย */
 .rn-kind-switch { margin-bottom: 14px; }
 .rn-kind-switch .rn-kind-btn { min-width: 150px; font-size: 15px; font-weight: 600; }
@@ -7064,7 +7047,6 @@ body.has-camera .upload-hint { display: none; }
 }
 
 /* ฐานข้อมูลรอขึ้นทะเบียน (owner 2026-10-20) */
-.reg-crumb { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 14px 20px 0; font-size: 13.5px; }
 .reg-views { margin: 0 !important; }
 .reg-row {
     display: grid;
