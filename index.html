@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261030zr">
+    <link rel="stylesheet" href="styles.css?v=20261030zs">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -369,6 +369,15 @@
                                     </div>
                                     <div class="panel-content">
                                         <div id="db-job-status-chart" class="dash-pie"></div>
+                                    </div>
+                                </div>
+                                <!-- รุ่นต่ออายุที่จะมาถึง (owner 2026-10-30) — ตัวเลขสรุปต่อรุ่น ไม่แสดงรายคน ดู renderRenewalCohortsPanel() -->
+                                <div class="dashboard-panel panel-renewal-cohorts needs-ops">
+                                    <div class="panel-header">
+                                        <h3>รุ่นต่ออายุที่จะมาถึง</h3>
+                                    </div>
+                                    <div class="panel-content">
+                                        <div id="db-renewal-cohorts" class="drc-list"></div>
                                     </div>
                                 </div>
                             </div>
@@ -3795,6 +3804,6 @@
     </script>
 
     <!-- ตัวเปิดระบบ: หน้าล็อกอินใช้แค่ boot.js — supabase-client.js + app.js (เลข v เดียวกัน) โหลดหลังล็อกอินเท่านั้น -->
-    <script src="boot.js?v=20261030zr"></script>
+    <script src="boot.js?v=20261030zs"></script>
 </body>
 </html>

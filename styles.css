@@ -8831,3 +8831,32 @@ button.jq-worker:hover { background-color: var(--gold-light); }
 /* ตรวจเลข 13 หลักไทย (thaiIdChecksumOk / refreshThaiIdHint, owner 2026-10-29) */
 input.is-id-bad { border-color: var(--danger) !important; box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 18%, transparent) !important; }
 .thai-id-hint { display: block; margin-top: 4px; font-size: 12.5px; color: var(--danger); }
+
+/* ==================== แดชบอร์ด: รุ่นต่ออายุที่จะมาถึง (renderRenewalCohortsPanel, owner 2026-10-30) ==================== */
+.drc-list { display: flex; flex-direction: column; gap: 6px; }
+.drc-row { display: grid; grid-template-columns: minmax(150px, 200px) minmax(120px, 1fr) minmax(170px, auto) auto; align-items: center; gap: 14px;
+    width: 100%; padding: 10px 12px; border: 0; border-radius: 14px; background: transparent; color: var(--text-dark); font: inherit; text-align: left; cursor: pointer; }
+.drc-row:hover { background-color: var(--dk-subtle, #f1f4f8); }
+.drc-date b { display: block; font-size: 15px; }
+.drc-date small { color: var(--text-muted); font-size: 13px; }
+.drc-bar { position: relative; height: 10px; border-radius: 999px; background-color: var(--dk-line, #e6e9ef); overflow: hidden; }
+.drc-bar i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px; }
+.drc-bar-start { background-color: color-mix(in srgb, var(--gold-primary) 40%, transparent); }
+.drc-bar-done { background-color: var(--gold-primary); }
+.drc-nums { font-size: 13.5px; color: var(--text-muted); white-space: nowrap; }
+.drc-tag { justify-self: end; padding: 3px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 600; white-space: nowrap;
+    background-color: var(--dk-subtle, #eef1f6); color: var(--text-muted); }
+.drc-tag.is-run { background-color: color-mix(in srgb, var(--gold-primary) 16%, transparent); color: var(--gold-primary); }
+.drc-tag.is-due { background-color: var(--dk-warn-bg, #fff4e0); color: var(--dk-warn, #b45309); }
+.drc-tag.is-ok { background-color: var(--dk-ok-bg, #e7f6ec); color: var(--dk-ok, #1f7a45); }
+.drc-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; margin-top: 8px; padding: 10px 12px 2px; border-top: 1px solid var(--dk-line, #e6e9ef); font-size: 13.5px; color: var(--text-muted); }
+.drc-link { margin-left: auto; border: 0; background: transparent; color: var(--gold-primary); font: inherit; cursor: pointer; padding: 0; }
+.drc-link:hover { text-decoration: underline; }
+/* ครึ่งจอ / จอแคบ: วันที่ + ป้ายบรรทัดบน, แถบ + ตัวเลขบรรทัดล่าง */
+@media (max-width: 1100px) {
+    .drc-row { grid-template-columns: 1fr auto; row-gap: 6px; }
+    .drc-bar { grid-column: 1 / -1; grid-row: 2; }
+    .drc-nums { grid-column: 1 / -1; grid-row: 3; white-space: normal; }
+    .drc-tag { grid-column: 2; grid-row: 1; }
+    .drc-link { margin-left: 0; }
+}

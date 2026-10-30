@@ -794,3 +794,10 @@ dropdown `renewalCohortSelectHtml` → list → floating bar); the top `.renewal
 Duplicates removed: ถึงรอบ has no per-row "เริ่มต่ออายุ" and no toolbar start buttons — ticking shows the dark floating bar
 (เริ่มต่ออายุ N / ต่อที่อื่น N / ล้าง); the ring step list no longer has a "next step" button on the main track (the row has it;
 book / visa tracks keep theirs). Cohort chips became a dropdown in the same row (chips kept only on the billing page).
+Then (owner 2026-10-30) the ตามวันหมดอายุ tab was removed (`'all'` is coerced to `'due'`; the old static markup / filters in
+`#view-renewals .renewal-all-only` stay hidden): its planning info moved to a dashboard card "รุ่นต่ออายุที่จะมาถึง"
+(`panel-renewal-cohorts`, `needs-ops`, widget id `panel-renewal-cohorts` xl) — numbers only, no worker lists (owner):
+`renewalCohortStats` = per old-expiry date with ≥ 2 workers expiring within 6 months or with active rounds: total, employers,
+started / done, ต้องทำเล่ม; tag กำลังต่อ / ถึงรอบแล้ว / เปิดรับประมาณ <expiry − 60 days> / ต่อครบแล้ว; foot line = single-date
+(MOU) count + registration pool / open rounds. Clicking a row → `openRenewalCohort` (sets `renewalCohort`, opens ถึงรอบ or
+กำลังดำเนินการ).
