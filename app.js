@@ -17903,7 +17903,7 @@ const EXPIRY_TRACKED_WORKER_DOC_TYPES = ['worker-wp-doc', 'worker-passport'];
 //   - ใบอนุญาตทำงาน/พาสปอร์ต (ปกติมีวันหมดอายุ แต่ AI อ่านไม่ได้ เช่น Gemini ไม่ว่าง หรือเป็นหน้า 2-3 ของเอกสารชุดเดียวกัน)
 //     ถือว่ายังใช้ได้ เว้นแต่มีไฟล์ประเภทเดียวกันที่แนบทีหลังและรู้วันหมดอายุแน่ชัดมาแทนแล้ว — เดิมใช้ลำดับอัปโหลดล้วน ๆ
 //     ทำให้ไฟล์ที่เพิ่งแนบ (แต่ไม่ใช่ไฟล์สุดท้าย) ตกไปอยู่ "หมดอายุ" ทั้งที่ยังไม่หมด
-//   - เอกสารประเภทที่ไม่มีวันหมดอายุพิมพ์อยู่ ให้ตัดสินจากลำดับอัปโหลดแทน (ไฟล์ล่าสุดของประเภทนั้น = ปัจจุบัน)
+//   - เอกสารประเภทที่ไม่มีวันหมดอายุพิมพ์อยู่ ให้ตัดสินจากเวลาแนบ (ชุดล่าสุดของประเภทนั้น = ปัจจุบัน, ชุด = แนบห่างกันไม่เกิน 24 ชม.)
 function isWorkerDocFileExpired(fItem, fIdx, list, docType) {
     if (fItem && fItem.manualExpired === true) return true;
     // ถึงวันหมดอายุของไฟล์เอง = หมดอายุเสมอ (owner 2026-10-30) — manualExpired: false (ย้ายหมวด / ลากกลับ) กันแค่กติกาตามลำดับไฟล์
@@ -17920,11 +17920,24 @@ function isWorkerDocFileExpired(fItem, fIdx, list, docType) {
     if (fItem && fItem.manualExpired === false) return false;
     // ใบเสร็จรับเงินเป็นหลักฐานการจ่ายเงิน ไม่มีวันหมดอายุจริงและยังใช้อ้างอิงได้เสมอ ต่อให้มีหลายใบสะสมไว้
     // (ไม่งั้นถ้าอัปโหลดซ้ำ/มีหลายใบจากคนละรอบต่ออายุ ใบเก่าจะโดนจัดเป็น "หมดอายุ" ไปเองตามลำดับอัปโหลดทั้งที่ไม่ควร)
-    if (docType === 'worker-receipt') return false;
-    if (EXPIRY_TRACKED_WORKER_DOC_TYPES.includes(docType)) {
-        return list.slice(fIdx + 1).some(f => f && f.expiryDate && f.manualExpired !== true);
-    }
-    return fIdx < list.length - 1;
+    if (docType === 'worker-receipt' || docType === 'worker-other') return false; // เอกสารอื่นๆ = หลายเรื่องปนกัน ไม่มีใบไหนแทนใบไหน
+    // ไฟล์ไม่มีวันหมดอายุ: หมดอายุเมื่อมี "ชุดใหม่กว่า" ในช่องเดียวกัน = ไฟล์ที่แนบทีหลังเกิน 24 ชม. (owner 2026-10-30)
+    // ไฟล์ที่แนบในชุดเดียวกัน (หน้า–หลัง WP_F/WP_B, PinkCard + PinkCard_2) อยู่ปัจจุบันด้วยกัน — เดิมไฟล์ไหนมีไฟล์ตามหลัง
+    // ก็พับหมด (หน้าบัตรตกไป "หมดอายุ") ; ช่องใบอนุญาต/เล่ม นับเฉพาะชุดใหม่ที่มีวันหมดอายุ (มาแทนจริง)
+    const t = workerDocUploadTime(fItem);
+    const newer = list.filter((f, i) => f && f !== fItem && f.manualExpired !== true && (t !== null && workerDocUploadTime(f) !== null
+        ? workerDocUploadTime(f) - t > WORKER_DOC_BATCH_MS : i > fIdx));
+    if (EXPIRY_TRACKED_WORKER_DOC_TYPES.includes(docType)) return newer.some(f => f.expiryDate);
+    return newer.length > 0;
+}
+
+// เวลาแนบไฟล์: uploadedAt หรือเลข ms หน้าชื่อไฟล์ใน Storage (<เวลา>_<ชื่อ>) — ไม่รู้ = null (ใช้ลำดับในรายการแทน)
+const WORKER_DOC_BATCH_MS = 24 * 3600 * 1000;
+function workerDocUploadTime(f) {
+    const at = f && f.uploadedAt ? Date.parse(f.uploadedAt) : NaN;
+    if (!isNaN(at)) return at;
+    const m = String((f && f.data) || '').match(/\/(\d{13})_[^/]*$/);
+    return m ? Number(m[1]) : null;
 }
 
 // แนบไฟล์ 1 ไฟล์เข้าแฟ้มคนงาน 1 คน (upload + OCR + อัปเดตข้อมูล) — ใช้ร่วมกันทั้งอัปโหลดทีละไฟล์ และ bulk import
