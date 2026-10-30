@@ -683,7 +683,7 @@ files = `NTID_F` + `NTID_B`). "สร้างรอบ มติ ครม." ta
 workers are ticked in the "รอขึ้นทะเบียน" sub-tab and put in a round from the floating bar (`regAddSelectedToRound`);
 completeness chips via `regChecks` (attached old pink card / passport = green ✓ chips; an expired old passport counts as NO
 passport — `regPassportExpired`: worker / file expiry passed, or every passport file folded into "expired" — so the round
-makes a new book instead of "ตี visa"; the file stays as info, chip "เล่มเก่าหมดอายุ"; unknown expiry still counts; owner 2026-10-30). Employers submit/edit their own pool workers in the portal tab
+makes a new book instead of "ตี visa"; the file stays as info, chip "เล่มเก่าหมดอายุ"; unknown expiry still counts; no pink card file = grey "– บัตรชมพู" chip, not counted as missing; owner 2026-10-30). Employers submit/edit their own pool workers in the portal tab
 "ขึ้นทะเบียน" through RPC `client_save_pending_worker` (they can't write `workers` directly; files upload to Storage first);
 `submitted_by_client` shows a purple tag. Migration `20261020092027_registration_pool.sql`.
 Storage writes for clients (owner 2026-10-28, migration `20261028090000_storage_client_write_registration_only.sql`): a client

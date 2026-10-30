@@ -4456,6 +4456,8 @@ function regChipsHtml(w) {
     const { checks, extras, expiredBook } = regChecks(w);
     return checks.map(c => `<span class="reg-chip ${c.ok ? 'is-ok' : 'is-miss'}">${c.ok ? '✓' : '✗'} ${escapeHtml(c.label)}</span>`).join('')
         + extras.map(x => `<span class="reg-chip is-ok" title="แนบมาแล้ว (ไม่บังคับ)">✓ ${escapeHtml(x)}</span>`).join('') // เอกสารเสริมที่แนบมาแล้ว ติ๊กถูกเหมือนช่องบังคับ (owner 2026-10-30)
+        // ยังไม่มีบัตรชมพู = ช่องสีเทา ให้เห็นว่ายังไม่ได้แนบ แต่ไม่นับว่าข้อมูลขาด (owner 2026-10-30)
+        + (extras.includes('บัตรชมพูเก่า') ? '' : `<span class="reg-chip" title="ยังไม่ได้แนบบัตรชมพูเก่า (ไม่บังคับ)">– บัตรชมพู</span>`)
         + (expiredBook ? `<span class="reg-chip" title="นับว่าไม่มีเล่ม (ทำเล่มใหม่) — ไฟล์เก็บไว้เป็นข้อมูล">เล่มเก่าหมดอายุ</span>` : '');
 }
 
