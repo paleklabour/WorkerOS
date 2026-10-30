@@ -799,3 +799,8 @@ Then (owner 2026-10-30) the ตามวันหมดอายุ tab was remo
 started / done (bars are `.bar-fill` so they grow like other charts), ต้องทำเล่ม; tag กำลังต่อ / ถึงรอบแล้ว / เปิดรับประมาณ <expiry − 60 days> / ต่อครบแล้ว; foot line = single-date
 (MOU) count + registration pool / open rounds. Clicking a row → `openRenewalCohort` (sets `renewalCohort`, opens ถึงรอบ or
 กำลังดำเนินการ).
+Cleanup 2026-10-30 (owner: system felt a bit sluggish, remove unused code): the ตามวันหมดอายุ list code is gone —
+`renderRenewalGroups` is now just `syncRenewalTabUi` + `renderRenewalCases`; the static filters (สัญชาติ / สถานะ / เล่ม / กลุ่ม),
+`#renewal-groups-container`, `clearRenewalFilters` and their CSS were deleted (the search box `#search-renewal` stays). The
+"ต่ออายุ" count is set from the list `renderRenewalCases` already counted (no second `renewalDueWorkers()` per render).
+`permitCohorts` / `cohortYearLabel` stay — the workers page "กลุ่ม" filter uses them.
