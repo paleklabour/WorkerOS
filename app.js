@@ -7770,6 +7770,34 @@ async function fileSelectHandler(e, docType) {
 }
 
 let tempWorkerAttachments = {};
+// ไฟล์ของคนงานตอนเปิดฟอร์มแก้ไข (หรือตอนซิงก์กับแฟ้มครั้งล่าสุด) — ใช้แยกว่าในฟอร์มแนบเพิ่ม/เอาออกอะไรไปแล้วบ้าง
+let workerFormAttachBase = null;
+
+// แฟ้มเอกสารเปลี่ยนไฟล์ของคนงาน (ย้ายหมวด / ลบ / หมดอายุ / แก้รูป) ขณะที่ฟอร์มแก้ไขคนงานคนเดียวกันเปิดค้างอยู่ (owner 2026-10-30):
+// ฟอร์มเคยถือสำเนาตอนเปิด → ไฟล์ยังอยู่ที่เดิม และกด "บันทึกข้อมูล" แล้วย้อนการย้ายกลับ
+// ซิงก์ = ไฟล์ตามแฟ้มล่าสุด + ไฟล์ที่เพิ่งแนบในฟอร์ม (ยังไม่บันทึก) − ไฟล์เดิมที่กดเอาออกในฟอร์ม
+function syncWorkerFormAttachments(w) {
+    const modal = document.getElementById("worker-modal");
+    const editId = (document.getElementById("worker-edit-id") || {}).value;
+    if (!w || !modal || modal.classList.contains("hidden") || editId !== w.id || !workerFormAttachBase) return;
+    const urlsOf = obj => new Set(Object.values(obj || {}).flat().map(f => f && f.data).filter(Boolean));
+    const baseUrls = urlsOf(workerFormAttachBase);
+    const formUrls = urlsOf(tempWorkerAttachments);
+    const removedInForm = new Set([...baseUrls].filter(u => !formUrls.has(u)));
+    const fresh = {};
+    Object.keys(w.attachments || {}).forEach(key => {
+        const list = getAttachments(w, key).filter(f => !(f && removedInForm.has(f.data)));
+        if (list.length) fresh[key] = JSON.parse(JSON.stringify(list));
+    });
+    const freshUrls = urlsOf(fresh);
+    Object.entries(tempWorkerAttachments).forEach(([key, list]) => {
+        const staged = (list || []).filter(f => f && f.data && !baseUrls.has(f.data) && !freshUrls.has(f.data));
+        if (staged.length) fresh[key] = [...(fresh[key] || []), ...staged];
+    });
+    tempWorkerAttachments = fresh;
+    workerFormAttachBase = JSON.parse(JSON.stringify(Object.fromEntries(Object.keys(w.attachments || {}).map(k => [k, getAttachments(w, k)]))));
+    ['worker-wp-doc', 'worker-passport', 'worker-myanmar-id', 'worker-pink-card', 'worker-receipt', 'worker-other', 'worker-medical', 'worker-insurance-doc'].forEach(renderWorkerAttachmentStatus);
+}
 let tempCustomerAttachments = {}; // ไฟล์แนบของนายจ้างที่ยังไม่ได้อัปโหลด รอจนกว่าจะบันทึกลูกค้า/นายจ้างสำเร็จก่อน (มี id + โฟลเดอร์ Drive จริง)
 let tempExpenseAttachment = null; // สลิป/ใบเสร็จของรายจ่ายที่กำลังกรอกอยู่ — { name, data(url) } หรือ null
 let tempJobAppointmentDocUrl = null; // ไฟล์ใบนัดหมายของใบงานที่กำลังแก้ไขอยู่ (ช่องเดียว แนบใหม่แทนที่ของเดิม) — string url หรือ null
@@ -9710,6 +9738,7 @@ function openWorkerModal(id = null) {
                 tempWorkerAttachments[key] = getAttachments(w, key);
             }
         });
+        workerFormAttachBase = JSON.parse(JSON.stringify(tempWorkerAttachments));
 
         // Display existing attachments status visually in the modal (พร้อมปุ่มลบไฟล์ที่แนบผิดออกทีละไฟล์)
         ['worker-wp-doc', 'worker-passport', 'worker-myanmar-id', 'worker-pink-card', 'worker-receipt', 'worker-other', 'worker-medical', 'worker-insurance-doc'].forEach(key => {
@@ -9781,6 +9810,7 @@ function openWorkerModal(id = null) {
         
         // Reset temp store for new worker
         tempWorkerAttachments = {};
+        workerFormAttachBase = null;
 
         // Reset photo preview
         photoPreview.src = "";
@@ -17356,6 +17386,7 @@ document.addEventListener('drop', async e => {
 function renderWorkerFolderTiles() {
     const w = workers.find(item => item.id === activeFolderWorkerId);
     if (!w) return;
+    syncWorkerFormAttachments(w); // ฟอร์มแก้ไขคนงานคนเดียวกันเปิดค้างอยู่ข้างหลัง → ให้เห็นไฟล์ตามแฟ้ม
     const searchInput = document.getElementById("search-worker-folder");
     const query = searchInput ? searchInput.value.trim().toLowerCase() : "";
     const canAdd = can('ops');
