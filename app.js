@@ -3666,6 +3666,7 @@ function renewalActiveRowHtml(r, canEdit) {
         <div class="rn-actions">
             <div class="rn-next-stack">
             ${canEdit && next ? `<button type="button" class="btn btn-sm btn-soft rn-next-btn" onclick="renewalStepClick('${r.id}', '${next.key}')" title="${escapeHtml(renewalNextLabel(r))}">${escapeHtml(renewalNextLabel(r))}</button>` : ''}
+            ${can('admin') && r.status === 'active' ? `<button type="button" class="btn btn-sm btn-outline" onclick="adminCloseRenewal('${r.id}')" title="ปิดรอบนี้ทันที ข้ามขั้นตอนที่เหลือ (Admin)">ปิดงาน</button>` : ''}
             </div>
         </div>
     </div>`;
@@ -3772,7 +3773,9 @@ function renewalDoneHtml(list) {
         const ext = r.status === 'external';
         const extPending = renewalExternalPending(r);
         const bookPending = renewalBookExternalPending(r);
-        const tag = ext ? `<span class="rn-ext-tag">ต่อที่อื่น${r.externalByClient ? ' · ลูกค้าแจ้ง' : ''}</span>` : '<span class="rn-done-tag">เราต่อให้</span>';
+        const tag = ext ? `<span class="rn-ext-tag">ต่อที่อื่น${r.externalByClient ? ' · ลูกค้าแจ้ง' : ''}</span>`
+            : r.steps.forceClosed ? `<span class="rn-ext-tag" title="ปิดโดย ${escapeHtml(getUserNameById(r.steps.forceClosed.by) || 'Admin')} ข้ามขั้นตอนที่เหลือ">Admin ปิดงาน</span>`
+            : '<span class="rn-done-tag">เราต่อให้</span>';
         const book = !r.withBook ? '-' : r.steps.book ? (r.steps.bookExternal ? 'ทำที่อื่น · มีข้อมูลแล้ว' : 'ทำเล่มแล้ว') : r.steps.bookExternal ? 'ทำเล่มที่อื่น · รอข้อมูล' : '-';
         const note = [r.note, r.clientNote].filter(Boolean).join(' · ');
         return `<tr class="clickable-row" data-ctx="worker:${w.id}" ondblclick="handleRowDblClick(event) && openWorkerQuickView('${w.id}', 'renewal')" title="ดับเบิลคลิกเพื่อดูข้อมูลคนงาน">
@@ -3874,7 +3877,7 @@ async function reopenRenewal(id) {
         title: 'ย้อนกลับไปดำเนินการ', okText: 'ย้อนกลับ', danger: false
     });
     if (!ok) return;
-    const steps = { ...r.steps }; delete steps[closeKey];
+    const steps = { ...r.steps }; delete steps[closeKey]; delete steps.forceClosed;
     Object.assign(r, { status: 'active', doneAt: null, steps });
     if (!(await saveRenewalRow(r))) return;
     for (const j of renewalJobsOf(r)) {
@@ -3884,6 +3887,29 @@ async function reopenRenewal(id) {
     }
     saveData();
     showToast(`ย้อน ${workerFullName(w)} กลับไปกำลังดำเนินการแล้ว`, "success");
+    renderRenewalCases();
+    renderWorkers();
+}
+
+// Admin ปิดรอบทันที ข้ามขั้นตอนที่เหลือ (owner 2026-10-30): steps.forceClosed = ใคร/เมื่อไร, ใบงานเก็บเงินเบื้องหลังปิดตาม
+// (saveRenewalRow → closeRenewalJobs; บิล/การรับเงินไม่เปลี่ยน, รอบที่ยังไม่ออกบิลยังออกบิลได้), ขึ้นทะเบียน → คนงานเป็น "ปกติ"
+// วันหมดอายุใบอนุญาตใหม่ = ค่าที่คนงานมีอยู่ตอนนี้ — ย้อนกลับได้ด้วย "ย้อนกลับไปดำเนินการ" (reopenRenewal ลบ forceClosed)
+async function adminCloseRenewal(id) {
+    const r = (renewalList || []).find(x => x.id === id);
+    const w = r && workers.find(x => x.id === r.workerId);
+    if (!r || !w || r.status !== 'active' || !can('admin')) return;
+    const left = renewalAllStepsOf(r).filter(s => !r.steps[s.key] && !s.optional).map(s => s.label).filter(Boolean);
+    const ok = await uiConfirm(`ปิดรอบ${r.kind === 'registration' ? 'ขึ้นทะเบียน' : 'ต่ออายุ'}ของ ${workerFullName(w)} เลย โดยข้ามขั้นตอนที่เหลือ?`
+        + (left.length ? `\nขั้นที่ยังไม่ได้ทำ: ${left.join(', ')}` : '')
+        + `\nใบงานเก็บเงินของรอบนี้จะปิดตาม (บิลไม่เปลี่ยน) — ย้อนกลับได้จากแท็บ "เสร็จแล้ว"`, {
+        title: 'ปิดงานต่ออายุ', okText: 'ปิดงาน', danger: true, card: dialogCardForWorker(w)
+    });
+    if (!ok) return;
+    r.steps = { ...r.steps, forceClosed: { at: localDateISO(new Date()), by: currentUser.id } };
+    Object.assign(r, { status: 'done', doneAt: new Date().toISOString(), newPermitExpiry: permitExpiryKey(w) || r.newPermitExpiry });
+    renewalSel.delete(r.id);
+    if (!(await saveRenewalRow(r))) return;
+    showToast(`ปิดรอบของ ${workerFullName(w)} แล้ว`, "success");
     renderRenewalCases();
     renderWorkers();
 }

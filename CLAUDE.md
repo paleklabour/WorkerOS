@@ -652,6 +652,10 @@ Visa ที่อื่น (`renewalBookPick` values `book|visa|ext`, `renewalBo
 from `client_start_renewals`); Visa ที่อื่น = `steps.visaExternal` via `markBookExternal` (deletes the unbilled visa item), undo from
 the ring ("ตีเองแทน"). The round closes on card + visa (`renewalBookTrackDone`). Visa files uploaded before the round started
 aren't offered as "ใช้ไฟล์ที่มีอยู่".
+Admin "ปิดงาน" (owner 2026-10-30): button on each กำลังดำเนินการ row (renewal + registration, `can('admin')` only) →
+`adminCloseRenewal` closes the round at once, skipping the remaining steps (`steps.forceClosed` = at/by; done-tab tag
+"Admin ปิดงาน"); billing jobs close via `saveRenewalRow` (bills untouched, unbilled ones still billable), new expiry = the worker's
+current one; "ย้อนกลับไปดำเนินการ" removes `forceClosed`.
 Still to build: old→new worker-data preview, deposit shortcut in the start dialog, bell/calendar for appointments, client portal renewal progress.
 
 ## Registration pool — รอขึ้นทะเบียน (owner, 2026-10-20)
