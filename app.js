@@ -3192,7 +3192,12 @@ function syncRenewalTabUi() {
     const regCount = document.getElementById('reg-pool-count');
     if (regCount) regCount.textContent = workers.filter(regInPool).length || '';
     const isReg = renewalTab === 'pool';
-    document.querySelectorAll('[data-renewal-kind]').forEach(b => b.classList.toggle('is-on', (b.dataset.renewalKind === 'registration') === isReg));
+    // สวิตช์ใช้หน้าตาแท็บกลุ่มเดียวกับหน้าอื่น (.dashboard-tabs + btn-gold = ตัวเลื่อนวิ่งไปหาปุ่มที่เลือก) — owner 2026-10-30
+    document.querySelectorAll('[data-renewal-kind]').forEach(b => {
+        const on = (b.dataset.renewalKind === 'registration') === isReg;
+        b.classList.toggle('btn-gold', on);
+        b.classList.toggle('btn-outline', !on);
+    });
     // แท็บย่อยอยู่ใต้สวิตช์ ต่ออายุ | ขึ้นทะเบียน เสมอ (owner 2026-10-30: เอาแถบบนสุดออก) — ถึงรอบ / กำลังดำเนินการ / เสร็จแล้ว
     // วาดในกล่องรายการ (renewalPanelHtml); แท็บตามวันหมดอายุวาดที่ #renewal-all-subtabs (สร้าง host ใหม่ทุกครั้ง ตัวเลื่อนจะได้ติดใหม่)
     const allTabs = document.getElementById('renewal-all-subtabs');
@@ -24396,7 +24401,7 @@ function renderRenewalCohortsPanel() {
             : `<span class="drc-tag">เปิดรับประมาณ ${formatThaiDate(openOn)}</span>`;
         return `<button type="button" class="drc-row" onclick="openRenewalCohort('${s.date}', ${s.hasActive ? 'true' : 'false'})" title="เปิดหน้าต่ออายุ เฉพาะรุ่นหมด ${formatThaiDate(s.date)}">
             <span class="drc-date"><b>หมด ${formatThaiDate(s.date)}</b><small>${s.total} คน · ${s.emps} นายจ้าง</small></span>
-            <span class="drc-bar" aria-hidden="true"><i class="drc-bar-start" style="width:${pctStart}%"></i><i class="drc-bar-done" style="width:${pctDone}%"></i></span>
+            <span class="drc-bar" aria-hidden="true"><i class="bar-fill drc-bar-start" style="width:${pctStart}%"></i><i class="bar-fill drc-bar-done" style="width:${pctDone}%"></i></span>
             <span class="drc-nums">เริ่มแล้ว ${s.started + s.done} · เสร็จ ${s.done}${s.needBook ? ` · ต้องทำเล่ม ${s.needBook}` : ''}</span>
             ${state}
         </button>`;

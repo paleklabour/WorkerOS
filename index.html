@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261030zt">
+    <link rel="stylesheet" href="styles.css?v=20261030zu">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -865,9 +865,9 @@
                         <!-- งานต่ออายุ (owner 2026-10-20): ถึงรอบ / กำลังดำเนินการ / เสร็จแล้ว = ตาราง renewals (renderRenewalCases),
                              "ทั้งหมด (ตามกลุ่ม)" = รายการเดิมจัดกลุ่มตามวันหมดอายุ (renderRenewalGroups) -->
                         <!-- สวิตช์ใหญ่ ต่ออายุ | ขึ้นทะเบียน (owner 2026-10-30, แบบ A) — ขึ้นทะเบียน = renewalTab 'pool' (renderRegistrationPool) -->
-                        <div class="rn-kind-switch" role="tablist">
-                            <button type="button" class="rn-kind-btn" data-renewal-kind="renewal" onclick="switchRenewalKind('renewal')" title="งานต่ออายุใบอนุญาตทำงาน / ทำเล่ม">ต่ออายุ <span class="rn-count" id="rn-kind-count-renewal"></span></button>
-                            <button type="button" class="rn-kind-btn" data-renewal-kind="registration" onclick="switchRenewalKind('registration')" title="คนงานรอขึ้นทะเบียน และรอบ มติ ครม.">ขึ้นทะเบียน <span class="rn-count" id="reg-pool-count"></span></button>
+                        <div class="dashboard-tabs rn-kind-switch" role="tablist">
+                            <button type="button" class="btn btn-outline rn-kind-btn" data-renewal-kind="renewal" onclick="switchRenewalKind('renewal')" title="งานต่ออายุใบอนุญาตทำงาน / ทำเล่ม">ต่ออายุ <span class="rn-count" id="rn-kind-count-renewal"></span></button>
+                            <button type="button" class="btn btn-outline rn-kind-btn" data-renewal-kind="registration" onclick="switchRenewalKind('registration')" title="คนงานรอขึ้นทะเบียน และรอบ มติ ครม.">ขึ้นทะเบียน <span class="rn-count" id="reg-pool-count"></span></button>
                         </div>
                         <!-- แท็บย่อยของแท็บ "ตามวันหมดอายุ" (renewalSubTabsHtml) — แท็บอื่นวาดแท็บย่อยในกล่องรายการเอง ไม่มีแถบบนสุดแล้ว (owner 2026-10-30) -->
                         <div id="renewal-all-subtabs" class="renewal-all-only rn-all-subtabs"></div>
@@ -3794,7 +3794,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261030zt"></script>
+    <script src="supabase-client.js?v=20261030zu"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3805,6 +3805,6 @@
     </script>
 
     <!-- Application Script -->
-    <script src="app.js?v=20261030zt"></script>
+    <script src="app.js?v=20261030zu"></script>
 </body>
 </html>
