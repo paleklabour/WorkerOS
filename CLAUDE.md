@@ -426,6 +426,19 @@ The UI follows iOS (owner's request): SF Pro/Sukhumvit fonts, light theme
 with a sliding thumb (`attachTabSlider`), every `<select>` opens an iOS menu on
 mouse devices (`openIosSelect` — the native `<select>` still holds the value),
 charts animate via `setupChartMagicMove` ("magic move": every pie/bar regrows from 0 each time it comes into view — tab/page switch or scroll — and flows old→new on re-render; owner 2026-10-13). Keep new UI consistent with that.
+**Effects rule for every new page / panel / tab group (owner 2026-10-30, after the renewal tabs looked wrong):** reuse the
+existing effects, never invent new ones or leave them out —
+- A tab group is `.dashboard-tabs` with `.btn` buttons, active = `btn-gold`, others `btn-outline` (gets the sliding thumb from
+  `attachTabSlider`). Never a home-made switch with its own `is-on` / background (the first "ต่ออายุ | ขึ้นทะเบียน" switch was).
+- A tab group that sits INSIDE content redrawn with innerHTML: add `seg-host` + `attachTabSlider` + `attachSegmentedGestures` after
+  each render, and on click slide the thumb first — set btn-gold / btn-outline on the clicked button, wait 240 ms, then redraw —
+  with no fade of the panel (reference: `regSwitchView`; `switchRenewalTab` copies it). Redrawing at once makes the thumb jump.
+- Fade (`replayPageTransition`) only when the whole page / kind changes (menu switch, ต่ออายุ ↔ ขึ้นทะเบียน), not between sub-tabs.
+- Bars / progress fills use `.bar-fill` (and pies `renderPieChartInto`) so magic move grows them; panel headers use
+  `.panel-header` (fold arrow comes free); selects stay native `<select>` (iOS menu comes free); floating action bars reuse
+  `.rn-selbar`.
+- Before calling a new screen done, compare it with the closest existing screen (registration ↔ renewal, folder ↔ folder) and
+  match it, full width and half screen (~900–1100 px), staff side and client portal.
 Toolbars above tables (`.table-actions`): search box + filter dropdowns sit together on the left, action buttons
 (`.btn-add`, `.action-buttons-group`, last `.btn`) are pushed right with `margin-left: auto` — no `space-between`
 (owner 2026-10-15: dropdowns ended up far from the search box). Every search box gets a ✕ clear button (`attachSearchClear`, `SEARCH_CLEAR_SEL` — `.search-box` inputs or
