@@ -5230,7 +5230,7 @@ tr.is-voided-row td {
 .fv-item[data-key] { user-select: none; }
 .fv-item.is-multi { background-color: var(--gold-light); box-shadow: inset 3px 0 0 var(--gold-primary); }
 .fv-item.is-multi .fv-item-text b { color: var(--gold-primary); }
-.rn-selbar.fv-selbar { position: sticky; left: auto; bottom: 6px; transform: none; z-index: 5; margin: 12px 0 0; padding: 8px 10px 8px 16px; gap: 8px; justify-content: center; }
+.rn-selbar.fv-selbar { position: sticky; left: auto; bottom: 6px; transform: none; z-index: 5; margin: 12px 0 0; padding: 8px 10px 8px 16px; gap: 8px; justify-content: center; border-radius: 20px; } /* ครึ่งจอ: รายการแคบ แถบขึ้นหลายบรรทัด จึงไม่ใช้แคปซูลกลม */
 .fv-selbar-count { font-weight: 600; font-size: 13.5px; margin-right: 2px; }
 .fv-selbar .fv-selbar-move { min-height: 32px; padding: 0 28px 0 12px; border-radius: 999px; border: 0; background-color: rgba(255, 255, 255, .14); color: #fff; font: inherit; font-size: 13.5px; max-width: 170px; }
 .fv-selbar .fv-selbar-move option { color: #1b2230; }
@@ -7194,6 +7194,22 @@ body.has-camera .upload-hint { display: none; }
     font-size: 12.5px;
     font-weight: 700;
 }
+/* รุ่น (วันหมดอายุเดิม / รอบ มติ ครม.) — ป้ายในหน้าออกบิล + ปุ่มเลือกรุ่น (owner 2026-10-30) */
+.rn-bill-tag.is-cohort { margin-left: 4px; background-color: var(--dk-subtle, #eef1f6); color: var(--text-dark); font-weight: 600; }
+.rn-cohorts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 0 20px 12px; }
+#billing-cohort-bar.rn-cohorts { padding: 0 0 12px; }
+.rn-cohort-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--dk-line, #dfe3ea);
+    background-color: var(--dk-card, #ffffff); color: var(--text-dark); font: inherit; font-size: 13.5px; cursor: pointer; white-space: nowrap; }
+.rn-cohort-chip:hover { border-color: var(--gold-primary); }
+.rn-cohort-chip.is-on { background-color: var(--gold-primary); border-color: var(--gold-primary); color: #fff; }
+.rn-cohort-chip.is-on .rn-count { color: #fff; }
+.rn-cohort-chip.is-early { border-style: dashed; }
+.rn-cohort-chip small { font-size: 12.5px; color: var(--text-muted); }
+.rn-cohort-chip.is-on small { color: rgba(255, 255, 255, .85); }
+.rn-cohort-block + .rn-cohort-block { margin-top: 22px; }
+.rn-cohort-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; margin: 4px 0 10px; padding-bottom: 6px; font-size: 16px; border-bottom: 2px solid var(--gold-primary); }
+.combine-cohort-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 8px 6px; margin-top: 6px; border-bottom: 1px solid var(--dk-line, #e2e8f0); }
+.combine-cohort-head .btn { margin-left: auto; }
 .rn-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; white-space: nowrap; }
 .rn-empty { text-align: center; padding: 24px !important; color: var(--text-muted); }
 

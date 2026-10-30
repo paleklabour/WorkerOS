@@ -3300,10 +3300,44 @@ const renewalBookExternalPending = (r) => {
 };
 
 // คนงานที่ถึงรอบ: ยังทำงานอยู่ ใบอนุญาตเหลือ ≤ 60 วัน (รวมที่หมดแล้ว) ยังไม่มีรอบที่กำลังดำเนินการ และไม่ได้แจ้งว่าต่อที่อื่น
-function renewalDueWorkers() {
+function renewalDueWorkers(days = RENEWAL_DUE_DAYS) {
     return workers.filter(w => w.status !== 'archived' && w.status !== 'deleted' && w.permitExpiry
-        && renewalDaysLeft(w.permitExpiry) !== null && renewalDaysLeft(w.permitExpiry) <= RENEWAL_DUE_DAYS
+        && renewalDaysLeft(w.permitExpiry) !== null && renewalDaysLeft(w.permitExpiry) <= days
         && !renewalActiveOf(w.id) && !renewalExternalOf(w.id));
+}
+
+// ---------- รุ่น = วันหมดอายุใบอนุญาตเดิม (owner 2026-10-30: 11/12/2569, 13/02/2570, 31/03/2570 ต่อซ้อนกันได้ ไม่ให้ปนกัน) ----------
+// ปุ่มเลือกรุ่นบนแท็บ ถึงรอบ / กำลังดำเนินการ / เสร็จแล้ว (ค่าเดียวกันทุกแท็บ) — "ทุกรุ่น" = แบ่งหัวข้อตามรุ่นก่อน แล้วจังหวัด → นายจ้าง
+// รัฐมักเปิดรับก่อนหมดอายุราว 2 เดือน: แท็บถึงรอบมีปุ่มรุ่นที่จะหมดภายใน 90 วันด้วย กดแล้วเริ่มต่ออายุก่อนกำหนดได้
+const RENEWAL_EARLY_DAYS = 90;
+let renewalCohort = '';
+const renewalCohortOk = (iso) => !renewalCohort || ymd10(iso || '') === renewalCohort;
+function setRenewalCohort(d) { renewalCohort = d; renderRenewalCases(); }
+// ถึงรอบที่แสดง: ≤ 60 วัน + รุ่นที่เลือกไว้ (เลือกรุ่นที่ยังไม่ถึง 60 วัน = เริ่มก่อนกำหนด)
+function renewalDueShown() {
+    return renewalDueWorkers(RENEWAL_EARLY_DAYS).filter(w => renewalDaysLeft(w.permitExpiry) <= RENEWAL_DUE_DAYS || (renewalCohort && ymd10(w.permitExpiry) === renewalCohort));
+}
+// dates = วันหมดอายุเดิมของทุกรายการในแท็บ (ก่อนกรองรุ่น); early = วันที่ยังไม่ถึง 60 วัน (ป้าย "เริ่มก่อนได้")
+function renewalCohortChipsHtml(dates, early = new Set()) {
+    const counts = new Map();
+    dates.filter(Boolean).map(d => ymd10(d)).forEach(d => counts.set(d, (counts.get(d) || 0) + 1));
+    if (renewalCohort && !counts.has(renewalCohort)) counts.set(renewalCohort, 0);
+    const keys = [...counts.keys()].sort();
+    if (keys.length < 2 && !renewalCohort && !early.size) return '';
+    const total = dates.filter(d => !early.has(ymd10(d || ''))).length;
+    const chip = (key, label, n, isEarly) => `<button type="button" class="rn-cohort-chip${renewalCohort === key ? ' is-on' : ''}${isEarly ? ' is-early' : ''}" onclick="setRenewalCohort('${key}')"
+        title="${key ? `ใบอนุญาตเดิมหมด ${formatThaiDate(key)}${isEarly ? ' — ยังไม่ถึง 60 วัน กดเพื่อเริ่มต่ออายุก่อนกำหนด' : ''}` : 'แสดงทุกรุ่น แบ่งหัวข้อตามวันหมดอายุ'}">${escapeHtml(label)} <span class="rn-count">${n}</span>${isEarly ? '<small>เริ่มก่อนได้</small>' : ''}</button>`;
+    return `<div class="rn-cohorts" role="toolbar" aria-label="เลือกรุ่นตามวันหมดอายุใบอนุญาตเดิม">${chip('', 'ทุกรุ่น', total, false)}${keys.map(k => chip(k, formatThaiDate(k), counts.get(k), early.has(k))).join('')}</div>`;
+}
+// แบ่งหัวข้อตามรุ่น (ใช้ตอน "ทุกรุ่น" และมีมากกว่า 1 รุ่น) — bodyOf(itemsของรุ่นนั้น) วาดเนื้อหาเดิม (จังหวัด → นายจ้าง)
+function renewalByCohortHtml(items, dateOf, bodyOf) {
+    const byDate = new Map();
+    items.forEach(it => { const d = ymd10(dateOf(it) || '') || '-'; if (!byDate.has(d)) byDate.set(d, []); byDate.get(d).push(it); });
+    if (renewalCohort || byDate.size < 2) return bodyOf(items);
+    return [...byDate.keys()].sort().map(d => `<section class="rn-cohort-block">
+        <h3 class="rn-cohort-head">ใบอนุญาตเดิมหมด ${d === '-' ? 'ไม่ระบุ' : formatThaiDate(d)} <span class="text-muted">${byDate.get(d).length} คน</span></h3>
+        ${bodyOf(byDate.get(d))}
+    </section>`).join('');
 }
 
 function renewalMatchesSearch(w) {
@@ -3364,12 +3398,15 @@ function renderRenewalCases() {
     }
     // วาดใหม่หลังแนบไฟล์/ติ๊กขั้น — หน้าต้องอยู่ที่เดิม ไม่เลื่อนไปไหน (owner 2026-10-28)
     const keepY = window.scrollY;
-    if (renewalTab === 'due') box.innerHTML = renewalDueHtml(renewalDueVisible(due), due);
+    if (renewalTab === 'due') { const shown = renewalDueShown(); box.innerHTML = renewalDueHtml(renewalDueVisible(shown), shown); }
     else if (renewalTab === 'active') {
         const searched = active.filter(r => renewalMatchesSearch(workers.find(w => w.id === r.workerId)));
-        box.innerHTML = renewalActiveHtml(searched.filter(r => renewalProvinceOk(workers.find(w => w.id === r.workerId))), searched);
+        box.innerHTML = renewalActiveHtml(searched.filter(r => renewalProvinceOk(workers.find(w => w.id === r.workerId)) && renewalCohortOk(r.oldPermitExpiry)), searched);
     }
-    else box.innerHTML = renewalDoneHtml(done.filter(r => renewalMatchesSearch(workers.find(w => w.id === r.workerId))));
+    else {
+        const searched = done.filter(r => renewalMatchesSearch(workers.find(w => w.id === r.workerId)));
+        box.innerHTML = renewalDoneHtml(searched.filter(r => renewalCohortOk(r.oldPermitExpiry)), searched);
+    }
     const restore = () => { if (Math.abs(window.scrollY - keepY) > 1) window.scrollTo({ top: keepY, behavior: 'instant' }); };
     restore();
     requestAnimationFrame(restore);
@@ -3379,7 +3416,7 @@ function renderRenewalCases() {
 // จังหวัด = จังหวัดสำนักงานใหญ่ของนายจ้าง (workerProvinceOf — กติกาเดียวกับหน้าคนงาน), '-' = ไม่ระบุจังหวัด
 let renewalProvince = '';
 const renewalProvinceOk = (w) => !renewalProvince || (workerProvinceOf(w) || '-') === renewalProvince;
-const renewalDueVisible = (due = renewalDueWorkers()) => due.filter(w => renewalMatchesSearch(w) && renewalProvinceOk(w));
+const renewalDueVisible = (due = renewalDueShown()) => due.filter(w => renewalMatchesSearch(w) && renewalProvinceOk(w) && renewalCohortOk(w.permitExpiry));
 const renewalProvinceLabel = (p) => p === '-' ? 'ไม่ระบุจังหวัด' : 'จ.' + p;
 
 function renewalProvinceSelectHtml(ws) {
@@ -3448,10 +3485,16 @@ function renewalDueHtml(list, due = list) {
             </table></div>
         </div>`;
     };
-    const body = groups.map(pg => `<section class="rn-prov">
+    const provHtml = (ws) => renewalGroupByProvince(ws, w => w).map(pg => `<section class="rn-prov">
         <h4 class="rn-prov-head">${escapeHtml(renewalProvinceLabel(pg.prov))} <span class="text-muted">${pg.employers.reduce((s, e) => s + e.items.length, 0)} คน · ${pg.employers.length} นายจ้าง</span></h4>
         ${pg.employers.map(empHtml).join('')}
     </section>`).join('');
+    const body = renewalByCohortHtml(list, w => w.permitExpiry, provHtml);
+    void groups;
+    // ปุ่มรุ่น: นับจากรายการหลังค้นหา/จังหวัด (ไม่กรองรุ่น) + รุ่นที่จะหมดภายใน 90 วัน (เริ่มก่อนได้)
+    const cohortBase = renewalDueWorkers(RENEWAL_EARLY_DAYS).filter(w => renewalMatchesSearch(w) && renewalProvinceOk(w));
+    const early = new Set(cohortBase.filter(w => renewalDaysLeft(w.permitExpiry) > RENEWAL_DUE_DAYS).map(w => ymd10(w.permitExpiry)));
+    const cohortChips = renewalCohortChipsHtml(cohortBase.map(w => w.permitExpiry), early);
     return `<div class="dashboard-panel">
         <div class="panel-header rn-head">
             <div><h3 style="margin:0;">ต่ออายุ</h3><small class="text-muted">ใบอนุญาตทำงานเหลือไม่ถึง ${RENEWAL_DUE_DAYS} วัน หรือหมดแล้ว และยังไม่ได้เริ่มรอบ · จัดกลุ่มตามจังหวัดและนายจ้าง</small></div>
@@ -3462,6 +3505,7 @@ function renewalDueHtml(list, due = list) {
             ${canStart && list.length ? `<label class="rn-book-pick" title="เลือกทุกคนที่แสดงอยู่"><input type="checkbox" ${allPicked ? 'checked' : ''} onchange="toggleRenewalPickAll(this.checked)"> เลือกทั้งหมด</label>` : ''}
             ${renewalProvinceSelectHtml(due)}
         </div>
+        ${cohortChips}
         <div class="rn-groups">${body || '<p class="rn-empty">ไม่มีคนงานที่ถึงรอบต่ออายุ</p>'}</div>
     </div>`;
 }
@@ -3713,8 +3757,7 @@ function renewalActiveHtml(list, searched = list) {
     const canEdit = can('ops');
     [...renewalSel].forEach(id => { if (!list.some(r => r.id === id)) renewalSel.delete(id); });
     const workerOf = r => workers.find(x => x.id === r.workerId);
-    const groups = renewalGroupByProvince(list, workerOf).flatMap(pg => pg.employers.map(e => ({ ...e, prov: pg.prov })));
-    const body = groups.map(g => {
+    const bodyOf = (items) => renewalGroupByProvince(items, workerOf).flatMap(pg => pg.employers.map(e => ({ ...e, prov: pg.prov }))).map(g => {
         const ids = g.items.map(r => r.id);
         // ลำดับคงที่ (owner 2026-10-29): วันหมดอายุเดิม → ชื่อคนงาน — ไม่เรียงตามความคืบหน้าแล้ว (อัปเดตขั้นตอน/ไฟล์แล้วแถวกระโดด)
         const nameOf = r => workerFullName(workers.find(w => w.id === r.workerId) || {}) || '';
@@ -3727,6 +3770,8 @@ function renewalActiveHtml(list, searched = list) {
             ${sorted.map(r => renewalActiveRowHtml(r, canEdit)).join('')}
         </section>`;
     }).join('');
+    const body = renewalByCohortHtml(list, r => r.oldPermitExpiry, bodyOf);
+    const cohortChips = renewalCohortChipsHtml(searched.filter(r => renewalProvinceOk(workerOf(r))).map(r => r.oldPermitExpiry));
     const sel = list.filter(r => renewalSel.has(r.id));
     const nMed = sel.filter(r => renewalStageIndex(r) === 0).length;
     const nAppt = sel.filter(r => renewalNextStep(r) && renewalNextStep(r).key === 'appointment').length;
@@ -3744,6 +3789,7 @@ function renewalActiveHtml(list, searched = list) {
         <div class="panel-header rn-head"><div><h3 style="margin:0;">กำลังดำเนินการ <span class="text-muted rn-head-count">${list.length} คน</span></h3>
             <small class="text-muted">ติ๊กหลายคนแล้วใช้แถบด้านล่าง (ตรวจสุขภาพ / วันนัด) · ขั้นที่ต้องแนบไฟล์กดปุ่มในแถวทีละคน · กดช่องในแถบความคืบหน้าเพื่อเปิดไฟล์ของขั้นนั้น</small></div></div>
         <div class="rn-toolbar">${renewalProvinceSelectHtml(searched.map(workerOf))}</div>
+        ${cohortChips}
         <div class="rn-groups">${body || '<p class="rn-empty">ยังไม่มีรอบที่กำลังดำเนินการ — เริ่มได้จากแท็บ "ต่ออายุ"</p>'}</div>
         ${selBar}
     </div>`;
@@ -3779,10 +3825,11 @@ async function renewalBulkStep(stageKey) {
 
 // ---------- แท็บ "เสร็จแล้ว" ----------
 // รวมรอบที่เราต่อเสร็จ + ต่อที่อื่น — ต่อที่อื่น/ทำเล่มที่อื่นที่ยังไม่มีข้อมูลใหม่ มีปุ่มใส่ข้อมูล
-function renewalDoneHtml(list) {
+function renewalDoneHtml(list, searched = list) {
     const canEdit = can('ops');
     const when = r => String(r.doneAt || r.startedAt || '');
-    const sorted = [...list].sort((a, b) => (renewalExternalPending(b) - renewalExternalPending(a)) || when(b).localeCompare(when(a)));
+    const cohortKey = r => ymd10(r.oldPermitExpiry || '');
+    const sorted = [...list].sort((a, b) => (renewalExternalPending(b) - renewalExternalPending(a)) || (renewalCohort ? 0 : cohortKey(a).localeCompare(cohortKey(b))) || when(b).localeCompare(when(a)));
     const rows = sorted.map(r => {
         const w = workers.find(x => x.id === r.workerId);
         const ext = r.status === 'external';
@@ -3817,6 +3864,7 @@ function renewalDoneHtml(list) {
     const extSummary = Object.entries(extByEmp).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${escapeHtml(k)} ${n}`).join(' · ');
     return `<div class="dashboard-panel">
         <div class="panel-header rn-head"><div><h3 style="margin:0;">เสร็จแล้ว</h3><small class="text-muted">แสดงจนกว่าคนงานทุกคนของนายจ้างนั้นจะเสร็จ · ต่อที่อื่นที่ยังรอข้อมูลใหม่แสดงจนกว่าจะใส่ข้อมูล · ประวัติดูที่แผงคนงาน${extSummary ? ` · ต่อที่อื่น: ${extSummary}` : ''}</small></div></div>
+        ${renewalCohortChipsHtml(searched.map(r => r.oldPermitExpiry))}
         <div class="table-container"><table class="data-table rn-table">
             <thead><tr><th>คนงาน / นายจ้าง</th><th>สถานะ</th><th>ใบอนุญาตเดิมหมด</th><th>ใบอนุญาตใหม่หมด</th><th>ทำเล่ม</th><th>วันที่</th><th class="rn-act-cell"></th></tr></thead>
             <tbody>${rows || `<tr><td colspan="7" class="rn-empty">ไม่มีรายการค้าง — รอบที่เสร็จครบแล้วดูประวัติได้ที่แผงคนงาน</td></tr>`}</tbody>
@@ -6339,7 +6387,35 @@ function switchFinancePageTab(tabName) {
 // หน้าออกบิล: ใบงานทั่วไป / งานต่ออายุ แยกแท็บ และไม่รวมบิลข้ามฝั่ง (owner 2026-10-20) — จำแท็บล่าสุดไว้ในเครื่อง
 let billingKind = (() => { try { return localStorage.getItem('mw_billing_kind') || 'general'; } catch (e) { return 'general'; } })();
 const invoiceKindOf = (inv) => { const k = (inv.jobIds || []).map(id => jobKindOf(jobs.find(j => j.id === id) || {})).find(x => x !== 'general'); return k || 'general'; };
+// รุ่นของใบงานต่ออายุ / ขึ้นทะเบียน (owner 2026-10-30: หลายรุ่นออกบิลช่วงเดียวกัน ไม่ให้ปน)
+// ต่ออายุ = วันหมดอายุใบอนุญาตเดิมของรอบ, ขึ้นทะเบียน = รอบ มติ ครม. — ใบงานทั่วไป = ไม่มีรุ่น
+function jobCohortOf(j) {
+    const m = String((j && j.batchId) || '').match(/^(renewal|register)-(.+)$/);
+    if (!m) return null;
+    const r = (renewalList || []).find(x => x.id === m[2]);
+    if (!r) return { key: '?', label: 'ไม่ทราบรุ่น' };
+    if (m[1] === 'register') {
+        const rr = (registrationRounds || []).find(x => x.id === r.registrationRoundId);
+        return { key: 'rg:' + (r.registrationRoundId || '-'), label: rr ? `รอบ ${regRoundLabel(rr)}` : 'รอบขึ้นทะเบียน' };
+    }
+    const d = ymd10(r.oldPermitExpiry || '');
+    return { key: 'rn:' + (d || '-'), label: d ? `หมด ${formatThaiDate(d)}` : 'ไม่ระบุวันหมดอายุ', sort: d };
+}
+const jobCohortTag = (j) => { const c = jobCohortOf(j); return c ? `<span class="rn-bill-tag is-cohort" title="รุ่นของงานนี้">${escapeHtml(c.label)}</span>` : ''; };
+let billingCohort = '';
+function setBillingCohort(key) { billingCohort = key; renderBillingTab(); }
+function billingCohortBarHtml(jobsList) {
+    const counts = new Map();
+    jobsList.forEach(j => { const c = jobCohortOf(j); if (!c) return; const e = counts.get(c.key) || { ...c, n: 0 }; e.n++; counts.set(c.key, e); });
+    if (billingCohort && !counts.has(billingCohort)) counts.set(billingCohort, { key: billingCohort, label: 'รุ่นที่เลือกไว้', n: 0 });
+    if (counts.size < 2 && !billingCohort) return '';
+    const list = [...counts.values()].sort((a, b) => String(a.sort || a.label).localeCompare(String(b.sort || b.label)));
+    const chip = (key, label, n) => `<button type="button" class="rn-cohort-chip${billingCohort === key ? ' is-on' : ''}" onclick="setBillingCohort('${escapeHtml(key)}')" title="${key ? `เฉพาะ${escapeHtml(label)}` : 'ทุกรุ่น'}">${escapeHtml(label)} <span class="rn-count">${n}</span></button>`;
+    return chip('', 'ทุกรุ่น', jobsList.filter(j => jobCohortOf(j)).length) + list.map(c => chip(c.key, c.label, c.n)).join('');
+}
+
 function setBillingKind(kind) {
+    if (kind !== billingKind) billingCohort = '';
     billingKind = kind;
     try { localStorage.setItem('mw_billing_kind', kind); } catch (e) { /* ไม่มีที่เก็บ ใช้ค่าเริ่มต้น */ }
     renderBillingTab();
@@ -6409,6 +6485,21 @@ function renderBillingTab() {
         noChargeJobs = noChargeJobs.filter(j => jobKindOf(j) === billingKind);
         shownInvoices = shownInvoices.filter(inv => invoiceKindOf(inv) === billingKind);
     }
+    // ปุ่มรุ่น (แท็บงานต่ออายุ / งานขึ้นทะเบียน) — นับจากรายการรอออกบิล + บิลของแท็บนั้น
+    const cohortBar = document.getElementById('billing-cohort-bar');
+    const useCohort = billingKind !== 'general' && !(bellFilter && bellFilter.view === 'billing');
+    if (cohortBar) {
+        const invJobs = shownInvoices.flatMap(inv => (inv.jobIds || []).map(id => jobs.find(j => j.id === id)).filter(Boolean));
+        const html = useCohort ? billingCohortBarHtml([...unbilledJobs, ...noChargeJobs, ...invJobs]) : '';
+        cohortBar.innerHTML = html;
+        cohortBar.classList.toggle('hidden', !html);
+    }
+    if (useCohort && billingCohort) {
+        const inCohort = j => (jobCohortOf(j) || {}).key === billingCohort;
+        unbilledJobs = unbilledJobs.filter(inCohort);
+        noChargeJobs = noChargeJobs.filter(inCohort);
+        shownInvoices = shownInvoices.filter(inv => (inv.jobIds || []).some(id => inCohort(jobs.find(j => j.id === id) || {})));
+    }
 
     // ตัวกรองช่วงเวลา: บิล = วันที่ออกบิล, ใบงานที่ยังไม่ออกบิล / ไม่เรียกเก็บเงิน = วันเปิดงาน
     populateFinPeriodSelect('billing');
@@ -6457,7 +6548,7 @@ function renderBillingTab() {
             ? Math.max(0, Math.floor((new Date() - (safeParseDate(inv.issueDate) || new Date())) / 86400000)) : null;
         return `
             <tr class="clickable-row${inv.status === 'void' ? ' is-voided-row' : ''}${invoiceKindOf(inv) !== 'general' ? ' is-renewal-row' : ''}" data-ctx="invoice:${inv.id}" ondblclick="handleRowDblClick(event) && openStoredInvoice('${inv.id}')" title="ดับเบิลคลิกเพื่อดูบิล • คลิกขวาเพื่อดูคำสั่ง">
-                <td><strong>${escapeHtml(inv.invoiceNo)}</strong><div class="employer-id-line"><span>ออกเมื่อ</span> <b>${formatThaiDate(inv.issueDate)}</b></div></td>
+                <td><strong>${escapeHtml(inv.invoiceNo)}</strong><div class="employer-id-line"><span>ออกเมื่อ</span> <b>${formatThaiDate(inv.issueDate)}</b></div>${invoiceKindOf(inv) !== 'general' ? [...new Set((inv.jobIds || []).map(id => (jobCohortOf(jobs.find(j => j.id === id) || {}) || {}).label).filter(Boolean))].map(l => `<span class="rn-bill-tag is-cohort">${escapeHtml(l)}</span>`).join('') : ''}</td>
                 <td><span class="badge badge-gold">${icon("receipt")} ${kindLabel[inv.kind] || 'บิล'}</span></td>
                 <td><div class="employer-name">${escapeHtml(inv.customerName || '-')}</div></td>
                 <td>${escapeHtml(detail)}</td>
@@ -6482,7 +6573,7 @@ function renderBillingTab() {
         const estimate = jobBillEstimate(j);
         return `
             <tr class="clickable-row${isSystemJob(j) ? ' is-renewal-row' : ''}" data-ctx="job:${j.id}" ondblclick="handleRowDblClick(event) && openJobQuickView('${j.id}')" title="ดับเบิลคลิกเพื่อดูสรุปใบงาน • คลิกขวาเพื่อดูคำสั่ง">
-                <td><strong>${getJobDisplayNo(j)}</strong>${isSystemJob(j) ? `<div><span class="rn-bill-tag">${JOB_KIND_TAG[jobKindOf(j)]}</span></div>` : ''}</td>
+                <td><strong>${getJobDisplayNo(j)}</strong>${isSystemJob(j) ? `<div><span class="rn-bill-tag">${JOB_KIND_TAG[jobKindOf(j)]}</span>${jobCohortTag(j)}</div>` : ''}</td>
                 <td><span class="badge badge-lg badge-warning">${icon("edit")} ยังไม่ออกบิล</span></td>
                 <td><div class="employer-name">${escapeHtml(cust ? cust.companyName : "ไม่พบนายจ้าง")}</div>${buildEmployerIdLinesHtml(cust)}</td>
                 <td>${escapeHtml(cleanJobType)}${customerNoChargeTag(j)}<br><small class="text-muted">${escapeHtml(work ? workerFullName(work) : 'ไม่พบข้อมูลคนงาน')}</small>${work && work.workerUid ? `<br><small class="text-muted">เลขประจำตัว ${escapeHtml(work.workerUid)}</small>` : ''}</td>
@@ -15086,18 +15177,30 @@ function onCombineCustomerChange() {
         return;
     }
 
+    // งานต่ออายุ / ขึ้นทะเบียน: เรียงตามรุ่น + หัวข้อรุ่นพร้อมปุ่ม "เลือกทั้งรุ่นนี้" (owner 2026-10-30: ไม่ให้รุ่นปนในบิลเดียวโดยไม่ตั้งใจ)
+    const cohortOf = j => jobCohortOf(j) || { key: '', label: '' };
+    const cohortKeys = [...new Set(unpaidJobs.map(j => cohortOf(j).key))];
+    const multiCohort = combineKind !== 'general' && cohortKeys.length > 1;
+    if (multiCohort) unpaidJobs.sort((a, b) => String(cohortOf(a).sort || cohortOf(a).label).localeCompare(String(cohortOf(b).sort || cohortOf(b).label)));
+    let lastCohort = null;
     listContainer.innerHTML = unpaidJobs.map(j => {
+        const ck = cohortOf(j);
+        const head = multiCohort && ck.key !== lastCohort
+            ? `<div class="combine-cohort-head"><strong>${escapeHtml(ck.label || 'ไม่ทราบรุ่น')}</strong><span class="text-muted">${unpaidJobs.filter(x => cohortOf(x).key === ck.key).length} งาน</span>
+                <button type="button" class="btn btn-sm btn-outline" onclick="combineSelectCohort('${escapeHtml(ck.key)}')" title="เลือกเฉพาะงานของรุ่นนี้ (เอารุ่นอื่นออก)">เลือกทั้งรุ่นนี้</button></div>` : '';
+        lastCohort = ck.key;
         const work = workers.find(w => w.id === j.workerId);
         const workName = work ? `${workerFullName(work)} (${work.nationality})` : "ไม่ระบุคนงานต่างด้าว";
         const workUidTag = work && work.workerUid ? ` [${work.workerUid}]` : '';
 
         return `
-            <div class="${isSystemJob(j) ? 'is-renewal-item' : ''}" style="display: flex; align-items: center; justify-content: space-between; padding: 8px; border-bottom: 1px solid #f1f5f9; font-size: 14px; gap: 15px;">
+            ${head}
+            <div class="${isSystemJob(j) ? 'is-renewal-item' : ''}" data-cohort="${escapeHtml(cohortOf(j).key)}" style="display: flex; align-items: center; justify-content: space-between; padding: 8px; border-bottom: 1px solid #f1f5f9; font-size: 14px; gap: 15px;">
                 <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: normal; margin: 0; width: 65%;">
                     <input type="checkbox" name="combine-job-checkbox" value="${j.id}" onchange="updateCombineTotalAmount()" style="width: 16px; height: 16px; cursor: pointer;">
                     <div>
                         <strong>${j.jobType || "ไม่ระบุประเภทงาน"}</strong> - คนงาน: ${workName}${workUidTag}
-                        ${isSystemJob(j) ? `<span class="rn-bill-tag">${JOB_KIND_TAG[jobKindOf(j)]}</span>` : ''}
+                        ${isSystemJob(j) ? `<span class="rn-bill-tag">${JOB_KIND_TAG[jobKindOf(j)]}</span>${jobCohortTag(j)}` : ''}
                         ${billingJobStatusBadge(j)}${customerNoChargeTag(j)}
                     </div>
                 </label>
@@ -15113,6 +15216,15 @@ function onCombineCustomerChange() {
         `;
     }).join('');
 
+    updateCombineTotalAmount();
+}
+
+// เลือกเฉพาะงานของรุ่นเดียว (หัวข้อรุ่นในหน้าต่างรวมบิล)
+function combineSelectCohort(key) {
+    document.querySelectorAll('#combine-jobs-list [data-cohort]').forEach(row => {
+        const cb = row.querySelector('input[name="combine-job-checkbox"]');
+        if (cb) cb.checked = row.dataset.cohort === key;
+    });
     updateCombineTotalAmount();
 }
 
