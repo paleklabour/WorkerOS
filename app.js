@@ -17538,6 +17538,7 @@ function renderWorkerFolderPreview() {
         edits: [
             canEdit && isImg ? fvActButton('edit', 'แก้ไขรูป', `openImageEditor('worker', '${k}', ${i})`, { title: 'ตัดกรอบ หมุน ปรับองศา ปรับความสว่างของรูปนี้' }) : '',
             canEdit && isImg && w.photo !== url ? fvActButton('photo', 'ตั้งเป็นรูปคนงาน', "workerFolderAction('setPhoto')", { title: 'ใช้รูปนี้เป็นรูปประจำตัวคนงาน' }) : '',
+            canEdit && EXPIRY_TRACKED_WORKER_DOC_TYPES.includes(k) ? fvActButton('calendar', 'วันหมดอายุ', `setWorkerFileExpiry('${k}', ${i})`, { title: 'ตั้ง/แก้วันหมดอายุของไฟล์นี้ (ถึงวันแล้วไฟล์ย้ายไป "หมดอายุ" เอง)' }) : '',
             canEdit && can('deleteFiles') ? fvActButton('trash', 'ลบ', `deleteFolderFileIndex('${k}', ${i})`, { danger: true, title: 'ลบไฟล์นี้' }) : ''
         ],
         menu: [
@@ -17898,12 +17899,7 @@ function extractDocExpiryDate(docType, parsedData) {
 const EXPIRY_TRACKED_WORKER_DOC_TYPES = ['worker-wp-doc', 'worker-passport'];
 
 // ไฟล์นี้ "หมดอายุ" หรือยัง — ถ้าเจ้าหน้าที่เคยลากย้ายไฟล์นี้ด้วยตัวเอง (fItem.manualExpired) ให้ยึดตามนั้นก่อนเสมอ
-// ไม่งั้นถ้ามีวันหมดอายุจริงที่บันทึกไว้ตอนแนบไฟล์ (fItem.expiryDate) ให้เทียบกับวันนี้ตรงๆ
-// ถ้าไม่มีวันหมดอายุ:
-//   - ใบอนุญาตทำงาน/พาสปอร์ต (ปกติมีวันหมดอายุ แต่ AI อ่านไม่ได้ เช่น Gemini ไม่ว่าง หรือเป็นหน้า 2-3 ของเอกสารชุดเดียวกัน)
-//     ถือว่ายังใช้ได้ เว้นแต่มีไฟล์ประเภทเดียวกันที่แนบทีหลังและรู้วันหมดอายุแน่ชัดมาแทนแล้ว — เดิมใช้ลำดับอัปโหลดล้วน ๆ
-//     ทำให้ไฟล์ที่เพิ่งแนบ (แต่ไม่ใช่ไฟล์สุดท้าย) ตกไปอยู่ "หมดอายุ" ทั้งที่ยังไม่หมด
-//   - ไฟล์ที่ไม่มีวันหมดอายุ: พับเมื่อมีไฟล์ใหม่กว่าที่วันหมดอายุเลื่อนออกไปจริง (ดูในฟังก์ชัน) ไม่งั้นอยู่ปัจจุบัน
+// ไม่งั้นถ้ามีวันหมดอายุของไฟล์ (fItem.expiryDate) ให้เทียบกับวันนี้ตรงๆ — ไม่มีวันหมดอายุ = อยู่ปัจจุบัน
 function isWorkerDocFileExpired(fItem, fIdx, list, docType) {
     if (fItem && fItem.manualExpired === true) return true;
     // ถึงวันหมดอายุของไฟล์เอง = หมดอายุเสมอ (owner 2026-10-30) — manualExpired: false (ย้ายหมวด / ลากกลับ) กันแค่กติกาตามลำดับไฟล์
@@ -17921,24 +17917,82 @@ function isWorkerDocFileExpired(fItem, fIdx, list, docType) {
     // ใบเสร็จรับเงินเป็นหลักฐานการจ่ายเงิน ไม่มีวันหมดอายุจริงและยังใช้อ้างอิงได้เสมอ ต่อให้มีหลายใบสะสมไว้
     // (ไม่งั้นถ้าอัปโหลดซ้ำ/มีหลายใบจากคนละรอบต่ออายุ ใบเก่าจะโดนจัดเป็น "หมดอายุ" ไปเองตามลำดับอัปโหลดทั้งที่ไม่ควร)
     if (docType === 'worker-receipt' || docType === 'worker-other') return false; // เอกสารอื่นๆ = หลายเรื่องปนกัน ไม่มีใบไหนแทนใบไหน
-    // ไฟล์ไม่มีวันหมดอายุ (owner 2026-10-30): พับเฉพาะเมื่อมีหลักฐานว่าต่ออายุแล้วจริง = มีไฟล์ที่แนบทีหลัง (เกิน 24 ชม.)
-    // ซึ่งวันหมดอายุ "ใหม่กว่า" ไฟล์ที่มีวันหมดอายุในชุดเดียวกับไฟล์นี้หรือก่อนหน้า — ไม่มีหลักฐาน = อยู่ปัจจุบัน (เจ้าหน้าที่ลากเองได้)
-    // เดิมแค่มีไฟล์ตามหลังก็พับ: หน้า–หลังบัตรที่แนบแยกกัน (คนละไฟล์ / คนละวัน) ด้านที่อ่านวันไม่ได้ตกไป "หมดอายุ" ทั้งที่ยังใช้ได้
-    const t = workerDocUploadTime(fItem);
-    const isNewer = (f, i) => { const tf = workerDocUploadTime(f); return t !== null && tf !== null ? tf - t > WORKER_DOC_BATCH_MS : i > fIdx; };
-    const dated = list.map((f, i) => [f, i]).filter(([f]) => f && f !== fItem && f.expiryDate && f.manualExpired !== true);
-    const newestNew = dated.filter(([f, i]) => isNewer(f, i)).map(([f]) => ymd10(f.expiryDate)).sort().pop();
-    if (!newestNew) return false;
-    return dated.some(([f, i]) => !isNewer(f, i) && ymd10(f.expiryDate) < newestNew);
+    // ไม่มีวันหมดอายุ = อยู่ปัจจุบัน (owner 2026-10-30): ไฟล์เก่าเก็บไว้จนกว่าจะถึงวันหมดอายุของมันเองถึงย้าย —
+    // ไม่พับตามลำดับ/ไฟล์ใหม่ที่แนบตามมาแล้ว (หน้า–หลังบัตรที่แนบแยกไฟล์ตกไป "หมดอายุ" ผิด ๆ)
+    // ใส่วันหมดอายุให้ไฟล์ด้วยปุ่ม "วันหมดอายุ" ในแฟ้ม หรือเครื่องมืออ่านวันหมดอายุ (backfillWpExpiryDates)
+    return false;
 }
 
-// เวลาแนบไฟล์: uploadedAt หรือเลข ms หน้าชื่อไฟล์ใน Storage (<เวลา>_<ชื่อ>) — ไม่รู้ = null (ใช้ลำดับในรายการแทน)
-const WORKER_DOC_BATCH_MS = 24 * 3600 * 1000;
-function workerDocUploadTime(f) {
-    const at = f && f.uploadedAt ? Date.parse(f.uploadedAt) : NaN;
-    if (!isNaN(at)) return at;
-    const m = String((f && f.data) || '').match(/\/(\d{13})_[^/]*$/);
-    return m ? Number(m[1]) : null;
+// ตั้ง/แก้วันหมดอายุของไฟล์ 1 ไฟล์ในแฟ้มคนงาน (ใบอนุญาต / เล่ม) — ล้างการลากเองไว้ ให้วันที่เป็นตัวตัดสิน
+async function setWorkerFileExpiry(docType, idx) {
+    const w = workers.find(item => item.id === activeFolderWorkerId);
+    const f = w && getAttachments(w, docType)[idx];
+    if (!f || !can('ops')) return;
+    const ans = await uiPrompt(`วันหมดอายุของ "${f.name || 'ไฟล์นี้'}" (ว/ด/ป เช่น 13/02/2570 หรือ 13/02/2027 — เว้นว่าง = ไม่ระบุ)`, {
+        title: 'วันหมดอายุของไฟล์', okText: 'บันทึก', placeholder: 'ว/ด/ป', value: f.expiryDate ? ymd10(f.expiryDate).split('-').reverse().join('/') : ''
+    });
+    if (ans === null || ans === undefined || ans === false) return;
+    const iso = String(ans).trim() ? ymd10(parseDateInput(String(ans).trim())) : '';
+    if (String(ans).trim() && !iso) { uiAlert('อ่านวันที่ไม่ออก — พิมพ์เป็น ว/ด/ป เช่น 13/02/2570'); return; }
+    const before = JSON.parse(JSON.stringify(w.attachments || {}));
+    w.attachments = { ...(w.attachments || {}) };
+    w.attachments[docType] = getAttachments(w, docType).map((x, i) => {
+        if (i !== idx) return x;
+        const n = { ...x, expiryDate: iso || null };
+        delete n.manualExpired; delete n.forceCurrent;
+        return n;
+    });
+    renderWorkerFolderTiles();
+    const res = await callCloudAPI("saveWorker", { workerData: w });
+    if (!res || res.status === "error") { w.attachments = before; renderWorkerFolderTiles(); return; }
+    saveData();
+    showToast(iso ? `ตั้งวันหมดอายุ ${formatThaiDate(iso)} แล้ว` : 'ล้างวันหมดอายุของไฟล์แล้ว', 'success');
+}
+
+// เครื่องมือ Admin (owner 2026-10-30): อ่านวันหมดอายุของไฟล์ใบอนุญาตทำงานที่ยังไม่มีวัน ทุกคนในระบบ — ไม่ใช้ AI
+// (PDF ทะเบียนใบอนุญาตที่มีตัวหนังสือ / QR e-WorkPermit บนรูปหรือ PDF ผ่าน supabaseAdapter.readDocNoAi)
+// อ่านได้ = ใส่ expiryDate ให้ไฟล์ (ถึงวันแล้วย้ายไป "หมดอายุ" เอง) · อ่านไม่ได้ = แสดงรายชื่อให้ตั้งเองด้วยปุ่ม "วันหมดอายุ" ในแฟ้ม
+async function backfillWpExpiryDates() {
+    if (!can('admin') || !window.supabaseAdapter || !window.supabaseAdapter.readDocNoAi) return;
+    const todo = [];
+    allWorkers().filter(w => w.status !== 'deleted').forEach(w => getAttachments(w, 'worker-wp-doc').forEach((f, i) => {
+        if (f && f.data && !f.expiryDate && /^https?:/.test(f.data)) todo.push({ w, i, f });
+    }));
+    if (!todo.length) { uiAlert('ไฟล์ใบอนุญาตทำงานทุกไฟล์มีวันหมดอายุแล้ว'); return; }
+    const ok = await uiConfirm(`พบไฟล์ใบอนุญาตทำงานที่ยังไม่มีวันหมดอายุ ${todo.length} ไฟล์ (${new Set(todo.map(t => t.w.id)).size} คน)\nอ่านวันหมดอายุจากตัวหนังสือใน PDF / QR ของกรม (ไม่ใช้ AI) — ใช้เวลาสักครู่ อย่าปิดหน้านี้`, {
+        title: 'อ่านวันหมดอายุใบอนุญาต', okText: 'เริ่มอ่าน'
+    });
+    if (!ok) return;
+    const out = document.getElementById('wp-expiry-backfill-result');
+    const found = [], missed = [];
+    const changed = new Set();
+    for (let n = 0; n < todo.length; n++) {
+        const { w, i, f } = todo[n];
+        if (out) out.textContent = `กำลังอ่าน ${n + 1} / ${todo.length} — ${workerFullName(w)} (${f.name || ''})`;
+        let iso = '';
+        try {
+            const blob = await (await fetch(f.data)).blob();
+            const b64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1] || ''); r.onerror = rej; r.readAsDataURL(blob); });
+            const p = await window.supabaseAdapter.readDocNoAi(b64, blob.type || (isPdfUrl(f.data) ? 'application/pdf' : 'image/jpeg'));
+            iso = p && p.permitExpiry ? ymd10(parseDateInput(p.permitExpiry)) : '';
+        } catch (e) { console.warn('backfill read failed', f.data, e); }
+        if (iso) {
+            const list = getAttachments(w, 'worker-wp-doc').slice();
+            if (list[i] && list[i].data === f.data) { list[i] = { ...list[i], expiryDate: iso }; w.attachments = { ...w.attachments, 'worker-wp-doc': list }; changed.add(w); }
+            found.push({ w, f, iso });
+        } else missed.push({ w, f });
+    }
+    let failed = 0;
+    for (const w of changed) {
+        if (out) out.textContent = `กำลังบันทึก… (${workerFullName(w)})`;
+        const res = await callCloudAPI("saveWorker", { workerData: w }, { silent: true });
+        if (!res || res.status === "error") failed++;
+    }
+    saveData();
+    const row = (x, extra) => `<li><a href="#" onclick="event.preventDefault(); openWorkerFolderModal('${x.w.id}')">${escapeHtml(workerFullName(x.w))}</a> · ${escapeHtml(x.f.name || '')}${extra || ''}</li>`;
+    if (out) out.innerHTML = `<p>อ่านได้ ${found.length} ไฟล์ · อ่านไม่ได้ ${missed.length} ไฟล์ (รูป/สแกนที่ไม่มี QR — เปิดแฟ้มแล้วกดปุ่ม "วันหมดอายุ")${failed ? ` · บันทึกไม่สำเร็จ ${failed} คน` : ''}</p>`
+        + (missed.length ? `<details open><summary>อ่านไม่ได้ (${missed.length})</summary><ul>${missed.map(x => row(x)).join('')}</ul></details>` : '')
+        + (found.length ? `<details><summary>อ่านได้ (${found.length})</summary><ul>${found.map(x => row(x, ` → ${formatThaiDate(x.iso)}`)).join('')}</ul></details>` : '');
 }
 
 // แนบไฟล์ 1 ไฟล์เข้าแฟ้มคนงาน 1 คน (upload + OCR + อัปเดตข้อมูล) — ใช้ร่วมกันทั้งอัปโหลดทีละไฟล์ และ bulk import

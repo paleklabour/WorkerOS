@@ -486,6 +486,14 @@
         return d;
     }
 
+    // อ่านแบบไม่ใช้ AI อย่างเดียว (เครื่องมืออ่านวันหมดอายุไฟล์เดิม, owner 2026-10-30): PDF ราชการที่มีตัวหนังสือ + QR e-WorkPermit
+    async function readDocNoAi(base64Data, mimeType) {
+        const local = await parseGovPdf(base64Data, mimeType).catch(() => null);
+        const ewp = await lookupEwpFromFile(base64Data, mimeType);
+        if (!local && !ewp) return null;
+        return { ...(local || {}), ...(ewp ? ewpCardToParsedData(ewp.card, ewp.ref) : {}) };
+    }
+
     async function callOcr(base64Data, mimeType, docType) {
         // PDF ราชการที่อ่านตัวหนังสือได้ → ใช้เลย ไม่เรียก AI (QR ของกรม ถ้ามี ยังมาเติมทับ)
         const local = await parseGovPdf(base64Data, mimeType).catch(() => null);
@@ -1218,7 +1226,12 @@
     }
 
     window.supabaseAdapter = {
+<<<<<<< HEAD
         login, callCloudAPI, uploadFile, ocrDocument, client: sb,
         isPasswordRecovery, updatePassword, signOut, hasSession
+=======
+        login, callCloudAPI, uploadFile, ocrDocument, readDocNoAi, client: sb,
+        isPasswordRecovery, updatePassword, signOut, hasSession, sessionLogin
+>>>>>>> e75c17f (Folder expiry: files fold only by their own expiry date (undated = current); folder button to set a file's expiry; Admin tool reads expiry of every undated WP file without AI (gov PDF text + e-WorkPermit QR))
     };
 })();

@@ -197,11 +197,11 @@ Owner's rules (2026-10-09):
   Expiry folding (`isWorkerDocFileExpired`, owner 2026-10-30): `manualExpired: true` = expired; a file whose own `expiryDate` has
   passed is expired even with `manualExpired: false` (that flag only blocks the "a later file exists" order rule — moved files
   used to stay "current" forever), unless staff dragged that past-date file back to current themselves (`forceCurrent`).
-  drive-backup uses the same rule for the " (หมดอายุ)" suffix. Undated files fold only on proof of a renewal: a file uploaded > 24 h later
-  (`workerDocUploadTime` = uploadedAt or the ms prefix of the Storage file name, `WORKER_DOC_BATCH_MS`) whose expiry date is LATER
-  than a dated file from this file's batch or earlier. No proof = stays current (staff drag old ones by hand) — front/back sides
-  attached separately, even days apart, never fold. Receipts and "เอกสารอื่นๆ" never fold. (Old rule "any later file" folded
-  every front side — 89 workers / 146 files; a 24 h-batch rule still folded sides attached on different days, 2026-10-30.)
+  drive-backup uses the same rule for the " (หมดอายุ)" suffix / `หมดอายุ/` subfolder. Owner 2026-10-30: keep an old file until ITS
+  OWN expiry date passes — undated files never fold (no order / "newer file" rule any more; it folded front/back sides attached as
+  separate files). WP / passport files get dates from the reader at upload, the folder button "วันหมดอายุ" (`setWorkerFileExpiry`),
+  or the Admin tool on the backup page "อ่านวันหมดอายุไฟล์เดิม" (`backfillWpExpiryDates`: every undated WP file, no AI —
+  `supabaseAdapter.readDocNoAi` = gov-PDF text + e-WorkPermit QR; unread ones listed with links to their folders).
   If the worker edit form for the same worker is open behind the folder, every folder render re-syncs the form's
   `tempWorkerAttachments` (`syncWorkerFormAttachments`: folder's current files + files staged in the form − files removed in the
   form, base snapshot `workerFormAttachBase`) — the form used to keep its open-time copy and "บันทึกข้อมูล" undid the move (owner 2026-10-30).

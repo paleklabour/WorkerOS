@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261030zg">
+    <link rel="stylesheet" href="styles.css?v=20261030zh">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -1581,6 +1581,20 @@
                                         </button>
                                     </div>
                                     <div id="drive-backup-status" class="backup-last-info"></div>
+                                </div>
+
+                                <!-- อ่านวันหมดอายุไฟล์ใบอนุญาตทำงานเดิม (Admin, ไม่ใช้ AI) — ดู backfillWpExpiryDates() ใน app.js -->
+                                <div class="drive-backup-card">
+                                    <h4><span class="ico" data-icon="calendar"></span> วันหมดอายุไฟล์ใบอนุญาตทำงาน</h4>
+                                    <p>
+                                        ไฟล์ใบอนุญาตที่ยังไม่มีวันหมดอายุจะอยู่ในเอกสารปัจจุบันเสมอ — ไฟล์ที่มีวันหมดอายุจะย้ายไป "หมดอายุ" เองเมื่อถึงวัน
+                                        เครื่องมือนี้อ่านวันหมดอายุของไฟล์เดิมทุกคนจาก PDF ทะเบียนใบอนุญาต / QR ของกรม (ไม่ใช้ AI ไม่เสียเงิน)
+                                        ไฟล์ที่อ่านไม่ได้ เปิดแฟ้มแล้วกดปุ่ม "วันหมดอายุ" ที่ไฟล์นั้น
+                                    </p>
+                                    <div class="backup-actions">
+                                        <button class="btn btn-gold" onclick="backfillWpExpiryDates()" title="อ่านวันหมดอายุของไฟล์ใบอนุญาตทำงานที่ยังไม่มีวัน ทุกคนในระบบ"><span class="ico" data-icon="calendar"></span> อ่านวันหมดอายุไฟล์เดิม</button>
+                                    </div>
+                                    <div id="wp-expiry-backfill-result" class="backup-last-info"></div>
                                 </div>
 
                                 <!-- ไฟล์ขนาดใหญ่ผิดปกติ + ย่อขนาด (Admin) — ดู openLargeFilesTool() / compressLargeFile() ใน app.js -->
@@ -3769,7 +3783,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <!-- ลากสลับลำดับ (รองรับนิ้วบนมือถือ/ไอแพด) — ใช้กับการ์ดบัญชีธนาคาร ดู setupBankSortable() -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-    <script src="supabase-client.js?v=20261030zg"></script>
+    <script src="supabase-client.js?v=20261030zh"></script>
 
     <!-- pdf.js (เรนเดอร์หน้าแรกของไฟล์ PDF เป็นภาพย่อในแฟ้มเอกสาร) — ตั้งแต่ pdf.js v5+ เหลือแต่ build แบบ
          ES module (.mjs) เท่านั้น ไม่มี UMD/global build แล้ว จึงต้อง import แล้วแปะเข้า window เอง -->
@@ -3780,6 +3794,6 @@
     </script>
 
     <!-- Application Script -->
-    <script src="app.js?v=20261030zg"></script>
+    <script src="app.js?v=20261030zh"></script>
 </body>
 </html>
