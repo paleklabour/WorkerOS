@@ -4894,6 +4894,12 @@ tr.is-voided-row td {
     color: var(--navy-dark);
 }
 
+.cp-company-switch {
+    display: block;
+    margin-top: 8px;
+    max-width: 100%;
+}
+
 .cp-stats {
     display: flex;
     flex-wrap: wrap;

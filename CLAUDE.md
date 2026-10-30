@@ -528,6 +528,13 @@ Client portal worker view (`openClientWorkerView`) is a panel sliding in from th
 that worker's jobs with date / status / billed fee + bill no + paid or owing, and totals billed / paid / owing counted per job
 (not the whole combined bill). Unbilled jobs show no amount (estimates are internal); never show costs, commissions or expenses.
 
+One client login, several companies (owner 2026-10-30, ปัตตานีไอซ์ / อัลทิเมท ริช / 4 โพลาแบร์ = same owner): table
+`client_customer_links` (user_id, customer_id; admin writes, RLS) lists the companies an account may switch to;
+`profiles.customer_id` stays "the company being viewed", so `my_customer_id()` and every RLS rule / client RPC work unchanged.
+Portal head shows a select when there are 2+ (`loadClientCompanies` → RPC `client_my_companies`); picking one calls
+`client_switch_customer` (checks the link) and reloads the page. Bills/receipts stay per company. No admin UI yet — links are
+added by SQL (migration `20261030023253_client_multi_company.sql` linked all 3 existing client accounts of that group to all 3).
+
 Client exit requests (owner 2026-10-21): portal "คนงานของฉัน" row button "แจ้งออก" → pop-up of the worker's details (no
 reason field, owner) → RPC `client_request_exit` opens a "แจ้งออกคนงานต่างด้าว" job, status รอดำเนินการ, `jobs.opened_by_client`
 (purple "ลูกค้าเปิดงาน" tag in the jobs table / Kanban; shows in the bell "งานแจ้งใหม่"). The worker stays active until staff close
