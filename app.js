@@ -2333,7 +2333,7 @@ function switchView(viewName) {
     if (viewName === 'customers') titleEl.innerText = "ฐานข้อมูลนายจ้าง / ลูกค้าผู้ว่าจ้าง";
     if (viewName === 'workers') titleEl.innerText = "ฐานข้อมูลคนงานต่างด้าว";
     if (viewName === 'jobs') titleEl.innerText = "ระบบจัดการแจ้งงาน";
-    if (viewName === 'renewals') titleEl.innerText = "ข้อมูลคนงานต่ออายุ/ทำเล่ม (จัดกลุ่มตามวันหมดอายุใบอนุญาต)";
+    if (viewName === 'renewals') titleEl.innerText = "ต่ออายุ / ขึ้นทะเบียน";
     if (viewName === 'agents') titleEl.innerText = "จัดการ Agent (ผู้ส่งงาน / ผู้แนะนำลูกค้า)";
     if (viewName === 'expenses') titleEl.innerText = "การเงิน, รายจ่าย และบัญชีธนาคาร";
     if (viewName === 'users') titleEl.innerText = "จัดการบัญชีผู้ใช้งานระบบ";
@@ -3178,8 +3178,18 @@ function openRenewalsTab(tab) {
 function openRenewalsActiveTab() { openRenewalsTab('active'); }
 function openRenewalsDoneTab() { openRenewalsTab('done'); }
 
+// สวิตช์ใหญ่ ต่ออายุ | ขึ้นทะเบียน (owner 2026-10-30, แบบ A) — กลับไปต่ออายุ = แท็บที่เปิดค้างไว้ล่าสุด
+function switchRenewalKind(kind) {
+    if (kind === 'registration') { if (renewalTab !== 'pool') switchRenewalTab('pool'); return; }
+    if (renewalTab !== 'pool') return;
+    let last = 'due';
+    try { last = localStorage.getItem('mw_renewal_last') || 'due'; } catch (e) { /* ไม่มีที่เก็บ */ }
+    switchRenewalTab(last === 'pool' ? 'due' : last);
+}
+
 function switchRenewalTab(tab) {
     renewalTab = tab;
+    if (tab !== 'pool') { try { localStorage.setItem('mw_renewal_last', tab); } catch (e) { /* ไม่มีที่เก็บ */ } }
     try { localStorage.setItem('mw_renewal_tab', tab); } catch (e) { /* ไม่มีที่เก็บ ใช้ค่าเริ่มต้น */ }
     renderRenewalGroups();
     replayPageTransition(document.getElementById(tab === 'all' ? 'renewal-groups-container' : 'renewal-cases-container'));
@@ -3193,6 +3203,11 @@ function syncRenewalTabUi() {
     const isAll = renewalTab === 'all';
     const regCount = document.getElementById('reg-pool-count');
     if (regCount) regCount.textContent = workers.filter(regInPool).length || '';
+    const isReg = renewalTab === 'pool';
+    document.querySelectorAll('[data-renewal-kind]').forEach(b => b.classList.toggle('is-on', (b.dataset.renewalKind === 'registration') === isReg));
+    document.querySelector('#view-renewals .renewal-tabs')?.classList.toggle('hidden', isReg);
+    const rnCount = document.getElementById('rn-kind-count-renewal');
+    if (rnCount) { try { rnCount.textContent = renewalDueWorkers().length || ''; } catch (e) { rnCount.textContent = ''; } }
     document.querySelectorAll('#view-renewals .renewal-all-only').forEach(el => el.classList.toggle('hidden', !isAll));
     const cases = document.getElementById('renewal-cases-container');
     if (cases) cases.classList.toggle('hidden', isAll);
@@ -4467,18 +4482,21 @@ function renderRegistrationPool() {
     const canEdit = can('ops');
     const rounds = registrationRounds || [];
     const pool = workers.filter(regInPool);
+    // แท็บย่อยเรียงเหมือนงานต่ออายุ (owner 2026-10-30, แบบ A): รอขึ้นทะเบียน · กำลังดำเนินการ (ทุกรอบที่เปิด แบ่งหัวข้อตามรอบ) · เสร็จแล้ว
+    const openRounds = rounds.filter(r => r.status === 'open');
+    const inOpenRound = (w) => w.status === 'pending_register' && openRounds.some(r => regInRound(w, r.id));
     const views = [{ key: 'pool', label: 'รอขึ้นทะเบียน', n: pool.length },
-        ...rounds.filter(r => r.status === 'open').map(r => ({ key: `round:${r.id}`, label: `รอบ ${regRoundLabel(r)}`, n: workers.filter(w => regInRound(w, r.id)).length })),
-        { key: 'done', label: 'ขึ้นทะเบียนแล้ว', n: workers.filter(regDone).length }];
+        { key: 'active', label: 'กำลังดำเนินการ', n: workers.filter(inOpenRound).length },
+        { key: 'done', label: 'เสร็จแล้ว', n: workers.filter(regDone).length }];
+    if (String(regPoolView).startsWith('round:')) regPoolView = 'active';
     if (!views.some(v => v.key === regPoolView)) regPoolView = 'pool';
     if (renewalList === null) loadRenewals(true);
-    let list = regPoolView === 'pool' ? pool : regPoolView === 'done' ? workers.filter(regDone)
-        : workers.filter(w => regInRound(w, regPoolView.slice(6)) && w.status === 'pending_register');
+    let list = regPoolView === 'pool' ? pool : regPoolView === 'done' ? workers.filter(regDone) : workers.filter(inOpenRound);
     const searched = list.filter(renewalMatchesSearch);
     list = searched.filter(renewalProvinceOk)
         .filter(w => !regCompleteFilter || (regChecks(w).complete === (regCompleteFilter === 'complete')));
-    const inRound = regPoolView.startsWith('round:');
-    const groups = renewalGroupByProvince(list, w => w).flatMap(pg => pg.employers.map(e => ({ ...e, prov: pg.prov })));
+    const inRound = regPoolView === 'active';
+    const groupsOf = (ws) => renewalGroupByProvince(ws, w => w).flatMap(pg => pg.employers.map(e => ({ ...e, prov: pg.prov })));
     const pickable = canEdit && regPoolView === 'pool';
     [...regPoolSel].forEach(id => { if (!list.some(w => w.id === id)) regPoolSel.delete(id); });
     const rowHtml = (w) => { const rr = inRound && regActiveRoundOf(w.id); return rr ? renewalActiveRowHtml(rr, canEdit) : regPoolRowHtml(w); };
@@ -4494,17 +4512,24 @@ function renderRegistrationPool() {
             <button type="button" class="action-icon-btn" onclick="openWorkerFolderModal('${w.id}')" title="เปิดแฟ้มเอกสารคนงาน">${icon('folder')}</button>
         </div>
     </div>`;
-    const body = groups.map(g => `<section class="rn-agroup">
+    const sectionsHtml = (ws) => groupsOf(ws).map(g => `<section class="rn-agroup">
         <div class="rn-agroup-head">${pickable ? `<input type="checkbox" ${g.items.every(w => regPoolSel.has(w.id)) ? 'checked' : ''} onchange='toggleRegPoolSel(${JSON.stringify(g.items.map(w => w.id))}, this.checked)' title="เลือกทุกคนของนายจ้างนี้">` : ''}<strong>${escapeHtml(g.name)}</strong><span class="text-muted">${escapeHtml(renewalProvinceLabel(g.prov))} · ${g.items.length} คน · ข้อมูลครบ ${g.items.filter(w => regChecks(w).complete).length}</span>
             ${canEdit && regPoolView === 'pool' && g.cust ? `<button type="button" class="btn btn-sm rn-next-btn reg-head-add" onclick="openRegWorkerModal(null, '${g.cust.id}')" title="เพิ่มคนงานรอขึ้นทะเบียนให้นายจ้างนี้">+ เพิ่มคนงานให้นายจ้างนี้</button>` : ''}</div>
         ${[...g.items].sort((a, b) => workerFullName(a).localeCompare(workerFullName(b))).map(rowHtml).join('')}
     </section>`).join('');
-    const round = inRound ? rounds.find(r => `round:${r.id}` === regPoolView) : null;
+    // กำลังดำเนินการ: หัวข้อตามรอบ มติ ครม. (วันประกาศ / วันใบอนุญาตหมด / ลบรอบ) แล้วตามนายจ้าง — รอบที่ยังไม่มีคนก็แสดง
+    const body = !inRound ? sectionsHtml(list) : openRounds.map(round => {
+        const ws = list.filter(w => w.registrationRoundId === round.id);
+        return `<section class="reg-round-block">
+            <div class="reg-round-head"><strong>รอบ ${escapeHtml(regRoundLabel(round))}</strong>
+                <span class="text-muted">ประกาศ ${round.announcedOn ? formatThaiDate(round.announcedOn) : '-'} · ใบอนุญาตหมด ${round.permitExpiry ? formatThaiDate(round.permitExpiry) : '-'} · ${ws.length} คน</span>
+                ${currentUser.role === 'admin' ? `<button type="button" class="btn btn-sm btn-outline btn-danger-outline reg-del-round" onclick="deleteRegRound('${round.id}')" title="ลบรอบ ${escapeHtml(regRoundLabel(round))} — คนงานในรอบกลับไปรอขึ้นทะเบียน">ลบรอบนี้</button>` : ''}</div>
+            ${sectionsHtml(ws) || `<p class="rn-empty">ยังไม่มีคนงานในรอบนี้ — ติ๊กคนงานในแท็บ "รอขึ้นทะเบียน" แล้วกด "ใส่เข้ารอบ"</p>`}
+        </section>`;
+    }).join('');
     return `<div class="dashboard-panel">
-        <div class="reg-crumb"><button type="button" class="btn btn-sm btn-outline" onclick="switchRenewalTab('all')" title="กลับไปแท็บทั้งหมด (ตามกลุ่ม)">‹ กลับไปทั้งหมด (ตามกลุ่ม)</button>
-            <span class="text-muted">ต่ออายุ/ทำเล่ม › ทั้งหมด (ตามกลุ่ม) › รอขึ้นทะเบียน</span></div>
-        <div class="panel-header rn-head"><div><h3 style="margin:0;">รอขึ้นทะเบียน</h3>
-            <small class="text-muted">เก็บรายชื่อสะสมทั้งปี · รัฐประกาศแล้ว สร้างรอบ มติ ครม. แล้วติ๊กคนใส่เข้ารอบ${round ? ` · รอบนี้ประกาศ ${round.announcedOn ? formatThaiDate(round.announcedOn) : '-'} · ใบอนุญาตหมด ${round.permitExpiry ? formatThaiDate(round.permitExpiry) : '-'}` : ''}</small>${round && currentUser.role === 'admin' ? `<button type="button" class="btn btn-sm btn-outline btn-danger-outline reg-del-round" onclick="deleteRegRound('${round.id}')" title="ลบรอบ ${escapeHtml(regRoundLabel(round))} — คนงานในรอบกลับไปรอขึ้นทะเบียน">ลบรอบนี้</button>` : ''}</div>
+        <div class="panel-header rn-head"><div><h3 style="margin:0;">ขึ้นทะเบียน</h3>
+            <small class="text-muted">เก็บรายชื่อสะสมทั้งปี · รัฐประกาศแล้ว สร้างรอบ มติ ครม. แล้วติ๊กคนใส่เข้ารอบ</small></div>
             ${canEdit ? `<div class="rn-actions"><button type="button" class="btn btn-gold" onclick="openRegWorkerModal()" title="เพิ่มคนงานรอขึ้นทะเบียน">${icon('plus')} เพิ่มคนงานขึ้นทะเบียน</button>
                 <button type="button" class="btn btn-outline" onclick="openRegRoundModal()" title="รัฐประกาศเปิดรับแล้ว: สร้างรอบ มติ ครม. (วันประกาศ + วันใบอนุญาตหมด)">สร้างรอบ มติ ครม.</button></div>` : ''}
         </div>
@@ -4515,7 +4540,7 @@ function renderRegistrationPool() {
                 <option value="">ข้อมูลครบ / ไม่ครบ</option><option value="complete" ${regCompleteFilter === 'complete' ? 'selected' : ''}>เฉพาะข้อมูลครบ</option><option value="incomplete" ${regCompleteFilter === 'incomplete' ? 'selected' : ''}>เฉพาะยังไม่ครบ</option>
             </select>
         </div>
-        <div class="rn-groups">${body || `<p class="rn-empty">${regPoolView === 'pool' ? 'ยังไม่มีคนงานรอขึ้นทะเบียน — กด "เพิ่มคนงานขึ้นทะเบียน"' : 'ไม่มีรายการ'}</p>`}</div>
+        <div class="rn-groups">${body || `<p class="rn-empty">${regPoolView === 'pool' ? 'ยังไม่มีคนงานรอขึ้นทะเบียน — กด "เพิ่มคนงานขึ้นทะเบียน"' : inRound ? 'ยังไม่มีรอบ มติ ครม. ที่เปิดอยู่ — กด "สร้างรอบ มติ ครม."' : 'ไม่มีรายการ'}</p>`}</div>
         ${pickable && regPoolSel.size ? regSelBarHtml(rounds) : ''}
         ${inRound && canEdit ? regStepSelBarHtml(list) : ''}
     </div>`;

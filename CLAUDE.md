@@ -771,3 +771,10 @@ moves). 2+ files → sticky dark bar at the bottom of the list (`markFvMulti`, `
 (worker only: doc type / ไฟล์ที่หมดอายุ / เอกสารปัจจุบัน) and ลบ N ไฟล์ (`can('deleteFiles')`, one confirm, one save, then Storage
 delete). Dragging a selected file drags the whole set (`{ multi: true }` payload → `fvMultiMove`, same rename / expiry rules as
 single moves).
+
+Renewals page = "ต่ออายุ / ขึ้นทะเบียน" (owner picked layout A, 2026-10-30): big switch ต่ออายุ | ขึ้นทะเบียน on top
+(`switchRenewalKind`, `.rn-kind-switch`; ขึ้นทะเบียน = renewalTab `'pool'`, back to ต่ออายุ = last renewal tab, localStorage
+`mw_renewal_last`). Renewal sub-tabs in order ถึงรอบ · กำลังดำเนินการ · เสร็จแล้ว · ตามวันหมดอายุ (= old "ทั้งหมด (ตามกลุ่ม)",
+tab key still `'all'`); the old "รอขึ้นทะเบียน" button / breadcrumb are gone. Registration sub-views (`regPoolView`) are the
+same three: `pool` รอขึ้นทะเบียน · `active` กำลังดำเนินการ (every open มติ ครม. round, one `.reg-round-block` per round —
+announce date, permit expiry, Admin "ลบรอบนี้" — then employer groups) · `done` เสร็จแล้ว. Old `round:<id>` values map to `active`.
