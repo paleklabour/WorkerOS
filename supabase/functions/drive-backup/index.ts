@@ -302,7 +302,10 @@ async function runBackup(sb: SupabaseClient, trigger: string) {
         // เหมือน isWorkerDocFileExpired ในแอป: ตั้งเองว่าหมดอายุ หรือถึงวันหมดอายุของไฟล์ (ยกเว้นลากกลับมาปัจจุบันเอง forceCurrent)
         const expired = f && (f.manualExpired === true || (!f.forceCurrent && f.expiryDate && String(f.expiryDate).slice(0, 10) < today));
         const suffix = expired ? " (หมดอายุ)" : "";
-        want(url, lockedRenewalUrls.has(url) ? heldFolder(fk) : fk,
+        // ไฟล์หมดอายุ → โฟลเดอร์ย่อย "หมดอายุ" ในโฟลเดอร์คนงาน (owner 2026-10-30) — กลับมาปัจจุบันแล้ว รอบถัดไปย้ายกลับเอง
+        const ek = `worker-expired:${w.id}`;
+        if (expired && !folders.has(ek)) addFolder(ek, "หมดอายุ", fk);
+        want(url, lockedRenewalUrls.has(url) ? heldFolder(fk) : expired ? ek : fk,
           `${dateFromPath(p, f?.uploadedAt)}_${WORKER_DOC_LABELS[type] || "เอกสาร"}_${workerTag(w)}${suffix}`, sysFileName(f?.name, p, suffix));
       });
     });
