@@ -15,7 +15,7 @@
         // ตั้งธีมก่อนโหลด CSS/หน้าเว็บ ไม่ให้จอสว่างแวบก่อนเปลี่ยนเป็นมืด — ดู setTheme() ใน app.js
         try { var t = localStorage.getItem("mw_theme"); if (t === "dark" || t === "pink") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
     </script>
-    <link rel="stylesheet" href="styles.css?v=20261030x">
+    <link rel="stylesheet" href="styles.css?v=20261030y">
 </head>
 <body>
     <!-- หน้าโหลดตอนเปิดระบบ (แบบ iOS) — ซ่อนด้วย hideAppSplash() ใน app.js เมื่อบูตเสร็จ -->
@@ -1515,6 +1515,14 @@
                                         <div class="search-box" style="max-width: 100%;">
                                             <svg class="ios-glyph" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle class="fl" cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/></svg>
                                             <input type="text" id="user-customer-search" placeholder="พิมพ์ชื่อบริษัท/นายจ้างเพื่อค้นหา..." autocomplete="off">
+                                        </div>
+                                        <label for="user-link-search" class="user-link-label">บริษัทอื่นที่บัญชีนี้สลับไปดูได้ (เจ้าของเดียวกัน)</label>
+                                        <div class="job-worker-picker">
+                                            <div id="user-link-chips" class="job-worker-chips" style="display:none;"></div>
+                                            <input type="text" id="user-link-search" class="job-worker-search-input"
+                                                placeholder="ค้นหาชื่อบริษัท หรือเลขผู้เสียภาษี..."
+                                                oninput="renderUserLinkChecklist()" autocomplete="off">
+                                            <div id="user-link-checklist" class="job-worker-checklist"></div>
                                         </div>
                                     </div>
                                     <div class="form-group" id="user-pin-group" style="border-top:1px solid #e2e8f0; padding-top:14px; margin-top:6px;">
@@ -3771,6 +3779,6 @@
     </script>
 
     <!-- ตัวเปิดระบบ: หน้าล็อกอินใช้แค่ boot.js — supabase-client.js + app.js (เลข v เดียวกัน) โหลดหลังล็อกอินเท่านั้น -->
-    <script src="boot.js?v=20261030x"></script>
+    <script src="boot.js?v=20261030y"></script>
 </body>
 </html>

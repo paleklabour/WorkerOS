@@ -1101,6 +1101,25 @@
                 if (error) return { status: "error", message: error.message };
                 return { status: "success", rows: (data || []).map((r) => ({ id: r.id, companyName: r.company_name, taxId: r.tax_id })) };
             }
+            // Admin: บริษัทที่บัญชี Client สลับดูได้ (หน้าต่างแก้ไขผู้ใช้)
+            case "listClientLinks": {
+                const { data, error } = await sb.from("client_customer_links").select("customer_id").eq("user_id", payload.userId);
+                if (error) return { status: "error", message: error.message };
+                return { status: "success", customerIds: (data || []).map((r) => r.customer_id) };
+            }
+            case "saveClientLinks": {
+                const ids = payload.customerIds || [];
+                let q = sb.from("client_customer_links").delete().eq("user_id", payload.userId);
+                if (ids.length) q = q.not("customer_id", "in", `(${ids.map((id) => `"${id}"`).join(",")})`);
+                const { error: delErr } = await q;
+                if (delErr) return { status: "error", message: delErr.message };
+                if (ids.length) {
+                    const { error } = await sb.from("client_customer_links")
+                        .upsert(ids.map((id) => ({ user_id: payload.userId, customer_id: id })), { onConflict: "user_id,customer_id", ignoreDuplicates: true });
+                    if (error) return { status: "error", message: error.message };
+                }
+                return { status: "success" };
+            }
             case "clientSwitchCustomer": {
                 const { error } = await sb.rpc("client_switch_customer", { p_customer_id: payload.customerId });
                 if (error) return { status: "error", message: error.message };

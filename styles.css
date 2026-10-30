@@ -4894,6 +4894,11 @@ tr.is-voided-row td {
     color: var(--navy-dark);
 }
 
+.user-link-label {
+    display: block;
+    margin-top: 14px;
+}
+
 .cp-company-switch {
     display: block;
     margin-top: 8px;

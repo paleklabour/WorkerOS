@@ -532,8 +532,8 @@ One client login, several companies (owner 2026-10-30, ปัตตานีไ�
 `client_customer_links` (user_id, customer_id; admin writes, RLS) lists the companies an account may switch to;
 `profiles.customer_id` stays "the company being viewed", so `my_customer_id()` and every RLS rule / client RPC work unchanged.
 Portal head shows a select when there are 2+ (`loadClientCompanies` → RPC `client_my_companies`); picking one calls
-`client_switch_customer` (checks the link) and reloads the page. Bills/receipts stay per company. No admin UI yet — links are
-added by SQL (migration `20261030023253_client_multi_company.sql` linked all 3 existing client accounts of that group to all 3).
+`client_switch_customer` (checks the link) and reloads the page. Bills/receipts stay per company. Admin sets the links in the user form (client role: checklist "บริษัทอื่นที่บัญชีนี้สลับไปดูได้",
+`userLinkDraft`, saved by `saveUserLinks` = main company + ticked ones; none ticked = links cleared) (migration `20261030023253_client_multi_company.sql` linked all 3 existing client accounts of that group to all 3).
 
 Client exit requests (owner 2026-10-21): portal "คนงานของฉัน" row button "แจ้งออก" → pop-up of the worker's details (no
 reason field, owner) → RPC `client_request_exit` opens a "แจ้งออกคนงานต่างด้าว" job, status รอดำเนินการ, `jobs.opened_by_client`
